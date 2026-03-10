@@ -11,6 +11,9 @@ import CompatibilityScreen from '../screens/CompatibilityScreen';
 import ChatScreen from '../screens/ChatScreen';
 import ReportsScreen from '../screens/ReportsScreen';
 import ProfileScreen from '../screens/ProfileScreen';
+import JournalHistoryScreen from '../screens/JournalHistoryScreen';
+import NotificationSettingsScreen from '../screens/NotificationSettingsScreen';
+import AuthScreen from '../screens/AuthScreen';
 import TabBar from '../components/TabBar';
 
 const Stack = createNativeStackNavigator();
@@ -39,6 +42,9 @@ export default function AppNavigator() {
       <Stack.Screen name="OnboardingFlow" component={OnboardingFlowScreen} />
       <Stack.Screen name="Main" component={MainTabs} />
       <Stack.Screen name="Profile" component={ProfileScreen} />
+      <Stack.Screen name="JournalHistory" component={JournalHistoryScreen} />
+      <Stack.Screen name="NotificationSettings" component={NotificationSettingsScreen} />
+      <Stack.Screen name="Auth" component={AuthScreen} />
     </Stack.Navigator>
   );
 }

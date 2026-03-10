@@ -1,17 +1,29 @@
-import React from 'react';
-import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
+import React, { useState, useEffect } from 'react';
+import { View, Text, TouchableOpacity, StyleSheet, Keyboard, Platform } from 'react-native';
 import { T, FONTS } from '../constants/theme';
 
 const TABS = [
   { icon: '◎', label: 'Today' },
-  { icon: '✧', label: 'Ask AI' },
-  { icon: '✦', label: 'Chart' },
+  { icon: '☽', label: 'Ask' },
+  { icon: '◉', label: 'Chart' },
   { icon: '♡', label: 'Match' },
-  { icon: '☽', label: 'Sky' },
+  { icon: '✧', label: 'Sky' },
   { icon: '◑', label: 'Reports' },
 ];
 
 export default function TabBar({ state, navigation }) {
+  const [keyboardVisible, setKeyboardVisible] = useState(false);
+
+  useEffect(() => {
+    const showEvent = Platform.OS === 'ios' ? 'keyboardWillShow' : 'keyboardDidShow';
+    const hideEvent = Platform.OS === 'ios' ? 'keyboardWillHide' : 'keyboardDidHide';
+    const subShow = Keyboard.addListener(showEvent, () => setKeyboardVisible(true));
+    const subHide = Keyboard.addListener(hideEvent, () => setKeyboardVisible(false));
+    return () => { subShow.remove(); subHide.remove(); };
+  }, []);
+
+  if (keyboardVisible) return null;
+
   return (
     <View style={styles.container}>
       {state.routes.map((route, i) => {

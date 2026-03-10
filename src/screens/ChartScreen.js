@@ -6,6 +6,9 @@ import ChartWheel from '../components/ChartWheel';
 import { useUserProfile } from '../contexts/UserProfileContext';
 import { HOUSE_THEMES } from '../constants/AstrologyCore';
 import { generatePlacementDeepDive, generateAspectDeepDive, generateHouseDeepDive } from '../services/geminiService';
+import { haptic } from '../services/hapticService';
+import { trackEvent } from '../services/achievementService';
+import { awardXP } from '../services/xpService';
 
 const PLANET_GLYPHS = {
   Sun: '☉', Moon: '☽', Mercury: '☿', Venus: '♀', Mars: '♂',
@@ -50,6 +53,9 @@ export default function ChartScreen() {
         planet.name, p?.sign || planet.sign, p?.house || 1, userProfile?.id
       );
       setDeepDive({ ...result, planetName: planet.name, sign: p?.sign, house: p?.house });
+      haptic.light();
+      trackEvent('deep_dive').catch(() => {});
+      awardXP(userProfile?.id || 'default', 'deep_dive').catch(() => {});
     } catch (e) {
       console.error('Deep dive error:', e);
       setDeepDive({ hook: 'Unable to load insight right now.', planetName: planet.name });
@@ -68,6 +74,9 @@ export default function ChartScreen() {
         aspect.planet1, aspect.planet2, aspect.type, aspect.orb, userProfile?.id
       );
       setDeepDive({ ...result, planet1: aspect.planet1, planet2: aspect.planet2, aspectType: aspect.type, orb: aspect.orb, color: aspect.color });
+      haptic.light();
+      trackEvent('deep_dive').catch(() => {});
+      awardXP(userProfile?.id || 'default', 'deep_dive').catch(() => {});
     } catch (e) {
       console.error('Aspect deep dive error:', e);
       setDeepDive({ hook: 'Unable to load insight right now.', planet1: aspect.planet1, planet2: aspect.planet2, aspectType: aspect.type });
@@ -89,6 +98,9 @@ export default function ChartScreen() {
         houseNum, house.sign, planetsInHouse, userProfile?.id
       );
       setDeepDive({ ...result, houseNumber: house.number, sign: house.sign, theme: house.theme, planetsInHouse });
+      haptic.light();
+      trackEvent('deep_dive').catch(() => {});
+      awardXP(userProfile?.id || 'default', 'deep_dive').catch(() => {});
     } catch (e) {
       console.error('House deep dive error:', e);
       setDeepDive({ hook: 'Unable to load insight right now.', houseNumber: house.number, sign: house.sign });
@@ -460,7 +472,7 @@ const styles = StyleSheet.create({
   plrowHouse: { fontSize: 10, color: '#C0B8A8' },
   plrowArrow: { fontSize: 16, color: '#D8D0C0', marginLeft: 4 },
   // Deep Dive Modal
-  ddHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', padding: 20, paddingTop: 60, borderBottomWidth: 1, borderBottomColor: '#EDE6D8' },
+  ddHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', padding: 20, paddingTop: 20, borderBottomWidth: 1, borderBottomColor: '#EDE6D8' },
   ddTitle: { fontFamily: FONTS.serif, fontSize: 22, color: T.navy },
   ddHouseLabel: { fontSize: 10, fontFamily: FONTS.sansSemiBold, letterSpacing: 2, color: T.stone, marginBottom: 8 },
   ddHook: { fontFamily: FONTS.serif, fontSize: 20, color: T.navy, lineHeight: 28, marginBottom: 16 },

@@ -5,6 +5,7 @@ import { T, FONTS } from '../constants/theme';
 import { useUserProfile } from '../contexts/UserProfileContext';
 import { getTransitPlanets } from '../services/astrologyService';
 import { generateTransitInsight } from '../services/geminiService';
+import { trackEvent } from '../services/achievementService';
 
 const PLANET_GLYPHS = {
   Sun: '☉', Moon: '☽', Mercury: '☿', Venus: '♀', Mars: '♂',
@@ -39,6 +40,7 @@ export default function TransitsScreen({ navigation }) {
   useEffect(() => {
     if (!userProfile?.chart) { setLoading(false); return; }
     buildTransits();
+    trackEvent('sky_tab_open').catch(() => {});
   }, [userProfile]);
 
   const fetchAiInsight = useCallback(async (transit, index) => {
@@ -292,7 +294,7 @@ export default function TransitsScreen({ navigation }) {
                       <Text style={styles.tbodyDur}>{t.duration}</Text>
                       <TouchableOpacity style={styles.tbodyAi}
                         onPress={() => navigation.navigate('AskAI', { initialMessage: `Tell me about the transit ${t.aspect} happening right now. What does it mean for me?` })}>
-                        <Text style={styles.tbodyAiText}>Ask AI ✦</Text>
+                        <Text style={styles.tbodyAiText}>Ask Celestia ☽</Text>
                       </TouchableOpacity>
                     </View>
                   </View>

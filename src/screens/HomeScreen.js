@@ -1,15 +1,28 @@
-import React, { useEffect, useState, useRef } from 'react';
+import React, { useEffect, useState, useRef, useCallback } from 'react';
 import {
   View, Text, ScrollView, TouchableOpacity, StyleSheet,
-  ActivityIndicator, Share, Modal, TextInput, Alert, Dimensions, Platform, StatusBar
+  ActivityIndicator, Share, Modal, TextInput, Alert, Dimensions, Platform, StatusBar, Animated
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { T, FONTS } from '../constants/theme';
 import { useUserProfile } from '../contexts/UserProfileContext';
-import { getMoonDataForDate, calculateCosmicEnergy, getTransitPlanets } from '../services/astrologyService';
+import { getMoonDataForDate, calculateCosmicEnergy, getTransitPlanets, getActiveCosmicWindows, isMercuryRetrograde } from '../services/astrologyService';
 import { fetchExtendedForecast, generateThemeAnalysis } from '../services/geminiService';
 import { ForecastRepository } from '../services/database/rep_forecasts';
-import { loadObject, saveObject } from '../services/storage';
+import { loadObject, saveObject, loadString, saveString, loadBoolean, saveBoolean, StorageKeys } from '../services/storage';
+import { haptic } from '../services/hapticService';
+import { recordDailyCheckIn, getStreakEmoji, getMilestoneMessage } from '../services/streakService';
+import { trackEvent } from '../services/achievementService';
+import { awardXP, getXPStatus } from '../services/xpService';
+import { getLevelInfo } from '../constants/levels';
+import WelcomeBackModal from '../components/WelcomeBackModal';
+import BadgeUnlockModal from '../components/BadgeUnlockModal';
+import { scheduleAllNotifications, hasNotificationPermission, requestNotificationPermission } from '../services/notificationService';
+import { refillCosmicLinesIfNeeded, getCosmicLineForDate } from '../services/cosmicLineService';
+import NotificationPermissionModal from '../components/NotificationPermissionModal';
+import { JournalRepository } from '../services/database/rep_journal';
+import DailyShareCard from '../components/DailyShareCard';
+import { useShareCard } from '../components/ShareCard';
 
 const { width: SCREEN_W } = Dimensions.get('window');
 
@@ -60,7 +73,7 @@ const getDateForTab = (tab) => {
   return d;
 };
 
-export default function HomeScreen({ navigation }) {
+export default function HomeScreen({ navigation, route }) {
   const { userProfile, isLoading: profileLoading } = useUserProfile();
   const [activeTab, setActiveTab] = useState('today');
   const [moonData, setMoonData] = useState(null);
@@ -83,19 +96,165 @@ export default function HomeScreen({ navigation }) {
   const [journalText, setJournalText] = useState('');
   const [journalSaved, setJournalSaved] = useState(false);
 
+  // Cosmic windows & retrograde
+  const [cosmicWindows, setCosmicWindows] = useState([]);
+  const [mercuryRx, setMercuryRx] = useState(false);
+  const [cosmicWhisper, setCosmicWhisper] = useState(null);
+  const [todayCosmicLine, setTodayCosmicLine] = useState(null);
+  const [showStreakModal, setShowStreakModal] = useState(false);
+
+  // Engagement
+  const [streakData, setStreakData] = useState(null);
+  const [xpData, setXpData] = useState(null);
+  const [showWelcomeBack, setShowWelcomeBack] = useState(false);
+  const [pendingBadge, setPendingBadge] = useState(null);
+  const streakAnim = useRef(new Animated.Value(1)).current;
+  const xpFloatAnim = useRef(new Animated.Value(0)).current;
+  const xpFloatOpacity = useRef(new Animated.Value(0)).current;
+  const [xpGainText, setXpGainText] = useState('');
+
+  const [showNotifModal, setShowNotifModal] = useState(false);
+
   const tabScrollRef = useRef(null);
+  const { cardRef: shareCardRef, captureAndShare } = useShareCard();
 
   const today = new Date();
   const name = userProfile?.name || 'Stargazer';
   const firstName = name.split(' ')[0];
 
+  // XP float animation helper
+  const showXPGain = useCallback((amount) => {
+    setXpGainText(`+${amount} Stardust`);
+    xpFloatAnim.setValue(0);
+    xpFloatOpacity.setValue(1);
+    Animated.parallel([
+      Animated.timing(xpFloatAnim, { toValue: -30, duration: 1200, useNativeDriver: true }),
+      Animated.timing(xpFloatOpacity, { toValue: 0, duration: 1200, useNativeDriver: true }),
+    ]).start();
+  }, []);
+
+  // Process badge unlocks
+  const processBadges = useCallback((badges) => {
+    if (badges?.length > 0) {
+      setPendingBadge(badges[0].badge);
+      haptic.success();
+    }
+  }, []);
+
   // Load base data on mount
   useEffect(() => {
     if (!userProfile?.chart) return;
-    try { setMoonData(getMoonDataForDate(today)); } catch (e) { console.error(e); }
+    let moon = null;
+    try { moon = getMoonDataForDate(today); setMoonData(moon); } catch (e) { console.error(e); }
     try { setTransitPlanets(getTransitPlanets(today)); } catch (e) { console.error(e); }
     loadJournalEntry();
+
+    // Cosmic windows & retrograde
+    try {
+      const windows = getActiveCosmicWindows(userProfile.chart, today);
+      setCosmicWindows(windows.slice(0, 3));
+      setMercuryRx(isMercuryRetrograde(today));
+    } catch (e) { console.error('Cosmic windows error:', e); }
+
+    // Cosmic whisper (10% chance)
+    if (Math.random() < 0.1) {
+      const whispers = [
+        'Your intuition is unusually sharp today. Trust the first thought.',
+        'Someone is thinking about you right now. The cosmos confirms it.',
+        'A door you thought was closed is quietly reopening.',
+        'The universe is rearranging things in your favor. Be patient.',
+        'Your energy is magnetic today. Others feel it before you do.',
+        'A creative breakthrough is closer than you think.',
+        'The cosmos whispers: Let go of what no longer serves you.',
+        'Something beautiful is being built in the background of your life.',
+      ];
+      setCosmicWhisper(whispers[Math.floor(Math.random() * whispers.length)]);
+    }
+
+    // Streak + engagement
+    (async () => {
+      try {
+        const profileId = userProfile.id || 'default';
+        // Record check-in
+        const streak = await recordDailyCheckIn(profileId);
+        setStreakData(streak);
+
+        // Show welcome back if returning after 2+ days
+        if (streak?.daysAbsent >= 2 && streak?.isNew) {
+          setShowWelcomeBack(true);
+        }
+
+        // Streak animation on new check-in
+        if (streak?.isNew && !streak?.streakBroken) {
+          haptic.success();
+          Animated.sequence([
+            Animated.spring(streakAnim, { toValue: 1.3, tension: 80, friction: 4, useNativeDriver: true }),
+            Animated.spring(streakAnim, { toValue: 1, tension: 60, friction: 6, useNativeDriver: true }),
+          ]).start();
+        }
+
+        // Award XP for daily check-in
+        if (streak?.isNew) {
+          const xp = await awardXP(profileId, 'daily_check_in');
+          setXpData(xp?.levelInfo || null);
+          if (xp) showXPGain(xp.amount);
+        } else {
+          const xpStatus = await getXPStatus(profileId);
+          setXpData(xpStatus?.levelInfo || null);
+        }
+
+        // Check streak badges
+        if (streak?.isNew) {
+          const badges = await trackEvent('streak_update', { current_streak: streak.current_streak });
+          processBadges(badges);
+        }
+
+        // Check moon phase badge
+        if (moon) {
+          const moonBadges = await trackEvent('moon_phase', { phaseName: moon.phaseName });
+          if (moonBadges?.length > 0 && !pendingBadge) processBadges(moonBadges);
+        }
+
+        // Check Mercury retrograde badge
+        const mercury = getTransitPlanets(today)?.find(p => p.name === 'Mercury');
+        if (mercury?.isRetrograde) {
+          const rxBadges = await trackEvent('mercury_retrograde');
+          if (rxBadges?.length > 0 && !pendingBadge) processBadges(rxBadges);
+        }
+
+        // Session counting + notification soft-ask (after 3rd session)
+        const todayKey = today.toISOString().split('T')[0];
+        const lastSessionDate = await loadString(StorageKeys.SESSION_COUNT + '_date');
+        if (lastSessionDate !== todayKey) {
+          const count = parseInt(await loadString(StorageKeys.SESSION_COUNT) || '0', 10) + 1;
+          await saveString(StorageKeys.SESSION_COUNT, String(count));
+          await saveString(StorageKeys.SESSION_COUNT + '_date', todayKey);
+
+          if (count >= 3) {
+            const asked = await loadBoolean(StorageKeys.NOTIFICATION_ASKED);
+            const hasPerm = await hasNotificationPermission();
+            if (!asked && !hasPerm) {
+              setTimeout(() => setShowNotifModal(true), 2000);
+            }
+          }
+        }
+      } catch (e) {
+        console.error('Engagement init error:', e);
+      }
+    })();
   }, [userProfile]);
+
+  // Handle incoming navigation params (from notification deep-links)
+  useEffect(() => {
+    if (route?.params?.openJournal) {
+      setShowJournal(true);
+      navigation.setParams({ openJournal: undefined });
+    }
+    if (route?.params?.tab) {
+      setActiveTab(route.params.tab);
+      navigation.setParams({ tab: undefined });
+    }
+  }, [route?.params]);
 
   // Load forecast + energy whenever tab changes
   useEffect(() => {
@@ -122,6 +281,21 @@ export default function HomeScreen({ navigation }) {
       };
       const data = await fetchExtendedForecast(userProfile, tab, planetaryData);
       setForecast(data);
+      // Schedule notifications with latest forecast + full astrology data
+      if (tab === 'today') {
+        scheduleAllNotifications(userProfile, data, streakData, moonData, energyData, cosmicWindows).catch(() => {});
+        // Load today's cosmic line for the alert card
+        const todayStr = new Date().toISOString().split('T')[0];
+        getCosmicLineForDate(todayStr).then(line => setTodayCosmicLine(line)).catch(() => {});
+        // Refill AI cosmic lines buffer (fire-and-forget, re-schedules if new lines generated)
+        refillCosmicLinesIfNeeded(userProfile).then(generated => {
+          if (generated) {
+            scheduleAllNotifications(userProfile, data, streakData, moonData, energyData, cosmicWindows).catch(() => {});
+            // Also refresh today's line in case it was just generated
+            getCosmicLineForDate(todayStr).then(line => setTodayCosmicLine(line)).catch(() => {});
+          }
+        }).catch(e => console.warn('[CosmicLines] Refill failed:', e));
+      }
     } catch (e) {
       console.error('Forecast error:', e);
     } finally {
@@ -139,21 +313,42 @@ export default function HomeScreen({ navigation }) {
 
   const saveJournalEntry = async () => {
     if (!journalText.trim()) return;
+    haptic.success();
     try {
+      const dateStr = today.toISOString().split('T')[0];
+      const profileId = userProfile?.id || 'default';
+
+      // Save to AsyncStorage (legacy)
       const entries = await loadObject(JOURNAL_KEY) || {};
-      entries[today.toISOString().split('T')[0]] = journalText.trim();
+      entries[dateStr] = journalText.trim();
       await saveObject(JOURNAL_KEY, entries);
+
+      // Save to SQLite (new)
+      await JournalRepository.saveEntry(profileId, dateStr, journalText.trim(), forecast?.mantra || '');
+
       setJournalSaved(true);
       setShowJournal(false);
+
+      // XP for journal
+      const xp = await awardXP(profileId, 'journal_entry');
+      if (xp) showXPGain(xp.amount);
     } catch (e) { console.error(e); }
   };
 
   const handleShare = async () => {
+    haptic.medium();
     const sunSign = userProfile?.chart?.planets?.find(p => p.name === 'Sun')?.sign || '';
     try {
-      await Share.share({
+      const result = await Share.share({
         message: `${forecast?.header || 'Daily Cosmic Reading'}\n\n${forecast?.mantra ? `"${forecast.mantra}"\n\n` : ''}${forecast?.detailedHoroscope || ''}\n\n${forecast?.viralInsight ? `✦ ${forecast.viralInsight}\n\n` : ''}— Celestia ${sunSign ? `(${sunSign} Sun)` : ''}`,
       });
+      if (result.action === Share.sharedAction) {
+        const profileId = userProfile?.id || 'default';
+        const badges = await trackEvent('share');
+        processBadges(badges);
+        const xp = await awardXP(profileId, 'share');
+        if (xp) showXPGain(xp.amount);
+      }
     } catch (e) {}
   };
 
@@ -225,10 +420,23 @@ export default function HomeScreen({ navigation }) {
           <View style={styles.heroGlow} />
           <Text style={styles.greeting}>{getTimeOfDay()}</Text>
           <View style={styles.nameRow}>
-            <Text style={styles.heroName}>{firstName}</Text>
-            <TouchableOpacity style={styles.avatar} activeOpacity={0.8}
-              onPress={() => navigation.navigate('Profile')}>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
+              <Text style={styles.heroName}>{firstName}</Text>
+              {streakData && streakData.current_streak > 0 && (
+                <TouchableOpacity activeOpacity={0.8} onPress={() => { haptic.light(); setShowStreakModal(true); }}>
+                  <Animated.View style={[styles.streakBadge, { transform: [{ scale: streakAnim }] }]}>
+                    <Text style={styles.streakBadgeEmoji}>{getStreakEmoji(streakData.current_streak)}</Text>
+                    <Text style={styles.streakBadgeNum}>{streakData.current_streak}</Text>
+                  </Animated.View>
+                </TouchableOpacity>
+              )}
+            </View>
+            <TouchableOpacity style={[styles.avatar, xpData && { borderWidth: 0 }]} activeOpacity={0.8}
+              onPress={() => { haptic.light(); navigation.navigate('Profile'); }}>
               <Text style={styles.avatarText}>{firstName[0]?.toUpperCase() || '✦'}</Text>
+              {xpData && (
+                <View style={[styles.avatarRing, { borderColor: xpData.levelInfo?.current?.ringColor || 'rgba(200,168,75,0.3)' }]} />
+              )}
             </TouchableOpacity>
           </View>
 
@@ -249,7 +457,7 @@ export default function HomeScreen({ navigation }) {
           {PERIOD_TABS.map((tab) => (
             <TouchableOpacity key={tab.key}
               style={[styles.periodTab, activeTab === tab.key && styles.periodTabOn]}
-              onPress={() => setActiveTab(tab.key)} activeOpacity={0.7}>
+              onPress={() => { haptic.selection(); setActiveTab(tab.key); }} activeOpacity={0.7}>
               <Text style={[styles.periodTabText, activeTab === tab.key && styles.periodTabTextOn]}>
                 {tab.label}
               </Text>
@@ -258,6 +466,52 @@ export default function HomeScreen({ navigation }) {
         </ScrollView>
 
         <View style={styles.content}>
+          {/* ── MERCURY RETROGRADE BANNER ── */}
+          {mercuryRx && (
+            <TouchableOpacity style={styles.rxBanner} activeOpacity={0.8}
+              onPress={() => navigation.navigate('Sky')}>
+              <Text style={styles.rxIcon}>☿</Text>
+              <View style={{ flex: 1 }}>
+                <Text style={styles.rxTitle}>Mercury Retrograde Active</Text>
+                <Text style={styles.rxSub}>Communication and tech may be disrupted. Tap to see details.</Text>
+              </View>
+              <Text style={styles.rxArrow}>→</Text>
+            </TouchableOpacity>
+          )}
+
+          {/* ── TODAY'S COSMIC ALERT (matches notification content) ── */}
+          {todayCosmicLine && activeTab === 'today' && (
+            <View style={styles.cosmicAlertCard}>
+              <View style={styles.cosmicAlertDot} />
+              <View style={{ flex: 1 }}>
+                <Text style={styles.cosmicAlertTitle}>{todayCosmicLine.title}</Text>
+                <Text style={styles.cosmicAlertBody}>{todayCosmicLine.body}</Text>
+              </View>
+            </View>
+          )}
+
+          {/* ── COSMIC WINDOWS ── */}
+          {cosmicWindows.length > 0 && (
+            <View style={styles.windowCard}>
+              <Text style={styles.windowLabel}>COSMIC WINDOW</Text>
+              {cosmicWindows.slice(0, 2).map((w, i) => (
+                <View key={i} style={styles.windowRow}>
+                  <View style={[styles.windowDot, w.significance === 'exact' && { backgroundColor: '#E2C46A' }]} />
+                  <Text style={styles.windowText}>{w.description}</Text>
+                  {w.significance === 'exact' && <Text style={styles.windowExact}>EXACT</Text>}
+                </View>
+              ))}
+            </View>
+          )}
+
+          {/* ── COSMIC WHISPER (Easter egg) ── */}
+          {cosmicWhisper && (
+            <View style={styles.whisperCard}>
+              <Text style={styles.whisperLabel}>COSMIC WHISPER</Text>
+              <Text style={styles.whisperText}>✧ {cosmicWhisper}</Text>
+            </View>
+          )}
+
           {/* ── FORECAST HERO CARD ── */}
           <View style={styles.dailyCard}>
             <LinearGradient colors={['#171428', '#14122A', '#0F1220']}
@@ -327,11 +581,19 @@ export default function HomeScreen({ navigation }) {
                     </View>
                   )}
 
-                  {/* Viral Insight (expanded) */}
+                  {/* Viral Insight (expanded) — tap to share as visual card */}
                   {showFullReading && forecast.viralInsight && (
-                    <View style={styles.viralBox}>
+                    <TouchableOpacity style={styles.viralBox} activeOpacity={0.7}
+                      onPress={() => {
+                        haptic.medium();
+                        const sunSign = userProfile?.chart?.planets?.find(p => p.name === 'Sun')?.sign || '';
+                        captureAndShare(`✦ ${forecast.viralInsight}\n\n— Celestia (${sunSign} Sun)`);
+                        trackEvent('share').catch(() => {});
+                        awardXP(userProfile?.id || 'default', 'share').catch(() => {});
+                      }}>
                       <Text style={styles.viralText}>✦ {forecast.viralInsight}</Text>
-                    </View>
+                      <Text style={{ fontSize: 10, color: 'rgba(250,248,242,0.4)', marginTop: 6 }}>Tap to share ↗</Text>
+                    </TouchableOpacity>
                   )}
 
                   {/* Buttons */}
@@ -354,7 +616,7 @@ export default function HomeScreen({ navigation }) {
             {energyDisplay.map((e, i) => (
               <TouchableOpacity key={i} style={[styles.ecard, { backgroundColor: e.bgColor }]}
                 activeOpacity={0.7}
-                onPress={() => setEnergyModal(e)}>
+                onPress={() => { haptic.light(); setEnergyModal(e); }}>
                 <Text style={[styles.ecardIcon, { color: e.color }]}>{e.icon}</Text>
                 <Text style={styles.ecardTag}>{e.tag}</Text>
                 <View style={styles.ecardBarBg}>
@@ -437,10 +699,16 @@ export default function HomeScreen({ navigation }) {
                   ? `"${forecast.mantra}"`
                   : '"What is the universe trying to teach you right now?"'}
               </Text>
-              <TouchableOpacity style={styles.jcardBtn} activeOpacity={0.7}
-                onPress={() => setShowJournal(true)}>
-                <Text style={styles.jcardBtnText}>{journalSaved ? '📖 View Entry' : '✍ Write Today\'s Entry'}</Text>
-              </TouchableOpacity>
+              <View style={{ flexDirection: 'row', gap: 8 }}>
+                <TouchableOpacity style={[styles.jcardBtn, { flex: 1 }]} activeOpacity={0.7}
+                  onPress={() => setShowJournal(true)}>
+                  <Text style={styles.jcardBtnText}>{journalSaved ? '📖 View Entry' : '✍ Write Today\'s Entry'}</Text>
+                </TouchableOpacity>
+                <TouchableOpacity style={[styles.jcardBtn, { paddingHorizontal: 14 }]} activeOpacity={0.7}
+                  onPress={() => navigation.navigate('JournalHistory')}>
+                  <Text style={[styles.jcardBtnText, { color: T.gold }]}>All →</Text>
+                </TouchableOpacity>
+              </View>
             </View>
           )}
 
@@ -448,12 +716,12 @@ export default function HomeScreen({ navigation }) {
           <View style={styles.quickRow}>
             <TouchableOpacity style={styles.quickCard} activeOpacity={0.7}
               onPress={() => navigation.navigate('Chart')}>
-              <Text style={styles.quickIcon}>✦</Text>
+              <Text style={styles.quickIcon}>◎</Text>
               <Text style={styles.quickLabel}>Explore Chart</Text>
             </TouchableOpacity>
             <TouchableOpacity style={styles.quickCard} activeOpacity={0.7}
               onPress={() => navigation.navigate('AskAI')}>
-              <Text style={styles.quickIcon}>✧</Text>
+              <Text style={styles.quickIcon}>☽</Text>
               <Text style={styles.quickLabel}>Ask Celestia</Text>
             </TouchableOpacity>
             <TouchableOpacity style={styles.quickCard} activeOpacity={0.7}
@@ -580,6 +848,96 @@ export default function HomeScreen({ navigation }) {
         </View>
       </Modal>
 
+      {/* ── OFFSCREEN SHARE CARD (for capture) ── */}
+      <View style={{ position: 'absolute', left: -9999 }}>
+        <DailyShareCard
+          innerRef={shareCardRef}
+          sunSign={userProfile?.chart?.planets?.find(p => p.name === 'Sun')?.sign || ''}
+          viralInsight={forecast?.viralInsight}
+          mantra={forecast?.mantra}
+          date={formatDateHeader(getDateForTab(activeTab))}
+        />
+      </View>
+
+      {/* ── XP FLOAT ANIMATION ── */}
+      {xpGainText ? (
+        <Animated.View pointerEvents="none" style={[styles.xpFloat, { opacity: xpFloatOpacity, transform: [{ translateY: xpFloatAnim }] }]}>
+          <Text style={styles.xpFloatText}>{xpGainText}</Text>
+        </Animated.View>
+      ) : null}
+
+      {/* ── WELCOME BACK MODAL ── */}
+      <WelcomeBackModal
+        visible={showWelcomeBack}
+        onDismiss={() => setShowWelcomeBack(false)}
+        streakData={streakData}
+        moonData={moonData}
+      />
+
+      {/* ── BADGE UNLOCK MODAL ── */}
+      <BadgeUnlockModal
+        visible={!!pendingBadge}
+        badge={pendingBadge}
+        onDismiss={() => setPendingBadge(null)}
+      />
+
+      {/* ── STREAK DETAIL MODAL ── */}
+      <Modal visible={showStreakModal} animationType="slide" transparent>
+        <TouchableOpacity style={styles.streakOverlay} activeOpacity={1} onPress={() => setShowStreakModal(false)}>
+          <View style={styles.streakSheet} onStartShouldSetResponder={() => true}>
+            <View style={styles.streakHandle} />
+            <View style={styles.streakCardsRow}>
+              <View style={styles.streakCard}>
+                <Text style={styles.streakCardEmoji}>{getStreakEmoji(streakData?.current_streak || 0)}</Text>
+                <Text style={styles.streakCardNum}>{streakData?.current_streak || 0}</Text>
+                <Text style={styles.streakCardLbl}>Day Streak</Text>
+              </View>
+              <View style={styles.streakCard}>
+                <Text style={styles.streakCardEmoji}>🏆</Text>
+                <Text style={styles.streakCardNum}>{streakData?.longest_streak || 0}</Text>
+                <Text style={styles.streakCardLbl}>Longest</Text>
+              </View>
+              <View style={styles.streakCard}>
+                <Text style={styles.streakCardEmoji}>📅</Text>
+                <Text style={styles.streakCardNum}>{streakData?.total_check_ins || 0}</Text>
+                <Text style={styles.streakCardLbl}>Total Days</Text>
+              </View>
+            </View>
+            {(() => {
+              const current = streakData?.current_streak || 0;
+              const next = [3, 7, 14, 30, 50, 100, 365].find(v => v > current);
+              if (!next) return null;
+              return (
+                <View style={styles.streakNextBox}>
+                  <Text style={styles.streakNextLbl}>Next: {getMilestoneMessage(next)}</Text>
+                  <View style={styles.streakNextBarBg}>
+                    <View style={[styles.streakNextBarFill, { width: `${(current / next) * 100}%` }]} />
+                  </View>
+                  <Text style={styles.streakNextDays}>{next - current} days to go</Text>
+                </View>
+              );
+            })()}
+          </View>
+        </TouchableOpacity>
+      </Modal>
+
+      {/* ── NOTIFICATION PERMISSION MODAL ── */}
+      <NotificationPermissionModal
+        visible={showNotifModal}
+        onEnable={async () => {
+          setShowNotifModal(false);
+          await saveBoolean(StorageKeys.NOTIFICATION_ASKED, true);
+          const granted = await requestNotificationPermission();
+          if (granted) {
+            scheduleAllNotifications(userProfile, forecast, streakData, moonData, energyData, cosmicWindows).catch(() => {});
+          }
+        }}
+        onDismiss={async () => {
+          setShowNotifModal(false);
+          await saveBoolean(StorageKeys.NOTIFICATION_ASKED, true);
+        }}
+      />
+
       {/* ── JOURNAL MODAL ── */}
       <Modal visible={showJournal} animationType="slide" presentationStyle="pageSheet">
         <View style={styles.journalModal}>
@@ -615,8 +973,12 @@ const styles = StyleSheet.create({
   greeting: { fontSize: 11, letterSpacing: 1.5, color: 'rgba(250,248,242,0.36)', marginBottom: 5 },
   nameRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
   heroName: { fontFamily: FONTS.serif, fontSize: 30, color: T.cream },
-  avatar: { width: 44, height: 44, borderRadius: 22, backgroundColor: 'rgba(200,168,75,0.15)', alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: 'rgba(200,168,75,0.3)' },
+  avatar: { width: 44, height: 44, borderRadius: 22, backgroundColor: 'rgba(200,168,75,0.15)', alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: 'rgba(200,168,75,0.3)', position: 'relative' },
   avatarText: { fontFamily: FONTS.serif, fontSize: 20, color: T.gold },
+  avatarRing: { position: 'absolute', width: 50, height: 50, borderRadius: 25, borderWidth: 2, top: -3, left: -3 },
+  streakBadge: { flexDirection: 'row', alignItems: 'center', gap: 4, backgroundColor: 'rgba(200,168,75,0.15)', borderWidth: 1, borderColor: 'rgba(200,168,75,0.3)', borderRadius: 100, paddingVertical: 4, paddingHorizontal: 10 },
+  streakBadgeEmoji: { fontSize: 14 },
+  streakBadgeNum: { fontFamily: FONTS.sansSemiBold, fontSize: 13, color: T.gold },
   moonStrip: { marginTop: 16, backgroundColor: 'rgba(255,255,255,0.05)', borderWidth: 1, borderColor: 'rgba(255,255,255,0.07)', borderRadius: 12, padding: 10, paddingHorizontal: 14, flexDirection: 'row', alignItems: 'center', gap: 9 },
   moonText: { fontSize: 12, color: 'rgba(250,248,242,0.5)', flex: 1 },
 
@@ -747,7 +1109,7 @@ const styles = StyleSheet.create({
 
   // Journal modal
   journalModal: { flex: 1, backgroundColor: T.cream },
-  journalModalHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', padding: 20, paddingTop: 60, borderBottomWidth: 1, borderBottomColor: '#EDE6D8' },
+  journalModalHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', padding: 20, paddingTop: 20, borderBottomWidth: 1, borderBottomColor: '#EDE6D8' },
   journalModalTitle: { fontFamily: FONTS.serif, fontSize: 22, color: T.navy },
   journalModalBody: { flex: 1, padding: 20 },
   journalDateLabel: { fontSize: 10, fontFamily: FONTS.sansSemiBold, letterSpacing: 2, color: T.stone, marginBottom: 8 },
@@ -755,4 +1117,49 @@ const styles = StyleSheet.create({
   journalInput: { backgroundColor: 'white', borderRadius: 16, padding: 16, fontSize: 15, color: T.ink, borderWidth: 1, borderColor: '#EDE6D8', minHeight: 200, lineHeight: 24, fontFamily: FONTS.sansLight },
   journalSaveBtn: { backgroundColor: T.navy, borderRadius: 14, padding: 16, alignItems: 'center', marginTop: 20 },
   journalSaveBtnText: { fontSize: 15, fontFamily: FONTS.sansSemiBold, color: T.cream },
+
+  // Streak modal
+  streakOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.4)', justifyContent: 'flex-end' },
+  streakSheet: { backgroundColor: T.cream, borderTopLeftRadius: 24, borderTopRightRadius: 24, padding: 22, paddingBottom: 40 },
+  streakHandle: { width: 36, height: 4, borderRadius: 2, backgroundColor: '#D8D0C4', alignSelf: 'center', marginBottom: 18 },
+  streakCardsRow: { flexDirection: 'row', gap: 9, marginBottom: 14 },
+  streakCard: { flex: 1, backgroundColor: 'white', borderRadius: 15, padding: 12, alignItems: 'center', borderWidth: 1, borderColor: T.border },
+  streakCardEmoji: { fontSize: 20, marginBottom: 4 },
+  streakCardNum: { fontFamily: FONTS.serif, fontSize: 24, color: T.navy, lineHeight: 26 },
+  streakCardLbl: { fontSize: 10, color: T.stone, marginTop: 2 },
+  streakNextBox: { backgroundColor: 'white', borderRadius: 15, padding: 14, borderWidth: 1, borderColor: T.border },
+  streakNextLbl: { fontSize: 12, fontFamily: FONTS.sansMedium, color: T.navy, marginBottom: 8 },
+  streakNextBarBg: { width: '100%', height: 4, borderRadius: 2, backgroundColor: 'rgba(0,0,0,0.06)', overflow: 'hidden', marginBottom: 6 },
+  streakNextBarFill: { height: '100%', borderRadius: 2, backgroundColor: T.gold },
+  streakNextDays: { fontSize: 10, color: T.stone },
+
+  // Mercury Rx banner
+  rxBanner: { flexDirection: 'row', alignItems: 'center', gap: 10, backgroundColor: '#FFF0E0', borderWidth: 1, borderColor: '#F0D8B0', borderRadius: 14, padding: 13, marginBottom: 12 },
+  rxIcon: { fontSize: 22, color: '#D08020' },
+  rxTitle: { fontFamily: FONTS.sansSemiBold, fontSize: 13, color: '#8A5A10', marginBottom: 2 },
+  rxSub: { fontSize: 11, color: '#A07830', lineHeight: 16 },
+  rxArrow: { fontSize: 14, color: '#C09030' },
+
+  // Cosmic windows
+  // Cosmic alert card (matches notification)
+  cosmicAlertCard: { flexDirection: 'row', alignItems: 'flex-start', gap: 10, backgroundColor: '#0E0E22', borderRadius: 14, padding: 14, marginBottom: 12 },
+  cosmicAlertDot: { width: 8, height: 8, borderRadius: 4, backgroundColor: T.gold, marginTop: 4 },
+  cosmicAlertTitle: { fontSize: 13, fontFamily: FONTS.sansSemiBold, color: T.gold, marginBottom: 3 },
+  cosmicAlertBody: { fontSize: 12.5, color: 'rgba(250,248,242,0.7)', lineHeight: 18 },
+
+  windowCard: { backgroundColor: 'white', borderRadius: 14, padding: 14, marginBottom: 12, borderWidth: 1, borderColor: T.border },
+  windowLabel: { fontSize: 9, fontFamily: FONTS.sansSemiBold, letterSpacing: 1.5, color: T.gold, marginBottom: 8 },
+  windowRow: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 5 },
+  windowDot: { width: 6, height: 6, borderRadius: 3, backgroundColor: 'rgba(200,168,75,0.4)' },
+  windowText: { fontSize: 12.5, color: T.ink, flex: 1, lineHeight: 18 },
+  windowExact: { fontSize: 8, fontFamily: FONTS.sansSemiBold, color: T.gold, letterSpacing: 1, backgroundColor: 'rgba(200,168,75,0.1)', paddingVertical: 2, paddingHorizontal: 6, borderRadius: 4 },
+
+  // Cosmic whisper
+  whisperCard: { backgroundColor: 'rgba(200,168,75,0.06)', borderWidth: 1, borderColor: 'rgba(200,168,75,0.15)', borderRadius: 14, padding: 14, marginBottom: 12 },
+  whisperLabel: { fontSize: 9, fontFamily: FONTS.sansSemiBold, letterSpacing: 1.5, color: 'rgba(200,168,75,0.6)', marginBottom: 6 },
+  whisperText: { fontFamily: FONTS.serifItalic || FONTS.serif, fontSize: 14, color: '#8B6A28', lineHeight: 21, fontStyle: 'italic' },
+
+  // XP float
+  xpFloat: { position: 'absolute', top: Platform.OS === 'ios' ? 90 : 60, alignSelf: 'center', backgroundColor: 'rgba(200,168,75,0.18)', borderRadius: 100, paddingVertical: 6, paddingHorizontal: 16, zIndex: 999 },
+  xpFloatText: { fontFamily: FONTS.sansSemiBold, fontSize: 13, color: T.gold },
 });

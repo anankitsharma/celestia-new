@@ -10,6 +10,10 @@ import * as Sharing from 'expo-sharing';
 import { T, FONTS } from '../constants/theme';
 import { useUserProfile } from '../contexts/UserProfileContext';
 import { generateFullReport, generateDeepPdfReport } from '../services/geminiService';
+import { haptic } from '../services/hapticService';
+import { trackEvent } from '../services/achievementService';
+import { awardXP } from '../services/xpService';
+import GenerationOverlay from '../components/GenerationOverlay';
 
 const { width: SCREEN_W, height: SCREEN_H } = Dimensions.get('window');
 
@@ -224,199 +228,6 @@ const REPORT_THEMES = {
 
 const DEFAULT_THEME = REPORT_THEMES.solar_return;
 
-// ── Generation Overlay Component ───────────────────────────────────────────
-const GenerationOverlay = React.memo(({ visible, currentStep, totalSteps, onCancel, reportType }) => {
-  const theme = REPORT_THEMES[reportType] || DEFAULT_THEME;
-  const steps = theme.steps;
-  const quotes = theme.quotes;
-
-  const glyphScale = useRef(new Animated.Value(1)).current;
-  const ringOpacity = useRef(new Animated.Value(0.15)).current;
-  const ringScale = useRef(new Animated.Value(0.95)).current;
-  const stepSlide = useRef(new Animated.Value(0)).current;
-  const quoteFade = useRef(new Animated.Value(1)).current;
-  const quoteIdx = useRef(0);
-  const [quoteText, setQuoteText] = useState(quotes[0] || '');
-  const prevStepRef = useRef(0);
-
-  // Start looping animations when visible
-  useEffect(() => {
-    if (!visible) return;
-
-    // Reset
-    glyphScale.setValue(1);
-    ringOpacity.setValue(0.15);
-    ringScale.setValue(0.95);
-    stepSlide.setValue(0);
-    quoteFade.setValue(1);
-    quoteIdx.current = 0;
-    setQuoteText(quotes[0] || '');
-    prevStepRef.current = 0;
-
-    // Glyph breathing
-    const breathe = Animated.loop(Animated.sequence([
-      Animated.timing(glyphScale, { toValue: 1.08, duration: 2000, easing: Easing.inOut(Easing.ease), useNativeDriver: true }),
-      Animated.timing(glyphScale, { toValue: 0.94, duration: 2000, easing: Easing.inOut(Easing.ease), useNativeDriver: true }),
-    ]));
-    breathe.start();
-
-    // Ring pulse
-    const ringPulse = Animated.loop(Animated.sequence([
-      Animated.timing(ringOpacity, { toValue: 0.3, duration: 2400, easing: Easing.inOut(Easing.ease), useNativeDriver: true }),
-      Animated.timing(ringOpacity, { toValue: 0.08, duration: 2400, easing: Easing.inOut(Easing.ease), useNativeDriver: true }),
-    ]));
-    ringPulse.start();
-
-    // Ring scale
-    const ringSc = Animated.loop(Animated.sequence([
-      Animated.timing(ringScale, { toValue: 1.04, duration: 2800, easing: Easing.inOut(Easing.ease), useNativeDriver: true }),
-      Animated.timing(ringScale, { toValue: 0.93, duration: 2800, easing: Easing.inOut(Easing.ease), useNativeDriver: true }),
-    ]));
-    ringSc.start();
-
-    // Quote rotation
-    const quoteInterval = setInterval(() => {
-      Animated.timing(quoteFade, { toValue: 0, duration: 300, useNativeDriver: true }).start(() => {
-        quoteIdx.current = (quoteIdx.current + 1) % quotes.length;
-        setQuoteText(quotes[quoteIdx.current] || '');
-        Animated.timing(quoteFade, { toValue: 1, duration: 400, useNativeDriver: true }).start();
-      });
-    }, 5000);
-
-    return () => {
-      breathe.stop();
-      ringPulse.stop();
-      ringSc.stop();
-      clearInterval(quoteInterval);
-    };
-  }, [visible]);
-
-  // Animate step changes (not first mount)
-  useEffect(() => {
-    if (!visible) return;
-    if (currentStep === prevStepRef.current && currentStep === 0) return; // skip initial
-    prevStepRef.current = currentStep;
-
-    // Slide text in from below + pop the glyph
-    stepSlide.setValue(20);
-    Animated.parallel([
-      Animated.timing(stepSlide, { toValue: 0, duration: 350, easing: Easing.out(Easing.cubic), useNativeDriver: true }),
-      Animated.sequence([
-        Animated.timing(glyphScale, { toValue: 1.2, duration: 120, useNativeDriver: true }),
-        Animated.spring(glyphScale, { toValue: 1, friction: 5, tension: 120, useNativeDriver: true }),
-      ]),
-    ]).start();
-  }, [currentStep, visible]);
-
-  if (!visible) return null;
-
-  const step = steps[Math.min(currentStep, steps.length - 1)];
-  const progress = totalSteps > 0 ? Math.min((currentStep + 1) / totalSteps, 1) : 0;
-  const ac = theme.accent;
-
-  return (
-    <Modal visible={true} transparent animationType="fade" statusBarTranslucent>
-      <LinearGradient colors={theme.gradient} style={gs.overlayGrad}>
-
-        {/* Background rings */}
-        <Animated.View style={{
-          position: 'absolute', width: 280, height: 280, borderRadius: 140,
-          borderWidth: 1, borderColor: ac, opacity: ringOpacity,
-          transform: [{ scale: ringScale }],
-        }} />
-        <Animated.View style={{
-          position: 'absolute', width: 180, height: 180, borderRadius: 90,
-          borderWidth: 1, borderColor: ac, opacity: ringOpacity,
-          transform: [{ scale: ringScale }],
-        }} />
-
-        {/* Report type badge */}
-        <View style={[gs.typeBadge, { borderColor: ac }]}>
-          <Text style={[gs.typeBadgeText, { color: ac }]}>{theme.title.toUpperCase()}</Text>
-        </View>
-
-        {/* Big glyph */}
-        <Animated.Text style={{
-          fontSize: 64, color: ac, marginBottom: 24,
-          textShadowColor: theme.accentGlow,
-          textShadowOffset: { width: 0, height: 0 }, textShadowRadius: 30,
-          transform: [{ scale: glyphScale }],
-        }}>
-          {step.icon}
-        </Animated.Text>
-
-        {/* Step label + subtitle */}
-        <Animated.View style={{ alignItems: 'center', transform: [{ translateY: stepSlide }] }}>
-          <Text style={gs.stepLabel}>{step.label}</Text>
-          <Text style={gs.stepSub}>{step.sub}</Text>
-        </Animated.View>
-
-        {/* Progress bar */}
-        <View style={gs.progressTrack}>
-          <View style={[gs.progressFill, { width: `${Math.round(progress * 100)}%`, backgroundColor: ac }]} />
-        </View>
-        <Text style={[gs.progressText, { color: ac }]}>
-          Step {Math.min(currentStep + 1, totalSteps)} of {totalSteps}
-        </Text>
-
-        {/* Timeline dots */}
-        <View style={gs.timeline}>
-          {steps.slice(0, totalSteps).map((s, i) => {
-            const done = i < currentStep;
-            const active = i === currentStep;
-            return (
-              <React.Fragment key={i}>
-                <View style={[
-                  gs.dot,
-                  done && { backgroundColor: ac },
-                  active && { borderWidth: 1.5, borderColor: ac, backgroundColor: theme.accentSoft },
-                  !done && !active && gs.dotPending,
-                ]}>
-                  {done && <Text style={gs.dotCheck}>✓</Text>}
-                  {active && <View style={[gs.dotPulse, { backgroundColor: ac }]} />}
-                </View>
-                {i < totalSteps - 1 && (
-                  <View style={[gs.dotLine, done && { backgroundColor: ac }]} />
-                )}
-              </React.Fragment>
-            );
-          })}
-        </View>
-
-        {/* Rotating quote */}
-        <Animated.Text style={[gs.quote, { opacity: quoteFade, color: ac }]}>
-          {quoteText}
-        </Animated.Text>
-
-        {/* Cancel */}
-        <TouchableOpacity style={gs.cancelBtn} onPress={onCancel} activeOpacity={0.7}>
-          <Text style={gs.cancelText}>Cancel</Text>
-        </TouchableOpacity>
-      </LinearGradient>
-    </Modal>
-  );
-});
-
-// ── Generation overlay styles ──────────────────────────────────────────────
-const gs = StyleSheet.create({
-  overlayGrad: { flex: 1, justifyContent: 'center', alignItems: 'center', paddingHorizontal: 36 },
-  typeBadge: { borderWidth: 1, borderRadius: 20, paddingVertical: 5, paddingHorizontal: 16, marginBottom: 32, opacity: 0.7 },
-  typeBadgeText: { fontSize: 9, fontWeight: '700', letterSpacing: 3 },
-  stepLabel: { fontFamily: FONTS.serif, fontSize: 21, color: '#FAF8F3', textAlign: 'center', marginBottom: 6, lineHeight: 28 },
-  stepSub: { fontSize: 13, color: 'rgba(250,248,242,0.5)', textAlign: 'center', marginBottom: 28 },
-  progressTrack: { width: SCREEN_W - 100, height: 3, backgroundColor: 'rgba(255,255,255,0.1)', borderRadius: 2, overflow: 'hidden', marginBottom: 10 },
-  progressFill: { height: '100%', borderRadius: 2 },
-  progressText: { fontSize: 10, letterSpacing: 1.5, marginBottom: 26, opacity: 0.6 },
-  timeline: { flexDirection: 'row', marginBottom: 40, alignItems: 'center' },
-  dot: { width: 18, height: 18, borderRadius: 9, alignItems: 'center', justifyContent: 'center' },
-  dotPending: { backgroundColor: 'rgba(255,255,255,0.05)', borderWidth: 1, borderColor: 'rgba(255,255,255,0.12)' },
-  dotCheck: { fontSize: 9, color: '#0D1527', fontWeight: '800' },
-  dotPulse: { width: 5, height: 5, borderRadius: 3 },
-  dotLine: { width: 8, height: 1, backgroundColor: 'rgba(255,255,255,0.1)' },
-  quote: { fontSize: 13, textAlign: 'center', fontStyle: 'italic', lineHeight: 21, paddingHorizontal: 20, opacity: 0.45 },
-  cancelBtn: { position: 'absolute', bottom: 50, paddingVertical: 12, paddingHorizontal: 32 },
-  cancelText: { fontSize: 14, color: 'rgba(250,248,242,0.35)', letterSpacing: 0.5 },
-});
 
 const CURRENT_YEAR = new Date().getFullYear();
 const CURRENT_MONTH = new Date().getMonth(); // 0-indexed
@@ -439,13 +250,13 @@ const MONTH_ZODIAC_ENERGY = [
 ];
 
 const REPORTS = [
-  { icon: '♡', bg: ['#3A0A3A', '#1A1060'], accent: '#E85090', name: 'Love Report', desc: 'Deep romantic insights based on your Venus & 7th house', type: 'love' },
-  { icon: '◆', bg: ['#0A2A3A', '#1A1060'], accent: '#5090E8', name: 'Career Map', desc: 'Professional destiny through your 10th house & Saturn', type: 'career' },
+  { icon: '♀', bg: ['#3A0A3A', '#1A1060'], accent: '#E85090', name: 'Love Report', desc: 'Deep romantic insights based on your Venus & 7th house', type: 'love' },
+  { icon: '♄', bg: ['#0A2A3A', '#1A1060'], accent: '#5090E8', name: 'Career Map', desc: 'Professional destiny through your 10th house & Saturn', type: 'career' },
   { icon: '☽', bg: ['#1A0A3A', '#0E0E22'], accent: '#A080E0', name: 'Lunar Guide', desc: 'Moon phase rituals aligned with your natal Moon', type: 'lunar' },
-  { icon: '✦', bg: ['#2A1A0A', '#1A1060'], accent: '#C8A84B', name: 'Life Purpose', desc: 'North Node & soul path decoded for your chart', type: 'purpose' },
-  { icon: '⟡', bg: ['#0A1A2A', '#0E0E22'], accent: '#4ECDC4', name: 'Yearly Forecast', desc: `Your ${CURRENT_YEAR} roadmap — profections, transits & quarterly outlook`, type: 'yearly' },
-  { icon: '↻', bg: ['#1A0A1A', '#2A0A2A'], accent: '#FF6B6B', name: 'Transit Report', desc: 'Current planetary weather hitting your natal chart right now', type: 'transit' },
-  { icon: '☀', bg: ['#0E0E22', '#2A1A6E'], accent: '#C8A84B', name: `${CURRENT_YEAR} Solar Return`, desc: `Your complete ${CURRENT_YEAR} year ahead — every transit, season & lunar cycle`, type: 'solar_return' },
+  { icon: '☊', bg: ['#2A1A0A', '#1A1060'], accent: '#C8A84B', name: 'Life Purpose', desc: 'North Node & soul path decoded for your chart', type: 'purpose' },
+  { icon: '♃', bg: ['#0A1A2A', '#0E0E22'], accent: '#4ECDC4', name: 'Yearly Forecast', desc: `Your ${CURRENT_YEAR} roadmap — profections, transits & quarterly outlook`, type: 'yearly' },
+  { icon: '☿', bg: ['#1A0A1A', '#2A0A2A'], accent: '#FF6B6B', name: 'Transit Report', desc: 'Current planetary weather hitting your natal chart right now', type: 'transit' },
+  { icon: '☉', bg: ['#0E0E22', '#2A1A6E'], accent: '#C8A84B', name: `${CURRENT_YEAR} Solar Return`, desc: `Your complete ${CURRENT_YEAR} year ahead — every transit, season & lunar cycle`, type: 'solar_return' },
 ];
 
 // ── Deep PDF HTML Generator ─────────────────────────────────────────────────
@@ -604,10 +415,10 @@ const generateDeepReportHTML = (report, profile, reportType) => {
 <html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
 <style>
 /* ─── Reset & Base ──────────────────────────────────────────────── */
-@page { margin: 0; size: A4; }
+@page { margin: 0; }
 * { box-sizing: border-box; margin: 0; padding: 0; }
 html, body {
-  width: 210mm;
+  width: 100%;
   margin: 0;
   padding: 0;
 }
@@ -681,64 +492,30 @@ body {
    COVER PAGE — Full A4 dark premium design
    ═══════════════════════════════════════════════════════════════════ */
 .cover {
-  width: 210mm;
-  height: 297mm;
+  width: 100%;
+  height: 100vh;
   background: #0B0E1A;
   page-break-after: always;
   position: relative;
-  overflow: hidden;
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
+  padding: 60px 40px;
 }
-/* Subtle radial glow behind center */
-.cover::before {
-  content: ''; position: absolute; top: 0; left: 0; right: 0; bottom: 0;
-  background:
-    radial-gradient(ellipse at 50% 38%, rgba(196,154,42,0.07) 0%, transparent 55%),
-    radial-gradient(ellipse at 30% 15%, rgba(100,80,200,0.04) 0%, transparent 40%),
-    radial-gradient(ellipse at 70% 85%, rgba(196,154,42,0.03) 0%, transparent 45%);
-  pointer-events: none;
-}
-/* Gold inset border */
+/* Gold inset border — simple solid */
 .cover-border {
   position: absolute;
-  top: 14mm; left: 14mm; right: 14mm; bottom: 14mm;
+  top: 30px; left: 30px; right: 30px; bottom: 30px;
   border: 0.5px solid rgba(196,154,42,0.3);
-  pointer-events: none;
 }
-/* Corner ornaments */
-.corner {
-  position: absolute;
-  width: 18mm; height: 18mm;
-  border-color: rgba(196,154,42,0.55);
-  border-style: solid;
-}
-.corner-tl { top: 11mm; left: 11mm; border-width: 1.5px 0 0 1.5px; }
-.corner-tr { top: 11mm; right: 11mm; border-width: 1.5px 1.5px 0 0; }
-.corner-bl { bottom: 11mm; left: 11mm; border-width: 0 0 1.5px 1.5px; }
-.corner-br { bottom: 11mm; right: 11mm; border-width: 0 1.5px 1.5px 0; }
-
-/* Decorative star scatter (CSS-only) */
-.cover-stars {
-  position: absolute; top: 0; left: 0; right: 0; bottom: 0;
-  pointer-events: none; overflow: hidden;
-}
-.cover-stars::before {
-  content: '✦'; position: absolute; font-size: 6px; color: rgba(196,154,42,0.15);
-  top: 8%; left: 18%;
-}
-.cover-stars::after {
-  content: '·   ✦   ·   ★   ·   ✦   ·';
-  position: absolute; font-size: 5px; color: rgba(196,154,42,0.08);
-  top: 5%; left: 30%; letter-spacing: 12px;
-}
+.corner { display: none; }
+.cover-stars { display: none; }
 
 .cover-inner {
   position: relative; z-index: 2;
   text-align: center;
-  padding: 0 20mm;
+  padding: 0 40px;
   display: flex; flex-direction: column;
   align-items: center;
   width: 100%;
@@ -749,12 +526,12 @@ body {
   font-size: 10px; font-weight: 700; color: #C49A2A;
   letter-spacing: 6px; text-transform: uppercase;
   font-family: Helvetica, Arial, sans-serif;
-  margin-bottom: 6mm;
+  margin-bottom: 16px;
 }
 .cover-brand-rule {
-  width: 30mm; height: 0.5px;
-  background: linear-gradient(90deg, transparent, #C49A2A, transparent);
-  margin-bottom: 8mm;
+  width: 100px; height: 0.5px;
+  background: #C49A2A;
+  margin-bottom: 20px;
 }
 
 /* Report type badge */
@@ -766,30 +543,30 @@ body {
   font-size: 8px; color: #F5E6A8; letter-spacing: 3.5px;
   text-transform: uppercase;
   font-family: Helvetica, Arial, sans-serif;
-  margin-bottom: 10mm;
+  margin-bottom: 24px;
 }
 
 /* Decorative zodiac ring */
 .cover-zodiac-ring {
-  font-size: 7px; color: rgba(196,154,42,0.18);
-  letter-spacing: 6px; margin-bottom: 8mm;
+  font-size: 7px; color: rgba(196,154,42,0.25);
+  letter-spacing: 6px; margin-bottom: 20px;
 }
 
 /* Person's name — big serif */
 .cover-name {
   font-size: 42px; font-weight: 700; color: #FAF8F3;
-  letter-spacing: 1px; margin-bottom: 5mm;
+  letter-spacing: 1px; margin-bottom: 14px;
   line-height: 1.2;
 }
 
 /* Gold ornamental divider */
 .cover-divider {
   display: flex; align-items: center; gap: 8px;
-  margin-bottom: 6mm;
+  margin-bottom: 16px;
 }
 .cover-divider-line {
-  width: 22mm; height: 0.5px;
-  background: linear-gradient(90deg, transparent, rgba(196,154,42,0.5), transparent);
+  width: 70px; height: 0.5px;
+  background: rgba(196,154,42,0.5);
 }
 .cover-divider-star {
   font-size: 10px; color: rgba(196,154,42,0.6);
@@ -799,7 +576,7 @@ body {
 .cover-headline {
   font-size: 13.5px; font-style: italic; color: #C49A2A;
   line-height: 1.8; max-width: 360px;
-  margin-bottom: 8mm;
+  margin-bottom: 20px;
 }
 
 /* Birth details */
@@ -807,7 +584,7 @@ body {
   font-size: 9px; color: rgba(250,248,243,0.45);
   letter-spacing: 1.5px; line-height: 1.8;
   font-family: Helvetica, Arial, sans-serif;
-  margin-bottom: 8mm;
+  margin-bottom: 20px;
 }
 .cover-meta-highlight {
   color: rgba(250,248,243,0.65);
@@ -815,7 +592,7 @@ body {
 
 /* Big Three pills row */
 .cv-pills {
-  display: flex; gap: 4mm; margin-bottom: 8mm;
+  display: flex; gap: 12px; margin-bottom: 20px;
 }
 .cv-pill {
   border: 0.5px solid rgba(196,154,42,0.35);
@@ -840,14 +617,14 @@ body {
 
 /* Core motif */
 .cv-motif-rule {
-  width: 40mm; height: 0.5px;
-  background: linear-gradient(90deg, transparent, rgba(196,154,42,0.3), transparent);
-  margin-bottom: 5mm;
+  width: 120px; height: 0.5px;
+  background: rgba(196,154,42,0.3);
+  margin-bottom: 14px;
 }
 .cv-motif-label {
   font-size: 7px; color: rgba(196,154,42,0.6);
   letter-spacing: 3px; text-transform: uppercase;
-  font-weight: 700; margin-bottom: 4mm;
+  font-weight: 700; margin-bottom: 10px;
   font-family: Helvetica, Arial, sans-serif;
 }
 .cv-motif {
@@ -858,7 +635,7 @@ body {
 
 /* Bottom footer */
 .cover-foot {
-  position: absolute; bottom: 18mm; left: 0; right: 0;
+  position: absolute; bottom: 40px; left: 0; right: 0;
   text-align: center; z-index: 2;
 }
 .cover-foot-text {
@@ -1046,15 +823,10 @@ body {
    ═══════════════════════════════════════════════════════════════════ */
 .closing {
   background: #0D1527;
-  width: 210mm; min-height: 297mm;
+  width: 100%; height: 100vh;
   padding: 0; page-break-before: always;
   display: flex; flex-direction: column;
   position: relative;
-}
-.closing::after {
-  content: ''; position: absolute; top: 0; left: 0; right: 0; bottom: 0;
-  background: radial-gradient(ellipse at 50% 30%, rgba(196,154,42,0.05) 0%, transparent 60%);
-  pointer-events: none;
 }
 .closing-ph {
   background: rgba(255,255,255,0.04);
@@ -1130,13 +902,7 @@ body {
 
 <!-- ═══════════════ COVER PAGE ═══════════════ -->
 <div class="cover">
-  <!-- Decorative elements -->
   <div class="cover-border"></div>
-  <div class="corner corner-tl"></div>
-  <div class="corner corner-tr"></div>
-  <div class="corner corner-bl"></div>
-  <div class="corner corner-br"></div>
-  <div class="cover-stars"></div>
 
   <div class="cover-inner">
     <div class="cover-brand">CELESTIA</div>
@@ -1370,6 +1136,11 @@ export default function ReportsScreen() {
     try {
       const data = await generateFullReport(userProfile, r.type);
       setReportData(data);
+      haptic.success();
+      // Track report generation
+      const profileId = userProfile?.id || 'default';
+      trackEvent('report_generated').catch(() => {});
+      awardXP(profileId, 'report_read').catch(() => {});
     } catch (e) {
       console.error('Report generation error:', e);
       Alert.alert('Error', 'Failed to generate report. Please try again.');
@@ -1422,7 +1193,7 @@ export default function ReportsScreen() {
       await new Promise(r => setTimeout(r, 500));
       if (pdfCancelledRef.current) return;
 
-      const { uri: tempUri } = await Print.printToFileAsync({ html, base64: false });
+      const { uri: tempUri } = await Print.printToFileAsync({ html, width: 612, height: 792, base64: false });
       if (pdfCancelledRef.current) return;
 
       // Step N-1: Preparing download
@@ -1486,7 +1257,7 @@ export default function ReportsScreen() {
         {/* Featured — Monthly Forecast (auto-updates each month) */}
         <TouchableOpacity style={styles.featuredWrap} activeOpacity={0.85} onPress={handleMonthlyReport}>
           <LinearGradient colors={['#12082A', '#2A1060', '#0C1840']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={styles.featuredImg}>
-            <Text style={{ fontSize: 48, color: 'rgba(179,136,255,0.3)' }}>☽</Text>
+            <Text style={{ fontSize: 56, color: '#B388FF' }}>☽</Text>
             <View style={styles.featuredBadge}><Text style={styles.featuredBadgeText}>{MONTH_NAME.toUpperCase()}</Text></View>
           </LinearGradient>
           <View style={styles.featuredBody}>
@@ -1515,7 +1286,7 @@ export default function ReportsScreen() {
           {REPORTS.map((r, i) => (
             <TouchableOpacity key={i} style={styles.rtile} activeOpacity={0.8} onPress={() => handleReport(r)}>
               <LinearGradient colors={r.bg} style={styles.rtileColor}>
-                <Text style={{ fontSize: 32 }}>{r.icon}</Text>
+                <Text style={{ fontSize: 32, color: r.accent }}>{r.icon}</Text>
               </LinearGradient>
               <View style={styles.rtileBody}>
                 <Text style={styles.rtileName}>{r.name}</Text>
@@ -1610,7 +1381,7 @@ export default function ReportsScreen() {
         currentStep={genStep}
         totalSteps={(REPORT_THEMES[reportType] || DEFAULT_THEME).steps.length}
         onCancel={handleCancelPdf}
-        reportType={reportType}
+        theme={REPORT_THEMES[reportType] || DEFAULT_THEME}
       />
 
       {/* ── Toast Notification ── */}
@@ -1652,7 +1423,7 @@ const styles = StyleSheet.create({
   rtilePrice: { fontFamily: FONTS.serif, fontSize: 19, color: T.navy },
   // Modal
   modal: { flex: 1, backgroundColor: T.cream },
-  modalHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', padding: 20, paddingTop: 60, borderBottomWidth: 1, borderBottomColor: '#EDE6D8' },
+  modalHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', padding: 20, paddingTop: 20, borderBottomWidth: 1, borderBottomColor: '#EDE6D8' },
   modalTitle: { fontFamily: FONTS.serif, fontSize: 20, color: T.navy, flex: 1, marginRight: 12 },
   modalClose: { fontSize: 18, color: T.stone, padding: 4 },
   modalBody: { flex: 1, padding: 20 },

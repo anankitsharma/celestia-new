@@ -538,11 +538,11 @@ export const calculateChart = (dateStr, time, location, isTimeUnknown = false, h
 
         planets.forEach(p => {
             const w = WEIGHTS[p.name] || 0;
-            if (w > 0) {
-                const el = SIGN_ELEMENTS[p.sign].toLowerCase();
-                const mo = SIGN_MODALITIES[p.sign].toLowerCase();
-                elements[el] += w;
-                modalities[mo] += w;
+            if (w > 0 && p.sign) {
+                const el = (SIGN_ELEMENTS[p.sign] || '').toLowerCase();
+                const mo = (SIGN_MODALITIES[p.sign] || '').toLowerCase();
+                if (el && elements[el] !== undefined) elements[el] += w;
+                if (mo && modalities[mo] !== undefined) modalities[mo] += w;
             }
         });
 
@@ -552,10 +552,10 @@ export const calculateChart = (dateStr, time, location, isTimeUnknown = false, h
 
         const boostScore = (sign, boostAmount) => {
             if (!sign) return;
-            const el = SIGN_ELEMENTS[sign].toLowerCase();
-            const mo = SIGN_MODALITIES[sign].toLowerCase();
-            elements[el] += boostAmount;
-            modalities[mo] += boostAmount;
+            const el = (SIGN_ELEMENTS[sign] || '').toLowerCase();
+            const mo = (SIGN_MODALITIES[sign] || '').toLowerCase();
+            if (el && elements[el] !== undefined) elements[el] += boostAmount;
+            if (mo && modalities[mo] !== undefined) modalities[mo] += boostAmount;
         };
 
         boostScore(sunSign, 0.3);
@@ -1378,4 +1378,84 @@ export const getCurrentMoonData = () => {
         phaseName,
         sign
     };
+};
+
+// ── COSMIC WINDOWS: Detect active transits to user's natal chart ──
+
+export const getActiveCosmicWindows = (natalChart, date = new Date()) => {
+    if (!natalChart?.planets) return [];
+    const transits = getTransitPlanets(date);
+    const windows = [];
+
+    // Check if any slow-moving transit planet is in a natal sign
+    const slowPlanets = ['Jupiter', 'Saturn', 'Uranus', 'Neptune', 'Pluto'];
+    const natalSun = natalChart.planets.find(p => p.name === 'Sun');
+    const natalMoon = natalChart.planets.find(p => p.name === 'Moon');
+    const natalRising = natalChart.planets.find(p => p.name === 'Ascendant');
+
+    for (const tp of transits) {
+        if (!slowPlanets.includes(tp.name)) continue;
+
+        if (natalSun && tp.sign === natalSun.sign) {
+            windows.push({
+                planet: tp.name,
+                type: 'sign_transit',
+                targetSign: natalSun.sign,
+                description: `${tp.name} is in your Sun sign (${natalSun.sign})`,
+                significance: 'high',
+            });
+        }
+        if (natalRising && tp.sign === natalRising.sign) {
+            windows.push({
+                planet: tp.name,
+                type: 'sign_transit',
+                targetSign: natalRising.sign,
+                description: `${tp.name} is transiting your Rising sign (${natalRising.sign})`,
+                significance: 'high',
+            });
+        }
+    }
+
+    // Check for exact transits (orb < 2°) to natal planets
+    const natalPlanets = natalChart.planets.filter(p =>
+        ['Sun', 'Moon', 'Mercury', 'Venus', 'Mars', 'Jupiter', 'Saturn'].includes(p.name)
+    );
+
+    for (const tp of transits) {
+        if (tp.name === 'Moon') continue; // Moon moves too fast
+        for (const np of natalPlanets) {
+            if (tp.name === np.name) continue; // Skip same planet
+            const diff = Math.abs(tp.absDegree - np.absDegree);
+            const orb = Math.min(diff, 360 - diff);
+            // Check major aspects within tight orb
+            const aspects = [
+                { name: 'Conjunction', angle: 0, maxOrb: 2 },
+                { name: 'Opposition', angle: 180, maxOrb: 2 },
+                { name: 'Square', angle: 90, maxOrb: 1.5 },
+                { name: 'Trine', angle: 120, maxOrb: 1.5 },
+            ];
+            for (const asp of aspects) {
+                const aspOrb = Math.abs(orb - asp.angle);
+                if (aspOrb <= asp.maxOrb) {
+                    windows.push({
+                        planet: tp.name,
+                        type: 'exact_aspect',
+                        aspect: asp.name,
+                        natalPlanet: np.name,
+                        orb: aspOrb.toFixed(1),
+                        description: `${tp.name} ${asp.name.toLowerCase()} your natal ${np.name}`,
+                        significance: aspOrb <= 1 ? 'exact' : 'tight',
+                    });
+                }
+            }
+        }
+    }
+
+    return windows;
+};
+
+export const isMercuryRetrograde = (date = new Date()) => {
+    const transits = getTransitPlanets(date);
+    const mercury = transits.find(p => p.name === 'Mercury');
+    return mercury?.isRetrograde || false;
 };

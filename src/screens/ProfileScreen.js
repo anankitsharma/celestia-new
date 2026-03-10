@@ -1,9 +1,18 @@
 import React, { useMemo, useState, useEffect } from 'react';
-import { View, Text, ScrollView, TouchableOpacity, StyleSheet, Alert, Share, Modal, Linking } from 'react-native';
+import { View, Text, ScrollView, TouchableOpacity, StyleSheet, Alert, Modal } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { T, FONTS } from '../constants/theme';
 import { useUserProfile } from '../contexts/UserProfileContext';
 import { loadObject, saveObject, StorageKeys } from '../services/storage';
+import { getStreakData, getStreakEmoji } from '../services/streakService';
+import { getXPStatus } from '../services/xpService';
+import { getAllBadges } from '../services/achievementService';
+import { BADGE_CATEGORIES } from '../constants/badges';
+import { haptic } from '../services/hapticService';
+import { useShareCard } from '../components/ShareCard';
+import CosmicIDCard from '../components/CosmicIDCard';
+import { getNotificationSettings } from '../services/notificationService';
+import { useAuth } from '../contexts/AuthContext';
 
 const ZODIAC_SYMBOLS = {
   Aries: '♈', Taurus: '♉', Gemini: '♊', Cancer: '♋', Leo: '♌', Virgo: '♍',
@@ -21,13 +30,44 @@ const DEPTH_OPTIONS = ['Beginner', 'Intermediate', 'Advanced'];
 
 export default function ProfileScreen({ navigation }) {
   const { userProfile, setUserProfile } = useUserProfile();
+  const { user, signOut: authSignOut, deleteAccount } = useAuth();
   const [settings, setSettings] = useState({ voice: 'Poetic', depth: 'Intermediate' });
   const [showVoicePicker, setShowVoicePicker] = useState(false);
   const [showDepthPicker, setShowDepthPicker] = useState(false);
+  const [streakInfo, setStreakInfo] = useState(null);
+  const [xpInfo, setXpInfo] = useState(null);
+  const [badges, setBadges] = useState([]);
+  const [notifSummary, setNotifSummary] = useState('');
+  const { cardRef: cosmicCardRef, captureAndShare: shareCosmicID } = useShareCard();
 
   useEffect(() => {
     loadSettings();
+    loadEngagementData();
+    loadNotifSummary();
   }, []);
+
+  const loadEngagementData = async () => {
+    try {
+      const profileId = userProfile?.id || 'default';
+      const [streak, xp, allBadges] = await Promise.all([
+        getStreakData(profileId),
+        getXPStatus(profileId),
+        getAllBadges(),
+      ]);
+      setStreakInfo(streak);
+      setXpInfo(xp);
+      setBadges(allBadges);
+    } catch (e) { console.error('Engagement load error:', e); }
+  };
+
+  const loadNotifSummary = async () => {
+    try {
+      const ns = await getNotificationSettings();
+      const keys = ['cosmic_morning', 'evening_reflection', 'transit_alerts', 'streak_guardian', 'cosmic_milestones', 'weekly_digest'];
+      const enabled = keys.filter(k => ns[k]).length;
+      setNotifSummary(`${enabled} of ${keys.length} active`);
+    } catch { setNotifSummary(''); }
+  };
 
   const loadSettings = async () => {
     try {
@@ -88,20 +128,6 @@ export default function ProfileScreen({ navigation }) {
     userProfile.birthLocation?.name
   ].filter(Boolean).join(' · ') : '';
 
-  const handleShareChart = async () => {
-    const chartInfo = [
-      astroMain,
-      ...astroChips,
-      birthInfo ? `Born: ${birthInfo}` : '',
-    ].filter(Boolean).join('\n');
-
-    try {
-      await Share.share({
-        message: `My Celestial Identity\n\n${chartInfo}\n\n— Generated with Celestia`,
-      });
-    } catch (e) { console.error('Share error:', e); }
-  };
-
   const handleSignOut = () => {
     Alert.alert(
       'Reset Profile',
@@ -123,7 +149,7 @@ export default function ProfileScreen({ navigation }) {
   const handleHelp = () => {
     Alert.alert(
       'Help & Support',
-      'Celestia uses NASA-backed astronomy-engine for precise calculations and Google Gemini AI for personalized readings.\n\nAll birth chart data is stored locally on your device.',
+      'Celestia uses NASA-backed astronomy-engine for precise calculations and Google Gemini AI for personalized readings.\n\nYour birth chart data is stored locally on your device. If signed in, data syncs securely to the cloud for backup.',
       [{ text: 'OK' }]
     );
   };
@@ -131,12 +157,13 @@ export default function ProfileScreen({ navigation }) {
   const handlePrivacy = () => {
     Alert.alert(
       'Privacy',
-      'Your data stays on your device. Birth chart calculations are done locally. AI readings use encrypted connections. No personal data is sold or shared.',
+      'Birth chart calculations are done locally on your device. AI readings use encrypted connections.\n\nIf you create an account, your data is securely synced to Supabase (encrypted in transit and at rest). You can delete your account and all cloud data at any time from Settings.\n\nNo personal data is sold or shared with third parties.',
       [{ text: 'OK' }]
     );
   };
 
   const SETTINGS_LIST = [
+    { icon: '🔔', bg: '#F0EAF8', label: 'Notifications', val: notifSummary, onPress: () => navigation.navigate('NotificationSettings') },
     { icon: '✨', bg: '#FFF2E4', label: 'Reading Voice', val: settings.voice, onPress: () => setShowVoicePicker(true) },
     { icon: '📊', bg: '#EAF0F8', label: 'Depth Level', val: settings.depth, onPress: () => setShowDepthPicker(true) },
     { icon: '🌐', bg: '#F0F8F0', label: 'Time Zone', val: 'Auto', onPress: () => Alert.alert('Time Zone', 'Timezone is automatically detected from your device settings.') },
@@ -186,21 +213,70 @@ export default function ProfileScreen({ navigation }) {
             </View>
           </View>
 
-          {/* Astro ID Card */}
-          <LinearGradient colors={['#0E0E22', '#1A1060']} style={styles.astroCard}>
-            <Text style={styles.astroLbl}>YOUR CELESTIAL IDENTITY</Text>
-            <Text style={styles.astroMain}>{astroMain || 'Complete onboarding to reveal'}</Text>
-            {astroChips.length > 0 && (
-              <View style={styles.astroRow}>
-                {astroChips.map((c, i) => (
-                  <View key={i} style={styles.astroChip}><Text style={styles.astroChipText}>{c}</Text></View>
+          {/* Streak & XP Row */}
+          {(streakInfo || xpInfo) && (
+            <View style={styles.engageRow}>
+              {streakInfo && streakInfo.current_streak > 0 && (
+                <View style={styles.engageCard}>
+                  <Text style={styles.engageEmoji}>{getStreakEmoji(streakInfo.current_streak)}</Text>
+                  <Text style={styles.engageNum}>{streakInfo.current_streak}</Text>
+                  <Text style={styles.engageLbl}>Day Streak</Text>
+                </View>
+              )}
+              {xpInfo?.levelInfo && (
+                <View style={styles.engageCard}>
+                  <Text style={styles.engageEmoji}>{'✦'}</Text>
+                  <Text style={styles.engageNum}>{xpInfo.total_xp || 0}</Text>
+                  <Text style={styles.engageLbl}>{xpInfo.levelInfo.current.name}</Text>
+                  <View style={styles.xpBarBg}>
+                    <View style={[styles.xpBarFill, { width: `${(xpInfo.levelInfo.progress * 100).toFixed(0)}%` }]} />
+                  </View>
+                </View>
+              )}
+              {streakInfo && (
+                <View style={styles.engageCard}>
+                  <Text style={styles.engageEmoji}>{'📅'}</Text>
+                  <Text style={styles.engageNum}>{streakInfo.total_check_ins || 0}</Text>
+                  <Text style={styles.engageLbl}>Total Days</Text>
+                </View>
+              )}
+            </View>
+          )}
+
+          {/* Badges */}
+          {badges.length > 0 && (
+            <View style={styles.badgeSection}>
+              <Text style={styles.secLbl}>ACHIEVEMENTS ({badges.filter(b => b.unlocked).length}/{badges.length})</Text>
+              <View style={styles.badgeGrid}>
+                {badges.map((b) => (
+                  <View key={b.id} style={[styles.badgeItem, !b.unlocked && styles.badgeLocked]}>
+                    <Text style={[styles.badgeIcon, !b.unlocked && { opacity: 0.2 }]}>{b.icon}</Text>
+                    <Text style={[styles.badgeName, !b.unlocked && { color: '#C8C0B0' }]} numberOfLines={1}>{b.name}</Text>
+                  </View>
                 ))}
               </View>
-            )}
-            <TouchableOpacity style={styles.astroShare} onPress={handleShareChart}>
-              <Text style={styles.astroShareText}>Share My Chart ↗</Text>
+            </View>
+          )}
+
+          {/* Cosmic ID Card */}
+          <View style={styles.cosmicIDWrap}>
+            <Text style={styles.secLbl}>YOUR COSMIC ID</Text>
+            <TouchableOpacity activeOpacity={0.85} onPress={() => {
+              haptic.medium();
+              shareCosmicID(`My Celestial Identity\n\n${astroMain}\n${astroChips.join(' · ')}\n\n— Generated with Celestia`);
+            }}>
+              <CosmicIDCard
+                innerRef={cosmicCardRef}
+                name={name}
+                sun={sun?.sign}
+                moon={moon?.sign}
+                rising={rising?.sign}
+                chips={astroChips}
+                levelName={xpInfo?.levelInfo?.current?.name}
+              />
             </TouchableOpacity>
-          </LinearGradient>
+            <Text style={styles.tapToShare}>Tap card to share</Text>
+          </View>
 
           {/* Settings */}
           <Text style={styles.secLbl}>PREFERENCES</Text>
@@ -214,6 +290,63 @@ export default function ProfileScreen({ navigation }) {
                 <Text style={styles.prowArr}>›</Text>
               </TouchableOpacity>
             ))}
+          </View>
+
+          {/* Account */}
+          <Text style={styles.secLbl}>ACCOUNT</Text>
+          <View style={styles.settingsCard}>
+            {user ? (
+              <>
+                <View style={[styles.prow, { borderBottomWidth: 1 }]}>
+                  <View style={[styles.prowIcon, { backgroundColor: '#E8F5E9' }]}><Text style={{ fontSize: 16 }}>{'✓'}</Text></View>
+                  <View style={{ flex: 1 }}>
+                    <Text style={styles.prowLabel}>Signed In</Text>
+                    <Text style={{ fontSize: 11, color: T.stone, marginTop: 1 }} numberOfLines={1}>{user.email}</Text>
+                  </View>
+                </View>
+                <TouchableOpacity style={[styles.prow, { borderBottomWidth: 1 }]} activeOpacity={0.7}
+                  onPress={() => Alert.alert('Sign Out', 'Your data is saved locally and will sync again when you sign back in.', [
+                    { text: 'Cancel', style: 'cancel' },
+                    { text: 'Sign Out', style: 'destructive', onPress: authSignOut },
+                  ])}>
+                  <View style={[styles.prowIcon, { backgroundColor: '#F0F0F0' }]}><Text style={{ fontSize: 16 }}>{'↪'}</Text></View>
+                  <Text style={styles.prowLabel}>Sign Out</Text>
+                </TouchableOpacity>
+                <TouchableOpacity style={[styles.prow, { borderBottomWidth: 0 }]} activeOpacity={0.7}
+                  onPress={() => Alert.alert(
+                    'Delete Account',
+                    'This will permanently delete your cloud data (journal entries, streaks, achievements) and sign you out. Your local data on this device will remain.\n\nThis cannot be undone.',
+                    [
+                      { text: 'Cancel', style: 'cancel' },
+                      {
+                        text: 'Delete My Account',
+                        style: 'destructive',
+                        onPress: async () => {
+                          try {
+                            await deleteAccount();
+                            Alert.alert('Account Deleted', 'Your cloud data has been removed and you have been signed out.');
+                          } catch (e) {
+                            Alert.alert('Error', e?.message || 'Could not delete account. Please try again.');
+                          }
+                        },
+                      },
+                    ]
+                  )}>
+                  <View style={[styles.prowIcon, { backgroundColor: '#FFF0F0' }]}><Text style={{ fontSize: 16 }}>{'✕'}</Text></View>
+                  <Text style={[styles.prowLabel, { color: '#D44' }]}>Delete Account</Text>
+                </TouchableOpacity>
+              </>
+            ) : (
+              <TouchableOpacity style={[styles.prow, { borderBottomWidth: 0 }]} activeOpacity={0.7}
+                onPress={() => navigation.navigate('Auth')}>
+                <View style={[styles.prowIcon, { backgroundColor: '#F0EAF8' }]}><Text style={{ fontSize: 16 }}>{'☁'}</Text></View>
+                <View style={{ flex: 1 }}>
+                  <Text style={styles.prowLabel}>Sign In / Create Account</Text>
+                  <Text style={{ fontSize: 11, color: T.stone, marginTop: 1 }}>Sync your data across devices</Text>
+                </View>
+                <Text style={styles.prowArr}>{'›'}</Text>
+              </TouchableOpacity>
+            )}
           </View>
 
           <Text style={styles.secLbl}>GENERAL</Text>
@@ -311,14 +444,6 @@ const styles = StyleSheet.create({
   pstatTags: { flexDirection: 'row', gap: 5, marginTop: 7, flexWrap: 'wrap' },
   miniTag: { backgroundColor: T.warm, borderRadius: 100, paddingVertical: 3, paddingHorizontal: 9 },
   miniTagText: { fontSize: 10, color: '#6B6050' },
-  astroCard: { borderRadius: 16, padding: 18, marginBottom: 18, borderWidth: 1, borderColor: 'rgba(200,168,75,0.15)', overflow: 'hidden' },
-  astroLbl: { fontSize: 10, letterSpacing: 2, color: 'rgba(200,168,75,0.55)', marginBottom: 8 },
-  astroMain: { fontFamily: FONTS.serif, fontSize: 20, color: 'white', marginBottom: 10 },
-  astroRow: { flexDirection: 'row', gap: 8, flexWrap: 'wrap', marginBottom: 12 },
-  astroChip: { backgroundColor: 'rgba(200,168,75,0.1)', borderWidth: 1, borderColor: 'rgba(200,168,75,0.2)', borderRadius: 100, paddingVertical: 4, paddingHorizontal: 12 },
-  astroChipText: { fontSize: 11, color: 'rgba(250,248,242,0.7)' },
-  astroShare: { backgroundColor: 'rgba(255,255,255,0.08)', borderWidth: 1, borderColor: 'rgba(255,255,255,0.12)', borderRadius: 10, paddingVertical: 7, paddingHorizontal: 14, alignSelf: 'flex-start' },
-  astroShareText: { fontSize: 12, color: 'rgba(250,248,242,0.6)' },
   secLbl: { fontSize: 10, fontFamily: FONTS.sansSemiBold, letterSpacing: 2, color: T.stone, marginBottom: 9 },
   settingsCard: { backgroundColor: 'white', borderRadius: 17, borderWidth: 1, borderColor: T.border, overflow: 'hidden', marginBottom: 18 },
   prow: { flexDirection: 'row', alignItems: 'center', paddingVertical: 14, paddingHorizontal: 16, borderBottomWidth: 1, borderBottomColor: '#F5F0E6' },
@@ -337,6 +462,24 @@ const styles = StyleSheet.create({
   pickerOptionOn: { borderBottomColor: 'rgba(200,168,75,0.2)' },
   pickerOptionText: { fontSize: 16, color: T.ink },
   pickerOptionTextOn: { color: T.navy, fontFamily: FONTS.sansSemiBold },
+  // Engagement
+  engageRow: { flexDirection: 'row', gap: 9, marginBottom: 18 },
+  engageCard: { flex: 1, backgroundColor: 'white', borderRadius: 15, padding: 12, alignItems: 'center', borderWidth: 1, borderColor: T.border },
+  engageEmoji: { fontSize: 20, marginBottom: 4 },
+  engageNum: { fontFamily: FONTS.serif, fontSize: 24, color: T.navy, lineHeight: 26 },
+  engageLbl: { fontSize: 10, color: T.stone, marginTop: 2 },
+  xpBarBg: { width: '80%', height: 3, borderRadius: 2, backgroundColor: 'rgba(0,0,0,0.06)', marginTop: 6, overflow: 'hidden' },
+  xpBarFill: { height: '100%', borderRadius: 2, backgroundColor: T.gold },
+  // Badges
+  badgeSection: { marginBottom: 18 },
+  badgeGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
+  badgeItem: { width: '22%', backgroundColor: 'white', borderRadius: 14, padding: 10, alignItems: 'center', borderWidth: 1, borderColor: T.border },
+  badgeLocked: { backgroundColor: '#F8F6F2', borderColor: '#EDE8E0' },
+  badgeIcon: { fontSize: 22, marginBottom: 4 },
+  badgeName: { fontSize: 9, color: T.navy, textAlign: 'center', fontFamily: FONTS.sansMedium },
+  // Cosmic ID
+  cosmicIDWrap: { marginBottom: 18, alignItems: 'center' },
+  tapToShare: { fontSize: 11, color: T.stone, marginTop: 8, fontStyle: 'italic' },
   // Dev section
   devCard: { backgroundColor: 'rgba(200,168,75,0.06)', borderRadius: 17, borderWidth: 1, borderColor: 'rgba(200,168,75,0.18)', overflow: 'hidden', marginBottom: 18 },
   devRow: { flexDirection: 'row', alignItems: 'center', paddingVertical: 14, paddingHorizontal: 16 },

@@ -1,7 +1,8 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 import { StatusBar } from 'expo-status-bar';
-import { NavigationContainer } from '@react-navigation/native';
+import { NavigationContainer, useNavigationContainerRef } from '@react-navigation/native';
 import { useFonts } from 'expo-font';
+import * as Notifications from 'expo-notifications';
 import {
   PlayfairDisplay_400Regular,
   PlayfairDisplay_400Regular_Italic,
@@ -17,9 +18,14 @@ import {
 import { View, ActivityIndicator } from 'react-native';
 import AppNavigator from './src/navigation/AppNavigator';
 import { UserProfileProvider } from './src/contexts/UserProfileContext';
+import { AuthProvider } from './src/contexts/AuthContext';
 import { initSchema } from './src/services/database/schema';
+import { initNotificationChannels, handleNotificationNavigation } from './src/services/notificationService';
 
 export default function App() {
+  const navigationRef = useNavigationContainerRef();
+  const notifResponseListener = useRef();
+
   const [fontsLoaded] = useFonts({
     PlayfairDisplay_400Regular,
     PlayfairDisplay_400Regular_Italic,
@@ -40,6 +46,29 @@ export default function App() {
         console.error('DB init failed:', e);
         setDbReady(true); // Still render even if DB fails
       });
+
+    // Android notification channels
+    initNotificationChannels();
+
+    // Notification tap handler (background/foreground)
+    notifResponseListener.current = Notifications.addNotificationResponseReceivedListener(response => {
+      const data = response.notification.request.content.data;
+      handleNotificationNavigation(navigationRef, data);
+    });
+
+    // Cold-start: check last notification that opened the app
+    Notifications.getLastNotificationResponseAsync().then(response => {
+      if (response) {
+        const data = response.notification.request.content.data;
+        setTimeout(() => handleNotificationNavigation(navigationRef, data), 1500);
+      }
+    });
+
+    return () => {
+      if (notifResponseListener.current) {
+        notifResponseListener.current.remove();
+      }
+    };
   }, []);
 
   if (!fontsLoaded || !dbReady) {
@@ -51,11 +80,13 @@ export default function App() {
   }
 
   return (
-    <UserProfileProvider>
-      <NavigationContainer>
-        <StatusBar style="light" />
-        <AppNavigator />
-      </NavigationContainer>
-    </UserProfileProvider>
+    <AuthProvider>
+      <UserProfileProvider>
+        <NavigationContainer ref={navigationRef}>
+          <StatusBar style="light" />
+          <AppNavigator />
+        </NavigationContainer>
+      </UserProfileProvider>
+    </AuthProvider>
   );
 }
