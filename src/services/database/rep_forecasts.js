@@ -1,0 +1,48 @@
+import { getDB } from './client';
+
+export const ForecastRepository = {
+    getForecast: async (key) => {
+        const db = await getDB();
+        const now = Date.now();
+        const row = await db.getFirstAsync(`SELECT content, expires_at FROM forecasts WHERE id = ?;`, [key]);
+        if (!row) return null;
+        if (row.expires_at && now > row.expires_at) {
+            console.log(`[SQLite] Cache Expired for ${key}`);
+            await db.runAsync(`DELETE FROM forecasts WHERE id = ?;`, [key]);
+            return null;
+        }
+        console.log(`[SQLite] Cache Hit for ${key}`);
+        return JSON.parse(row.content);
+    },
+
+    saveForecast: async (key, profileId, type, dateLabel, content, expiresAt) => {
+        const db = await getDB();
+        await db.runAsync(
+            `INSERT OR REPLACE INTO forecasts (id, profile_id, type, date_label, content, created_at, expires_at)
+             VALUES (?, ?, ?, ?, ?, ?, ?);`,
+            [key, profileId, type, dateLabel, JSON.stringify(content), Date.now(), expiresAt]
+        );
+        console.log(`[SQLite] Saved forecast: ${key}`);
+    },
+
+    pruneExpired: async () => {
+        const db = await getDB();
+        await db.runAsync(`DELETE FROM forecasts WHERE expires_at < ?;`, [Date.now()]);
+    },
+
+    deleteByType: async (type, useLike = false) => {
+        const db = await getDB();
+        const op = useLike ? 'LIKE' : '=';
+        await db.execAsync('PRAGMA foreign_keys = OFF;');
+        try {
+            await db.runAsync(`DELETE FROM forecasts WHERE type ${op} ?;`, [type]);
+        } finally {
+            await db.execAsync('PRAGMA foreign_keys = ON;');
+        }
+    },
+
+    clearAll: async () => {
+        const db = await getDB();
+        await db.runAsync(`DELETE FROM forecasts;`);
+    }
+};
