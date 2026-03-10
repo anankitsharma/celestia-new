@@ -388,6 +388,162 @@ const generateWithFallback = async (params) => {
     throw lastError;
 };
 
+// --- COSMIC NOTIFICATION LINES ---
+
+const cosmicLineBatchSchema = {
+    type: Type.OBJECT,
+    properties: {
+        lines: {
+            type: Type.ARRAY,
+            items: {
+                type: Type.OBJECT,
+                properties: {
+                    date: { type: Type.STRING },
+                    title: { type: Type.STRING },
+                    body: { type: Type.STRING },
+                },
+                required: ["date", "title", "body"]
+            }
+        }
+    },
+    required: ["lines"]
+};
+
+export const generateCosmicNotificationBatch = async (astralSignature, dayContexts) => {
+    const dayBlocks = dayContexts.map(d => {
+        const moonLine = `Moon: ${d.moonData.phaseName} in ${d.moonData.sign} (${d.moonData.illumination}% illumination)`;
+        const aspectLine = d.moonData.majorAspect ? `Moon Aspect: ${d.moonData.majorAspect.label} (${d.moonData.majorAspect.type})` : '';
+        const keyTransits = d.transits
+            .filter(t => ['Mercury', 'Venus', 'Mars', 'Jupiter', 'Saturn', 'Uranus', 'Neptune', 'Pluto'].includes(t.name))
+            .map(t => `${t.name} in ${t.sign}${t.isRetrograde ? ' Rx' : ''}`)
+            .join(', ');
+        const windows = d.cosmicWindows.length > 0
+            ? `Active Windows: ${d.cosmicWindows.map(w => w.description).join('; ')}`
+            : '';
+        const rxLine = d.mercuryRx ? 'Mercury Retrograde is ACTIVE' : '';
+
+        return `--- ${d.date} ---\n${moonLine}\n${aspectLine}\nKey Transits: ${keyTransits}\n${windows}\n${rxLine}`.replace(/\n{2,}/g, '\n').trim();
+    }).join('\n\n');
+
+    const prompt = `You are the notification writer for Celestia, a premium astrology app.
+
+Your ONLY goal: make the user TAP the notification and open the app.
+
+Generate ${dayContexts.length} daily morning notifications — one per day.
+
+USER'S NATAL CHART:
+${astralSignature}
+
+DAILY COSMIC WEATHER:
+${dayBlocks}
+
+THE STRATEGY — CURIOSITY GAPS:
+Every notification must create an OPEN LOOP. Reveal something specific and personal, but withhold the payoff so the user MUST tap to complete it. The notification is a teaser, not the content.
+
+STRUCTURE: title (hook) + body (specific tease + soft CTA)
+
+TITLE RULES:
+- Max 5 words, no emoji
+- Creates intrigue or urgency. Examples:
+  "Something shifted overnight"
+  "Check your Venus today"
+  "This only happens twice"
+  "Not what you expected"
+  "Before noon. Read this."
+
+BODY RULES:
+- 2 parts: (1) a specific, personal astrology tease, then (2) a soft call-to-action
+- Max 25 words total
+- The tease MUST reference their placements or real transits
+- The CTA pulls them into the app — never says "open the app" directly
+
+HIGH-IMPACT BODY EXAMPLES (study these closely):
+  "Mars crossed your natal Venus overnight. Your love score shifted — see what changed."
+  "Your Scorpio Moon is being activated by a rare transit. Full reading is ready."
+  "Mercury Rx hits your 3rd house differently. We mapped how — check your chart."
+  "3 planets are touching your natal placements right now. See which ones."
+  "The Moon enters your Rising sign in 4 hours. Your energy forecast updated."
+  "Something in your career sector just turned on. Your daily reading explains it."
+  "Jupiter is doing something unusual to your Sun placement. Worth a look."
+
+SOFT CTA PATTERNS (rotate these — never repeat in a batch):
+- "See what changed."
+- "Full reading is ready."
+- "Check your chart."
+- "See which ones."
+- "Your forecast updated."
+- "Worth a look."
+- "We broke it down."
+- "Your reading explains it."
+- "See how it lands."
+
+TONE (vary across the batch):
+- Urgent: "Before noon. Read this." / "Mars crossed your natal Venus overnight."
+- Mysterious: "Something shifted in your chart." / "3 planets are doing something unusual."
+- Personal: "Your Pisces Moon is being activated." / "This transit only hits your sign this way."
+- Specific: "Venus enters your Moon sign at 2pm." / "Saturn square your Mercury — we mapped it."
+- Provocative: "You might feel off today." / "There is a reason. Your chart has the answer."
+
+WHAT MAKES USERS TAP:
+- Specificity ("3 planets", "your natal Venus", "your 7th house") — feels like the app knows something
+- Incompleteness ("shifted", "something unusual", "see what changed") — the notification is not enough
+- Time sensitivity ("overnight", "before noon", "in 4 hours") — creates urgency
+- Numbers ("3 planets", "love score shifted", "happens twice") — concrete = credible
+- Soft CTA that promises a payoff inside the app
+
+CRITICAL — WHAT THE USER WILL SEE WHEN THEY OPEN THE APP:
+The notification MUST ONLY reference things the user can verify in the app. The app shows:
+- Moon phase + sign (displayed in hero section)
+- Mercury Retrograde status (banner if active)
+- Cosmic Windows: transits hitting their natal chart (shown as cards)
+- Daily forecast: AI-generated reading with header, power cosmic, mantra
+- Energy grid: Love / Career / Health scores (percentage bars)
+- Love & Career vibes (3-word descriptors)
+- Planet positions strip (Sun through Pluto with signs + degrees)
+
+DO NOT reference things the app does not show:
+- Specific house numbers (the app does not display house activations on the Today tab)
+- Specific degree numbers or orbs
+- Timing like "at 2pm" or "in 4 hours" (the app does not show transit times)
+
+GOOD references (visible in app):
+- Moon sign/phase ("Moon in Scorpio", "Full Moon")
+- Energy scores ("love energy shifted", "career score")
+- Cosmic windows ("Mars touching your natal Venus")
+- Mercury retrograde status
+- Planet signs ("Venus in Aries", "Mars Rx")
+- Forecast reading ("your reading", "daily forecast")
+
+NEVER:
+- Generic language ("stars align", "trust the universe", "good vibes", "cosmic energy")
+- Emoji anywhere
+- Starting with "Today" or "The cosmos" or "Good morning"
+- Self-contained wisdom (if they feel complete after reading, they won't tap)
+- Hard CTA ("Open the app", "Tap here", "Click now")
+- Same CTA pattern twice in the batch
+- More than 25 words in body
+- Same sentence structure repeated across days`;
+
+    return withRetry(async () => {
+        const response = await generateWithFallback({
+            contents: [{ role: 'user', parts: [{ text: prompt }] }],
+            config: {
+                responseMimeType: "application/json",
+                responseSchema: cosmicLineBatchSchema,
+            }
+        });
+        const data = cleanAndParseJson(response.text, null);
+        if (!data?.lines || !Array.isArray(data.lines) || data.lines.length === 0) return null;
+
+        // Validate: discard lines that are too long
+        return data.lines.filter(line =>
+            line.date && line.title && line.body &&
+            line.title.split(' ').length <= 6 &&
+            line.body.split(' ').length <= 30
+        );
+    }, null);
+};
+
 // --- EXPORTS ---
 
 export const generateReportOverview = async (profile) => {
@@ -1534,6 +1690,108 @@ export const generateMatchInsights = async (p1, p2) => {
         const data = { ...fallback, ...parsed };
         await ReportRepository.saveReport(key, p1.id, 'match', data, 'insights');
         return data;
+    }, fallback);
+};
+
+export const generateDeepMatchReport = async (p1, p2, synastry) => {
+    const p1Sig = getAstralSignature(p1);
+    const p2Sig = getAstralSignature(p2);
+    const p1Name = p1.name?.split(' ')[0] || 'Partner A';
+    const p2Name = p2.name?.split(' ')[0] || 'Partner B';
+    const score = synastry?.harmonyScore || 75;
+
+    const prompt = `
+        PREMIUM IN-DEPTH COMPATIBILITY REPORT — for a premium astrology app PDF.
+
+        ${p1Name}'s Chart:
+        ${p1Sig}
+
+        ${p2Name}'s Chart:
+        ${p2Sig}
+
+        Overall Compatibility Score: ${score}/100
+        Emotional: ${synastry?.scores?.emotional || 70}/100
+        Communication: ${synastry?.scores?.communication || 70}/100
+        Attraction: ${synastry?.scores?.attraction || 70}/100
+        Stability: ${synastry?.scores?.stability || 70}/100
+
+    TASK: Generate a deeply personal, astrology-rich compatibility report. Use ${p1Name} and ${p2Name} by name throughout. This is for a young woman who loves astrology — make it feel like her best friend who's also an expert astrologer wrote it.
+
+    GENERATE THESE SECTIONS:
+
+    1. headline: Catchy 3-5 word title for the match (e.g. "Fire Meets Water")
+    2. tagline: One poetic sentence about this pairing (max 15 words)
+    3. overview: 2 rich paragraphs about their overall dynamic. Reference specific placements. Separate with \\n\\n. (max 200 words total)
+    4. soulConnection: { title (3 words), description (2 paragraphs, max 150 words). What draws them together on a soul level. Reference North Node, Moon, or 7th house. }
+    5. emotionalDynamic: { title, howYouLove (paragraph about ${p1Name}'s emotional style based on Moon/Venus, max 80 words), howTheyLove (paragraph about ${p2Name}'s emotional style, max 80 words), together (paragraph about their emotional chemistry together, max 80 words) }
+    6. communicationStyle: { title, dynamic (2 paragraphs about Mercury interplay, max 150 words), tip (one practical sentence) }
+    7. attraction: { title, spark (what creates the magnetic pull - reference Mars/Venus, max 100 words), tension (what creates friction, max 80 words) }
+    8. growthAreas: [{ title (2-3 words), insight (2 sentences, max 40 words) }] — exactly 3 items
+    9. loveLanguages: { user (${p1Name}'s love language based on Venus sign, max 30 words), partner (${p2Name}'s love language, max 30 words) }
+    10. conflictStyle: { triggers (what causes fights based on Mars placements, max 60 words), resolution (how to resolve based on their charts, max 60 words) }
+    11. longTerm: { forecast (2 paragraphs about long-term potential, reference Saturn aspects, max 150 words), verdict (one bold sentence) }
+    12. advice: [string] — exactly 5 specific, actionable relationship tips (max 15 words each)
+    13. cosmicVerdict: 2-3 powerful words (e.g. "Destined Soulmates", "Beautiful Chaos")
+    14. closingMessage: A warm, personal closing paragraph addressed to ${p1Name} about this relationship (max 80 words)
+
+    TONE:
+    - Like a wise best friend who reads charts. Warm, specific, never generic.
+    - Reference REAL placements (e.g. "Your Scorpio Moon craves depth, while his Gemini Moon needs space")
+    - Grade 7-8 reading level. Mystical but accessible.
+    - Never say "Partner A/B". Always use names.
+
+    JSON Only.
+    `;
+
+    const fallback = {
+        headline: "A Cosmic Connection",
+        tagline: "Two souls drawn together by the stars.",
+        overview: "Your charts reveal a meaningful connection.\n\nThere is real potential here for growth and love.",
+        soulConnection: { title: "Karmic Bond", description: "A deep pull exists between you two.\n\nThis connection feels fated." },
+        emotionalDynamic: { title: "Heart Languages", howYouLove: "You love deeply and intensely.", howTheyLove: "They show love through actions.", together: "Together you create emotional safety." },
+        communicationStyle: { title: "Mind Meld", dynamic: "Your communication has a natural flow.\n\nYou understand each other's wavelength.", tip: "Listen before reacting." },
+        attraction: { title: "Magnetic Pull", spark: "There is undeniable chemistry between you.", tension: "Different paces can create friction." },
+        growthAreas: [
+            { title: "Trust Building", insight: "Opening up takes time. Be patient with each other." },
+            { title: "Space & Closeness", insight: "Finding the right balance is key for long-term harmony." },
+            { title: "Shared Dreams", insight: "Aligning your visions will strengthen this bond." }
+        ],
+        loveLanguages: { user: "Words of affirmation and quality time.", partner: "Acts of service and physical touch." },
+        conflictStyle: { triggers: "Miscommunication and unspoken expectations.", resolution: "Honest conversations and giving each other space to process." },
+        longTerm: { forecast: "This relationship has genuine long-term potential.\n\nWith effort from both sides, this can deepen beautifully.", verdict: "Worth fighting for." },
+        advice: ["Communicate your needs clearly", "Give space when emotions run high", "Celebrate small moments together", "Be honest about your fears", "Never stop being curious about each other"],
+        cosmicVerdict: "Cosmic Potential",
+        closingMessage: "This connection has something special. Trust the journey and trust each other."
+    };
+
+    const schema = {
+        type: Type.OBJECT,
+        properties: {
+            headline: { type: Type.STRING },
+            tagline: { type: Type.STRING },
+            overview: { type: Type.STRING },
+            soulConnection: { type: Type.OBJECT, properties: { title: { type: Type.STRING }, description: { type: Type.STRING } }, required: ["title", "description"] },
+            emotionalDynamic: { type: Type.OBJECT, properties: { title: { type: Type.STRING }, howYouLove: { type: Type.STRING }, howTheyLove: { type: Type.STRING }, together: { type: Type.STRING } }, required: ["title", "howYouLove", "howTheyLove", "together"] },
+            communicationStyle: { type: Type.OBJECT, properties: { title: { type: Type.STRING }, dynamic: { type: Type.STRING }, tip: { type: Type.STRING } }, required: ["title", "dynamic", "tip"] },
+            attraction: { type: Type.OBJECT, properties: { title: { type: Type.STRING }, spark: { type: Type.STRING }, tension: { type: Type.STRING } }, required: ["title", "spark", "tension"] },
+            growthAreas: { type: Type.ARRAY, items: { type: Type.OBJECT, properties: { title: { type: Type.STRING }, insight: { type: Type.STRING } }, required: ["title", "insight"] } },
+            loveLanguages: { type: Type.OBJECT, properties: { user: { type: Type.STRING }, partner: { type: Type.STRING } }, required: ["user", "partner"] },
+            conflictStyle: { type: Type.OBJECT, properties: { triggers: { type: Type.STRING }, resolution: { type: Type.STRING } }, required: ["triggers", "resolution"] },
+            longTerm: { type: Type.OBJECT, properties: { forecast: { type: Type.STRING }, verdict: { type: Type.STRING } }, required: ["forecast", "verdict"] },
+            advice: { type: Type.ARRAY, items: { type: Type.STRING } },
+            cosmicVerdict: { type: Type.STRING },
+            closingMessage: { type: Type.STRING }
+        },
+        required: ["headline", "tagline", "overview", "soulConnection", "emotionalDynamic", "communicationStyle", "attraction", "growthAreas", "loveLanguages", "conflictStyle", "longTerm", "advice", "cosmicVerdict", "closingMessage"]
+    };
+
+    return withRetry(async () => {
+        const response = await generateWithFallback({
+            contents: [{ role: 'user', parts: [{ text: prompt }] }],
+            config: { responseMimeType: "application/json", responseSchema: schema }
+        });
+        const parsed = cleanAndParseJson(response.text, fallback);
+        return { ...fallback, ...parsed };
     }, fallback);
 };
 

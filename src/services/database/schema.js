@@ -101,6 +101,48 @@ export const initSchema = async () => {
             CREATE INDEX IF NOT EXISTS idx_chat_messages_session_id ON chat_messages(session_id);
         `);
 
+        // ── Engagement tables ──────────────────────
+        await db.execAsync(`
+            CREATE TABLE IF NOT EXISTS user_streaks (
+                id TEXT PRIMARY KEY,
+                current_streak INTEGER DEFAULT 0,
+                longest_streak INTEGER DEFAULT 0,
+                last_check_in TEXT,
+                streak_freezes_remaining INTEGER DEFAULT 1,
+                total_check_ins INTEGER DEFAULT 0,
+                last_comeback_bonus INTEGER DEFAULT 0,
+                created_at INTEGER
+            );
+
+            CREATE TABLE IF NOT EXISTS achievements (
+                id TEXT PRIMARY KEY,
+                badge_id TEXT NOT NULL,
+                unlocked_at INTEGER,
+                seen INTEGER DEFAULT 0
+            );
+
+            CREATE TABLE IF NOT EXISTS user_xp (
+                id TEXT PRIMARY KEY,
+                total_xp INTEGER DEFAULT 0,
+                level INTEGER DEFAULT 1,
+                last_action TEXT,
+                last_action_at INTEGER
+            );
+
+            CREATE INDEX IF NOT EXISTS idx_achievements_badge_id ON achievements(badge_id);
+
+            CREATE TABLE IF NOT EXISTS journal_entries (
+                id TEXT PRIMARY KEY,
+                profile_id TEXT NOT NULL,
+                date TEXT NOT NULL,
+                content TEXT NOT NULL,
+                prompt TEXT,
+                created_at INTEGER
+            );
+
+            CREATE INDEX IF NOT EXISTS idx_journal_profile_date ON journal_entries(profile_id, date);
+        `);
+
         // ── Migrations for existing databases ───────
         await addColumnIfMissing(db, 'profiles', 'is_time_unknown', 'INTEGER DEFAULT 0');
         await addColumnIfMissing(db, 'charts', 'elements', 'JSON');

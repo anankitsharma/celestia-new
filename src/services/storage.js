@@ -7,6 +7,12 @@ export const StorageKeys = {
     REPORTS: 'astra_reports_cache_v2',
     PARTNER_PROFILES: 'astra_partner_profiles',
     DAILY_CHAT_USAGE: 'astra_daily_chat_usage',
+    ACHIEVEMENT_COUNTERS: 'celestia_achievement_counters',
+    NOTIFICATION_SETTINGS: 'celestia_notification_settings',
+    NOTIFICATION_HISTORY: 'celestia_notification_history',
+    NOTIFICATION_ASKED: 'celestia_notification_asked',
+    SESSION_COUNT: 'celestia_session_count',
+    AI_NOTIFICATION_LINES: 'celestia_ai_notification_lines',
 };
 
 export const loadString = async (key) => {
