@@ -1,11 +1,18 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { View, Text, ScrollView, TouchableOpacity, StyleSheet, ActivityIndicator, Platform, StatusBar } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { T, FONTS } from '../constants/theme';
 import { useUserProfile } from '../contexts/UserProfileContext';
-import { getTransitPlanets } from '../services/astrologyService';
-import { generateTransitInsight } from '../services/geminiService';
+import { getTransitPlanets, getUpcomingEvents, isMercuryRetrograde } from '../services/astrologyService';
+import { generateTransitInsight, generateMercuryRxInsight } from '../services/geminiService';
 import { trackEvent } from '../services/achievementService';
+import { awardXP } from '../services/xpService';
+import { completeQuestAction } from '../services/questService';
+import { haptic } from '../services/hapticService';
+import AstroText from '../components/AstroText';
+import CosmicTooltip from '../components/CosmicTooltip';
+import { useShareCard } from '../components/ShareCard';
+import TransitShareCard from '../components/TransitShareCard';
 
 const PLANET_GLYPHS = {
   Sun: '☉', Moon: '☽', Mercury: '☿', Venus: '♀', Mars: '♂',
@@ -29,19 +36,60 @@ const getIntensity = (orb, aspectType) => {
   return 1;
 };
 
-export default function TransitsScreen({ navigation }) {
+export default function TransitsScreen({ navigation, route }) {
   const { userProfile } = useUserProfile();
   const [expanded, setExpanded] = useState(0);
   const [transits, setTransits] = useState([]);
   const [loading, setLoading] = useState(true);
   const [aiInsights, setAiInsights] = useState({}); // keyed by transit index
   const [aiLoading, setAiLoading] = useState({}); // keyed by transit index
+  const [upcomingEvents, setUpcomingEvents] = useState([]);
+  const [shareTransitData, setShareTransitData] = useState(null);
+  const [mercuryRxData, setMercuryRxData] = useState(null); // { sign, degree, isRetrograde }
+  const [rxInsight, setRxInsight] = useState(null);
+  const [rxInsightLoading, setRxInsightLoading] = useState(false);
+  const { cardRef: transitCardRef, captureAndShare: shareTransit } = useShareCard();
+  const rxScrollRef = useRef(null);
 
   useEffect(() => {
     if (!userProfile?.chart) { setLoading(false); return; }
     buildTransits();
+    try {
+      const events = getUpcomingEvents(userProfile.chart, 14);
+      setUpcomingEvents(events);
+    } catch (e) { console.warn('Upcoming events error:', e); }
+
+    // Detect Mercury Retrograde
+    try {
+      const today = new Date();
+      if (isMercuryRetrograde(today)) {
+        const planets = getTransitPlanets(today);
+        const mercury = planets.find(p => p.name === 'Mercury');
+        if (mercury) {
+          setMercuryRxData(mercury);
+          // Fetch personalized AI insight
+          setRxInsightLoading(true);
+          generateMercuryRxInsight(userProfile, mercury.sign, mercury.degree)
+            .then(insight => { if (insight) setRxInsight(insight); })
+            .catch(e => console.warn('Mercury Rx insight error:', e))
+            .finally(() => setRxInsightLoading(false));
+        }
+      }
+    } catch {}
+
     trackEvent('sky_tab_open').catch(() => {});
+    completeQuestAction('transits_checked').catch(() => {});
   }, [userProfile]);
+
+  // Auto-scroll to Mercury Rx section when navigated from Home Rx banner
+  useEffect(() => {
+    if (route?.params?.highlightMercuryRx && mercuryRxData && rxScrollRef.current) {
+      setTimeout(() => {
+        rxScrollRef.current.measureLayout?.(undefined, () => {}, () => {});
+      }, 500);
+      navigation.setParams({ highlightMercuryRx: undefined });
+    }
+  }, [route?.params?.highlightMercuryRx, mercuryRxData]);
 
   const fetchAiInsight = useCallback(async (transit, index) => {
     if (aiInsights[index] || aiLoading[index]) return;
@@ -181,11 +229,16 @@ export default function TransitsScreen({ navigation }) {
       <ScrollView showsVerticalScrollIndicator={false}>
         <LinearGradient colors={['#0E0E22', '#161230', '#101420']} locations={[0, 0.5, 1]} style={styles.hero}>
           <View style={styles.heroGlow} />
-          <Text style={styles.title}>Today's Sky</Text>
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+            <Text style={styles.title}>Today's Sky</Text>
+            <CosmicTooltip id="transit" size={16} color="rgba(250,248,242,0.4)" />
+          </View>
           <Text style={styles.sub}>
             {loading
               ? 'Calculating transits…'
-              : `${transits.length} active transit${transits.length !== 1 ? 's' : ''} affecting your chart`
+              : mercuryRxData
+                ? `☿ Mercury Retrograde · ${transits.length} transit${transits.length !== 1 ? 's' : ''} active`
+                : `${transits.length} active transit${transits.length !== 1 ? 's' : ''} affecting your chart`
             }
           </Text>
           {!loading && transits.length > 0 && (
@@ -204,6 +257,83 @@ export default function TransitsScreen({ navigation }) {
             </View>
           )}
         </LinearGradient>
+
+        {/* ── MERCURY RETROGRADE SECTION ── */}
+        {mercuryRxData && (
+          <View ref={rxScrollRef} style={styles.rxSection}>
+            <LinearGradient colors={['#2A1408', '#1A0A04', '#0E0E22']} style={styles.rxGradient}>
+              <View style={styles.rxHeader}>
+                <Text style={styles.rxGlyph}>☿</Text>
+                <View style={{ flex: 1 }}>
+                  <Text style={styles.rxTitle}>Mercury Retrograde</Text>
+                  <Text style={styles.rxPos}>
+                    Mercury {mercuryRxData.sign} {mercuryRxData.degree.toFixed(0)}° ℞
+                  </Text>
+                </View>
+                <View style={styles.rxActiveBadge}>
+                  <Text style={styles.rxActiveBadgeText}>ACTIVE</Text>
+                </View>
+              </View>
+
+              {rxInsightLoading ? (
+                <View style={styles.rxLoadingRow}>
+                  <ActivityIndicator size="small" color="#E8A040" />
+                  <Text style={styles.rxLoadingText}>Reading your chart...</Text>
+                </View>
+              ) : rxInsight ? (
+                <>
+                  <Text style={styles.rxHeadline}>{rxInsight.headline}</Text>
+                  <Text style={styles.rxExplainer}>{rxInsight.explanation}</Text>
+
+                  <View style={styles.rxTipsGrid}>
+                    {(rxInsight.tips || []).map((tip, idx) => (
+                      <View key={idx} style={styles.rxTip}>
+                        <Text style={styles.rxTipIcon}>{tip.icon || '✦'}</Text>
+                        <Text style={styles.rxTipText}>{tip.text}</Text>
+                      </View>
+                    ))}
+                  </View>
+
+                  <View style={styles.rxAffect}>
+                    <Text style={styles.rxAffectLabel}>HOW IT AFFECTS YOUR CHART</Text>
+                    <Text style={styles.rxAffectText}>{rxInsight.chartImpact}</Text>
+                  </View>
+
+                  {rxInsight.hiddenGift && (
+                    <View style={styles.rxGiftBox}>
+                      <Text style={styles.rxGiftLabel}>THE HIDDEN GIFT</Text>
+                      <Text style={styles.rxGiftText}>✧ {rxInsight.hiddenGift}</Text>
+                    </View>
+                  )}
+
+                  {rxInsight.ritual && (
+                    <View style={styles.rxRitualBox}>
+                      <Text style={styles.rxRitualLabel}>RITUAL</Text>
+                      <Text style={styles.rxRitualText}>✧ {rxInsight.ritual}</Text>
+                    </View>
+                  )}
+                </>
+              ) : (
+                <>
+                  <Text style={styles.rxExplainer}>
+                    Mercury appears to move backward through {mercuryRxData.sign}, disrupting communication, technology, and travel. This is a natural cycle for review and reflection — not a time to panic.
+                  </Text>
+                  <View style={styles.rxAffect}>
+                    <Text style={styles.rxAffectLabel}>HOW IT AFFECTS YOUR CHART</Text>
+                    <Text style={styles.rxAffectText}>
+                      Mercury retrograde in {mercuryRxData.sign} activates the areas of your chart ruled by {mercuryRxData.sign}. Look at your Mercury transits below — any Mercury aspects are amplified during this period.
+                    </Text>
+                  </View>
+                </>
+              )}
+
+              <TouchableOpacity style={styles.rxAskBtn} activeOpacity={0.7}
+                onPress={() => navigation.navigate('AskAI', { initialMessage: `Mercury is retrograde in ${mercuryRxData.sign} right now. How does this affect my specific birth chart? What should I watch out for?` })}>
+                <Text style={styles.rxAskBtnText}>Ask Celestia About Your Mercury ☽</Text>
+              </TouchableOpacity>
+            </LinearGradient>
+          </View>
+        )}
 
         {loading ? (
           <View style={{ paddingVertical: 60, alignItems: 'center' }}>
@@ -237,6 +367,7 @@ export default function TransitsScreen({ navigation }) {
                   <View style={[styles.torb, { borderColor: t.color + '60' }]}>
                     <Text style={[styles.torbText, { color: t.color }]}>{t.orb}</Text>
                   </View>
+                  <CosmicTooltip id={t.aspectType?.toLowerCase()} size={14} />
                   <Text style={[styles.tchev, expanded === i && { transform: [{ rotate: '180deg' }] }]}>▾</Text>
                 </TouchableOpacity>
 
@@ -257,7 +388,7 @@ export default function TransitsScreen({ navigation }) {
                       </View>
                     )}
 
-                    <Text style={styles.tbodyTxt}>{t.body}</Text>
+                    <AstroText text={t.body} style={styles.tbodyTxt} />
 
                     {/* AI personalized insight */}
                     {aiLoading[i] && (
@@ -269,7 +400,7 @@ export default function TransitsScreen({ navigation }) {
                     {aiInsights[i] && (
                       <View style={styles.taiSection}>
                         <Text style={styles.taiLabel}>PERSONALIZED FOR YOUR CHART</Text>
-                        <Text style={styles.taiText}>{aiInsights[i].personalMeaning}</Text>
+                        <AstroText text={aiInsights[i].personalMeaning} style={styles.taiText} />
 
                         {aiInsights[i].houseActivation && (
                           <View style={styles.taiHouseBox}>
@@ -287,15 +418,47 @@ export default function TransitsScreen({ navigation }) {
                             <Text style={styles.taiDoAvoidText}>{aiInsights[i].avoidThis}</Text>
                           </View>
                         </View>
+
+                        {aiInsights[i]?.ritual && (
+                          <View style={styles.taiRitualCard}>
+                            <View style={styles.taiRitualHeader}>
+                              <Text style={styles.taiRitualLabel}>RITUAL</Text>
+                              {aiInsights[i].ritualDuration && (
+                                <Text style={styles.taiRitualDuration}>{aiInsights[i].ritualDuration}</Text>
+                              )}
+                            </View>
+                            <Text style={styles.taiRitualText}>✧ {aiInsights[i].ritual}</Text>
+                          </View>
+                        )}
                       </View>
                     )}
 
                     <View style={styles.tbodyMeta}>
                       <Text style={styles.tbodyDur}>{t.duration}</Text>
-                      <TouchableOpacity style={styles.tbodyAi}
-                        onPress={() => navigation.navigate('AskAI', { initialMessage: `Tell me about the transit ${t.aspect} happening right now. What does it mean for me?` })}>
-                        <Text style={styles.tbodyAiText}>Ask Celestia ☽</Text>
-                      </TouchableOpacity>
+                      <View style={{ flexDirection: 'row', gap: 6 }}>
+                        <TouchableOpacity style={styles.tbodyShare} onPress={async () => {
+                          haptic.light();
+                          const insight = aiInsights[i];
+                          setShareTransitData({
+                            aspect: t.aspect,
+                            meaning: insight?.personalMeaning?.slice(0, 120),
+                            ritual: insight?.ritual,
+                            date: new Date().toLocaleDateString('en-US', { month: 'long', day: 'numeric' }),
+                          });
+                          // Wait a tick for render, then capture
+                          setTimeout(async () => {
+                            await shareTransit(`${t.aspect} — ${t.body?.slice(0, 100) || ''}`);
+                            trackEvent('share').catch(() => {});
+                            awardXP(userProfile?.id || 'default', 'share').catch(() => {});
+                          }, 100);
+                        }}>
+                          <Text style={styles.tbodyShareText}>Share ↗</Text>
+                        </TouchableOpacity>
+                        <TouchableOpacity style={styles.tbodyAi}
+                          onPress={() => navigation.navigate('AskAI', { initialMessage: `Tell me about the transit ${t.aspect} happening right now. What does it mean for me?` })}>
+                          <Text style={styles.tbodyAiText}>Ask Celestia ☽</Text>
+                        </TouchableOpacity>
+                      </View>
                     </View>
                   </View>
                 )}
@@ -304,8 +467,47 @@ export default function TransitsScreen({ navigation }) {
           </View>
         )}
 
+        {/* ── UPCOMING EVENTS TIMELINE ── */}
+        {upcomingEvents.length > 0 && (
+          <View style={styles.timelineSection}>
+            <Text style={styles.timelineTitle}>Coming Up</Text>
+            <Text style={styles.timelineSub}>Key cosmic events in the next 2 weeks</Text>
+            <View style={styles.timeline}>
+              {upcomingEvents.map((ev, i) => (
+                <View key={i} style={styles.tlRow}>
+                  <View style={styles.tlLeft}>
+                    <Text style={styles.tlDate}>{ev.date}</Text>
+                    <View style={styles.tlLine}>
+                      <View style={[styles.tlDot, ev.type === 'lunation' && styles.tlDotLunation, ev.type === 'retrograde' && styles.tlDotRetro]} />
+                      {i < upcomingEvents.length - 1 && <View style={styles.tlConnector} />}
+                    </View>
+                  </View>
+                  <View style={styles.tlCard}>
+                    <View style={styles.tlCardHeader}>
+                      <Text style={styles.tlIcon}>{ev.icon}</Text>
+                      <Text style={styles.tlCardTitle}>{ev.title}</Text>
+                    </View>
+                    <Text style={styles.tlCardDesc}>{ev.description}</Text>
+                  </View>
+                </View>
+              ))}
+            </View>
+          </View>
+        )}
+
         <View style={{ height: 20 }} />
       </ScrollView>
+
+      {/* Offscreen transit share card */}
+      <View style={{ position: 'absolute', left: -9999 }}>
+        <TransitShareCard
+          innerRef={transitCardRef}
+          aspect={shareTransitData?.aspect}
+          meaning={shareTransitData?.meaning}
+          ritual={shareTransitData?.ritual}
+          date={shareTransitData?.date}
+        />
+      </View>
     </View>
   );
 }
@@ -338,6 +540,8 @@ const styles = StyleSheet.create({
   tbodyTxt: { fontSize: 13, lineHeight: 21, color: T.ink, marginBottom: 12 },
   tbodyMeta: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
   tbodyDur: { fontSize: 11, color: T.stone },
+  tbodyShare: { backgroundColor: 'rgba(200,168,75,0.12)', borderWidth: 1, borderColor: 'rgba(200,168,75,0.25)', borderRadius: 100, paddingVertical: 5, paddingHorizontal: 12 },
+  tbodyShareText: { fontSize: 11, color: T.gold, fontFamily: FONTS.sansMedium },
   tbodyAi: { backgroundColor: T.navy, borderRadius: 100, paddingVertical: 5, paddingHorizontal: 12 },
   tbodyAiText: { fontSize: 11, color: T.cream, fontFamily: FONTS.sansMedium },
   // Natal context chip
@@ -355,4 +559,56 @@ const styles = StyleSheet.create({
   taiDoAvoidCard: { backgroundColor: 'white', borderRadius: 10, padding: 10, borderLeftWidth: 3, borderWidth: 1, borderColor: T.border },
   taiDoAvoidLabel: { fontSize: 8, fontFamily: FONTS.sansSemiBold, letterSpacing: 1.2, marginBottom: 3 },
   taiDoAvoidText: { fontSize: 12.5, color: T.ink, lineHeight: 18 },
+  taiRitualCard: { backgroundColor: 'rgba(160,128,224,0.08)', borderRadius: 10, padding: 10, borderLeftWidth: 3, borderLeftColor: '#A080E0', borderWidth: 1, borderColor: 'rgba(160,128,224,0.15)', marginTop: 8 },
+  taiRitualHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 },
+  taiRitualLabel: { fontSize: 8, fontFamily: FONTS.sansSemiBold, letterSpacing: 1.2, color: '#A080E0' },
+  taiRitualDuration: { fontSize: 9, color: '#A080E0', fontFamily: FONTS.sansMedium },
+  taiRitualText: { fontSize: 12.5, color: T.ink, lineHeight: 18 },
+  // Timeline
+  timelineSection: { paddingHorizontal: 20, paddingTop: 8, paddingBottom: 8 },
+  timelineTitle: { fontFamily: FONTS.serif, fontSize: 22, color: T.navy, marginBottom: 4 },
+  timelineSub: { fontSize: 12, color: T.stone, marginBottom: 16 },
+  timeline: {},
+  tlRow: { flexDirection: 'row', minHeight: 72 },
+  tlLeft: { width: 60, alignItems: 'center', flexDirection: 'row' },
+  tlDate: { fontSize: 11, fontFamily: FONTS.sansSemiBold, color: T.stone, width: 38, textAlign: 'right' },
+  tlLine: { alignItems: 'center', marginLeft: 8, flex: 1 },
+  tlDot: { width: 10, height: 10, borderRadius: 5, backgroundColor: T.gold, marginTop: 4 },
+  tlDotLunation: { backgroundColor: '#A080E0', width: 12, height: 12, borderRadius: 6 },
+  tlDotRetro: { backgroundColor: '#E87878' },
+  tlConnector: { width: 1.5, flex: 1, backgroundColor: '#E8E0D0', marginTop: 2 },
+  tlCard: { flex: 1, backgroundColor: 'white', borderRadius: 14, padding: 12, marginLeft: 10, marginBottom: 8, borderWidth: 1, borderColor: 'rgba(0,0,0,0.04)', shadowColor: '#000', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.04, shadowRadius: 8 },
+  tlCardHeader: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 4 },
+  tlIcon: { fontSize: 16 },
+  tlCardTitle: { fontSize: 13, fontFamily: FONTS.sansSemiBold, color: T.navy, flex: 1 },
+  tlCardDesc: { fontSize: 12, color: T.stone, lineHeight: 18 },
+
+  // Mercury Retrograde section
+  rxSection: { marginHorizontal: 16, marginTop: 16, borderRadius: 20, overflow: 'hidden' },
+  rxGradient: { padding: 22 },
+  rxHeader: { flexDirection: 'row', alignItems: 'center', gap: 12, marginBottom: 16 },
+  rxGlyph: { fontSize: 32, color: '#E8A040' },
+  rxTitle: { fontFamily: FONTS.serifMedium, fontSize: 20, color: '#E8A040' },
+  rxPos: { fontSize: 12, color: 'rgba(250,248,242,0.5)', marginTop: 2 },
+  rxActiveBadge: { backgroundColor: 'rgba(232,120,40,0.15)', borderWidth: 1, borderColor: 'rgba(232,120,40,0.3)', borderRadius: 100, paddingVertical: 4, paddingHorizontal: 10 },
+  rxActiveBadgeText: { fontSize: 9, fontFamily: FONTS.sansSemiBold, color: '#E8A040', letterSpacing: 1 },
+  rxExplainer: { fontSize: 13, color: 'rgba(250,248,242,0.7)', lineHeight: 20, marginBottom: 18 },
+  rxTipsGrid: { gap: 10, marginBottom: 18 },
+  rxTip: { flexDirection: 'row', alignItems: 'flex-start', gap: 10 },
+  rxTipIcon: { fontSize: 14, marginTop: 1 },
+  rxTipText: { flex: 1, fontSize: 12, color: 'rgba(250,248,242,0.6)', lineHeight: 18 },
+  rxAffect: { backgroundColor: 'rgba(232,160,64,0.08)', borderWidth: 1, borderColor: 'rgba(232,160,64,0.15)', borderRadius: 14, padding: 14, marginBottom: 16 },
+  rxAffectLabel: { fontSize: 9, fontFamily: FONTS.sansSemiBold, letterSpacing: 2, color: 'rgba(232,160,64,0.6)', marginBottom: 8 },
+  rxAffectText: { fontSize: 12, color: 'rgba(250,248,242,0.6)', lineHeight: 18 },
+  rxAskBtn: { alignSelf: 'center', backgroundColor: 'rgba(232,160,64,0.15)', borderWidth: 1, borderColor: 'rgba(232,160,64,0.3)', borderRadius: 100, paddingVertical: 10, paddingHorizontal: 20 },
+  rxAskBtnText: { fontSize: 13, fontFamily: FONTS.sansSemiBold, color: '#E8A040' },
+  rxLoadingRow: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingVertical: 16 },
+  rxLoadingText: { fontSize: 12, color: 'rgba(250,248,242,0.5)' },
+  rxHeadline: { fontFamily: FONTS.serifMedium, fontSize: 16, color: T.cream, marginBottom: 10, lineHeight: 22 },
+  rxGiftBox: { backgroundColor: 'rgba(160,200,224,0.08)', borderWidth: 1, borderColor: 'rgba(160,200,224,0.15)', borderRadius: 14, padding: 14, marginBottom: 16 },
+  rxGiftLabel: { fontSize: 9, fontFamily: FONTS.sansSemiBold, letterSpacing: 2, color: 'rgba(160,200,224,0.6)', marginBottom: 8 },
+  rxGiftText: { fontSize: 12, color: 'rgba(250,248,242,0.65)', lineHeight: 18 },
+  rxRitualBox: { backgroundColor: 'rgba(176,136,240,0.08)', borderWidth: 1, borderColor: 'rgba(176,136,240,0.15)', borderRadius: 14, padding: 14, marginBottom: 16 },
+  rxRitualLabel: { fontSize: 9, fontFamily: FONTS.sansSemiBold, letterSpacing: 2, color: 'rgba(176,136,240,0.6)', marginBottom: 8 },
+  rxRitualText: { fontSize: 12, color: 'rgba(250,248,242,0.65)', lineHeight: 18 },
 });

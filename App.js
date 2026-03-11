@@ -21,6 +21,9 @@ import { UserProfileProvider } from './src/contexts/UserProfileContext';
 import { AuthProvider } from './src/contexts/AuthContext';
 import { initSchema } from './src/services/database/schema';
 import { initNotificationChannels, handleNotificationNavigation } from './src/services/notificationService';
+import { initDeepLinks, registerDeepLinkHandler } from './src/services/deepLinkService';
+import { lookupInvite } from './src/services/inviteService';
+import { recordReferral } from './src/services/referralService';
 
 export default function App() {
   const navigationRef = useNavigationContainerRef();
@@ -50,6 +53,23 @@ export default function App() {
     // Android notification channels
     initNotificationChannels();
 
+    // Deep link handlers
+    registerDeepLinkHandler('invite', async ({ code }) => {
+      if (!code) return;
+      const invite = await lookupInvite(code);
+      if (invite) {
+        // Navigate to compatibility with invite data
+        setTimeout(() => {
+          navigationRef.current?.navigate('Match', { inviteCode: code, inviteData: invite });
+        }, 1000);
+      }
+    });
+    registerDeepLinkHandler('referral', async ({ code }) => {
+      if (!code) return;
+      await recordReferral(code, null); // userId set after profile load
+    });
+    const cleanupLinks = initDeepLinks();
+
     // Notification tap handler (background/foreground)
     notifResponseListener.current = Notifications.addNotificationResponseReceivedListener(response => {
       const data = response.notification.request.content.data;
@@ -68,6 +88,7 @@ export default function App() {
       if (notifResponseListener.current) {
         notifResponseListener.current.remove();
       }
+      if (cleanupLinks) cleanupLinks();
     };
   }, []);
 

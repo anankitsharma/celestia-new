@@ -61,6 +61,10 @@ export const BADGE_CATALOG = {
     id: 'galaxy_spreader', name: 'Galaxy Spreader', description: 'Shared 25 times',
     icon: '🌌', category: 'social',
   },
+  cosmic_connector: {
+    id: 'cosmic_connector', name: 'Cosmic Connector', description: 'Referred a friend to Celestia',
+    icon: '🔗', category: 'social',
+  },
 
   // ── Cosmic event badges ───────────────────
   new_moon_ritual: {
@@ -75,6 +79,34 @@ export const BADGE_CATALOG = {
     id: 'retrograde_warrior', name: 'Retrograde Warrior', description: 'Opened during Mercury retrograde',
     icon: '☿', category: 'cosmic_event',
   },
+
+  // ── Journey badges ─────────────────────────
+  chapter_awakening: {
+    id: 'chapter_awakening', name: 'Awakening', description: 'Completed Chapter 1 of your cosmic journey',
+    icon: '🌅', category: 'journey',
+  },
+  chapter_deepening: {
+    id: 'chapter_deepening', name: 'Deepening', description: 'Completed Chapter 2 of your cosmic journey',
+    icon: '🌊', category: 'journey',
+  },
+  chapter_connecting: {
+    id: 'chapter_connecting', name: 'Connecting', description: 'Completed Chapter 3 of your cosmic journey',
+    icon: '🔗', category: 'journey',
+  },
+  chapter_mastery: {
+    id: 'chapter_mastery', name: 'Mastery', description: 'Completed your 30-day cosmic journey',
+    icon: '👑', category: 'journey',
+  },
+
+  // ── Quest badges ────────────────────────────
+  quest_starter: {
+    id: 'quest_starter', name: 'Quest Starter', description: 'Completed your first daily quest set',
+    icon: '⚡', category: 'exploration',
+  },
+  quest_devotee: {
+    id: 'quest_devotee', name: 'Quest Devotee', description: 'Completed 7 daily quest sets',
+    icon: '🎯', category: 'exploration',
+  },
 };
 
 export const BADGE_CATEGORIES = [
@@ -83,6 +115,7 @@ export const BADGE_CATEGORIES = [
   { key: 'knowledge', label: 'KNOWLEDGE' },
   { key: 'social', label: 'SOCIAL' },
   { key: 'cosmic_event', label: 'COSMIC EVENTS' },
+  { key: 'journey', label: 'COSMIC JOURNEY' },
 ];
 
 export const STREAK_MILESTONES = {

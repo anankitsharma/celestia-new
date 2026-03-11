@@ -41,9 +41,11 @@ const periodSchema = {
             type: Type.OBJECT,
             properties: {
                 number: { type: Type.INTEGER },
-                color: { type: Type.STRING }
+                color: { type: Type.STRING },
+                colorHex: { type: Type.STRING },
+                crystal: { type: Type.STRING },
             },
-            required: ["number", "color"]
+            required: ["number", "color", "colorHex", "crystal"]
         },
         mantra: { type: Type.STRING },
         detailedHoroscope: { type: Type.STRING },
@@ -61,9 +63,11 @@ const periodSchema = {
         careerActions: { type: Type.ARRAY, items: { type: Type.STRING } },
         careerPowerSource: { type: Type.STRING },
         wealthFlow: { type: Type.STRING },
-        marketTiming: { type: Type.STRING }
+        marketTiming: { type: Type.STRING },
+        planetInfluences: { type: Type.ARRAY, items: { type: Type.OBJECT, properties: { glyph: { type: Type.STRING }, tag: { type: Type.STRING }, effect: { type: Type.STRING } }, required: ["glyph", "tag", "effect"] } },
+        dailyRitual: { type: Type.STRING }
     },
-    required: ["header", "powerCosmic", "luckyStats", "mantra", "detailedHoroscope", "loveVibe", "careerVibe", "actionItems", "viralInsight", "loveArchetype", "loveHoroscope", "loveActions", "careerArchetype", "careerHoroscope", "careerActions", "careerPowerSource", "wealthFlow", "marketTiming"]
+    required: ["header", "powerCosmic", "luckyStats", "mantra", "detailedHoroscope", "loveVibe", "careerVibe", "actionItems", "viralInsight", "loveArchetype", "loveHoroscope", "loveActions", "careerArchetype", "careerHoroscope", "careerActions", "careerPowerSource", "wealthFlow", "marketTiming", "planetInfluences", "dailyRitual"]
 };
 
 const reportCoreSchema = {
@@ -122,8 +126,34 @@ const transitInsightSchema = {
         houseActivation: { type: Type.STRING, description: "Which life area (house) is being activated and how it manifests. 1-2 sentences, max 40 words." },
         doThis: { type: Type.STRING, description: "One concrete action to take today. Max 15 words." },
         avoidThis: { type: Type.STRING, description: "One thing to be mindful of. Max 15 words." },
+        ritual: { type: Type.STRING, description: "A short micro-ritual or spiritual practice aligned with this transit. Max 20 words." },
+        ritualDuration: { type: Type.STRING, description: "How long the ritual takes. E.g. '2 min', '5 min'." },
     },
-    required: ["personalMeaning", "houseActivation", "doThis", "avoidThis"]
+    required: ["personalMeaning", "houseActivation", "doThis", "avoidThis", "ritual", "ritualDuration"]
+};
+
+const mercuryRxSchema = {
+    type: Type.OBJECT,
+    properties: {
+        headline: { type: Type.STRING, description: "A short personal headline for this retrograde. Max 8 words. E.g. 'Your words need a second look'" },
+        explanation: { type: Type.STRING, description: "What Mercury retrograde in this sign means specifically for THIS person's natal chart. Reference their Mercury sign, house, and any natal aspects being activated. 3-4 sentences, max 80 words." },
+        tips: {
+            type: Type.ARRAY,
+            items: {
+                type: Type.OBJECT,
+                properties: {
+                    icon: { type: Type.STRING, description: "A single emoji representing this tip" },
+                    text: { type: Type.STRING, description: "A personalized survival tip based on their chart. Max 20 words." },
+                },
+                required: ["icon", "text"]
+            },
+            description: "4 personalized survival tips based on how this retrograde hits their specific chart"
+        },
+        chartImpact: { type: Type.STRING, description: "Which specific houses and planets in their chart are most activated by this retrograde. 2-3 sentences, max 60 words." },
+        hiddenGift: { type: Type.STRING, description: "The positive opportunity or silver lining of this retrograde for their chart. 1-2 sentences, max 40 words." },
+        ritual: { type: Type.STRING, description: "A personalized micro-ritual for surviving this retrograde. Max 20 words." },
+    },
+    required: ["headline", "explanation", "tips", "chartImpact", "hiddenGift", "ritual"]
 };
 
 const aspectDeepDiveSchema = {
@@ -386,6 +416,104 @@ const generateWithFallback = async (params) => {
         }
     }
     throw lastError;
+};
+
+// --- MONTHLY RECAP ---
+
+const monthlyRecapSchema = {
+    type: Type.OBJECT,
+    properties: {
+        headline: { type: Type.STRING },
+        summary: { type: Type.STRING },
+        topInsight: { type: Type.STRING },
+        cosmicScore: { type: Type.INTEGER },
+        lookAhead: { type: Type.STRING },
+    },
+    required: ["headline", "summary", "topInsight", "cosmicScore", "lookAhead"]
+};
+
+export const generateMonthlyRecap = async (astralSignature, stats) => {
+    const prompt = `Generate a monthly cosmic recap for this user.
+
+USER'S CHART: ${astralSignature}
+
+STATS THIS MONTH:
+- Days active: ${stats.daysActive || 0}
+- Journal entries written: ${stats.journalEntries || 0}
+- Longest streak: ${stats.longestStreak || 0}
+- Top insight from their readings: ${stats.topInsight || 'N/A'}
+
+Generate:
+1. HEADLINE: A 4-6 word poetic summary of their cosmic month. Examples: "The month you chose clarity", "Quiet revolutions took root", "Your Venus woke up"
+2. SUMMARY: 2 sentences. What the cosmos brought them this month. Reference their chart. Max 40 words.
+3. TOP INSIGHT: The single most important thing they learned or experienced cosmically. 1 sentence, max 20 words.
+4. COSMIC SCORE: 1-100. Based on transit activity for their chart this month.
+5. LOOK AHEAD: 1 sentence preview of next month's energy. Max 20 words.
+
+TONE: Warm, personal, reflective. Like a wise friend reviewing the month together.
+NEVER: Generic platitudes, emoji, "the universe", "stars align".`;
+
+    return withRetry(async () => {
+        const response = await generateWithFallback({
+            contents: [{ role: 'user', parts: [{ text: prompt }] }],
+            config: { responseMimeType: "application/json", responseSchema: monthlyRecapSchema }
+        });
+        return cleanAndParseJson(response.text, null);
+    }, null);
+};
+
+// --- MOON RITUAL ---
+
+const moonRitualSchema = {
+    type: Type.OBJECT,
+    properties: {
+        title: { type: Type.STRING },
+        opening: { type: Type.STRING },
+        prompts: { type: Type.ARRAY, items: { type: Type.STRING } },
+        affirmation: { type: Type.STRING },
+        closingRitual: { type: Type.STRING },
+    },
+    required: ["title", "opening", "prompts", "affirmation", "closingRitual"]
+};
+
+export const generateMoonRitual = async (moonData, astralSignature, isNewMoon) => {
+    const phase = isNewMoon ? 'New Moon' : 'Full Moon';
+    const intent = isNewMoon ? 'setting intentions for what you want to manifest' : 'reflecting on what has come to fruition and releasing what no longer serves you';
+
+    const prompt = `You are a gentle, wise astrology guide creating a personal ${phase} ritual.
+
+${phase} in ${moonData.sign} — ${moonData.illumination}% illumination.
+User's chart: ${astralSignature}
+${moonData.majorAspect ? `Moon Aspect: ${moonData.majorAspect.label} (${moonData.majorAspect.type})` : ''}
+
+Create a personal ${phase} ritual focused on ${intent}.
+
+TITLE: A poetic 3-5 word ritual name. Examples: "Seeds in Dark Soil" (New Moon), "Harvest of Light" (Full Moon).
+
+OPENING: 2-3 sentences setting the scene. Reference the Moon's sign and the user's chart. Intimate, not generic. Max 50 words.
+
+PROMPTS: ${isNewMoon ? '3 intention-setting journal prompts' : '3 reflection + release journal prompts'}. Each must be:
+- A question or "I..." statement
+- Personal to their chart placements
+- Max 20 words each
+${isNewMoon ? 'Examples: "What am I ready to call in for my Scorpio Moon?", "I plant the seed of ___.", "What would I do if fear wasn\'t a factor?"' :
+'Examples: "What has the Full Moon illuminated that I was hiding from?", "I release ___.", "What truth have I been avoiding?"'}
+
+AFFIRMATION: One powerful sentence. Personal to their placements. Max 15 words.
+
+CLOSING RITUAL: A simple physical ritual (lighting candle, writing and burning, placing crystal, etc.). 2 sentences, max 30 words.
+
+TONE: Intimate, gentle, grounded. Not fluffy. Like a wise friend, not a guru.
+
+NEVER: Generic spiritual platitudes, "manifest your dreams", "trust the universe", emoji.`;
+
+    return withRetry(async () => {
+        const response = await generateWithFallback({
+            contents: [{ role: 'user', parts: [{ text: prompt }] }],
+            config: { responseMimeType: "application/json", responseSchema: moonRitualSchema }
+        });
+        return cleanAndParseJson(response.text, null);
+    }, null);
 };
 
 // --- COSMIC NOTIFICATION LINES ---
@@ -817,6 +945,8 @@ export const generateTransitInsight = async (transitPlanet, transitSign, natalPl
         houseActivation: natalHouse ? `Your ${natalHouse}th house themes are highlighted — expect movement in this life domain.` : 'Multiple life areas may feel this energy.',
         doThis: 'Take a moment to reflect on what this area of life needs from you.',
         avoidThis: 'Avoid making impulsive decisions under this transit.',
+        ritual: 'Close your eyes for 2 minutes and visualize calm, grounding energy.',
+        ritualDuration: '2 min',
     };
 
     const prompt = `
@@ -835,6 +965,8 @@ export const generateTransitInsight = async (transitPlanet, transitSign, natalPl
         2. houseActivation: Which life area (house ${natalHouse || 'unknown'}) is being lit up and what that looks like day-to-day.
         3. doThis: One specific, practical action they should take.
         4. avoidThis: One thing to be mindful of or avoid.
+        5. ritual: A short micro-ritual or spiritual practice aligned with this transit energy. Examples: "Write 3 gratitudes under moonlight", "Carry citrine in your left pocket today", "Breathe deeply for 2 minutes visualizing gold light". Max 20 words.
+        6. ritualDuration: How long it takes (e.g. "2 min", "5 min").
 
         JSON Only.
     `;
@@ -853,29 +985,99 @@ export const generateTransitInsight = async (transitPlanet, transitSign, natalPl
     }, fallback);
 };
 
+export const generateMercuryRxInsight = async (profile, mercurySign, mercuryDegree) => {
+    const profileId = profile?.id || 'default';
+    const key = `${profileId}_mercury_rx_${mercurySign}_${new Date().toISOString().slice(0, 7)}`;
+
+    const cached = await ForecastRepository.getForecast(key);
+    if (cached) return cached;
+
+    const fallback = {
+        headline: 'Mercury asks you to slow down',
+        explanation: `Mercury retrograde in ${mercurySign} is activating parts of your chart related to communication and mental processing. Pay extra attention to how you express yourself during this period.`,
+        tips: [
+            { icon: '📱', text: 'Back up your devices — tech glitches are likely' },
+            { icon: '📝', text: 'Double-check all messages before sending' },
+            { icon: '🔄', text: 'Revisit old projects instead of starting new ones' },
+            { icon: '🧘', text: 'Practice patience — delays are redirections' },
+        ],
+        chartImpact: `Mercury retrograde in ${mercurySign} highlights themes of review and reconsideration in your chart.`,
+        hiddenGift: 'Use this time to reconnect with people and ideas from your past.',
+        ritual: 'Write down 3 unfinished things and choose one to complete this week.',
+    };
+
+    const astralSig = getAstralSignature(profile);
+    const natalMercury = profile?.chart?.planets?.find(p => p.name === 'Mercury');
+    const natalMercuryInfo = natalMercury ? `Natal Mercury: ${natalMercury.sign} ${natalMercury.degree?.toFixed(0) || ''}° (House ${natalMercury.house || 'unknown'})` : '';
+
+    const prompt = `
+        ACT AS: A psychological astrologer giving a PERSONALIZED Mercury Retrograde survival guide.
+
+        CURRENT TRANSIT: Mercury is RETROGRADE in ${mercurySign} at ${mercuryDegree}°.
+
+        USER'S NATAL CHART:
+        ${astralSig}
+        ${natalMercuryInfo}
+        Full planet list: ${profile?.chart?.planets?.map(p => `${p.name}: ${p.sign} ${p.degree?.toFixed(0) || 0}° House ${p.house || '?'}`).join(', ') || 'Unknown'}
+
+        TASK: Generate a PERSONALIZED Mercury retrograde reading. DO NOT give generic advice.
+        - Reference THEIR specific Mercury placement and how it interacts with the retrograde.
+        - Reference which HOUSES in their chart are being activated.
+        - Tips must be specific to their chart — e.g. if their natal Venus is in the retrograde sign, mention relationship communication specifically.
+
+        TONE: Warm, practical, reassuring. Grade 6 English. Not scary — retrogrades are natural.
+
+        JSON Only. Follow schema strictly.
+    `;
+
+    return withRetry(async () => {
+        const response = await generateWithFallback({
+            contents: [{ role: 'user', parts: [{ text: prompt }] }],
+            config: { responseMimeType: "application/json", responseSchema: mercuryRxSchema }
+        });
+        const data = cleanAndParseJson(response.text, fallback);
+        // Cache for the duration of this retrograde period (~3 weeks, use 30 days)
+        await ForecastRepository.saveForecast(key, profileId, 'mercury_rx', new Date().toISOString().split('T')[0], data, Date.now() + 30 * 24 * 60 * 60 * 1000);
+        return data;
+    }, fallback);
+};
+
 export const fetchExtendedForecast = async (
     profile,
-    period: 'today' | 'tomorrow' | 'weekly' | 'monthly' | 'yearly',
-    planetaryData
+    period: 'today' | 'yesterday' | 'tomorrow' | 'weekly' | 'monthly' | 'yearly',
+    planetaryData,
+    transitSignificance = 0
 ) => {
-    const dateLabel = new Date().toISOString().split('T')[0];
-    let key = `${profile.id}_${period}_${dateLabel} `;
+    // Use the actual forecast date from planetaryData, not always "now"
+    const forecastDate = planetaryData?.dateLabel || new Date().toISOString().split('T')[0];
+    let key = `${profile.id}_${period}_${forecastDate}`;
     let expiration = Date.now() + 24 * 60 * 60 * 1000;
 
     if (period === 'weekly') {
         const week = getISOWeekLabel(new Date());
-        key = `${profile.id}_weekly_${week} `;
-        expiration = Date.now() + 7 * 24 * 60 * 60 * 1000;
+        key = `${profile.id}_weekly_${week}`;
+        // Expire at end of current week (next Monday midnight)
+        const now = new Date();
+        const daysUntilMonday = (8 - now.getDay()) % 7 || 7;
+        const nextMonday = new Date(now.getFullYear(), now.getMonth(), now.getDate() + daysUntilMonday);
+        expiration = nextMonday.getTime();
     } else if (period === 'monthly') {
         const month = new Date().toISOString().slice(0, 7);
-        key = `${profile.id}_monthly_${month} `;
-        expiration = Date.now() + 30 * 24 * 60 * 60 * 1000;
+        key = `${profile.id}_monthly_${month}`;
+        // Expire at start of next month
+        const now = new Date();
+        const nextMonth = new Date(now.getFullYear(), now.getMonth() + 1, 1);
+        expiration = nextMonth.getTime();
     } else if (period === 'yearly') {
         const year = new Date().getFullYear();
-        key = `${profile.id}_yearly_${year} `;
-        expiration = Date.now() + 365 * 24 * 60 * 60 * 1000;
-    } else if (period === 'tomorrow') {
-        key = `${profile.id}_tomorrow_${dateLabel} `;
+        key = `${profile.id}_yearly_${year}`;
+        // Expire at start of next year
+        expiration = new Date(year + 1, 0, 1).getTime();
+    }
+
+    // Cosmic Download days get a separate cache key for extended content
+    if ((period === 'today' || period === 'tomorrow' || period === 'yesterday') && transitSignificance >= 70) {
+        key = `${profile.id}_${period}_cosmic_download_${forecastDate}`;
     }
 
     const cached = await ForecastRepository.getForecast(key);
@@ -897,9 +1099,8 @@ export const fetchExtendedForecast = async (
 
     // Calculate Love Context (Simplified for brevity but functionally present)
     let loveContext = "";
-    if (period === 'today' || period === 'tomorrow') {
-        const targetDate = new Date();
-        if (period === 'tomorrow') targetDate.setDate(targetDate.getDate() + 1);
+    if (period === 'today' || period === 'tomorrow' || period === 'yesterday') {
+        const targetDate = new Date(forecastDate);
         if (profile.chart) {
             const loveData = calculateDailyLoveScore(profile.chart, targetDate);
             loveContext = `Love Score: ${loveData.score} `;
@@ -909,12 +1110,23 @@ export const fetchExtendedForecast = async (
     const astralSig = getAstralSignature(profile);
 
     // Differentiate Prompt Intensity
-    const isDaily = period === 'today' || period === 'tomorrow';
+    const isDaily = period === 'today' || period === 'tomorrow' || period === 'yesterday';
 
     // "Quad Structure" for Daily: 4 Distinct Paragraphs (~200 words)
     let deepDiveInstruction = `4. DetailedHoroscope: A cohesive overview of the ${period}.3 sentences. (Max 50 words).`;
 
-    if (isDaily) {
+    const isCosmicDownload = isDaily && transitSignificance >= 70;
+
+    if (isDaily && isCosmicDownload) {
+        deepDiveInstruction = `4. DetailedHoroscope: THIS IS A COSMIC DOWNLOAD DAY (significance: ${transitSignificance}/100). Multiple major transits are activating this user's chart simultaneously. You MUST write exactly 6 distinct paragraphs separated by "\\n\\n".
+           - Para 1(The Opening): Why today is cosmically significant. Set the scene with urgency. (Max 60 words).
+           - Para 2(Transit Breakdown): Name each active transit and what it means for their chart. Be specific. (Max 70 words).
+           - Para 3(The Emotional Layer): How they will FEEL today. Be visceral and specific. (Max 60 words).
+           - Para 4(The Opportunity): What becomes possible ONLY during this window. (Max 50 words).
+           - Para 5(The Shadow): What to watch for — the risk of this much energy at once. (Max 50 words).
+           - Para 6(The Integration): How to harness this energy. Specific, actionable. End with a powerful sentence. (Max 60 words).
+           TOTAL length should be ~320-350 words. This is a DEEP reading — the most detailed of any day. Write like this moment matters.`;
+    } else if (isDaily) {
         deepDiveInstruction = `4. DetailedHoroscope: You MUST write exactly 4 distinct paragraphs separated by "\\n\\n".
            - Para 1(Cosmic Climate): The general planetary atmosphere / mood today. (Max 50 words).
            - Para 2(Personal Impact): How it hits their specific chart(Sun / Moon). (Max 50 words).
@@ -968,6 +1180,9 @@ export const fetchExtendedForecast = async (
         6. CareerVibe: Max 3 words(Adjective + Noun).
         7. ActionItems: 3 simple tasks(Max 4 words each).
         8. ViralInsight: A sharp, relatable, slightly edgy or mystical one-liner about this energy. Something people would want to share on Instagram. (Max 15 words).
+        9. LuckyStats: number (1-99), color name, colorHex (hex code matching the color e.g. "#E8A0B0"), crystal (a crystal/stone aligned with today's energy e.g. "Rose Quartz", "Citrine", "Amethyst").
+        10. PlanetInfluences: 2-3 items explaining WHY they feel this way today. Each has: glyph (planet symbol like ☿ ♀ ♂ ☽ ♃ ♄), tag (e.g. "Venus trine your Moon"), effect (one sentence explaining the impact, max 15 words).
+        11. DailyRitual: A short micro-ritual or practice aligned with today's energy. Max 20 words. (e.g. "Light a white candle and write 3 things you're grateful for" or "Carry citrine today for confidence").
 
         TONE:
     - Mystical but VERY SIMPLE to read.
@@ -983,7 +1198,7 @@ export const fetchExtendedForecast = async (
             config: { responseMimeType: "application/json", responseSchema: periodSchema }
         });
         const data = cleanAndParseJson(response.text, fallback);
-        await ForecastRepository.saveForecast(key, profile.id, period, dateLabel, data, expiration);
+        await ForecastRepository.saveForecast(key, profile.id, period, forecastDate, data, expiration);
         return data;
     }, fallback);
 };
@@ -1690,6 +1905,75 @@ export const generateMatchInsights = async (p1, p2) => {
         const data = { ...fallback, ...parsed };
         await ReportRepository.saveReport(key, p1.id, 'match', data, 'insights');
         return data;
+    }, fallback);
+};
+
+// --- VIRAL MATCH INSIGHTS (for shareable story cards) ---
+
+const viralInsightSchema = {
+    type: Type.OBJECT,
+    properties: {
+        spark: { type: Type.STRING },
+        tension: { type: Type.STRING },
+        truth: { type: Type.STRING },
+        oneWord: { type: Type.STRING },
+    },
+    required: ["spark", "tension", "truth", "oneWord"]
+};
+
+export const generateMatchViralInsights = async (p1, p2, synastry) => {
+    const p1Sig = getAstralSignature(p1);
+    const p2Sig = getAstralSignature(p2);
+
+    const prompt = `
+You write viral Instagram-worthy astrology content for a premium app (like Co-Star).
+
+Generate 3 provocative, shareable insights about this match.
+
+PARTNER A:
+${p1Sig}
+
+PARTNER B:
+${p2Sig}
+
+COMPATIBILITY: ${synastry?.harmonyScore || 50}%
+Emotional: ${synastry?.scores?.emotional || 50}%
+Communication: ${synastry?.scores?.communication || 50}%
+Attraction: ${synastry?.scores?.attraction || 50}%
+Stability: ${synastry?.scores?.stability || 50}%
+
+GENERATE:
+1. "spark" — What magnetically draws them together. Reference their specific placements.
+2. "tension" — What they'll fight about. Slightly roast-y, funny, but real.
+3. "truth" — What neither will admit about the other. Vulnerable, piercing.
+4. "oneWord" — Single word that captures this match energy (e.g. Magnetic, Electric, Chaotic, Fated, Combustible).
+
+RULES:
+- Each insight: 1-2 sentences, MAX 18 words
+- Reference specific sign traits — not generic
+- Write like Co-Star: direct, lowercase energy, slightly provocative
+- NO emoji, NO exclamation marks, NO generic horoscope language
+- NO "the stars" or "the universe" or "cosmic connection"
+- Must sound like something someone would screenshot and send to the other person
+- Use "you" and "they/them" — never names
+
+JSON only.
+    `.trim();
+
+    const fallback = {
+        spark: "An attraction that doesn't need explaining. You both just know.",
+        tension: "You want the same thing but refuse to say it first.",
+        truth: "They see through your walls. That's exactly why it scares you.",
+        oneWord: "Magnetic",
+    };
+
+    return withRetry(async () => {
+        const response = await generateWithFallback({
+            contents: [{ role: 'user', parts: [{ text: prompt }] }],
+            config: { responseMimeType: "application/json", responseSchema: viralInsightSchema }
+        });
+        const parsed = cleanAndParseJson(response.text, fallback);
+        return { ...fallback, ...parsed };
     }, fallback);
 };
 

@@ -11,6 +11,8 @@ import { ChatRepository } from '../services/database/rep_chats';
 import { haptic } from '../services/hapticService';
 import { trackEvent } from '../services/achievementService';
 import { awardXP } from '../services/xpService';
+import { completeQuestAction } from '../services/questService';
+import { getActiveCosmicWindows, getMoonDataForDate } from '../services/astrologyService';
 
 // ── DYNAMIC SUGGESTION QUESTIONS ─────────────────────────────
 // Natural questions a real astrology user would ask, grouped by topic.
@@ -203,6 +205,8 @@ export default function ChatScreen({ route }) {
   const scrollRef = useRef(null);
   const initialMessageSent = useRef(false);
 
+  const [proactiveInsight, setProactiveInsight] = useState(null);
+
   const name = userProfile?.name?.split(' ')[0] || 'Stargazer';
   const sun = userProfile?.chart?.planets?.find(p => p.name === 'Sun');
   const moon = userProfile?.chart?.planets?.find(p => p.name === 'Moon');
@@ -250,6 +254,27 @@ export default function ChatScreen({ route }) {
     if (!userProfile) return;
     setSuggestions(pickSuggestions([], userProfile));
     initChat();
+
+    // Build proactive insight from today's transits
+    try {
+      const today = new Date();
+      const windows = userProfile.chart ? getActiveCosmicWindows(userProfile.chart, today) : [];
+      const moonData = getMoonDataForDate(today);
+      if (windows.length > 0) {
+        const w = windows[0];
+        setProactiveInsight({
+          title: 'Something is active in your chart',
+          body: `${w.description}. Ask me what this means for you.`,
+          question: `What does ${w.planet} ${w.type === 'exact_aspect' ? `${w.aspect?.toLowerCase()} my ${w.natalPlanet}` : `in my ${w.targetSign} sign`} mean for me right now?`,
+        });
+      } else if (moonData) {
+        setProactiveInsight({
+          title: `Moon in ${moonData.sign} today`,
+          body: `The ${moonData.phaseName} may be stirring something for your ${moon?.sign || ''} Moon. Ask me about it.`,
+          question: `How does the Moon in ${moonData.sign} affect my ${moon?.sign || 'natal'} Moon today?`,
+        });
+      }
+    } catch (e) {}
   }, [userProfile]);
 
   const initChat = async () => {
@@ -372,6 +397,7 @@ export default function ChatScreen({ route }) {
       const profileId = userProfile?.id || 'default';
       trackEvent('chat_message').catch(() => {});
       awardXP(profileId, 'chat_message').catch(() => {});
+      completeQuestAction('chat_sent').catch(() => {});
 
     } catch (e) {
       console.error('Chat error:', e);
@@ -421,6 +447,22 @@ export default function ChatScreen({ route }) {
         keyboardDismissMode="interactive"
         keyboardShouldPersistTaps="handled"
       >
+        {/* Proactive Insight Card */}
+        {proactiveInsight && messages.length <= 2 && (
+          <TouchableOpacity
+            style={styles.proactiveCard}
+            activeOpacity={0.8}
+            onPress={() => {
+              setProactiveInsight(null);
+              handleSend(proactiveInsight.question);
+            }}>
+            <Text style={styles.proactiveLabel}>COSMIC INSIGHT</Text>
+            <Text style={styles.proactiveTitle}>{proactiveInsight.title}</Text>
+            <Text style={styles.proactiveBody}>{proactiveInsight.body}</Text>
+            <Text style={styles.proactiveCTA}>Tap to ask →</Text>
+          </TouchableOpacity>
+        )}
+
         {messages.map((m, i) => (
           <View key={m.id || i}>
             <View style={[styles.mrow, m.role === 'user' && styles.mrowUser]}>
@@ -522,4 +564,10 @@ const styles = StyleSheet.create({
   inputField: { flex: 1, minHeight: 48, maxHeight: 120, backgroundColor: 'white', borderWidth: 1.5, borderColor: T.border, borderRadius: 24, paddingHorizontal: 17, justifyContent: 'center' },
   inputText: { fontSize: 14, color: T.ink, paddingVertical: 12 },
   sendBtn: { width: 48, height: 48, borderRadius: 24, alignItems: 'center', justifyContent: 'center', shadowColor: T.navy, shadowOffset: { width: 0, height: 3 }, shadowOpacity: 0.22, shadowRadius: 12 },
+  // Proactive insight
+  proactiveCard: { backgroundColor: '#EEF0FF', borderWidth: 1, borderColor: '#D8DCFF', borderRadius: 16, padding: 14, marginBottom: 10 },
+  proactiveLabel: { fontSize: 8, fontFamily: FONTS.sansSemiBold, letterSpacing: 1.5, color: '#6B5CA5', marginBottom: 6 },
+  proactiveTitle: { fontFamily: FONTS.serif, fontSize: 16, color: '#2A2060', marginBottom: 4 },
+  proactiveBody: { fontSize: 13, color: '#5A5090', lineHeight: 19, marginBottom: 8 },
+  proactiveCTA: { fontSize: 11, fontFamily: FONTS.sansSemiBold, color: '#6B5CA5' },
 });

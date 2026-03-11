@@ -5,13 +5,16 @@ import { T, FONTS } from '../constants/theme';
 import { useUserProfile } from '../contexts/UserProfileContext';
 import { loadObject, saveObject, StorageKeys } from '../services/storage';
 import { getStreakData, getStreakEmoji } from '../services/streakService';
-import { getXPStatus } from '../services/xpService';
-import { getAllBadges } from '../services/achievementService';
+import { getXPStatus, awardXP } from '../services/xpService';
+import { getAllBadges, trackEvent } from '../services/achievementService';
 import { BADGE_CATEGORIES } from '../constants/badges';
 import { haptic } from '../services/hapticService';
 import { useShareCard } from '../components/ShareCard';
 import CosmicIDCard from '../components/CosmicIDCard';
+import CosmicRarityCard from '../components/CosmicRarityCard';
+import { getCosmicArchetype, getComboRarity } from '../services/cosmicIdentityService';
 import { getNotificationSettings } from '../services/notificationService';
+import { shareReferralLink, getReferralStats, getOrCreateReferralCode } from '../services/referralService';
 import { useAuth } from '../contexts/AuthContext';
 
 const ZODIAC_SYMBOLS = {
@@ -38,7 +41,10 @@ export default function ProfileScreen({ navigation }) {
   const [xpInfo, setXpInfo] = useState(null);
   const [badges, setBadges] = useState([]);
   const [notifSummary, setNotifSummary] = useState('');
+  const [referralStats, setReferralStats] = useState(null);
+  const [referralCode, setReferralCode] = useState('');
   const { cardRef: cosmicCardRef, captureAndShare: shareCosmicID } = useShareCard();
+  const { cardRef: rarityCardRef, captureAndShare: shareRarity } = useShareCard();
 
   useEffect(() => {
     loadSettings();
@@ -49,14 +55,18 @@ export default function ProfileScreen({ navigation }) {
   const loadEngagementData = async () => {
     try {
       const profileId = userProfile?.id || 'default';
-      const [streak, xp, allBadges] = await Promise.all([
+      const [streak, xp, allBadges, refStats, refCode] = await Promise.all([
         getStreakData(profileId),
         getXPStatus(profileId),
         getAllBadges(),
+        getReferralStats(),
+        getOrCreateReferralCode(profileId),
       ]);
       setStreakInfo(streak);
       setXpInfo(xp);
       setBadges(allBadges);
+      setReferralStats(refStats);
+      setReferralCode(refCode);
     } catch (e) { console.error('Engagement load error:', e); }
   };
 
@@ -231,6 +241,11 @@ export default function ProfileScreen({ navigation }) {
                   <View style={styles.xpBarBg}>
                     <View style={[styles.xpBarFill, { width: `${(xpInfo.levelInfo.progress * 100).toFixed(0)}%` }]} />
                   </View>
+                  {xpInfo.levelInfo.next && (
+                    <Text style={{ fontSize: 9, color: T.stone, marginTop: 3 }}>
+                      {xpInfo.levelInfo.next.threshold - xpInfo.total_xp} XP to {xpInfo.levelInfo.next.name}
+                    </Text>
+                  )}
                 </View>
               )}
               {streakInfo && (
@@ -258,6 +273,66 @@ export default function ProfileScreen({ navigation }) {
             </View>
           )}
 
+          {/* Level Rewards */}
+          {xpInfo?.levelInfo && (
+            <View style={styles.badgeSection}>
+              <Text style={styles.secLbl}>LEVEL REWARDS</Text>
+              <View style={styles.roadmapCard}>
+                {[
+                  { level: 2, name: 'Constellation', xp: 75, reward: 'Reading Voice customization', icon: '✦' },
+                  { level: 3, name: 'Nebula', xp: 300, reward: 'Yesterday & Tomorrow forecasts', icon: '🌀' },
+                  { level: 4, name: 'Galaxy', xp: 1000, reward: 'Deep Match compatibility reports', icon: '🌌' },
+                  { level: 5, name: 'Cosmos', xp: 3000, reward: 'Cosmic ID Card & exclusive badge frame', icon: '👑' },
+                ].map((m, i) => {
+                  const reached = (xpInfo?.levelInfo?.current?.level || 1) >= m.level;
+                  return (
+                    <View key={i} style={styles.roadmapRow}>
+                      <View style={[styles.roadmapDot, reached && styles.roadmapDotActive]}>
+                        <Text style={{ fontSize: reached ? 14 : 10, opacity: reached ? 1 : 0.4 }}>{reached ? m.icon : '🔒'}</Text>
+                      </View>
+                      <View style={{ flex: 1 }}>
+                        <Text style={[styles.roadmapLabel, reached && { color: T.navy }]}>Lvl {m.level} — {m.name} ({m.xp} XP)</Text>
+                        <Text style={styles.roadmapReward}>{m.reward}</Text>
+                      </View>
+                      {reached && <Text style={{ fontSize: 11, color: '#4CAF50' }}>Unlocked</Text>}
+                    </View>
+                  );
+                })}
+              </View>
+            </View>
+          )}
+
+          {/* Streak Rewards Roadmap */}
+          {streakInfo && (
+            <View style={styles.badgeSection}>
+              <Text style={styles.secLbl}>STREAK MILESTONES</Text>
+              <View style={styles.roadmapCard}>
+                {[
+                  { day: 3, label: 'Cosmic Explorer', reward: '1.0x XP multiplier', icon: '⭐' },
+                  { day: 7, label: 'Stargazer', reward: '1.5x XP multiplier', icon: '🔥' },
+                  { day: 14, label: 'Constellation Keeper', reward: '2x XP multiplier', icon: '💫' },
+                  { day: 30, label: 'Moon Cycle Master', reward: '2.5x XP multiplier', icon: '✨' },
+                  { day: 50, label: 'Celestial Sage', reward: 'Cosmic endurance', icon: '🌟' },
+                  { day: 100, label: 'Cosmic Legend', reward: 'Legendary status', icon: '💎' },
+                ].map((m, i) => {
+                  const reached = (streakInfo?.current_streak || 0) >= m.day;
+                  return (
+                    <View key={i} style={styles.roadmapRow}>
+                      <View style={[styles.roadmapDot, reached && styles.roadmapDotActive]}>
+                        <Text style={{ fontSize: reached ? 14 : 10, opacity: reached ? 1 : 0.4 }}>{reached ? m.icon : '🔒'}</Text>
+                      </View>
+                      <View style={{ flex: 1 }}>
+                        <Text style={[styles.roadmapLabel, reached && { color: T.navy }]}>Day {m.day} — {m.label}</Text>
+                        <Text style={styles.roadmapReward}>{m.reward}</Text>
+                      </View>
+                      {reached && <Text style={{ fontSize: 11, color: '#4CAF50' }}>Unlocked</Text>}
+                    </View>
+                  );
+                })}
+              </View>
+            </View>
+          )}
+
           {/* Cosmic ID Card */}
           <View style={styles.cosmicIDWrap}>
             <Text style={styles.secLbl}>YOUR COSMIC ID</Text>
@@ -276,6 +351,55 @@ export default function ProfileScreen({ navigation }) {
               />
             </TouchableOpacity>
             <Text style={styles.tapToShare}>Tap card to share</Text>
+          </View>
+
+          {/* Cosmic Rarity Card */}
+          {userProfile?.chart && (() => {
+            const arch = getCosmicArchetype(userProfile.chart);
+            const rarity = getComboRarity(userProfile.chart);
+            if (!arch) return null;
+            return (
+              <View style={styles.cosmicIDWrap}>
+                <Text style={styles.secLbl}>YOUR COSMIC RARITY</Text>
+                <TouchableOpacity activeOpacity={0.85} onPress={async () => {
+                  haptic.medium();
+                  await shareRarity(`${arch.name} — ${arch.tagline}\nBig Three: ${rarity?.text || ''} ${rarity?.label || ''}\n\n— Celestia`);
+                  trackEvent('share').catch(() => {});
+                  awardXP(userProfile?.id || 'default', 'share').catch(() => {});
+                }}>
+                  <CosmicRarityCard
+                    innerRef={rarityCardRef}
+                    archetype={arch}
+                    comboRarity={rarity}
+                  />
+                </TouchableOpacity>
+                <Text style={styles.tapToShare}>Tap card to share</Text>
+              </View>
+            );
+          })()}
+
+          {/* Referral */}
+          <View style={styles.referralCard}>
+            <LinearGradient colors={['#1A1228', '#14101E']} style={styles.referralGrad}>
+              <Text style={styles.referralTitle}>Invite Friends</Text>
+              <Text style={styles.referralSub}>You both earn 100 XP when they join</Text>
+              {referralStats?.totalReferred > 0 && (
+                <Text style={styles.referralStat}>{referralStats.totalReferred} friend{referralStats.totalReferred !== 1 ? 's' : ''} invited</Text>
+              )}
+              <TouchableOpacity
+                style={styles.referralBtn}
+                activeOpacity={0.7}
+                onPress={async () => {
+                  haptic.medium();
+                  await shareReferralLink(userProfile?.id || 'default', userProfile?.name);
+                }}
+              >
+                <Text style={styles.referralBtnText}>Share Invite Link ✉️</Text>
+              </TouchableOpacity>
+              {referralCode ? (
+                <Text style={styles.referralCode}>Your code: {referralCode}</Text>
+              ) : null}
+            </LinearGradient>
           </View>
 
           {/* Settings */}
@@ -477,9 +601,25 @@ const styles = StyleSheet.create({
   badgeLocked: { backgroundColor: '#F8F6F2', borderColor: '#EDE8E0' },
   badgeIcon: { fontSize: 22, marginBottom: 4 },
   badgeName: { fontSize: 9, color: T.navy, textAlign: 'center', fontFamily: FONTS.sansMedium },
+  // Streak Rewards Roadmap
+  roadmapCard: { backgroundColor: 'white', borderRadius: 14, padding: 14, borderWidth: 1, borderColor: T.border },
+  roadmapRow: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingVertical: 8, borderBottomWidth: 1, borderBottomColor: '#F0E8DA' },
+  roadmapDot: { width: 32, height: 32, borderRadius: 16, backgroundColor: '#F0E8DA', alignItems: 'center', justifyContent: 'center' },
+  roadmapDotActive: { backgroundColor: 'rgba(200,168,75,0.15)' },
+  roadmapLabel: { fontSize: 13, fontFamily: FONTS.sansMedium, color: T.stone },
+  roadmapReward: { fontSize: 11, color: T.stone, marginTop: 1 },
   // Cosmic ID
   cosmicIDWrap: { marginBottom: 18, alignItems: 'center' },
   tapToShare: { fontSize: 11, color: T.stone, marginTop: 8, fontStyle: 'italic' },
+  // Referral section
+  referralCard: { borderRadius: 20, overflow: 'hidden', marginBottom: 18 },
+  referralGrad: { padding: 22, alignItems: 'center' },
+  referralTitle: { fontFamily: FONTS.serif, fontSize: 20, color: T.gold, marginBottom: 6 },
+  referralSub: { fontSize: 13, color: 'rgba(250,248,242,0.6)', marginBottom: 14 },
+  referralStat: { fontSize: 12, color: T.gold, marginBottom: 10, fontFamily: FONTS.sansSemiBold },
+  referralBtn: { backgroundColor: T.gold, borderRadius: 100, paddingVertical: 12, paddingHorizontal: 28 },
+  referralBtnText: { fontFamily: FONTS.sansSemiBold, fontSize: 14, color: T.navy },
+  referralCode: { fontSize: 11, color: 'rgba(250,248,242,0.35)', marginTop: 12, letterSpacing: 1 },
   // Dev section
   devCard: { backgroundColor: 'rgba(200,168,75,0.06)', borderRadius: 17, borderWidth: 1, borderColor: 'rgba(200,168,75,0.18)', overflow: 'hidden', marginBottom: 18 },
   devRow: { flexDirection: 'row', alignItems: 'center', paddingVertical: 14, paddingHorizontal: 16 },

@@ -71,7 +71,12 @@ export const LIFE_AREAS = {
     Career: { houses: [6, 10], planets: [PlanetName.Sun, PlanetName.Saturn] },
     Love: { houses: [5, 7], planets: [PlanetName.Venus, PlanetName.Moon] },
     Health: { houses: [1, 6], planets: [PlanetName.Sun, PlanetName.Mars] },
-    Family: { houses: [4], planets: [PlanetName.Moon] }
+    Family: { houses: [4], planets: [PlanetName.Moon] },
+    Mood: { houses: [1, 4], planets: [PlanetName.Moon, PlanetName.Sun] },
+    Social: { houses: [3, 11], planets: [PlanetName.Venus, PlanetName.Mercury] },
+    Creativity: { houses: [5, 12], planets: [PlanetName.Venus, PlanetName.Neptune] },
+    Focus: { houses: [3, 6], planets: [PlanetName.Mercury, PlanetName.Saturn] },
+    Luck: { houses: [9, 11], planets: [PlanetName.Jupiter, PlanetName.Sun] },
 };
 
 // --- MATH HELPERS ---
@@ -688,7 +693,8 @@ export const calculateCosmicEnergy = (natal, date = new Date(), timeframe = 'tod
     }
     // 7. WEEKLY SCORE (SUN / VENUS / MERCURY)
     else if (timeframe === 'weekly') {
-        const dailyRawScores = { Career: [], Love: [], Health: [], Family: [] };
+        const dailyRawScores = {};
+        areaKeys.forEach(k => { dailyRawScores[k] = []; });
         const drivers = [PlanetName.Sun, PlanetName.Venus, PlanetName.Mercury];
 
         // Iterate 7 days
@@ -714,7 +720,8 @@ export const calculateCosmicEnergy = (natal, date = new Date(), timeframe = 'tod
     }
     // 8. MONTHLY SCORE (MARS / JUPITER)
     else if (timeframe === 'monthly') {
-        const dailyRawScores = { Career: [], Love: [], Health: [], Family: [] };
+        const dailyRawScores = {};
+        areaKeys.forEach(k => { dailyRawScores[k] = []; });
         const drivers = [PlanetName.Mars, PlanetName.Jupiter];
 
         // NEW: Multi-Point Sampling for Accuracy (Mars moves significantly in 30 days)
@@ -791,7 +798,176 @@ const getAreaColor = (area) => {
         case 'Love': return '#E11D48';
         case 'Health': return '#059669';
         case 'Family': return '#7C3AED';
+        case 'Mood': return '#F59E0B';
+        case 'Social': return '#8B5CF6';
+        case 'Creativity': return '#EC4899';
+        case 'Focus': return '#3B82F6';
+        case 'Luck': return '#10B981';
         default: return '#000000';
+    }
+};
+
+// --- COSMIC CHANGE DETECTION ---
+
+/**
+ * Detects the most significant cosmic change happening today vs yesterday.
+ * Returns { type, icon, title, subtitle } or null if nothing notable.
+ */
+export const getCosmicChangeToday = (natalChart) => {
+    const today = new Date();
+    const yesterday = new Date();
+    yesterday.setDate(yesterday.getDate() - 1);
+    const tomorrow = new Date();
+    tomorrow.setDate(tomorrow.getDate() + 1);
+
+    try {
+        const moonToday = getMoonDataForDate(today);
+        const moonYesterday = getMoonDataForDate(yesterday);
+        const moonTomorrow = getMoonDataForDate(tomorrow);
+
+        // Priority 1: Full Moon or New Moon today
+        if (moonToday?.phaseName === 'Full Moon' && moonYesterday?.phaseName !== 'Full Moon') {
+            const houseHit = natalChart?.houses ? getHouseForSign(moonToday.sign, natalChart) : null;
+            return {
+                type: 'lunation', icon: '🌕',
+                title: `Full Moon in ${moonToday.sign} tonight`,
+                subtitle: houseHit ? `Illuminating your ${ordinal(houseHit)} House — emotions peak` : 'Emotions and clarity peak today',
+            };
+        }
+        if (moonToday?.phaseName === 'New Moon' && moonYesterday?.phaseName !== 'New Moon') {
+            const houseHit = natalChart?.houses ? getHouseForSign(moonToday.sign, natalChart) : null;
+            return {
+                type: 'lunation', icon: '🌑',
+                title: `New Moon in ${moonToday.sign}`,
+                subtitle: houseHit ? `Fresh start energy in your ${ordinal(houseHit)} House` : 'Set an intention — new cycle begins',
+            };
+        }
+
+        // Priority 2: Mercury Retrograde status change
+        const rxToday = isMercuryRetrograde(today);
+        const rxYesterday = isMercuryRetrograde(yesterday);
+        if (rxToday && !rxYesterday) {
+            return { type: 'retrograde', icon: '☿', title: 'Mercury Retrograde begins', subtitle: 'Communication and tech need extra care' };
+        }
+        if (!rxToday && rxYesterday) {
+            return { type: 'retrograde', icon: '☿', title: 'Mercury Retrograde ends', subtitle: 'Clarity returns — move forward on delayed plans' };
+        }
+
+        // Priority 3: Planet sign change (check major planets)
+        const transitsToday = getTransitPlanets(today);
+        const transitsYesterday = getTransitPlanets(yesterday);
+        const importantPlanets = ['Venus', 'Mars', 'Jupiter', 'Saturn', 'Mercury'];
+        for (const name of importantPlanets) {
+            const pToday = transitsToday.find(p => p.name === name);
+            const pYesterday = transitsYesterday.find(p => p.name === name);
+            if (pToday && pYesterday && pToday.sign !== pYesterday.sign) {
+                const houseHit = natalChart?.houses ? getHouseForSign(pToday.sign, natalChart) : null;
+                return {
+                    type: 'ingress', icon: PLANET_SYMBOLS[name] || '★',
+                    title: `${name} enters ${pToday.sign}`,
+                    subtitle: houseHit ? `New energy activating your ${ordinal(houseHit)} House` : `${name} shifts the cosmic weather`,
+                };
+            }
+        }
+
+        // Priority 4: New cosmic window forming today
+        if (natalChart) {
+            const windowsToday = getActiveCosmicWindows(natalChart, today);
+            const windowsYesterday = getActiveCosmicWindows(natalChart, yesterday);
+            const todayKeys = new Set(windowsToday.map(w => `${w.planet}-${w.type}-${w.natalPlanet || w.targetSign}`));
+            const yesterdayKeys = new Set(windowsYesterday.map(w => `${w.planet}-${w.type}-${w.natalPlanet || w.targetSign}`));
+            for (const w of windowsToday) {
+                const key = `${w.planet}-${w.type}-${w.natalPlanet || w.targetSign}`;
+                if (!yesterdayKeys.has(key)) {
+                    return {
+                        type: 'window', icon: '✦',
+                        title: w.description?.slice(0, 50) || `${w.planet} activating your chart`,
+                        subtitle: 'A new cosmic window just opened',
+                    };
+                }
+            }
+        }
+
+        // Priority 5: Moon sign change
+        if (moonToday?.sign !== moonYesterday?.sign) {
+            return {
+                type: 'moon_shift', icon: '☽',
+                title: `Moon moves into ${moonToday.sign}`,
+                subtitle: 'Your emotional frequency shifts today',
+            };
+        }
+
+        // Priority 6: Upcoming event (next 2 days)
+        if (moonTomorrow?.phaseName === 'Full Moon' || moonTomorrow?.phaseName === 'New Moon') {
+            return {
+                type: 'upcoming', icon: moonTomorrow.phaseName === 'Full Moon' ? '🌕' : '🌑',
+                title: `${moonTomorrow.phaseName} in ${moonTomorrow.sign} tomorrow`,
+                subtitle: 'Prepare — something is building',
+            };
+        }
+
+        // Fallback: current moon info
+        return {
+            type: 'moon_info', icon: '☽',
+            title: `Moon in ${moonToday?.sign || '—'}`,
+            subtitle: `${moonToday?.phaseName || ''} · ${Math.round(moonToday?.illumination || 0)}% illumination`,
+        };
+    } catch (e) {
+        return null;
+    }
+};
+
+const PLANET_SYMBOLS = { Sun: '☉', Moon: '☽', Mercury: '☿', Venus: '♀', Mars: '♂', Jupiter: '♃', Saturn: '♄', Uranus: '♅', Neptune: '♆', Pluto: '♇' };
+
+const ordinal = (n) => {
+    if (n === 1) return '1st';
+    if (n === 2) return '2nd';
+    if (n === 3) return '3rd';
+    return `${n}th`;
+};
+
+const getHouseForSign = (sign, natalChart) => {
+    if (!natalChart?.houses) return null;
+    const house = natalChart.houses.find(h => h.sign === sign);
+    return house?.number || null;
+};
+
+/**
+ * Calculates how significant today's transits are for a user's chart.
+ * Returns a score 0-100. Above 70 = "Cosmic Download" day.
+ */
+export const calculateTransitSignificance = (natalChart, date = new Date()) => {
+    if (!natalChart) return 0;
+    try {
+        const windows = getActiveCosmicWindows(natalChart, date);
+        const moonData = getMoonDataForDate(date);
+        let score = 0;
+
+        // Each active cosmic window adds significance
+        windows.forEach(w => {
+            if (w.type === 'exact_aspect') {
+                score += w.orb < 1 ? 25 : 15;
+            } else {
+                score += 10;
+            }
+        });
+
+        // Full/New Moon boost
+        if (moonData?.phaseName === 'Full Moon' || moonData?.phaseName === 'New Moon') {
+            score += 20;
+        }
+
+        // Moon aspect to natal planet boost
+        if (moonData?.majorAspect) {
+            score += moonData.majorAspect.type === 'Tension' ? 12 : 8;
+        }
+
+        // Mercury Rx boost
+        if (isMercuryRetrograde(date)) score += 5;
+
+        return Math.min(100, score);
+    } catch (e) {
+        return 0;
     }
 };
 
@@ -1003,6 +1179,83 @@ export const getMonthlyTransitScan = (natal, startDate) => {
 
     if (timeline.length === 0) return "A month of steady integration. No major outer planetary storms.";
     return timeline.join("\n");
+};
+
+// --- UPCOMING EVENTS TIMELINE ---
+export const getUpcomingEvents = (natal, days = 14) => {
+    const events = [];
+    const today = new Date();
+    today.setHours(12, 0, 0, 0);
+    let prevTransits = getTransitPositions(today);
+    let lastPhaseName = getMoonDataForDate(today).phaseName;
+    const houseCusps = natal?.houses ? getHouseCusps(natal.houses) : [];
+    const MONTH_NAMES = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+
+    for (let i = 1; i <= days; i++) {
+        const d = new Date(today);
+        d.setDate(today.getDate() + i);
+        d.setHours(12, 0, 0, 0);
+        const currentTransits = getTransitPositions(d);
+        const moonData = getMoonDataForDate(d);
+        const dateLabel = `${MONTH_NAMES[d.getMonth()]} ${d.getDate()}`;
+
+        // Moon phase changes
+        if (moonData.phaseName !== lastPhaseName) {
+            if (moonData.phaseName === 'New Moon') {
+                events.push({ date: dateLabel, type: 'lunation', icon: '🌑', title: `New Moon in ${moonData.sign}`, description: 'Set intentions and plant seeds for what you want to grow.' });
+            } else if (moonData.phaseName === 'Full Moon') {
+                events.push({ date: dateLabel, type: 'lunation', icon: '🌕', title: `Full Moon in ${moonData.sign}`, description: 'Time of culmination and release. Let go of what no longer serves you.' });
+            } else if (moonData.phaseName === 'First Quarter') {
+                events.push({ date: dateLabel, type: 'phase', icon: '🌓', title: `First Quarter in ${moonData.sign}`, description: 'Take action on your intentions. Push through challenges.' });
+            } else if (moonData.phaseName === 'Last Quarter') {
+                events.push({ date: dateLabel, type: 'phase', icon: '🌗', title: `Last Quarter in ${moonData.sign}`, description: 'Reflect, adjust, and prepare for the next cycle.' });
+            }
+        }
+        lastPhaseName = moonData.phaseName;
+
+        // Planet sign ingresses
+        currentTransits.forEach(curr => {
+            if (['Moon', 'NorthNode', 'Lilith'].includes(curr.name)) return;
+            const prev = prevTransits.find(p => p.name === curr.name);
+            if (prev && prev.sign !== curr.sign) {
+                const GLYPHS = { Sun: '☉', Mercury: '☿', Venus: '♀', Mars: '♂', Jupiter: '♃', Saturn: '♄', Uranus: '♅', Neptune: '♆', Pluto: '♇' };
+                events.push({ date: dateLabel, type: 'ingress', icon: GLYPHS[curr.name] || '→', title: `${curr.name} enters ${curr.sign}`, description: `A shift in ${curr.name.toLowerCase()} energy as it moves into ${curr.sign}.` });
+            }
+        });
+
+        // Retrograde stations
+        currentTransits.forEach(curr => {
+            if (['Moon', 'Sun', 'NorthNode', 'Lilith'].includes(curr.name)) return;
+            const prev = prevTransits.find(p => p.name === curr.name);
+            if (prev && prev.isRetrograde !== curr.isRetrograde) {
+                const station = curr.isRetrograde ? 'goes retrograde' : 'goes direct';
+                events.push({ date: dateLabel, type: 'retrograde', icon: '℞', title: `${curr.name} ${station}`, description: curr.isRetrograde ? `${curr.name} slows down. Time for review and reflection.` : `${curr.name} moves forward again. Clarity returns.` });
+            }
+        });
+
+        // Outer planet aspects to natal (tight orb only)
+        if (natal?.planets) {
+            currentTransits.forEach(tp => {
+                if (!['Jupiter', 'Saturn', 'Uranus', 'Neptune', 'Pluto'].includes(tp.name)) return;
+                natal.planets.forEach(np => {
+                    if (['NorthNode', 'Lilith', 'Chiron'].includes(np.name)) return;
+                    const diff = angularDifference(tp.absDegree, np.absDegree);
+                    const aspect = detectAspect(diff);
+                    if (aspect && aspect.orb < 0.5 && ['Conjunction', 'Opposition', 'Square', 'Trine'].includes(aspect.name)) {
+                        // Check not already added today
+                        const key = `${tp.name}-${aspect.name}-${np.name}`;
+                        if (!events.find(e => e._key === key)) {
+                            events.push({ date: dateLabel, type: 'aspect', icon: '⚡', title: `${tp.name} ${aspect.name} your ${np.name}`, description: `A powerful transit activating your natal ${np.name} in ${np.sign}.`, _key: key });
+                        }
+                    }
+                });
+            });
+        }
+
+        prevTransits = currentTransits;
+    }
+
+    return events.slice(0, 12); // Cap at 12 events
 };
 
 // --- YEARLY SCANNER (The Macro View) ---
@@ -1458,4 +1711,69 @@ export const isMercuryRetrograde = (date = new Date()) => {
     const transits = getTransitPlanets(date);
     const mercury = transits.find(p => p.name === 'Mercury');
     return mercury?.isRetrograde || false;
+};
+
+/**
+ * Get the current "Cosmic Season" — the most significant slow-planet transit period.
+ * Returns { planet, transitSign, natalTarget, description, estimatedEndDate, daysRemaining, progress }
+ */
+export const getCosmicSeason = (natalChart, date = new Date()) => {
+    if (!natalChart?.planets) return null;
+
+    const transits = getTransitPlanets(date);
+    const slowPlanets = ['Jupiter', 'Saturn', 'Uranus', 'Neptune', 'Pluto'];
+    const natalPlanets = natalChart.planets.filter(p =>
+        ['Sun', 'Moon', 'Ascendant', 'Venus', 'Mars'].includes(p.name)
+    );
+
+    // Average days a slow planet spends in one sign
+    const signDuration = {
+        Jupiter: 365,
+        Saturn: 912,
+        Uranus: 2555,
+        Neptune: 5110,
+        Pluto: 7300,
+    };
+
+    let bestSeason = null;
+    let bestPriority = 0;
+
+    for (const tp of transits) {
+        if (!slowPlanets.includes(tp.name)) continue;
+
+        for (const np of natalPlanets) {
+            if (tp.sign !== np.sign) continue;
+
+            // Priority: Jupiter in Sun sign > Saturn in Rising > etc.
+            const targetWeight = { Sun: 5, Ascendant: 4, Moon: 3, Venus: 2, Mars: 2 };
+            const planetWeight = { Pluto: 5, Neptune: 4, Uranus: 3, Saturn: 3, Jupiter: 2 };
+            const priority = (targetWeight[np.name] || 1) + (planetWeight[tp.name] || 1);
+
+            if (priority > bestPriority) {
+                // Estimate how far through the sign the planet is (rough)
+                const degInSign = tp.degree % 30;
+                const avgDays = signDuration[tp.name] || 365;
+                const daysElapsed = Math.round((degInSign / 30) * avgDays);
+                const daysRemaining = Math.max(0, avgDays - daysElapsed);
+                const endDate = new Date(date);
+                endDate.setDate(endDate.getDate() + daysRemaining);
+
+                bestSeason = {
+                    planet: tp.name,
+                    transitSign: tp.sign,
+                    natalTarget: np.name,
+                    natalTargetSign: np.sign,
+                    description: `${tp.name} in your ${np.name} sign`,
+                    estimatedEndDate: endDate.toISOString().split('T')[0],
+                    daysRemaining,
+                    totalDays: avgDays,
+                    progress: Math.min(100, Math.round((daysElapsed / avgDays) * 100)),
+                    isRetrograde: tp.isRetrograde || false,
+                };
+                bestPriority = priority;
+            }
+        }
+    }
+
+    return bestSeason;
 };
