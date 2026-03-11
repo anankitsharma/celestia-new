@@ -221,11 +221,44 @@ const TEMPLATES = {
     {
       id: 'sg_danger',
       requires: ['streakData'],
-      weight: () => 5,
+      weight: (d) => d.streakData?.current_streak >= 7 ? 5 : 3,
       generate: (d) => ({
         title: `${d.streakData.current_streak}-day streak at risk`,
         body: `You've built ${d.streakData.current_streak} days of cosmic momentum. One tap keeps it alive.`,
       }),
+    },
+    {
+      id: 'sg_loss_aversion',
+      requires: ['streakData'],
+      weight: (d) => d.streakData?.current_streak >= 14 ? 6 : 2,
+      generate: (d) => ({
+        title: `Don't lose ${d.streakData.current_streak} days`,
+        body: `Your ${d.streakData.current_streak}-day streak is the top 5% of cosmic readers. 30 seconds keeps it alive.`,
+      }),
+    },
+    {
+      id: 'sg_freeze',
+      requires: ['streakData'],
+      weight: (d) => d.streakData?.streak_freezes_remaining > 0 ? 4 : 0,
+      generate: (d) => ({
+        title: 'Streak freeze available',
+        body: `You have a streak freeze ready. Open the app to protect your ${d.streakData.current_streak}-day streak.`,
+      }),
+    },
+    {
+      id: 'sg_milestone_close',
+      requires: ['streakData'],
+      weight: (d) => {
+        const s = d.streakData?.current_streak || 0;
+        return [6, 13, 29, 49, 99].includes(s) ? 6 : 0;
+      },
+      generate: (d) => {
+        const next = { 6: 7, 13: 14, 29: 30, 49: 50, 99: 100 }[d.streakData.current_streak] || d.streakData.current_streak + 1;
+        return {
+          title: `1 day from Day ${next}`,
+          body: `Tomorrow you hit a milestone. Don't break the chain now.`,
+        };
+      },
     },
   ],
 
@@ -264,6 +297,54 @@ const TEMPLATES = {
       generate: (d) => ({
         title: 'A full week of cosmic wisdom',
         body: `7 days. Multiple Moon sign changes. All personalized to your chart.`,
+      }),
+    },
+    {
+      id: 'sg_lapsed_10',
+      requires: [],
+      weight: () => 5,
+      generate: (d) => ({
+        title: `Your cosmic portrait has evolved`,
+        body: `${d.userName}, the transits shifted while you were away. Something new is waiting in your chart.`,
+      }),
+    },
+    {
+      id: 'sg_lapsed_14',
+      requires: [],
+      weight: () => 5,
+      generate: (d) => ({
+        title: `We found something in your chart`,
+        body: `${d.userName}, 14 days of cosmic data reveal a pattern. Open to see what the stars are saying.`,
+      }),
+    },
+    {
+      id: 'sg_lapsed_21',
+      requires: [],
+      weight: () => 5,
+      generate: (d) => ({
+        title: `${d.userName}, your chart reveals something about this month`,
+        body: `3 weeks of transits have shaped your path. Your monthly cosmic reading is ready.`,
+      }),
+    },
+  ],
+
+  PLACEMENT_UNLOCK: [
+    {
+      id: 'pu_reveal',
+      requires: ['unlockPlanet'],
+      weight: () => 5,
+      generate: (d) => ({
+        title: `${d.unlockPlanet} just unlocked`,
+        body: `Day ${d.unlockDay}: Your ${d.unlockPlanet} placement is ready to be explored. See what your chart reveals.`,
+      }),
+    },
+    {
+      id: 'pu_tease',
+      requires: ['unlockPlanet'],
+      weight: () => 4,
+      generate: (d) => ({
+        title: `New chart insight ready`,
+        body: `${d.unlockPlanet} in your birth chart — there is something you need to see. Tap to reveal.`,
       }),
     },
   ],
@@ -420,7 +501,7 @@ export function buildNotificationData(userProfile, forecast, moonData, energyDat
  * Get the lapsed-day content for a specific day offset.
  */
 export function getLapsedContent(dayOffset, data) {
-  const map = { 2: 'sg_lapsed_2', 3: 'sg_lapsed_3', 5: 'sg_lapsed_5', 7: 'sg_lapsed_7' };
+  const map = { 2: 'sg_lapsed_2', 3: 'sg_lapsed_3', 5: 'sg_lapsed_5', 7: 'sg_lapsed_7', 10: 'sg_lapsed_10', 14: 'sg_lapsed_14', 21: 'sg_lapsed_21' };
   const id = map[dayOffset];
   if (!id) return null;
 

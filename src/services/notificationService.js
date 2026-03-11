@@ -221,9 +221,9 @@ export async function scheduleAllNotifications(userProfile, forecast, streakData
       }
     }
 
-    // 6. LAPSED CASCADE — always schedule (days 2, 3, 5, 7)
+    // 6. LAPSED CASCADE — always schedule (days 2, 3, 5, 7, 10, 14, 21)
     if (settings.streak_guardian) {
-      const lapsedDays = [2, 3, 5, 7];
+      const lapsedDays = [2, 3, 5, 7, 10, 14, 21];
       for (const dayOffset of lapsedDays) {
         const lapsedContent = getLapsedContent(dayOffset, data);
         if (lapsedContent) {

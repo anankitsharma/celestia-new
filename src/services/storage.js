@@ -13,6 +13,9 @@ export const StorageKeys = {
     NOTIFICATION_ASKED: 'celestia_notification_asked',
     SESSION_COUNT: 'celestia_session_count',
     AI_NOTIFICATION_LINES: 'celestia_ai_notification_lines',
+    UNLOCK_SCHEDULE: 'celestia_unlock_schedule',
+    FIRST_USE_DATE: 'celestia_first_use_date',
+    MOON_RITUALS: 'celestia_moon_rituals',
 };
 
 export const loadString = async (key) => {

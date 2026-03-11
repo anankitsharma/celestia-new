@@ -16,7 +16,12 @@ async function getCounters() {
     chat_messages: 0,
     shares: 0,
     matches_checked: 0,
+    planets_explored: [],
+    quests_completed: 0,
   };
+  // Ensure new fields exist for existing users
+  if (!counters.planets_explored) counters.planets_explored = [];
+  if (!counters.quests_completed) counters.quests_completed = 0;
   return counters;
 }
 
@@ -64,9 +69,18 @@ export async function trackEvent(eventType, payload = {}) {
 
     case 'deep_dive': {
       c.deep_dives += 1;
+      // Track which planet was explored for chart_explorer badge
+      if (payload.planet && !c.planets_explored.includes(payload.planet)) {
+        c.planets_explored.push(payload.planet);
+      }
       if (c.deep_dives >= 5) {
         const r = await AchievementRepository.unlock('deep_diver');
         if (r) unlocked.push({ ...r, badge: BADGE_CATALOG.deep_diver });
+      }
+      // Chart Explorer: explored all major placements (10 planets + Ascendant + Midheaven + Chiron + North Node = 14)
+      if (c.planets_explored.length >= 12) {
+        const r = await AchievementRepository.unlock('chart_explorer');
+        if (r) unlocked.push({ ...r, badge: BADGE_CATALOG.chart_explorer });
       }
       break;
     }
@@ -120,10 +134,67 @@ export async function trackEvent(eventType, payload = {}) {
       if (r) unlocked.push({ ...r, badge: BADGE_CATALOG.retrograde_warrior });
       break;
     }
+
+    case 'quest_complete': {
+      c.quests_completed += 1;
+      if (c.quests_completed >= 1) {
+        const r = await AchievementRepository.unlock('quest_starter');
+        if (r) unlocked.push({ ...r, badge: BADGE_CATALOG.quest_starter });
+      }
+      if (c.quests_completed >= 7) {
+        const r = await AchievementRepository.unlock('quest_devotee');
+        if (r) unlocked.push({ ...r, badge: BADGE_CATALOG.quest_devotee });
+      }
+      break;
+    }
+
+    case 'journey_chapter': {
+      const chapterId = payload.chapterId;
+      if (chapterId && BADGE_CATALOG[chapterId]) {
+        const r = await AchievementRepository.unlock(chapterId);
+        if (r) unlocked.push({ ...r, badge: BADGE_CATALOG[chapterId] });
+      }
+      break;
+    }
   }
 
   await saveCounters();
   return unlocked;
+}
+
+// Get the closest unearned badge with progress info
+export async function getNextBadgeProgress() {
+  const c = await getCounters();
+  const allBadges = await getAllBadges();
+  const unlockedIds = new Set(allBadges.filter(b => b.unlocked).map(b => b.id));
+
+  // Define trackable badges with current/target
+  const trackable = [
+    { id: 'transit_watcher', current: c.sky_tab_opens, target: 10, label: 'Sky tab visits' },
+    { id: 'report_reader', current: c.reports_generated, target: 3, label: 'Reports generated' },
+    { id: 'cosmic_scholar', current: c.reports_generated, target: 10, label: 'Reports generated' },
+    { id: 'deep_diver', current: c.deep_dives, target: 5, label: 'Deep dives' },
+    { id: 'chart_explorer', current: c.planets_explored.length, target: 12, label: 'Placements explored' },
+    { id: 'question_seeker', current: c.chat_messages, target: 20, label: 'Chat messages' },
+    { id: 'constellation', current: c.shares, target: 5, label: 'Shares' },
+    { id: 'galaxy_spreader', current: c.shares, target: 25, label: 'Shares' },
+    { id: 'match_maker', current: c.matches_checked, target: 3, label: 'Matches checked' },
+    { id: 'quest_starter', current: c.quests_completed, target: 1, label: 'Quest sets completed' },
+    { id: 'quest_devotee', current: c.quests_completed, target: 7, label: 'Quest sets completed' },
+  ];
+
+  // Filter to unearned, sort by closest to completion
+  const candidates = trackable
+    .filter(t => !unlockedIds.has(t.id) && BADGE_CATALOG[t.id])
+    .map(t => ({
+      ...t,
+      badge: BADGE_CATALOG[t.id],
+      progress: Math.min(1, t.current / t.target),
+      remaining: Math.max(0, t.target - t.current),
+    }))
+    .sort((a, b) => b.progress - a.progress);
+
+  return candidates[0] || null;
 }
 
 export async function getAllBadges() {

@@ -13,14 +13,19 @@ import { T, FONTS } from '../constants/theme';
 import { useUserProfile } from '../contexts/UserProfileContext';
 import { calculateSynastryScore } from '../services/astrology/SynastryService';
 import { calculateChart } from '../services/astrologyService';
-import { generateMatchCore, generateMatchDetails, generateDeepMatchReport } from '../services/geminiService';
+import { generateMatchCore, generateMatchDetails, generateDeepMatchReport, generateMatchViralInsights } from '../services/geminiService';
 import * as Crypto from 'expo-crypto';
 import { haptic } from '../services/hapticService';
 import { trackEvent } from '../services/achievementService';
 import { awardXP } from '../services/xpService';
+import { completeQuestAction } from '../services/questService';
 import { useShareCard } from '../components/ShareCard';
 import CompatibilityShareCard from '../components/CompatibilityShareCard';
+import MatchStoryCard, { STORY_THEMES } from '../components/MatchStoryCard';
 import GenerationOverlay from '../components/GenerationOverlay';
+import CosmicTooltip from '../components/CosmicTooltip';
+import AstroText from '../components/AstroText';
+import { createAndShareInvite } from '../services/inviteService';
 
 const NOMINATIM_URL = 'https://nominatim.openstreetmap.org/search';
 
@@ -77,9 +82,16 @@ export default function CompatibilityScreen() {
   const [matchDetails, setMatchDetails] = useState(null);
   const [detailsLoading, setDetailsLoading] = useState(false);
   const { cardRef: matchCardRef, captureAndShare: shareMatch } = useShareCard();
+  const { cardRef: storyCardRef, captureAndShare: shareStoryCard } = useShareCard();
   const [pdfLoading, setPdfLoading] = useState(false);
   const [genStep, setGenStep] = useState(0);
   const pdfCancelledRef = useRef(false);
+
+  // Story card share state
+  const [showStoryModal, setShowStoryModal] = useState(false);
+  const [storyTheme, setStoryTheme] = useState(0);
+  const [viralInsights, setViralInsights] = useState(null);
+  const [viralLoading, setViralLoading] = useState(false);
 
   // Add partner form state
   const [partnerName, setPartnerName] = useState('');
@@ -137,6 +149,7 @@ export default function CompatibilityScreen() {
   useEffect(() => {
     if (!synastry || !userProfile?.chart || !partnerProfile?.chart) return;
     loadAiAnalysis();
+    setViralInsights(null); // Reset viral insights for new partner
   }, [synastry?.harmonyScore, partnerProfile?.id]);
 
   const loadAiAnalysis = async () => {
@@ -149,6 +162,7 @@ export default function CompatibilityScreen() {
       const profileId = userProfile?.id || 'default';
       trackEvent('match_checked').catch(() => {});
       awardXP(profileId, 'compatibility_check').catch(() => {});
+      completeQuestAction('compat_checked').catch(() => {});
     } catch (e) {
       console.warn('AI analysis failed:', e);
     } finally {
@@ -292,6 +306,39 @@ export default function CompatibilityScreen() {
     setPdfLoading(false);
   }, []);
 
+  const handleShareStory = useCallback(async () => {
+    setShowStoryModal(true);
+    if (!viralInsights) {
+      setViralLoading(true);
+      try {
+        const insights = await generateMatchViralInsights(userProfile, partnerProfile, synastry);
+        setViralInsights(insights);
+      } catch (e) {
+        console.warn('Viral insights failed:', e);
+        setViralInsights({
+          spark: "An attraction that doesn't need explaining. You both just know.",
+          tension: "You want the same thing but refuse to say it first.",
+          truth: "They see through your walls. That's exactly why it scares you.",
+          oneWord: "Magnetic",
+        });
+      } finally {
+        setViralLoading(false);
+      }
+    }
+  }, [viralInsights, userProfile, partnerProfile, synastry]);
+
+  const handleShareStoryCapture = useCallback(async () => {
+    haptic.medium();
+    const p1Name = userProfile?.name?.split(' ')[0] || 'You';
+    const p2Name = partnerProfile?.name?.split(' ')[0] || 'Partner';
+    await shareStoryCard(
+      `${p1Name} & ${p2Name} — ${synastry?.harmonyScore || 0}% cosmic compatibility\n\n✦ ${viralInsights?.spark || ''}\n◆ ${viralInsights?.tension || ''}\n✧ ${viralInsights?.truth || ''}\n\n— Celestia`
+    );
+    trackEvent('share_story').catch(() => {});
+    awardXP(userProfile?.id || 'default', 'share').catch(() => {});
+    setShowStoryModal(false);
+  }, [userProfile, partnerProfile, synastry, viralInsights, shareStoryCard]);
+
   const userSun = userProfile?.chart?.planets?.find(p => p.name === 'Sun');
   const partnerSun = partnerProfile?.chart?.planets?.find(p => p.name === 'Sun');
 
@@ -318,7 +365,10 @@ export default function CompatibilityScreen() {
         {/* Hero */}
         <LinearGradient colors={['#0E0E22', '#1E1228', '#14101E']} locations={[0, 0.5, 1]} style={styles.hero}>
           <View style={styles.heroGlow} />
-          <Text style={styles.title}>Compatibility</Text>
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+            <Text style={styles.title}>Compatibility</Text>
+            <CosmicTooltip id="synastry" size={16} light />
+          </View>
           <Text style={styles.sub}>Cosmic connection analysis</Text>
 
           {/* Pair display */}
@@ -391,13 +441,37 @@ export default function CompatibilityScreen() {
                 ))}
               </View>
             </View>
-            <TouchableOpacity style={styles.shareMatchBtn} activeOpacity={0.7} onPress={() => {
-              haptic.medium();
-              shareMatch(`${userProfile.name?.split(' ')[0]} & ${partnerProfile?.name?.split(' ')[0]} — ${synastry.harmonyScore}% compatible\n"${getScoreLabel(synastry.harmonyScore)}"\n\n— Celestia`);
-              trackEvent('share').catch(() => {});
-              awardXP(userProfile?.id || 'default', 'share').catch(() => {});
-            }}>
-              <Text style={styles.shareMatchText}>Share Match ↗</Text>
+            <TouchableOpacity style={styles.shareStoryBtn} activeOpacity={0.7} onPress={handleShareStory}>
+              <LinearGradient colors={['rgba(176,136,240,0.25)', 'rgba(232,80,144,0.20)']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={styles.shareStoryGrad}>
+                <Text style={styles.shareStoryIcon}>↗</Text>
+                <Text style={styles.shareStoryText}>Share to Stories</Text>
+              </LinearGradient>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={styles.inviteBtn}
+              activeOpacity={0.7}
+              onPress={async () => {
+                haptic('medium');
+                await createAndShareInvite({
+                  inviterName: userProfile?.name || 'Someone',
+                  inviterId: userProfile?.id,
+                  partnerName: partnerProfile?.name || 'Partner',
+                  partnerBirthData: partnerProfile?.chart ? {
+                    date: partnerProfile.birthDate,
+                    time: partnerProfile.birthTime,
+                    lat: partnerProfile.birthLat,
+                    lng: partnerProfile.birthLng,
+                  } : null,
+                  score: synastry.harmonyScore,
+                  verdict: getScoreLabel(synastry.harmonyScore),
+                });
+                trackEvent('share');
+                awardXP(userProfile?.id, 'share');
+              }}
+            >
+              <Text style={styles.inviteBtnText}>
+                Invite {partnerProfile?.name?.split(' ')[0] || 'Partner'} to See Your Match ✉️
+              </Text>
             </TouchableOpacity>
             </>
           ) : (
@@ -426,9 +500,9 @@ export default function CompatibilityScreen() {
                 {aiLoading ? (
                   <ActivityIndicator size="small" color={T.gold} style={{ marginVertical: 12 }} />
                 ) : (
-                  <Text style={styles.sumTxt}>
-                    {aiAnalysis || `Your charts reveal a ${synastry.discepoloAnalysis.category.toLowerCase()} connection. ${synastry.discepoloAnalysis.isDestinySign ? 'You share the same Sun sign modality — a powerful destiny bond.' : ''} The synastry reveals ${synastry.interAspects.length} inter-aspects worth exploring.`}
-                  </Text>
+                  <AstroText style={styles.sumTxt}
+                    text={aiAnalysis || `Your charts reveal a ${synastry.discepoloAnalysis.category.toLowerCase()} connection. ${synastry.discepoloAnalysis.isDestinySign ? 'You share the same Sun sign modality — a powerful destiny bond.' : ''} The synastry reveals ${synastry.interAspects.length} inter-aspects worth exploring.`}
+                  />
                 )}
                 {synastry.discepoloAnalysis.isDestinySign && (
                   <View style={styles.destinyBadge}>
@@ -452,12 +526,12 @@ export default function CompatibilityScreen() {
                   <View style={[styles.sbarTrack, { marginBottom: 8 }]}>
                     <View style={[styles.sbarFill, { width: `${area.score}%`, backgroundColor: area.score >= 70 ? '#7EC8A0' : area.score >= 50 ? T.gold : '#E87878' }]} />
                   </View>
-                  <Text style={styles.areaStrength}>{area.strength}</Text>
+                  <AstroText text={area.strength} style={styles.areaStrength} />
                   {area.tension && (
-                    <Text style={styles.areaTension}>{area.tension}</Text>
+                    <AstroText text={area.tension} style={styles.areaTension} />
                   )}
                   {area.reflection && (
-                    <Text style={styles.areaReflection}>{area.reflection}</Text>
+                    <AstroText text={area.reflection} style={styles.areaReflection} />
                   )}
                 </View>
               ))}
@@ -560,7 +634,7 @@ export default function CompatibilityScreen() {
         </View>
       </ScrollView>
 
-      {/* Offscreen share card for capture */}
+      {/* Offscreen share cards for capture */}
       {synastry && (
         <View style={{ position: 'absolute', left: -9999 }}>
           <CompatibilityShareCard
@@ -570,8 +644,75 @@ export default function CompatibilityScreen() {
             score={synastry.harmonyScore}
             verdict={getScoreLabel(synastry.harmonyScore)}
           />
+          <MatchStoryCard
+            innerRef={storyCardRef}
+            user={{ name: userProfile.name?.split(' ')[0], sign: userSun?.sign }}
+            partner={{ name: partnerProfile?.name?.split(' ')[0], sign: partnerSun?.sign }}
+            score={synastry.harmonyScore}
+            verdict={getScoreLabel(synastry.harmonyScore)}
+            insights={viralInsights}
+            themeIndex={storyTheme}
+          />
         </View>
       )}
+
+      {/* Story Card Share Modal */}
+      <Modal visible={showStoryModal} transparent animationType="fade">
+        <View style={styles.storyOverlay}>
+          {/* Top bar */}
+          <View style={styles.storyTopBar}>
+            <TouchableOpacity onPress={() => setShowStoryModal(false)} hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}>
+              <Text style={styles.storyCloseText}>✕</Text>
+            </TouchableOpacity>
+            <Text style={styles.storyModalTitle}>Share Your Match</Text>
+            <View style={{ width: 24 }} />
+          </View>
+
+          {/* Card preview */}
+          <View style={styles.storyPreview}>
+            <View style={styles.storyCardWrap}>
+              <MatchStoryCard
+                user={{ name: userProfile?.name?.split(' ')[0], sign: userSun?.sign }}
+                partner={{ name: partnerProfile?.name?.split(' ')[0], sign: partnerSun?.sign }}
+                score={synastry?.harmonyScore || 0}
+                verdict={getScoreLabel(synastry?.harmonyScore || 0)}
+                insights={viralInsights}
+                themeIndex={storyTheme}
+              />
+              {viralLoading && (
+                <View style={styles.storyLoadingOverlay}>
+                  <ActivityIndicator size="small" color="white" />
+                  <Text style={styles.storyLoadingText}>Reading your charts...</Text>
+                </View>
+              )}
+            </View>
+          </View>
+
+          {/* Theme selector with labels */}
+          <View style={styles.storyThemeSection}>
+            <Text style={styles.storyThemeLabel}>STYLE</Text>
+            <View style={styles.storyThemeRow}>
+              {STORY_THEMES.map((theme, i) => (
+                <TouchableOpacity key={i} onPress={() => setStoryTheme(i)} activeOpacity={0.7}
+                  style={[styles.storyThemeOption, storyTheme === i && styles.storyThemeOptionOn]}>
+                  <View style={[styles.storyThemeSwatch, { backgroundColor: theme.dot }]} />
+                  <Text style={[styles.storyThemeName, storyTheme === i && { color: 'white' }]}>{theme.name}</Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+          </View>
+
+          {/* Share button */}
+          <TouchableOpacity style={styles.storyShareBtn} activeOpacity={0.8}
+            onPress={handleShareStoryCapture} disabled={viralLoading}>
+            <LinearGradient colors={[STORY_THEMES[storyTheme].dot, STORY_THEMES[storyTheme].dot + '60']}
+              start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={styles.storyShareGrad}>
+              <Text style={styles.storyShareText}>Share</Text>
+              <Text style={styles.storyShareArrow}>↗</Text>
+            </LinearGradient>
+          </TouchableOpacity>
+        </View>
+      </Modal>
 
       {/* Cinematic PDF Generation Overlay */}
       <GenerationOverlay
@@ -1073,9 +1214,33 @@ const styles = StyleSheet.create({
   areaStrength: { fontSize: 12.5, color: '#4A8060', lineHeight: 19, marginBottom: 4 },
   areaTension: { fontSize: 12.5, color: '#A06050', lineHeight: 19, marginBottom: 4 },
   areaReflection: { fontSize: 12, color: T.stone, fontStyle: 'italic', marginTop: 4 },
-  // Share match
-  shareMatchBtn: { alignSelf: 'center', backgroundColor: 'rgba(200,168,75,0.15)', borderWidth: 1, borderColor: 'rgba(200,168,75,0.3)', borderRadius: 100, paddingVertical: 8, paddingHorizontal: 20, marginTop: 12 },
-  shareMatchText: { fontSize: 12, fontFamily: FONTS.sansMedium, color: T.gold },
+  // Share to stories button
+  shareStoryBtn: { alignSelf: 'center', borderRadius: 100, overflow: 'hidden', marginTop: 14 },
+  shareStoryGrad: { flexDirection: 'row', alignItems: 'center', gap: 6, paddingVertical: 10, paddingHorizontal: 22 },
+  shareStoryIcon: { fontSize: 14, color: 'white', fontWeight: '600' },
+  shareStoryText: { fontSize: 13, fontFamily: FONTS.sansSemiBold, color: 'white' },
+  inviteBtn: { alignSelf: 'center', marginTop: 10, borderWidth: 1, borderColor: 'rgba(200,168,75,0.35)', borderRadius: 100, paddingVertical: 10, paddingHorizontal: 22 },
+  inviteBtnText: { fontSize: 13, fontFamily: FONTS.sansSemiBold, color: T.gold },
+  // Story modal
+  storyOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.95)', alignItems: 'center', justifyContent: 'space-between', paddingBottom: Platform.OS === 'ios' ? 40 : 24 },
+  storyTopBar: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', width: '100%', paddingHorizontal: 20, paddingTop: Platform.OS === 'ios' ? 60 : 44 },
+  storyCloseText: { color: 'rgba(255,255,255,0.6)', fontSize: 18, fontWeight: '300' },
+  storyModalTitle: { fontSize: 14, fontFamily: FONTS.sansMedium, color: 'rgba(255,255,255,0.5)', letterSpacing: 0.5 },
+  storyPreview: { alignItems: 'center', justifyContent: 'center', flex: 1 },
+  storyCardWrap: { borderRadius: 24, overflow: 'hidden', shadowColor: '#000', shadowOffset: { width: 0, height: 16 }, shadowOpacity: 0.6, shadowRadius: 40, transform: [{ scale: 0.82 }] },
+  storyLoadingOverlay: { ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(0,0,0,0.5)', borderRadius: 24, alignItems: 'center', justifyContent: 'center', gap: 10 },
+  storyLoadingText: { fontSize: 12, color: 'rgba(255,255,255,0.6)', fontFamily: FONTS.sansMedium },
+  storyThemeSection: { alignItems: 'center', marginBottom: 16 },
+  storyThemeLabel: { fontSize: 9, fontFamily: FONTS.sansSemiBold, letterSpacing: 2.5, color: 'rgba(255,255,255,0.25)', marginBottom: 10 },
+  storyThemeRow: { flexDirection: 'row', alignItems: 'center', gap: 12 },
+  storyThemeOption: { flexDirection: 'row', alignItems: 'center', gap: 6, paddingVertical: 6, paddingHorizontal: 12, borderRadius: 100, borderWidth: 1, borderColor: 'rgba(255,255,255,0.08)' },
+  storyThemeOptionOn: { borderColor: 'rgba(255,255,255,0.2)', backgroundColor: 'rgba(255,255,255,0.06)' },
+  storyThemeSwatch: { width: 10, height: 10, borderRadius: 5 },
+  storyThemeName: { fontSize: 12, fontFamily: FONTS.sansMedium, color: 'rgba(255,255,255,0.35)' },
+  storyShareBtn: { borderRadius: 100, overflow: 'hidden', width: '75%' },
+  storyShareGrad: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, paddingVertical: 15 },
+  storyShareText: { fontSize: 16, fontFamily: FONTS.sansSemiBold, color: 'white', letterSpacing: 0.5 },
+  storyShareArrow: { fontSize: 16, color: 'rgba(255,255,255,0.7)', fontWeight: '300' },
   // Download report card
   downloadCard: { borderRadius: 20, overflow: 'hidden', marginBottom: 14, shadowColor: '#2D0A1E', shadowOffset: { width: 0, height: 6 }, shadowOpacity: 0.3, shadowRadius: 20 },
   downloadGrad: { padding: 20, position: 'relative', overflow: 'hidden' },

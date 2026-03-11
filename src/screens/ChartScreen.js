@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { View, Text, ScrollView, TouchableOpacity, StyleSheet, ActivityIndicator, Modal, Platform, StatusBar } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { T, FONTS } from '../constants/theme';
@@ -9,6 +9,13 @@ import { generatePlacementDeepDive, generateAspectDeepDive, generateHouseDeepDiv
 import { haptic } from '../services/hapticService';
 import { trackEvent } from '../services/achievementService';
 import { awardXP } from '../services/xpService';
+import { completeQuestAction } from '../services/questService';
+import { getUnlockedPlanets, getUnlockProgress, getUnlockDayForPlanet } from '../services/unlockService';
+import CosmicTooltip from '../components/CosmicTooltip';
+import AstroText from '../components/AstroText';
+import { useShareCard } from '../components/ShareCard';
+import BigThreeShareCard from '../components/BigThreeShareCard';
+import { getCosmicArchetype, getComboRarity } from '../services/cosmicIdentityService';
 
 const PLANET_GLYPHS = {
   Sun: '☉', Moon: '☽', Mercury: '☿', Venus: '♀', Mars: '♂',
@@ -39,10 +46,46 @@ export default function ChartScreen() {
   const [showDeepDive, setShowDeepDive] = useState(false);
   const [deepDiveType, setDeepDiveType] = useState('planet'); // 'planet' | 'aspect' | 'house'
 
+  // Drip-feed unlock state
+  const [unlockedPlanets, setUnlockedPlanets] = useState([]);
+  const [unlockProgress, setUnlockProgress] = useState(null);
+
+  // Share cards
+  const { cardRef: bigThreeRef, captureAndShare: shareBigThree } = useShareCard();
+  const { cardRef: quoteRef, captureAndShare: shareQuote } = useShareCard();
+
   const chart = userProfile?.chart;
+  const archetype = useMemo(() => chart ? getCosmicArchetype(chart) : null, [chart]);
+  const comboRarity = useMemo(() => chart ? getComboRarity(chart) : null, [chart]);
+
+  // Load unlock state
+  useEffect(() => {
+    (async () => {
+      const unlocked = await getUnlockedPlanets();
+      setUnlockedPlanets(unlocked);
+      const progress = await getUnlockProgress();
+      setUnlockProgress(progress);
+    })();
+  }, []);
 
   const handlePlanetTap = async (planet) => {
     if (!planet.name || planet.name === 'South Node') return;
+    // Check if locked (drip-feed)
+    if (!unlockedPlanets.includes(planet.name)) {
+      const unlockDay = getUnlockDayForPlanet(planet.name);
+      haptic.light();
+      setDeepDiveType('planet');
+      setShowDeepDive(true);
+      setDeepDiveLoading(false);
+      setDeepDive({
+        locked: true,
+        planetName: planet.name,
+        sign: planet.sign,
+        unlockDay,
+        hook: `${planet.name} in ${planet.sign} — your chart holds a secret here.`,
+      });
+      return;
+    }
     setDeepDiveType('planet');
     setShowDeepDive(true);
     setDeepDiveLoading(true);
@@ -54,8 +97,9 @@ export default function ChartScreen() {
       );
       setDeepDive({ ...result, planetName: planet.name, sign: p?.sign, house: p?.house });
       haptic.light();
-      trackEvent('deep_dive').catch(() => {});
+      trackEvent('deep_dive', { planet: planet.name }).catch(() => {});
       awardXP(userProfile?.id || 'default', 'deep_dive').catch(() => {});
+      completeQuestAction('deep_dive_done').catch(() => {});
     } catch (e) {
       console.error('Deep dive error:', e);
       setDeepDive({ hook: 'Unable to load insight right now.', planetName: planet.name });
@@ -75,8 +119,9 @@ export default function ChartScreen() {
       );
       setDeepDive({ ...result, planet1: aspect.planet1, planet2: aspect.planet2, aspectType: aspect.type, orb: aspect.orb, color: aspect.color });
       haptic.light();
-      trackEvent('deep_dive').catch(() => {});
+      trackEvent('deep_dive', { planet: aspect.planet1 }).catch(() => {});
       awardXP(userProfile?.id || 'default', 'deep_dive').catch(() => {});
+      completeQuestAction('deep_dive_done').catch(() => {});
     } catch (e) {
       console.error('Aspect deep dive error:', e);
       setDeepDive({ hook: 'Unable to load insight right now.', planet1: aspect.planet1, planet2: aspect.planet2, aspectType: aspect.type });
@@ -99,8 +144,9 @@ export default function ChartScreen() {
       );
       setDeepDive({ ...result, houseNumber: house.number, sign: house.sign, theme: house.theme, planetsInHouse });
       haptic.light();
-      trackEvent('deep_dive').catch(() => {});
+      trackEvent('deep_dive', { planet: `House_${house.number}` }).catch(() => {});
       awardXP(userProfile?.id || 'default', 'deep_dive').catch(() => {});
+      completeQuestAction('deep_dive_done').catch(() => {});
     } catch (e) {
       console.error('House deep dive error:', e);
       setDeepDive({ hook: 'Unable to load insight right now.', houseNumber: house.number, sign: house.sign });
@@ -183,7 +229,10 @@ export default function ChartScreen() {
                 {rising ? ` · ${rising.sign} Rising` : ''}
               </Text>
             </View>
-            <View style={styles.housePill}><Text style={styles.housePillText}>Whole Sign</Text></View>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
+              <View style={styles.housePill}><Text style={styles.housePillText}>Whole Sign</Text></View>
+              <CosmicTooltip id="whole_sign" size={14} light />
+            </View>
           </View>
 
           {/* Big 3 */}
@@ -192,20 +241,39 @@ export default function ChartScreen() {
               {sun && <View style={styles.big3Item}>
                 <Text style={styles.big3Glyph}>☉</Text>
                 <Text style={styles.big3Sign}>{sun.sign}</Text>
-                <Text style={styles.big3Label}>SUN</Text>
+                <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                  <Text style={styles.big3Label}>SUN</Text>
+                  <CosmicTooltip id="sun_sign" size={14} color="rgba(250,248,242,0.4)" />
+                </View>
               </View>}
               {moon && <View style={[styles.big3Item, { borderLeftWidth: 1, borderRightWidth: 1, borderColor: 'rgba(255,255,255,0.1)' }]}>
                 <Text style={styles.big3Glyph}>☽</Text>
                 <Text style={styles.big3Sign}>{moon.sign}</Text>
-                <Text style={styles.big3Label}>MOON</Text>
+                <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                  <Text style={styles.big3Label}>MOON</Text>
+                  <CosmicTooltip id="moon_sign" size={14} color="rgba(250,248,242,0.4)" />
+                </View>
               </View>}
               {rising && <View style={styles.big3Item}>
                 <Text style={styles.big3Glyph}>↑</Text>
                 <Text style={styles.big3Sign}>{rising.sign}</Text>
-                <Text style={styles.big3Label}>RISING</Text>
+                <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                  <Text style={styles.big3Label}>RISING</Text>
+                  <CosmicTooltip id="rising_sign" size={14} color="rgba(250,248,242,0.4)" />
+                </View>
               </View>}
             </View>
           )}
+
+          {/* Share My Chart button */}
+          <TouchableOpacity style={styles.shareChartBtn} activeOpacity={0.75} onPress={async () => {
+            haptic.light();
+            await shareBigThree(`My cosmic identity: ${sun?.sign} Sun · ${moon?.sign} Moon · ${rising?.sign} Rising`);
+            trackEvent('share');
+            awardXP(userProfile?.id, 'share');
+          }}>
+            <Text style={styles.shareChartText}>Share My Chart</Text>
+          </TouchableOpacity>
 
           <View style={{ alignItems: 'center', marginTop: 10 }}>
             <ChartWheel size={260} planets={chart.planets} aspects={chart.aspects} />
@@ -220,22 +288,49 @@ export default function ChartScreen() {
           ))}
         </View>
 
+        {/* Unlock progress bar */}
+        {unlockProgress && !unlockProgress.isComplete && tab === 0 && (
+          <View style={styles.unlockBar}>
+            <View style={styles.unlockBarInner}>
+              <View style={styles.unlockBarTrack}>
+                <View style={[styles.unlockBarFill, { width: `${unlockProgress.percentage}%` }]} />
+              </View>
+              <Text style={styles.unlockBarText}>
+                {unlockProgress.unlocked}/{unlockProgress.total} placements revealed
+                {unlockProgress.nextPlanet ? ` · ${unlockProgress.nextPlanet} unlocks tomorrow` : ''}
+              </Text>
+            </View>
+          </View>
+        )}
+
         <View style={styles.list}>
-          {tab === 0 && planetPlacements.map((p, i) => (
-            <TouchableOpacity key={i} style={styles.plrow} activeOpacity={0.7}
-              onPress={() => handlePlanetTap(p)}>
-              <View style={styles.plrowIcon}><Text style={{ fontSize: 18 }}>{p.icon}</Text></View>
-              <View style={{ flex: 1 }}>
-                <Text style={styles.plrowPlanet}>{p.planet}{p.isRetrograde ? ' ℞' : ''}</Text>
-                <Text style={styles.plrowSign}>{p.sign}</Text>
-              </View>
-              <View style={{ alignItems: 'flex-end' }}>
-                <Text style={styles.plrowDeg}>{p.deg}</Text>
-                <Text style={styles.plrowHouse}>{p.house}</Text>
-              </View>
-              <Text style={styles.plrowArrow}>›</Text>
-            </TouchableOpacity>
-          ))}
+          {tab === 0 && planetPlacements.map((p, i) => {
+            const isLocked = !unlockedPlanets.includes(p.name);
+            return (
+              <TouchableOpacity key={i} style={[styles.plrow, isLocked && styles.plrowLocked]} activeOpacity={0.7}
+                onPress={() => handlePlanetTap(p)}>
+                <View style={[styles.plrowIcon, isLocked && { backgroundColor: '#E8E2D8' }]}>
+                  <Text style={{ fontSize: 18, opacity: isLocked ? 0.35 : 1 }}>{isLocked ? '🔒' : p.icon}</Text>
+                </View>
+                <View style={{ flex: 1 }}>
+                  <Text style={[styles.plrowPlanet, isLocked && { opacity: 0.5 }]}>{p.planet}{p.isRetrograde ? ' ℞' : ''}</Text>
+                  {isLocked ? (
+                    <Text style={styles.plrowLockedHint}>Unlocks day {getUnlockDayForPlanet(p.name)}</Text>
+                  ) : (
+                    <Text style={styles.plrowSign}>{p.sign}</Text>
+                  )}
+                </View>
+                {!isLocked && (
+                  <View style={{ alignItems: 'flex-end' }}>
+                    <Text style={styles.plrowDeg}>{p.deg}</Text>
+                    <Text style={styles.plrowHouse}>{p.house}</Text>
+                  </View>
+                )}
+                {!isLocked && <CosmicTooltip id={p.name === 'Ascendant' ? 'rising_sign' : p.name === 'North Node' ? 'north_node' : p.name === 'South Node' ? 'south_node' : p.name.toLowerCase()} size={14} />}
+                <Text style={[styles.plrowArrow, isLocked && { opacity: 0.3 }]}>{isLocked ? '🔒' : '›'}</Text>
+              </TouchableOpacity>
+            );
+          })}
 
           {tab === 1 && aspectList.map((a, i) => (
             <TouchableOpacity key={i} style={styles.plrow} activeOpacity={0.7}
@@ -251,6 +346,7 @@ export default function ChartScreen() {
                 <Text style={{ fontSize: 11, color: T.stone }}>orb {a.orb}°</Text>
                 <Text style={{ fontSize: 9, color: a.color, marginTop: 2 }}>{ASPECT_NATURE[a.type]}</Text>
               </View>
+              <CosmicTooltip id={a.type.toLowerCase()} size={14} />
               <Text style={styles.plrowArrow}>›</Text>
             </TouchableOpacity>
           ))}
@@ -265,7 +361,8 @@ export default function ChartScreen() {
                 <Text style={styles.plrowPlanet}>HOUSE {h.number}</Text>
                 <Text style={[styles.plrowSign, { fontSize: 14 }]}>{h.sign} {h.degree}°</Text>
               </View>
-              <Text style={{ fontSize: 11, color: T.stone, maxWidth: 120, textAlign: 'right' }}>{h.theme}</Text>
+              <Text style={{ fontSize: 11, color: T.stone, maxWidth: 100, textAlign: 'right' }}>{h.theme}</Text>
+              <CosmicTooltip id={`house_${h.number}`} size={14} />
               <Text style={styles.plrowArrow}>›</Text>
             </TouchableOpacity>
           ))}
@@ -293,7 +390,32 @@ export default function ChartScreen() {
             </TouchableOpacity>
           </View>
 
-          {deepDiveLoading ? (
+          {/* Locked planet view */}
+          {deepDive?.locked ? (
+            <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 40 }}>
+              <Text style={{ fontSize: 48, marginBottom: 16 }}>🔒</Text>
+              <Text style={{ fontFamily: FONTS.serif, fontSize: 22, color: T.navy, textAlign: 'center', marginBottom: 8 }}>
+                {deepDive.planetName} in {deepDive.sign}
+              </Text>
+              <Text style={{ fontFamily: FONTS.serif, fontSize: 15, color: T.stone, textAlign: 'center', lineHeight: 22, marginBottom: 20 }}>
+                {deepDive.hook}
+              </Text>
+              <View style={{ backgroundColor: T.warm, borderRadius: 14, padding: 16, width: '100%' }}>
+                <Text style={{ fontSize: 12, fontFamily: FONTS.sansSemiBold, color: T.gold, letterSpacing: 1, marginBottom: 6 }}>UNLOCKS ON DAY {deepDive.unlockDay}</Text>
+                <Text style={{ fontSize: 13, color: T.stone, lineHeight: 20 }}>
+                  Come back daily to unlock new chart insights. Each placement reveals a deeper layer of your cosmic identity.
+                </Text>
+              </View>
+              {unlockProgress && (
+                <View style={{ marginTop: 20, alignItems: 'center' }}>
+                  <View style={[styles.unlockBarTrack, { width: 200 }]}>
+                    <View style={[styles.unlockBarFill, { width: `${unlockProgress.percentage}%` }]} />
+                  </View>
+                  <Text style={{ fontSize: 11, color: T.stone, marginTop: 6 }}>{unlockProgress.unlocked}/{unlockProgress.total} placements revealed</Text>
+                </View>
+              )}
+            </View>
+          ) : deepDiveLoading ? (
             <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>
               <ActivityIndicator size="large" color={T.gold} />
               <Text style={{ fontSize: 14, color: T.stone, marginTop: 12 }}>
@@ -311,10 +433,10 @@ export default function ChartScreen() {
                   {deepDive.house && (
                     <Text style={styles.ddHouseLabel}>HOUSE {toRoman(deepDive.house)}</Text>
                   )}
-                  <Text style={styles.ddHook}>{deepDive.hook}</Text>
+                  <AstroText text={deepDive.hook} style={styles.ddHook} />
                   {deepDive.definition && (
                     <View style={styles.ddDefBox}>
-                      <Text style={styles.ddDefText}>{deepDive.definition}</Text>
+                      <AstroText text={deepDive.definition} style={styles.ddDefText} />
                     </View>
                   )}
                   {deepDive.traits && deepDive.traits.length > 0 && (
@@ -337,12 +459,12 @@ export default function ChartScreen() {
                       {ASPECT_GLYPHS[deepDive.aspectType] || '⬡'} {ASPECT_NATURE[deepDive.aspectType] || deepDive.aspectType} · orb {deepDive.orb}°
                     </Text>
                   </View>
-                  <Text style={styles.ddHook}>{deepDive.hook}</Text>
+                  <AstroText text={deepDive.hook} style={styles.ddHook} />
 
                   {deepDive.dynamic && (
                     <View style={styles.ddDefBox}>
                       <Text style={styles.ddSectionLabel}>THE DYNAMIC</Text>
-                      <Text style={styles.ddDefText}>{deepDive.dynamic}</Text>
+                      <AstroText text={deepDive.dynamic} style={styles.ddDefText} />
                     </View>
                   )}
 
@@ -350,13 +472,13 @@ export default function ChartScreen() {
                     {deepDive.strength && (
                       <View style={[styles.ddAspectCard, { borderLeftColor: '#7EC8A0' }]}>
                         <Text style={[styles.ddSectionLabel, { color: '#7EC8A0' }]}>STRENGTH</Text>
-                        <Text style={styles.ddDefText}>{deepDive.strength}</Text>
+                        <AstroText text={deepDive.strength} style={styles.ddDefText} />
                       </View>
                     )}
                     {deepDive.challenge && (
                       <View style={[styles.ddAspectCard, { borderLeftColor: '#E87878' }]}>
                         <Text style={[styles.ddSectionLabel, { color: '#E87878' }]}>CHALLENGE</Text>
-                        <Text style={styles.ddDefText}>{deepDive.challenge}</Text>
+                        <AstroText text={deepDive.challenge} style={styles.ddDefText} />
                       </View>
                     )}
                   </View>
@@ -364,7 +486,7 @@ export default function ChartScreen() {
                   {deepDive.advice && (
                     <View style={styles.ddAdviceBox}>
                       <Text style={styles.ddSectionLabel}>YOUR MOVE</Text>
-                      <Text style={styles.ddAdviceText}>{deepDive.advice}</Text>
+                      <AstroText text={deepDive.advice} style={styles.ddAdviceText} />
                     </View>
                   )}
                 </>
@@ -423,17 +545,41 @@ export default function ChartScreen() {
                 </>
               )}
 
-              {/* Shared: Quote card */}
+              {/* Shared: Quote card — tap to share */}
               {deepDive.share_quote && (
-                <LinearGradient colors={['#0E0E22', '#1A1060']} style={styles.ddQuoteCard}>
-                  <Text style={styles.ddQuote}>"{deepDive.share_quote}"</Text>
-                </LinearGradient>
+                <TouchableOpacity activeOpacity={0.8} onPress={async () => {
+                  haptic.light();
+                  await shareQuote(deepDive.share_quote);
+                  trackEvent('share');
+                  awardXP(userProfile?.id, 'share');
+                }}>
+                  <View ref={quoteRef} collapsable={false}>
+                    <LinearGradient colors={['#0E0E22', '#1A1060']} style={styles.ddQuoteCard}>
+                      <Text style={styles.ddQuote}>"{deepDive.share_quote}"</Text>
+                      <Text style={styles.ddShareHint}>Tap to share ↗</Text>
+                    </LinearGradient>
+                  </View>
+                </TouchableOpacity>
               )}
               <View style={{ height: 40 }} />
             </ScrollView>
           ) : null}
         </View>
       </Modal>
+
+      {/* Offscreen share card for Big Three capture */}
+      <View style={{ position: 'absolute', left: -9999 }}>
+        <BigThreeShareCard
+          innerRef={bigThreeRef}
+          name={userProfile?.name}
+          sun={sun?.sign}
+          moon={moon?.sign}
+          rising={rising?.sign}
+          archetype={archetype}
+          comboRarity={comboRarity}
+          elementCounts={archetype?.elementCounts}
+        />
+      </View>
     </View>
   );
 }
@@ -497,4 +643,16 @@ const styles = StyleSheet.create({
   ddHousePlanetChip: { flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: 'white', borderRadius: 100, paddingVertical: 6, paddingHorizontal: 12, borderWidth: 1, borderColor: T.border },
   ddHousePlanetGlyph: { fontSize: 16 },
   ddHousePlanetName: { fontSize: 12, color: T.navy, fontFamily: FONTS.sansMedium },
+  // Drip-feed unlock
+  plrowLocked: { opacity: 0.7 },
+  plrowLockedHint: { fontSize: 12, color: T.gold, fontFamily: FONTS.sansMedium },
+  unlockBar: { paddingHorizontal: 20, paddingTop: 12 },
+  unlockBarInner: { backgroundColor: T.warm, borderRadius: 12, padding: 14 },
+  unlockBarTrack: { height: 6, backgroundColor: '#E8E2D8', borderRadius: 3, overflow: 'hidden' },
+  unlockBarFill: { height: '100%', backgroundColor: T.gold, borderRadius: 3 },
+  unlockBarText: { fontSize: 11, color: T.stone, marginTop: 8, textAlign: 'center' },
+  // Share My Chart
+  shareChartBtn: { backgroundColor: 'rgba(200,168,75,0.15)', borderWidth: 1, borderColor: 'rgba(200,168,75,0.3)', borderRadius: 100, paddingVertical: 8, paddingHorizontal: 20, marginTop: 8 },
+  shareChartText: { fontSize: 12, fontFamily: FONTS.sansMedium, color: T.gold },
+  ddShareHint: { fontSize: 10, color: 'rgba(200,168,75,0.5)', marginTop: 8 },
 });

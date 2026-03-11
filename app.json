@@ -30,6 +30,7 @@
         "backgroundColor": "#0E0E22"
       }
     },
+    "scheme": "celestia",
     "web": {
       "favicon": "./assets/favicon.png"
     },

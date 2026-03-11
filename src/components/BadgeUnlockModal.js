@@ -2,17 +2,25 @@ import React, { useEffect, useRef } from 'react';
 import { View, Text, TouchableOpacity, Modal, StyleSheet, Animated } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { T, FONTS } from '../constants/theme';
+import { haptic } from '../services/hapticService';
+import { useShareCard } from './ShareCard';
+import BadgeShareCard from './BadgeShareCard';
 
-export default function BadgeUnlockModal({ visible, badge, onDismiss }) {
+export default function BadgeUnlockModal({ visible, badge, onDismiss, levelName, onShare }) {
   const scaleAnim = useRef(new Animated.Value(0.5)).current;
   const opacityAnim = useRef(new Animated.Value(0)).current;
   const glowAnim = useRef(new Animated.Value(0.3)).current;
+  const { cardRef, captureAndShare } = useShareCard();
 
   useEffect(() => {
     if (visible && badge) {
       scaleAnim.setValue(0.5);
       opacityAnim.setValue(0);
       glowAnim.setValue(0.3);
+
+      // Haptic celebration
+      haptic.success();
+      setTimeout(() => haptic.heavy(), 200);
 
       Animated.parallel([
         Animated.spring(scaleAnim, { toValue: 1, tension: 60, friction: 7, useNativeDriver: true }),
@@ -43,11 +51,25 @@ export default function BadgeUnlockModal({ visible, badge, onDismiss }) {
             <Text style={s.name}>{badge.name}</Text>
             <Text style={s.desc}>{badge.description}</Text>
 
-            <TouchableOpacity style={s.btn} activeOpacity={0.85} onPress={onDismiss}>
-              <Text style={s.btnText}>Continue</Text>
-            </TouchableOpacity>
+            <View style={s.btnRow}>
+              <TouchableOpacity style={s.shareBtn} activeOpacity={0.85} onPress={async () => {
+                haptic.light();
+                await captureAndShare(`I just unlocked "${badge.name}" on Celestia! ${badge.icon}`);
+                if (onShare) onShare();
+              }}>
+                <Text style={s.shareBtnText}>Share</Text>
+              </TouchableOpacity>
+              <TouchableOpacity style={s.btn} activeOpacity={0.85} onPress={onDismiss}>
+                <Text style={s.btnText}>Continue</Text>
+              </TouchableOpacity>
+            </View>
           </LinearGradient>
         </Animated.View>
+
+        {/* Offscreen share card for capture */}
+        <View style={s.offscreen}>
+          <BadgeShareCard badge={badge} levelName={levelName} innerRef={cardRef} />
+        </View>
       </View>
     </Modal>
   );
@@ -62,6 +84,10 @@ const s = StyleSheet.create({
   icon: { fontSize: 52, marginBottom: 16 },
   name: { fontFamily: FONTS.serif, fontSize: 24, color: T.cream, textAlign: 'center', marginBottom: 8 },
   desc: { fontSize: 13, color: 'rgba(250,248,242,0.5)', textAlign: 'center', lineHeight: 20, marginBottom: 28 },
-  btn: { backgroundColor: 'rgba(200,168,75,0.18)', borderWidth: 1, borderColor: 'rgba(200,168,75,0.35)', borderRadius: 14, paddingVertical: 12, paddingHorizontal: 36 },
+  btnRow: { flexDirection: 'row', gap: 10 },
+  shareBtn: { backgroundColor: T.gold, borderRadius: 14, paddingVertical: 12, paddingHorizontal: 28 },
+  shareBtnText: { fontFamily: FONTS.sansMedium, fontSize: 14, color: T.navy },
+  btn: { backgroundColor: 'rgba(200,168,75,0.18)', borderWidth: 1, borderColor: 'rgba(200,168,75,0.35)', borderRadius: 14, paddingVertical: 12, paddingHorizontal: 28 },
   btnText: { fontFamily: FONTS.sansMedium, fontSize: 14, color: T.gold },
+  offscreen: { position: 'absolute', left: -9999 },
 });

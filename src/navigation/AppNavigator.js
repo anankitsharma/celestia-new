@@ -14,6 +14,7 @@ import ProfileScreen from '../screens/ProfileScreen';
 import JournalHistoryScreen from '../screens/JournalHistoryScreen';
 import NotificationSettingsScreen from '../screens/NotificationSettingsScreen';
 import AuthScreen from '../screens/AuthScreen';
+import QuickChartScreen from '../screens/QuickChartScreen';
 import TabBar from '../components/TabBar';
 
 const Stack = createNativeStackNavigator();
@@ -45,6 +46,7 @@ export default function AppNavigator() {
       <Stack.Screen name="JournalHistory" component={JournalHistoryScreen} />
       <Stack.Screen name="NotificationSettings" component={NotificationSettingsScreen} />
       <Stack.Screen name="Auth" component={AuthScreen} />
+      <Stack.Screen name="QuickChart" component={QuickChartScreen} />
     </Stack.Navigator>
   );
 }

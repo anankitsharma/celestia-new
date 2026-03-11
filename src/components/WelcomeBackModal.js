@@ -1,5 +1,5 @@
 import React from 'react';
-import { View, Text, TouchableOpacity, Modal, StyleSheet, Animated } from 'react-native';
+import { View, Text, TouchableOpacity, Modal, StyleSheet } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { T, FONTS } from '../constants/theme';
 import { getStreakEmoji } from '../services/streakService';
@@ -7,16 +7,19 @@ import { getStreakEmoji } from '../services/streakService';
 export default function WelcomeBackModal({ visible, onDismiss, streakData, moonData }) {
   if (!visible || !streakData) return null;
 
-  const { daysAbsent, current_streak, streakBroken, longest_streak } = streakData;
+  const { daysAbsent, current_streak, streakBroken, longest_streak, comebackBonus } = streakData;
   const emoji = getStreakEmoji(current_streak);
+  const hasComeback = comebackBonus > 0;
 
   return (
     <Modal visible={visible} animationType="fade" transparent>
       <View style={s.overlay}>
         <View style={s.card}>
           <LinearGradient colors={['#1A1535', '#0E0E22']} style={s.hero}>
-            <Text style={s.heroEmoji}>{'✧'}</Text>
-            <Text style={s.heroTitle}>The Stars Missed You</Text>
+            <Text style={s.heroEmoji}>{hasComeback ? '✦' : '✧'}</Text>
+            <Text style={s.heroTitle}>
+              {hasComeback ? 'The Stars Remember You' : 'The Stars Missed You'}
+            </Text>
             <Text style={s.heroSub}>
               {daysAbsent > 1
                 ? `The cosmos kept moving while you were away for ${daysAbsent} days.`
@@ -30,12 +33,21 @@ export default function WelcomeBackModal({ visible, onDismiss, streakData, moonD
               <Text style={s.streakEmoji}>{emoji}</Text>
               <View style={{ flex: 1 }}>
                 {streakBroken ? (
-                  <>
-                    <Text style={s.streakLabel}>Streak Reset</Text>
-                    <Text style={s.streakSub}>
-                      Your {longest_streak}-day streak ended. Starting fresh at {current_streak}!
-                    </Text>
-                  </>
+                  hasComeback ? (
+                    <>
+                      <Text style={s.streakLabel}>Streak Restored</Text>
+                      <Text style={s.streakSub}>
+                        Your {longest_streak}-day streak earned a comeback bonus. Starting at {comebackBonus}!
+                      </Text>
+                    </>
+                  ) : (
+                    <>
+                      <Text style={s.streakLabel}>Streak Reset</Text>
+                      <Text style={s.streakSub}>
+                        Your {longest_streak}-day streak ended. Starting fresh at {current_streak}!
+                      </Text>
+                    </>
+                  )
                 ) : (
                   <>
                     <Text style={s.streakLabel}>{current_streak}-Day Streak</Text>
@@ -44,6 +56,27 @@ export default function WelcomeBackModal({ visible, onDismiss, streakData, moonD
                 )}
               </View>
             </View>
+
+            {/* Comeback bonus callout */}
+            {hasComeback && (
+              <View style={s.bonusRow}>
+                <Text style={s.bonusIcon}>✦</Text>
+                <View style={{ flex: 1 }}>
+                  <Text style={s.bonusLabel}>2x Stardust Today</Text>
+                  <Text style={s.bonusSub}>Welcome back bonus — all XP doubled this session</Text>
+                </View>
+              </View>
+            )}
+
+            {/* Streak freezes info */}
+            {streakData.streak_freezes_remaining > 0 && (
+              <View style={s.freezeRow}>
+                <Text style={s.freezeIcon}>🛡</Text>
+                <Text style={s.freezeText}>
+                  {streakData.streak_freezes_remaining} cosmic shield{streakData.streak_freezes_remaining > 1 ? 's' : ''} available
+                </Text>
+              </View>
+            )}
 
             {/* Moon phase */}
             {moonData && (
@@ -85,6 +118,13 @@ const s = StyleSheet.create({
   streakEmoji: { fontSize: 28 },
   streakLabel: { fontFamily: FONTS.sansSemiBold, fontSize: 15, color: T.navy, marginBottom: 2 },
   streakSub: { fontSize: 12, color: T.stone, lineHeight: 18 },
+  bonusRow: { flexDirection: 'row', alignItems: 'center', gap: 10, backgroundColor: 'rgba(200,168,75,0.1)', borderRadius: 12, padding: 12, marginBottom: 14, borderWidth: 1, borderColor: 'rgba(200,168,75,0.2)' },
+  bonusIcon: { fontSize: 20, color: T.gold },
+  bonusLabel: { fontFamily: FONTS.sansSemiBold, fontSize: 13, color: T.gold },
+  bonusSub: { fontSize: 11, color: T.stone, marginTop: 1 },
+  freezeRow: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 14, paddingHorizontal: 4 },
+  freezeIcon: { fontSize: 14 },
+  freezeText: { fontSize: 12, color: T.stone },
   infoRow: { flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 14, paddingHorizontal: 4 },
   infoIcon: { fontSize: 18 },
   infoText: { fontSize: 13, color: T.stone, flex: 1, lineHeight: 19 },
