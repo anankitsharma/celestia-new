@@ -13,6 +13,7 @@ import { trackEvent } from '../services/achievementService';
 import { awardXP } from '../services/xpService';
 import { completeQuestAction } from '../services/questService';
 import { getActiveCosmicWindows, getMoonDataForDate } from '../services/astrologyService';
+import { getNarrativeContext } from '../services/narrativeService';
 
 // ── DYNAMIC SUGGESTION QUESTIONS ─────────────────────────────
 // Natural questions a real astrology user would ask, grouped by topic.
@@ -206,6 +207,7 @@ export default function ChatScreen({ route }) {
   const initialMessageSent = useRef(false);
 
   const [proactiveInsight, setProactiveInsight] = useState(null);
+  const [narrativeCtx, setNarrativeCtx] = useState(null);
 
   const name = userProfile?.name?.split(' ')[0] || 'Stargazer';
   const sun = userProfile?.chart?.planets?.find(p => p.name === 'Sun');
@@ -218,11 +220,31 @@ export default function ChatScreen({ route }) {
     rising && `↑ ${rising.sign} Rising`,
   ].filter(Boolean);
 
-  // Build greeting message
-  const makeGreeting = (id = 'greeting') => ({
+  // Build narrative-aware greeting
+  const buildNarrativeGreeting = (ctx) => {
+    if (!ctx) return "What's on your mind today?";
+    const parts = [];
+    if (ctx.season) {
+      parts.push(`You're ${ctx.season.progress}% through your ${ctx.season.planet}-${ctx.season.natalTarget} season — ${ctx.season.description?.toLowerCase()}.`);
+    }
+    if (ctx.mercuryRx) {
+      parts.push("Mercury is retrograde, so communication needs extra awareness.");
+    }
+    if (ctx.yesterday?.journalMood) {
+      const moodMap = { great: 'wonderful', good: 'good', okay: 'okay', low: 'heavy', anxious: 'anxious' };
+      parts.push(`You felt ${moodMap[ctx.yesterday.journalMood] || ctx.yesterday.journalMood} yesterday.`);
+    }
+    if (ctx.today?.moonData?.sign) {
+      parts.push(`The Moon is in ${ctx.today.moonData.sign} today.`);
+    }
+    parts.push("What would you like to explore?");
+    return parts.join(' ');
+  };
+
+  const makeGreeting = (id = 'greeting', ctx = null) => ({
     id,
     role: 'model',
-    text: `Good day, ${name} ✦\n\nI am Celestia, your cosmic guide. ${sun ? `With your ${sun.sign} Sun${moon ? `, ${moon.sign} Moon` : ''}${rising ? ` and ${rising.sign} Rising` : ''}, ` : ''}I'm here to illuminate the celestial patterns shaping your journey.\n\nWhat would you like to explore?`,
+    text: `Good day, ${name} ✦\n\n${ctx ? buildNarrativeGreeting(ctx) : `I am Celestia, your cosmic guide. ${sun ? `With your ${sun.sign} Sun${moon ? `, ${moon.sign} Moon` : ''}${rising ? ` and ${rising.sign} Rising` : ''}, ` : ''}I'm here to illuminate the celestial patterns shaping your journey.\n\nWhat would you like to explore?`}`,
     timestamp: Date.now()
   });
 
@@ -253,7 +275,14 @@ export default function ChatScreen({ route }) {
   useEffect(() => {
     if (!userProfile) return;
     setSuggestions(pickSuggestions([], userProfile));
-    initChat();
+
+    // Load narrative context, then init chat with it
+    getNarrativeContext(userProfile?.id || 'default', userProfile.chart)
+      .then(ctx => {
+        setNarrativeCtx(ctx);
+        initChat(ctx);
+      })
+      .catch(() => initChat(null));
 
     // Build proactive insight from today's transits
     try {
@@ -277,8 +306,8 @@ export default function ChatScreen({ route }) {
     } catch (e) {}
   }, [userProfile]);
 
-  const initChat = async () => {
-    const greeting = makeGreeting();
+  const initChat = async (ctx = null) => {
+    const greeting = makeGreeting('greeting', ctx);
     let loadedSessionId = null;
 
     // Try to load the most recent session's messages
@@ -309,7 +338,7 @@ export default function ChatScreen({ route }) {
 
     // Create the AI session object (with full chart context in system instruction)
     try {
-      const chatSession = await createChatSession(userProfile, null, loadedSessionId);
+      const chatSession = await createChatSession(userProfile, null, loadedSessionId, ctx);
       setSession(chatSession);
     } catch (e) {
       console.error('Failed to create chat session:', e);
@@ -335,12 +364,12 @@ export default function ChatScreen({ route }) {
 
   // Start a brand new chat session
   const startNewSession = async () => {
-    const greeting = makeGreeting('greeting_new');
+    const greeting = makeGreeting('greeting_new', narrativeCtx);
     setMessages([greeting]);
     initialMessageSent.current = false;
 
     try {
-      const chatSession = await createChatSession(userProfile, null, null);
+      const chatSession = await createChatSession(userProfile, null, null, narrativeCtx);
       setSession(chatSession);
     } catch (e) {
       console.error('Failed to create new session:', e);

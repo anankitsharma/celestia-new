@@ -324,7 +324,7 @@ export function handleNotificationNavigation(navigationRef, data) {
       navigationRef.navigate('Main', { screen: 'Today', params: { openJournal: true } });
       break;
     case 'TRANSIT_ALERT':
-      navigationRef.navigate('Main', { screen: 'Sky', params: params || {} });
+      navigationRef.navigate('Main', { screen: 'Today', params: { scrollToSection: 'transits', ...(params || {}) } });
       break;
     case 'COSMIC_MILESTONE':
       navigationRef.navigate('Profile', params || {});

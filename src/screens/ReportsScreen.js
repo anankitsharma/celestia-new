@@ -10,6 +10,7 @@ import * as Sharing from 'expo-sharing';
 import { T, FONTS } from '../constants/theme';
 import { useUserProfile } from '../contexts/UserProfileContext';
 import { generateFullReport, generateDeepPdfReport } from '../services/geminiService';
+import { getNarrativeContext } from '../services/narrativeService';
 import { haptic } from '../services/hapticService';
 import { trackEvent } from '../services/achievementService';
 import { awardXP } from '../services/xpService';
@@ -1107,6 +1108,7 @@ export default function ReportsScreen() {
 
   // Toast notification
   const [toast, setToast] = useState(null); // { message, filename }
+  const [narrativeCtx, setNarrativeCtx] = useState(null);
   const toastAnim = useRef(new Animated.Value(0)).current;
   const toastTimeout = useRef(null);
 
@@ -1123,6 +1125,35 @@ export default function ReportsScreen() {
     return () => { if (toastTimeout.current) clearTimeout(toastTimeout.current); };
   }, []);
 
+  useEffect(() => {
+    getNarrativeContext(userProfile?.id || 'default', userProfile?.chart)
+      .then(ctx => setNarrativeCtx(ctx))
+      .catch(() => {});
+  }, [userProfile?.id]);
+
+  const getReportDescription = (type) => {
+    const defaults = {
+      love: 'Deep romantic insights based on your Venus & 7th house',
+      career: 'Professional destiny through your 10th house & Saturn',
+      lunar: 'Moon phase rituals aligned with your natal Moon',
+      purpose: 'North Node & soul path decoded for your chart',
+      solar_return: `Your complete ${CURRENT_YEAR} year ahead — every transit, season & lunar cycle`,
+      monthly: 'This month\'s cosmic forecast in detail',
+      yearly: `Your ${CURRENT_YEAR} roadmap — profections, transits & quarterly outlook`,
+      transit: 'Current planetary weather hitting your natal chart right now',
+    };
+    if (!narrativeCtx) return defaults[type] || defaults.love;
+
+    const windows = narrativeCtx.today?.cosmicWindows || [];
+    const loveWindows = windows.filter(w => ['Venus', 'Moon'].includes(w.planet) || ['Venus', 'Moon'].includes(w.natalPlanet));
+    const careerWindows = windows.filter(w => ['Saturn', 'Jupiter', 'Mars'].includes(w.planet));
+
+    if (type === 'love' && loveWindows.length > 0) return `${loveWindows[0].planet} is active in your chart \u2014 perfect timing for a love deep-dive`;
+    if (type === 'career' && careerWindows.length > 0) return `${careerWindows[0].planet} is reshaping your ambitions \u2014 this report guides you through`;
+    if (type === 'career' && narrativeCtx.season?.planet === 'Saturn') return 'Saturn is reshaping your ambitions \u2014 this report guides you through';
+    return defaults[type] || defaults.love;
+  };
+
   const handleReport = async (r) => {
     if (!userProfile?.chart) {
       Alert.alert('Profile Required', 'Complete onboarding to generate reports.');
@@ -1134,7 +1165,7 @@ export default function ReportsScreen() {
     setReportModal(true);
     setReportLoading(true);
     try {
-      const data = await generateFullReport(userProfile, r.type);
+      const data = await generateFullReport(userProfile, r.type, narrativeCtx);
       setReportData(data);
       haptic.success();
       // Track report generation
@@ -1183,7 +1214,7 @@ export default function ReportsScreen() {
         setGenStep(prev => (prev < numSteps - 3 ? prev + 1 : prev));
       }, 3200);
 
-      const deepReport = await generateDeepPdfReport(userProfile, reportType);
+      const deepReport = await generateDeepPdfReport(userProfile, reportType, narrativeCtx);
       clearInterval(stepTimer);
       if (pdfCancelledRef.current) return;
 
@@ -1290,7 +1321,7 @@ export default function ReportsScreen() {
               </LinearGradient>
               <View style={styles.rtileBody}>
                 <Text style={styles.rtileName}>{r.name}</Text>
-                <Text style={styles.rtileDesc}>{r.desc}</Text>
+                <Text style={styles.rtileDesc}>{getReportDescription(r.type)}</Text>
                 <Text style={styles.rtilePrice}>Free</Text>
               </View>
             </TouchableOpacity>

@@ -6,8 +6,7 @@ const TABS = [
   { icon: '◎', label: 'Today' },
   { icon: '☽', label: 'Ask' },
   { icon: '◉', label: 'Chart' },
-  { icon: '♡', label: 'Match' },
-  { icon: '✧', label: 'Sky' },
+  { icon: '♡', label: 'Circle' },
   { icon: '◑', label: 'Reports' },
 ];
 

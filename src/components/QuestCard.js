@@ -11,8 +11,8 @@ export default function QuestCard({ quests, allComplete, weeklyCount }) {
     <View style={s.card}>
       <View style={s.header}>
         <View style={{ flex: 1 }}>
-          <Text style={s.label}>DAILY QUESTS</Text>
-          <Text style={s.sub}>{allComplete ? 'All complete! +30 bonus Stardust' : `${completedCount}/3 complete`}</Text>
+          <Text style={s.label}>TODAY THE COSMOS ASKS</Text>
+          <Text style={s.sub}>{allComplete ? 'Chapter complete! +30 bonus Stardust' : `${completedCount}/3 answered`}</Text>
         </View>
         {weeklyCount > 0 && (
           <View style={s.weekBadge}>
@@ -35,7 +35,7 @@ export default function QuestCard({ quests, allComplete, weeklyCount }) {
       {allComplete && (
         <View style={s.bonusRow}>
           <Text style={s.bonusIcon}>✦</Text>
-          <Text style={s.bonusText}>Cosmic Bonus earned!</Text>
+          <Text style={s.bonusText}>Story bonus earned!</Text>
         </View>
       )}
     </View>

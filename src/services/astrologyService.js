@@ -1607,6 +1607,43 @@ export const getTransitPlanets = (date = new Date()) => {
     });
 };
 
+// Capture full cosmic snapshot at the current moment — for journal entries
+export const captureCosmicSnapshot = (natalChart) => {
+    const now = new Date();
+    try {
+        const moon = getMoonDataForDate(now);
+        const planets = getTransitPlanets(now);
+        const windows = natalChart ? getActiveCosmicWindows(natalChart, now) : [];
+        const significance = natalChart ? calculateTransitSignificance(natalChart, now) : 0;
+        const season = natalChart ? getCosmicSeason(natalChart, now) : null;
+
+        return {
+            timestamp: now.toISOString(),
+            moon: {
+                phase: moon.phaseName,
+                sign: moon.sign,
+                degree: moon.degree,
+                illumination: moon.illumination,
+            },
+            planets: planets.map(p => ({
+                name: p.name,
+                sign: p.sign,
+                degree: p.degree,
+                retrograde: p.isRetrograde,
+            })),
+            activeTransits: windows.slice(0, 5).map(w => ({
+                description: w.description,
+                significance: w.significance,
+            })),
+            cosmicSignificance: significance,
+            season: season ? { description: season.description, progress: season.progress } : null,
+        };
+    } catch (e) {
+        console.warn('[Astro] Snapshot capture failed:', e);
+        return { timestamp: now.toISOString(), moon: null, planets: [], activeTransits: [], cosmicSignificance: 0, season: null };
+    }
+};
+
 export const getCurrentMoonData = () => {
     const now = new Date();
     const astroTime = new Astronomy.AstroTime(now);

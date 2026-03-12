@@ -11,23 +11,25 @@ export const JournalRepository = {
     );
   },
 
-  async saveEntry(profileId, date, content, prompt) {
+  async saveEntry(profileId, date, content, prompt, cosmicSnapshot = null, tags = null) {
     const db = await getDB();
     const existing = await this.getEntry(profileId, date);
     const now = Date.now();
+    const snapshotStr = cosmicSnapshot ? JSON.stringify(cosmicSnapshot) : null;
+    const tagsStr = tags ? JSON.stringify(tags) : null;
 
     if (existing) {
       await db.runAsync(
-        `UPDATE ${TABLE} SET content = ?, prompt = ? WHERE id = ?;`,
-        [content, prompt || '', existing.id]
+        `UPDATE ${TABLE} SET content = ?, prompt = ?, cosmic_snapshot = COALESCE(?, cosmic_snapshot), tags = COALESCE(?, tags) WHERE id = ?;`,
+        [content, prompt || '', snapshotStr, tagsStr, existing.id]
       );
       return existing.id;
     }
 
     const id = `j_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
     await db.runAsync(
-      `INSERT INTO ${TABLE} (id, profile_id, date, content, prompt, created_at) VALUES (?, ?, ?, ?, ?, ?);`,
-      [id, profileId, date, content, prompt || '', now]
+      `INSERT INTO ${TABLE} (id, profile_id, date, content, prompt, cosmic_snapshot, tags, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?);`,
+      [id, profileId, date, content, prompt || '', snapshotStr, tagsStr, now]
     );
     return id;
   },
@@ -76,7 +78,6 @@ export const JournalRepository = {
         streak++;
         checkDate.setDate(checkDate.getDate() - 1);
       } else if (i === 0) {
-        // Today might not have an entry yet, check yesterday
         checkDate.setDate(checkDate.getDate() - 1);
         continue;
       } else {

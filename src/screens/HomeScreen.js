@@ -6,8 +6,8 @@ import {
 import { LinearGradient } from 'expo-linear-gradient';
 import { T, FONTS } from '../constants/theme';
 import { useUserProfile } from '../contexts/UserProfileContext';
-import { getMoonDataForDate, calculateCosmicEnergy, getTransitPlanets, getActiveCosmicWindows, isMercuryRetrograde, getCosmicChangeToday, calculateTransitSignificance, getCosmicSeason } from '../services/astrologyService';
-import { fetchExtendedForecast, generateThemeAnalysis, generateMoonRitual, generateMonthlyRecap } from '../services/geminiService';
+import { getMoonDataForDate, getTransitPlanets, getActiveCosmicWindows, isMercuryRetrograde, getCosmicChangeToday, calculateTransitSignificance, getCosmicSeason } from '../services/astrologyService';
+import { fetchExtendedForecast, generateMoonRitual, generateMonthlyRecap } from '../services/geminiService';
 import { ForecastRepository } from '../services/database/rep_forecasts';
 import { loadObject, saveObject, loadString, saveString, loadBoolean, saveBoolean, StorageKeys } from '../services/storage';
 import { haptic } from '../services/hapticService';
@@ -22,12 +22,13 @@ import CosmicTooltip from '../components/CosmicTooltip';
 import AstroText from '../components/AstroText';
 import { scheduleAllNotifications, hasNotificationPermission, requestNotificationPermission } from '../services/notificationService';
 import { refillCosmicLinesIfNeeded, getCosmicLineForDate } from '../services/cosmicLineService';
-import { getTodayUnlock, markUnlockShown, getUnlockProgress } from '../services/unlockService';
+import { getTodayUnlock, markUnlockShown, getUnlockProgress, UNLOCK_NARRATIVES } from '../services/unlockService';
+import { calculateSynastryScore, calculateZodiacOnlyScore, ROLE_COLORS } from '../services/astrology/SynastryService';
 import { getElementGreeting, getCosmicArchetype } from '../services/cosmicIdentityService';
 import { getNextBadgeProgress } from '../services/achievementService';
-import { isFeatureUnlocked } from '../constants/levels';
 import { getTodayQuests, completeQuestAction } from '../services/questService';
 import { getCosmicWhisper } from '../services/cosmicWhisperService';
+import { getNarrativeContext } from '../services/narrativeService';
 import NotificationPermissionModal from '../components/NotificationPermissionModal';
 import { JournalRepository } from '../services/database/rep_journal';
 import DailyShareCard from '../components/DailyShareCard';
@@ -48,27 +49,12 @@ const MOON_PHASE_ICONS = {
   'Last Quarter': '🌗', 'Waning Crescent': '🌘',
 };
 
+
 const PERIOD_TABS = [
-  { key: 'yesterday', label: 'Yesterday' },
   { key: 'today', label: 'Today' },
-  { key: 'tomorrow', label: 'Tomorrow' },
-  { key: 'weekly', label: 'Weekly' },
-  { key: 'monthly', label: 'Monthly' },
-  { key: 'yearly', label: 'Yearly' },
+  { key: 'weekly', label: 'This Week' },
+  { key: 'monthly', label: 'This Month' },
 ];
-
-const ENERGY_CONFIG = [
-  { key: 'Love', icon: '♡', tag: 'LOVE', color: '#E85090', bgColor: 'rgba(232,80,144,0.08)' },
-  { key: 'Career', icon: '◆', tag: 'CAREER', color: '#5090E8', bgColor: 'rgba(80,144,232,0.08)' },
-  { key: 'Health', icon: '✦', tag: 'VITALITY', color: '#50C878', bgColor: 'rgba(80,200,120,0.08)' },
-  { key: 'Mood', icon: '☽', tag: 'MOOD', color: '#F59E0B', bgColor: 'rgba(245,158,11,0.08)' },
-  { key: 'Social', icon: '✧', tag: 'SOCIAL', color: '#8B5CF6', bgColor: 'rgba(139,92,246,0.08)' },
-  { key: 'Creativity', icon: '◎', tag: 'CREATE', color: '#EC4899', bgColor: 'rgba(236,72,153,0.08)' },
-  { key: 'Focus', icon: '◇', tag: 'FOCUS', color: '#3B82F6', bgColor: 'rgba(59,130,246,0.08)' },
-  { key: 'Luck', icon: '★', tag: 'LUCK', color: '#10B981', bgColor: 'rgba(16,185,129,0.08)' },
-];
-
-const ENERGY_LABELS = ['Quiet', 'Low', 'Gentle', 'Moderate', 'Warm', 'Steady', 'Balanced', 'Inspired', 'Elevated', 'Magnetic', 'Peak'];
 
 const PLANET_GLYPHS = { Sun: '☉', Moon: '☽', Mercury: '☿', Venus: '♀', Mars: '♂', Jupiter: '♃', Saturn: '♄', Uranus: '♅', Neptune: '♆', Pluto: '♇' };
 
@@ -87,31 +73,19 @@ const formatDateHeader = (date = new Date()) => {
   return `${days[date.getDay()]} · ${months[date.getMonth()]} ${date.getDate()}, ${date.getFullYear()}`;
 };
 
-const getDateForTab = (tab) => {
-  const d = new Date();
-  if (tab === 'yesterday') d.setDate(d.getDate() - 1);
-  if (tab === 'tomorrow') d.setDate(d.getDate() + 1);
-  return d;
-};
-
 export default function HomeScreen({ navigation, route }) {
-  const { userProfile, isLoading: profileLoading } = useUserProfile();
+  const { userProfile, partnerProfiles, isLoading: profileLoading } = useUserProfile();
   const [activeTab, setActiveTab] = useState('today');
   const [moonData, setMoonData] = useState(null);
-  const [energyData, setEnergyData] = useState(null);
   const [transitPlanets, setTransitPlanets] = useState([]);
   const [forecast, setForecast] = useState(null);
   const [forecastLoading, setForecastLoading] = useState(false);
-  const [showFullReading, setShowFullReading] = useState(false);
+
 
   // Domain modal
-  const [domainModal, setDomainModal] = useState(null); // 'Love' | 'Career' | null
-  const [domainData, setDomainData] = useState(null);
-  const [domainLoading, setDomainLoading] = useState(false);
+  const [lifeAreaModal, setLifeAreaModal] = useState(null); // area key: 'love' | 'career' | 'vitality' | 'growth' | 'social' | null
 
-  // Energy detail modal
-  const [energyModal, setEnergyModal] = useState(null); // { tag, icon, color, pct, val, key }
-  const [influenceModal, setInfluenceModal] = useState(null); // { tag, glyph, effect }
+  const [showBriefing, setShowBriefing] = useState(false);
 
   // Journal
   const [showJournal, setShowJournal] = useState(false);
@@ -130,8 +104,6 @@ export default function HomeScreen({ navigation, route }) {
   // Cosmic weather & change detection
   const [cosmicChange, setCosmicChange] = useState(null);
   const [transitSignificance, setTransitSignificance] = useState(0);
-  const [tomorrowMoon, setTomorrowMoon] = useState(null);
-  const [tomorrowWindows, setTomorrowWindows] = useState([]);
 
   // Cosmic season
   const [cosmicSeason, setCosmicSeason] = useState(null);
@@ -170,11 +142,23 @@ export default function HomeScreen({ navigation, route }) {
   const [streakMilestone, setStreakMilestone] = useState(null);
   const [levelUpData, setLevelUpData] = useState(null);
 
+  const [narrativeCtx, setNarrativeCtx] = useState(null);
   const [showNotifModal, setShowNotifModal] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
 
-  const tabScrollRef = useRef(null);
   const mainScrollRef = useRef(null);
+  const tabScrollRef = useRef(null);
+  const transitsRef = useRef(null);
+
+  const scrollToTransits = useCallback(() => {
+    if (transitsRef.current && mainScrollRef.current) {
+      transitsRef.current.measureLayout(
+        mainScrollRef.current.getInnerViewRef?.() || mainScrollRef.current,
+        (x, y) => mainScrollRef.current.scrollTo({ y: y - 80, animated: true }),
+        () => {}
+      );
+    }
+  }, []);
   const { cardRef: shareCardRef, captureAndShare } = useShareCard();
   const { cardRef: storyCardRef, captureAndShare: shareStory } = useShareCard();
   const { cardRef: recapCardRef, captureAndShare: shareRecap } = useShareCard();
@@ -232,19 +216,16 @@ export default function HomeScreen({ navigation, route }) {
       setTransitSignificance(sig);
     } catch (e) {}
 
-    // Tomorrow preview data (forward hook)
-    try {
-      const tmrw = new Date();
-      tmrw.setDate(tmrw.getDate() + 1);
-      setTomorrowMoon(getMoonDataForDate(tmrw));
-      setTomorrowWindows(getActiveCosmicWindows(userProfile.chart, tmrw).slice(0, 2));
-    } catch (e) {}
-
     // Cosmic season
     try {
       const season = getCosmicSeason(userProfile.chart, today);
       setCosmicSeason(season);
     } catch (e) {}
+
+    // Narrative context for story continuity
+    getNarrativeContext(userProfile?.id || 'default', userProfile.chart)
+      .then(ctx => setNarrativeCtx(ctx))
+      .catch(() => {});
 
     // Journal count for recap
     JournalRepository.getEntryCount(userProfile?.id || 'default').then(c => setJournalCount(c)).catch(() => {});
@@ -258,10 +239,9 @@ export default function HomeScreen({ navigation, route }) {
           return;
         }
         // Generate recap for LAST month
-        const chart = userProfile?.chart?.planets;
-        const sig = chart ? `Sun: ${chart.find(p=>p.name==='Sun')?.sign}, Moon: ${chart.find(p=>p.name==='Moon')?.sign}, Rising: ${chart.find(p=>p.name==='Ascendant')?.sign}` : '';
+        const fullChart = userProfile?.chart || null;
         const journalCount = await JournalRepository.getEntryCount(userProfile?.id || 'default').catch(() => 0);
-        const recap = await generateMonthlyRecap(sig, {
+        const recap = await generateMonthlyRecap(fullChart, {
           daysActive: streakData?.total_check_ins || 0,
           journalEntries: journalCount,
           longestStreak: streakData?.longest_streak || 0,
@@ -277,7 +257,7 @@ export default function HomeScreen({ navigation, route }) {
     getTodayUnlock().then(unlock => setTodayUnlock(unlock)).catch(() => {});
 
     // Cosmic whisper (variable rate + tiered rarity)
-    getCosmicWhisper().then(whisper => {
+    getCosmicWhisper(userProfile?.chart).then(whisper => {
       if (whisper) {
         setCosmicWhisper(whisper.message);
         setWhisperRarity(whisper.rarity);
@@ -377,63 +357,50 @@ export default function HomeScreen({ navigation, route }) {
     })();
   }, [userProfile]);
 
+  // Reload journal status when screen regains focus (e.g. returning from JournalScreen)
+  useEffect(() => {
+    const unsub = navigation.addListener('focus', () => { loadJournalEntry(); });
+    return unsub;
+  }, [navigation]);
+
   // Handle incoming navigation params (from notification deep-links)
   useEffect(() => {
     if (route?.params?.openJournal) {
-      setShowJournal(true);
+      navigation.navigate('Journal', { mantra: forecast?.mantra });
       navigation.setParams({ openJournal: undefined });
     }
-    if (route?.params?.tab) {
-      setActiveTab(route.params.tab);
-      navigation.setParams({ tab: undefined });
+    if (route?.params?.scrollToSection === 'transits') {
+      setTimeout(() => navigation.navigate('TodaysSky'), 500);
+      navigation.setParams({ scrollToSection: undefined });
     }
   }, [route?.params]);
 
-  // Load forecast + energy whenever tab changes
+  // Load forecast when tab changes
   useEffect(() => {
     if (!userProfile?.chart) return;
     loadTabData(activeTab);
   }, [activeTab, userProfile]);
 
   const loadTabData = async (tab) => {
-    // Energy scores — uses correct date for each tab
-    const tabDate = getDateForTab(tab);
-    const timeframe = ['yesterday', 'today', 'tomorrow'].includes(tab) ? tab : tab;
-    try {
-      const energy = calculateCosmicEnergy(userProfile.chart, tabDate, timeframe);
-      setEnergyData(energy);
-    } catch (e) { console.error('Energy error:', e); }
-
-    // Forecast
     setForecastLoading(true);
-    setShowFullReading(false);
     try {
-      const dateLabel = tabDate.toISOString().split('T')[0];
-      // Compute transits for the actual tab date, not just today
+      const dateLabel = today.toISOString().split('T')[0];
       let tabTransits;
-      try { tabTransits = getTransitPlanets(tabDate); } catch { tabTransits = transitPlanets; }
+      try { tabTransits = getTransitPlanets(today); } catch { tabTransits = transitPlanets; }
       const planetaryData = {
         dateLabel,
         transits: tabTransits.map(p => `${p.name}: ${p.sign} ${p.degree.toFixed(0)}°`).join(', '),
       };
-      // Compute transit significance for the tab date
-      let tabSignificance = transitSignificance;
-      if (tab !== 'today') {
-        try { tabSignificance = calculateTransitSignificance(userProfile.chart, tabDate); } catch {}
-      }
-      const data = await fetchExtendedForecast(userProfile, tab, planetaryData, tabSignificance);
+      const data = await fetchExtendedForecast(userProfile, tab, planetaryData, transitSignificance, narrativeCtx);
       setForecast(data);
-      // Schedule notifications with latest forecast + full astrology data
+      // Schedule notifications with latest forecast (only on today tab)
       if (tab === 'today') {
-        scheduleAllNotifications(userProfile, data, streakData, moonData, energyData, cosmicWindows).catch(() => {});
-        // Load today's cosmic line for the alert card
-        const todayStr = new Date().toISOString().split('T')[0];
+        scheduleAllNotifications(userProfile, data, streakData, moonData, null, cosmicWindows).catch(() => {});
+        const todayStr = dateLabel;
         getCosmicLineForDate(todayStr).then(line => setTodayCosmicLine(line)).catch(() => {});
-        // Refill AI cosmic lines buffer (fire-and-forget, re-schedules if new lines generated)
         refillCosmicLinesIfNeeded(userProfile).then(generated => {
           if (generated) {
-            scheduleAllNotifications(userProfile, data, streakData, moonData, energyData, cosmicWindows).catch(() => {});
-            // Also refresh today's line in case it was just generated
+            scheduleAllNotifications(userProfile, data, streakData, moonData, null, cosmicWindows).catch(() => {});
             getCosmicLineForDate(todayStr).then(line => setTodayCosmicLine(line)).catch(() => {});
           }
         }).catch(e => console.warn('[CosmicLines] Refill failed:', e));
@@ -573,43 +540,12 @@ export default function HomeScreen({ navigation, route }) {
     if (xp) showXPGain(xp.amount);
   };
 
-  const handleShare = async () => {
-    haptic.medium();
-    const sunSign = userProfile?.chart?.planets?.find(p => p.name === 'Sun')?.sign || '';
-    try {
-      const result = await Share.share({
-        message: `${forecast?.header || 'Daily Cosmic Reading'}\n\n${forecast?.mantra ? `"${forecast.mantra}"\n\n` : ''}${forecast?.detailedHoroscope || ''}\n\n${forecast?.viralInsight ? `✦ ${forecast.viralInsight}\n\n` : ''}— Celestia ${sunSign ? `(${sunSign} Sun)` : ''}`,
-      });
-      if (result.action === Share.sharedAction) {
-        const profileId = userProfile?.id || 'default';
-        const badges = await trackEvent('share');
-        processBadges(badges);
-        const xp = await awardXP(profileId, 'share');
-        if (xp) showXPGain(xp.amount);
-        // Quest completion
-        completeQuestAction('shared').then(r => {
-          if (r) { setQuestData(prev => prev ? { ...prev, quests: r.quests, allComplete: r.allComplete } : prev); }
-          if (r?.justCompleted) {
-            trackEvent('quest_complete').catch(() => {});
-            awardXP(profileId, 'quest_bonus').then(xpB => { if (xpB) showXPGain(xpB.amount); }).catch(() => {});
-          }
-        }).catch(() => {});
-      }
-    } catch (e) {}
-  };
-
-  const openDomainModal = async (theme) => {
-    setDomainModal(theme);
-    setDomainData(null);
-    setDomainLoading(true);
-    try {
-      const data = await generateThemeAnalysis(userProfile, theme, activeTab);
-      setDomainData(data);
-    } catch (e) {
-      console.error('Domain analysis error:', e);
-    } finally {
-      setDomainLoading(false);
-    }
+  const LIFE_AREA_META = {
+    love: { icon: '♡', title: 'Love & Relationships', sub: 'Intimacy · Romance · Self-Love', color: '#E85090', gradient: ['#3A0A2A', '#1A0A2E', '#0E0E22'] },
+    career: { icon: '◆', title: 'Career & Finances', sub: 'Work · Ambition · Wealth', color: '#5090E8', gradient: ['#0A1A3A', '#0E1628', '#0E0E22'] },
+    vitality: { icon: '✦', title: 'Vitality & Wellness', sub: 'Energy · Health · Rhythm', color: '#50C878', gradient: ['#0A2A1A', '#0E1E22', '#0E0E22'] },
+    growth: { icon: '◎', title: 'Growth & Inner Work', sub: 'Learning · Wisdom · Transformation', color: '#F59E0B', gradient: ['#2A1A0A', '#1E1610', '#0E0E22'] },
+    social: { icon: '✧', title: 'Social & Community', sub: 'Connection · Communication · Influence', color: '#8B5CF6', gradient: ['#1A0A3A', '#140E2E', '#0E0E22'] },
   };
 
   if (profileLoading || !userProfile?.chart) {
@@ -623,54 +559,7 @@ export default function HomeScreen({ navigation, route }) {
   const moonPhase = moonData?.phaseName || 'Waning Crescent';
   const moonSign = moonData?.sign || '—';
   const moonIcon = MOON_PHASE_ICONS[moonPhase] || '🌘';
-  const isDaily = ['yesterday', 'today', 'tomorrow'].includes(activeTab);
-
-  // Energy display — keys match LIFE_AREAS
-  const energyDisplay = ENERGY_CONFIG.map(cfg => {
-    const found = energyData?.find(e => e.id === cfg.key);
-    const pct = found ? Math.round(found.value) : 50;
-    const labelIdx = Math.min(10, Math.floor(pct / 10));
-    const isHigh = pct >= 85;
-    const isLow = pct <= 35;
-    return { ...cfg, pct, val: ENERGY_LABELS[labelIdx], isHigh, isLow };
-  });
-
-  // Cosmic weather summary word
-  const avgEnergy = energyDisplay.length > 0 ? Math.round(energyDisplay.reduce((s, e) => s + e.pct, 0) / energyDisplay.length) : 50;
-  const highCount = energyDisplay.filter(e => e.isHigh).length;
-  const lowCount = energyDisplay.filter(e => e.isLow).length;
-  const cosmicWeatherWord = highCount >= 4 ? 'Electric' : lowCount >= 4 ? 'Quiet' : highCount >= 2 ? 'Charged' : lowCount >= 2 ? 'Gentle' : avgEnergy >= 70 ? 'Flowing' : avgEnergy <= 40 ? 'Still' : 'Balanced';
-  const isCosmicDownload = transitSignificance >= 70;
-
-  const getEnergyDescription = (key, pct) => {
-    const descs = {
-      Love: pct >= 70 ? 'Venus and the Moon amplify your emotional magnetism right now. Connections deepen easily — lean into vulnerability and authentic expression.'
-        : pct >= 40 ? 'Relationship energy is steady. Focus on small, meaningful gestures rather than grand romantic moves. Existing bonds benefit from honest communication.'
-        : 'Emotional currents are subdued. This is a reflective phase — use it to understand your own needs before seeking connection with others.',
-      Career: pct >= 70 ? 'Saturn and the Sun align in your favor. Professional momentum is strong — take initiative, pitch ideas, and step into leadership roles confidently.'
-        : pct >= 40 ? 'Career energy is moderate. Steady progress is possible but avoid forcing outcomes. Focus on refining your work and building relationships with allies.'
-        : 'Professional energy is in a quieter phase. Use this time for planning, skill-building, and reassessing your long-term goals rather than pushing for immediate results.',
-      Health: pct >= 70 ? 'Mars and the Sun boost your physical vitality. Your body responds well to activity — prioritize movement, fresh air, and nourishing food.'
-        : pct >= 40 ? 'Vitality is balanced. Maintain your routines and listen to your body\'s signals. Gentle exercise and consistent sleep patterns will keep you centered.'
-        : 'Your physical energy is in a restorative phase. Honor the need for rest, gentle stretching, and extra hydration. Recovery now fuels future strength.',
-      Mood: pct >= 70 ? 'The Moon and Neptune heighten your emotional sensitivity in the best way. Feelings flow freely — creative expression and deep conversations come naturally.'
-        : pct >= 40 ? 'Emotional energy is steady and grounded. You can process feelings clearly without being overwhelmed. A good day for honest self-reflection.'
-        : 'Emotions may feel muted or heavy. This is a phase for gentle self-care — avoid big emotional decisions and give yourself permission to simply rest.',
-      Social: pct >= 70 ? 'Venus and Jupiter energize your social sphere. Connections spark easily — reach out, make plans, and say yes to invitations. Your charm is amplified.'
-        : pct >= 40 ? 'Social energy is comfortable but not electric. Quality over quantity — focus on deepening existing relationships rather than expanding your circle.'
-        : 'Your social battery is low. This is a natural recharge phase — solitude feeds your soul right now. Cancel what drains you without guilt.',
-      Creativity: pct >= 70 ? 'Neptune and Venus ignite your creative channels. Ideas arrive fully formed — write, draw, build, or express yourself. Inspiration is everywhere.'
-        : pct >= 40 ? 'Creative energy simmers gently. Routine creative practices pay off today — show up even if brilliance doesn\'t strike immediately.'
-        : 'The muse is quiet. Rather than forcing output, absorb input — read, listen, observe. You\'re gathering raw material for a future creative surge.',
-      Focus: pct >= 70 ? 'Mercury and Saturn sharpen your mental clarity. Complex tasks feel manageable — tackle your hardest work now. Concentration comes effortlessly.'
-        : pct >= 40 ? 'Mental energy is adequate for steady work. Break large tasks into smaller pieces and avoid multitasking. Consistency beats intensity today.'
-        : 'Mental fog is likely. Your mind needs spaciousness — avoid dense analytical work if possible. Simple tasks, walks, and breathing exercises help clear the static.',
-      Luck: pct >= 70 ? 'Jupiter and the Sun align favorably. Synchronicities increase — pay attention to unexpected opportunities, chance meetings, and gut feelings. Fortune favors the bold.'
-        : pct >= 40 ? 'Luck is neutral — neither particularly hot nor cold. Make your own fortune through preparation and follow-through rather than waiting for cosmic gifts.'
-        : 'This isn\'t a high-luck window. Avoid gambling or risky bets. Focus on what you can control — the cosmic tide will turn in your favor soon.',
-    };
-    return descs[key] || descs.Health;
-  };
+  const isEvening = new Date().getHours() >= 18;
 
   // Planet strip
   const planetStrip = transitPlanets.slice(0, 6).map(p => ({
@@ -683,18 +572,14 @@ export default function HomeScreen({ navigation, route }) {
   const paragraphs = horoscopeText.split('\n\n').filter(p => p.trim());
   const actionItems = forecast?.actionItems || [];
 
-  // Period-specific labels for paragraphs
   const PARA_LABELS_DAILY = ['COSMIC CLIMATE', 'PERSONAL IMPACT', 'THE CHALLENGE', 'THE GUIDANCE'];
   const PARA_LABELS_WEEKLY = ['THE WEEKLY ARC', 'EARLY WEEK', 'MID-WEEK SHIFT', 'THE WEEKEND'];
   const PARA_LABELS_MONTHLY = ['THE THEME', 'FIRST HALF', 'SECOND HALF', 'POWER DATES'];
-  const PARA_LABELS_YEARLY = ['ANNUAL THEME', 'Q1: INITIATION', 'MID-YEAR GROWTH', 'Q4: HARVEST', 'SOUL LESSON'];
 
   const getParaLabels = () => {
-    if (isDaily) return PARA_LABELS_DAILY;
     if (activeTab === 'weekly') return PARA_LABELS_WEEKLY;
     if (activeTab === 'monthly') return PARA_LABELS_MONTHLY;
-    if (activeTab === 'yearly') return PARA_LABELS_YEARLY;
-    return [];
+    return PARA_LABELS_DAILY;
   };
 
   return (
@@ -753,430 +638,377 @@ export default function HomeScreen({ navigation, route }) {
         {/* ── PERIOD TABS ── */}
         <ScrollView ref={tabScrollRef} horizontal showsHorizontalScrollIndicator={false}
           style={styles.tabStrip} contentContainerStyle={{ paddingHorizontal: 20, gap: 6 }}>
-          {PERIOD_TABS.map((tab) => {
-            // Gate yesterday/tomorrow behind Level 3 (Nebula)
-            const needsUnlock = (tab.key === 'yesterday' || tab.key === 'tomorrow') && !isFeatureUnlocked(xpData, 'forecast_tabs');
-            return (
-              <TouchableOpacity key={tab.key}
-                style={[styles.periodTab, activeTab === tab.key && styles.periodTabOn, needsUnlock && { opacity: 0.4 }]}
-                onPress={() => {
-                  if (needsUnlock) {
-                    Alert.alert('Level 3 Required', 'Reach Nebula level to unlock Yesterday & Tomorrow forecasts. Keep earning Stardust!');
-                    return;
-                  }
-                  haptic.selection(); setActiveTab(tab.key); mainScrollRef.current?.scrollTo({ y: 0, animated: true });
-                }} activeOpacity={0.7}>
-                <Text style={[styles.periodTabText, activeTab === tab.key && styles.periodTabTextOn]}>
-                  {needsUnlock ? `🔒 ${tab.label}` : tab.label}
-                </Text>
-              </TouchableOpacity>
-            );
-          })}
+          {PERIOD_TABS.map((tab) => (
+            <TouchableOpacity key={tab.key}
+              style={[styles.periodTab, activeTab === tab.key && styles.periodTabOn]}
+              onPress={() => {
+                haptic.selection(); setActiveTab(tab.key); mainScrollRef.current?.scrollTo({ y: 0, animated: true });
+              }} activeOpacity={0.7}>
+              <Text style={[styles.periodTabText, activeTab === tab.key && styles.periodTabTextOn]}>
+                {tab.label}
+              </Text>
+            </TouchableOpacity>
+          ))}
         </ScrollView>
 
         <View style={styles.content}>
-          {/* ═══════════════════════════════════════════════ */}
-          {/* ─── ASTROLOGY CONTENT (Primary)              ─── */}
-          {/* ═══════════════════════════════════════════════ */}
 
-          {/* ── 1. FORECAST HERO CARD (Your Daily Reading) ── */}
-          <View style={styles.dailyCard}>
-            <LinearGradient colors={['#171428', '#14122A', '#0F1220']}
-              start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={styles.dailyHd}>
-              <Text style={styles.dailyDate}>{formatDateHeader(getDateForTab(activeTab))}</Text>
-              {forecastLoading ? (
-                <View style={{ paddingVertical: 16, gap: 10 }}>
-                  <View style={styles.skeletonLine} />
-                  <View style={[styles.skeletonLine, { width: '60%' }]} />
-                  <View style={{ flexDirection: 'row', gap: 8, marginTop: 6 }}>
-                    <View style={styles.skeletonChip} />
-                    <View style={styles.skeletonChip} />
-                    <View style={styles.skeletonChip} />
-                  </View>
-                  <ActivityIndicator size="small" color={T.gold} style={{ marginTop: 4 }} />
-                  <Text style={{ fontSize: 11, color: 'rgba(250,248,242,0.35)', textAlign: 'center' }}>Reading the stars…</Text>
-                </View>
-              ) : (
-                <>
-                  <Text style={styles.dailyHeadline}>{forecast?.header || 'Your Cosmic Reading'}</Text>
-                  {/* Power + Lucky chips */}
-                  <View style={styles.tchips}>
-                    {forecast?.powerCosmic && (
-                      <View style={styles.tchip}><Text style={styles.tchipText}>✦ {forecast.powerCosmic}</Text></View>
-                    )}
-                    {forecast?.luckyStats && (
-                      <View style={styles.tchip}><Text style={styles.tchipText}>#{forecast.luckyStats.number}</Text></View>
-                    )}
-                    {forecast?.luckyStats?.crystal && (
-                      <View style={styles.tchip}><Text style={styles.tchipText}>✧ {forecast.luckyStats.crystal}</Text></View>
-                    )}
-                    <View style={styles.tchip}><Text style={styles.tchipText}>☽ {moonSign}</Text></View>
-                  </View>
-                </>
-              )}
-            </LinearGradient>
-
-            {/* Body */}
-            <View style={styles.dailyBody}>
-              {forecastLoading && (
-                <View style={{ gap: 12, paddingVertical: 8 }}>
-                  <View style={[styles.skeletonBodyLine, { width: '90%' }]} />
-                  <View style={[styles.skeletonBodyLine, { width: '100%' }]} />
-                  <View style={[styles.skeletonBodyLine, { width: '75%' }]} />
-                  <View style={[styles.skeletonBodyLine, { width: '85%' }]} />
-                </View>
-              )}
-              {!forecastLoading && forecast && (
-                <>
-                  {/* Mantra */}
-                  {forecast.mantra && (
-                    <View style={styles.mantraBox}>
-                      <Text style={styles.mantraText}>"{forecast.mantra}"</Text>
-                    </View>
+          {/* ── 1. NAVIGATOR BRIEFING CARD (unified) ── */}
+          {activeTab === 'today' && forecast?.navigatorHeadline && (
+            <View style={styles.dailyCard}>
+              {/* Dark gradient header */}
+              <LinearGradient
+                colors={['#171428', '#14122A', '#0F1220']}
+                start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }}
+                style={styles.dailyHd}>
+                <Text style={styles.dailyDate}>{formatDateHeader()}</Text>
+                <Text style={styles.dailyHeadline}>{forecast.navigatorHeadline}</Text>
+                {/* Chips row */}
+                <View style={styles.tchips}>
+                  {forecast.powerCosmic && (
+                    <View style={styles.tchip}><Text style={styles.tchipText}>✦ {forecast.powerCosmic}</Text></View>
                   )}
-
-                  {/* Planet influence tags */}
-                  {forecast.planetInfluences && forecast.planetInfluences.length > 0 && (
-                    <View style={styles.influenceRow}>
-                      {forecast.planetInfluences.map((inf, idx) => (
-                        <TouchableOpacity key={idx} style={styles.influencePill} activeOpacity={0.7}
-                          onPress={() => { haptic.light(); setInfluenceModal(inf); }}>
-                          <Text style={styles.influenceGlyph}>{inf.glyph}</Text>
-                          <Text style={styles.influenceTag}>{inf.tag}</Text>
-                        </TouchableOpacity>
-                      ))}
-                    </View>
+                  <View style={styles.tchip}><Text style={styles.tchipText}>{moonIcon} {moonPhase}</Text></View>
+                  {forecast.luckyStats && (
+                    <View style={styles.tchip}><Text style={styles.tchipText}>#{forecast.luckyStats.number}</Text></View>
                   )}
+                  {forecast.luckyStats?.crystal && (
+                    <View style={styles.tchip}><Text style={styles.tchipText}>✧ {forecast.luckyStats.crystal}</Text></View>
+                  )}
+                </View>
+              </LinearGradient>
 
-                  {/* Structured paragraphs */}
-                  {!showFullReading ? (
-                    <AstroText text={paragraphs[0] || 'The cosmos aligns beautifully today.'} style={styles.dailyTxt} />
-                  ) : (
-                    <View>
-                      {paragraphs.map((p, i) => (
-                        <View key={i} style={styles.paraBlock}>
-                          {getParaLabels()[i] && (
-                            <Text style={styles.paraLabel}>{getParaLabels()[i]}</Text>
-                          )}
-                          <AstroText text={p} style={styles.dailyTxt} />
+              {/* White body */}
+              <View style={styles.dailyBody}>
+                {/* Summary */}
+                {forecast.navigatorSummary && (
+                  <Text style={[styles.dailyTxt, { marginBottom: 14 }]}>{forecast.navigatorSummary}</Text>
+                )}
+
+                {/* Navigate Toward */}
+                {forecast.navigateToward && forecast.navigateToward.length > 0 && (
+                  <View style={{ marginBottom: 12 }}>
+                    <Text style={styles.navDoLabel}>NAVIGATE TOWARD</Text>
+                    {forecast.navigateToward.map((item, i) => (
+                      <View key={i} style={styles.navDoRow}>
+                        <Text style={styles.navDoIcon}>→</Text>
+                        <View style={{ flex: 1 }}>
+                          <Text style={styles.navDoAction}>{item.action}</Text>
+                          <Text style={styles.navDoReason}>{item.reason}</Text>
                         </View>
-                      ))}
-                    </View>
-                  )}
+                      </View>
+                    ))}
+                  </View>
+                )}
 
-                  {/* Action Items (expanded) */}
-                  {showFullReading && actionItems.length > 0 && (
-                    <View style={styles.actionBox}>
-                      <Text style={styles.actionLabel}>POWER MOVES</Text>
-                      {actionItems.map((item, i) => (
-                        <View key={i} style={styles.actionRow}>
-                          <Text style={styles.actionArrow}>→</Text>
-                          <Text style={styles.actionItem}>{item}</Text>
+                {/* Navigate Around */}
+                {forecast.navigateAround && forecast.navigateAround.length > 0 && (
+                  <View style={{ marginBottom: 6 }}>
+                    <Text style={styles.navAvoidLabel}>NAVIGATE AROUND</Text>
+                    {forecast.navigateAround.map((item, i) => (
+                      <View key={i} style={styles.navAvoidRow}>
+                        <Text style={styles.navAvoidIcon}>⊘</Text>
+                        <View style={{ flex: 1 }}>
+                          <Text style={styles.navAvoidAction}>{item.action}</Text>
+                          <Text style={styles.navAvoidReason}>{item.reason}</Text>
                         </View>
-                      ))}
-                    </View>
-                  )}
-
-                  {/* Daily Ritual (expanded) */}
-                  {showFullReading && forecast.dailyRitual && (
-                    <View style={styles.ritualBox}>
-                      <Text style={styles.ritualLabel}>TODAY'S RITUAL</Text>
-                      <Text style={styles.ritualText}>✧ {forecast.dailyRitual}</Text>
-                    </View>
-                  )}
-
-                  {/* Viral Insight (expanded) — tap to share as visual card */}
-                  {showFullReading && forecast.viralInsight && (
-                    <TouchableOpacity style={styles.viralBox} activeOpacity={0.7}
-                      onPress={() => {
-                        haptic.medium();
-                        const sunSign = userProfile?.chart?.planets?.find(p => p.name === 'Sun')?.sign || '';
-                        captureAndShare(`✦ ${forecast.viralInsight}\n\n— Celestia (${sunSign} Sun)`);
-                        trackEvent('share').catch(() => {});
-                        awardXP(userProfile?.id || 'default', 'share').catch(() => {});
-                      }}>
-                      <Text style={styles.viralText}>✦ {forecast.viralInsight}</Text>
-                      <Text style={{ fontSize: 10, color: 'rgba(250,248,242,0.4)', marginTop: 6 }}>Tap to share ↗</Text>
-                    </TouchableOpacity>
-                  )}
-
-                  {/* Buttons */}
-                  <View style={styles.dailyActs}>
-                    <TouchableOpacity style={styles.btnOutline} activeOpacity={0.7} onPress={handleShare}>
-                      <Text style={styles.btnOutlineText}>Share ↗</Text>
-                    </TouchableOpacity>
-                    <TouchableOpacity style={styles.btnStory} activeOpacity={0.7} onPress={async () => {
-                      haptic.light();
-                      const sunSign = userProfile?.chart?.planets?.find(p => p.name === 'Sun')?.sign || '';
-                      await shareStory(`✦ ${forecast?.viralInsight || forecast?.mantra || ''}\n\n— Celestia (${sunSign} Sun)`);
-                      trackEvent('share').catch(() => {});
-                      awardXP(userProfile?.id || 'default', 'share').catch(() => {});
-                    }}>
-                      <Text style={styles.btnStoryText}>Stories</Text>
-                    </TouchableOpacity>
-                    <TouchableOpacity style={styles.btnFill} activeOpacity={0.85}
-                      onPress={() => {
-                        setShowFullReading(!showFullReading);
-                        if (!showFullReading) {
-                          completeQuestAction('forecast_read').then(r => {
-                            if (r) { setQuestData(prev => prev ? { ...prev, quests: r.quests, allComplete: r.allComplete } : prev); }
-                            if (r?.justCompleted) {
-                              trackEvent('quest_complete').catch(() => {});
-                              awardXP(userProfile?.id || 'default', 'quest_bonus').then(xp => { if (xp) showXPGain(xp.amount); }).catch(() => {});
-                            }
-                          }).catch(() => {});
-                        }
-                      }}>
-                      <Text style={styles.btnFillText}>{showFullReading ? 'Show Less ↑' : 'Read Full →'}</Text>
-                    </TouchableOpacity>
+                      </View>
+                    ))}
                   </View>
-                </>
-              )}
-            </View>
-          </View>
+                )}
 
-          {/* ── 2. MERCURY RETROGRADE BANNER ── */}
-          {mercuryRx && (
-            <View style={styles.rxBanner}>
-              <TouchableOpacity style={styles.rxBannerTap} activeOpacity={0.8}
-                onPress={() => navigation.navigate('Sky', { highlightMercuryRx: true })}>
-                <Text style={styles.rxIcon}>☿</Text>
-                <View style={{ flex: 1 }}>
-                  <Text style={styles.rxTitle}>Mercury Retrograde Active</Text>
-                  <Text style={styles.rxSub}>Communication and tech may be disrupted. Tap to see details.</Text>
-                </View>
-                <Text style={styles.rxArrow}>→</Text>
-              </TouchableOpacity>
-              <TouchableOpacity style={styles.rxShareBtn} activeOpacity={0.7}
-                onPress={async () => {
-                  haptic.medium();
-                  await shareRxCard();
-                  trackEvent('share').catch(() => {});
-                  awardXP(userProfile?.id || 'default', 'share').catch(() => {});
-                }}>
-                <Text style={styles.rxShareText}>Share Survival Kit ↗</Text>
-              </TouchableOpacity>
-            </View>
-          )}
-
-          {/* ── 3. WHAT'S NEW TODAY BANNER ── */}
-          {cosmicChange && activeTab === 'today' && cosmicChange.type !== 'moon_info' && (
-            <TouchableOpacity style={styles.changeBanner} activeOpacity={0.8}
-              onPress={() => navigation.navigate('Sky', cosmicChange.type === 'retrograde' ? { highlightMercuryRx: true } : undefined)}>
-              <Text style={styles.changeBannerIcon}>{cosmicChange.icon}</Text>
-              <View style={{ flex: 1 }}>
-                <Text style={styles.changeBannerTitle}>{cosmicChange.title}</Text>
-                <Text style={styles.changeBannerSub}>{cosmicChange.subtitle}</Text>
-              </View>
-              <Text style={styles.changeBannerArrow}>→</Text>
-            </TouchableOpacity>
-          )}
-
-          {/* ── 4. MOON RITUAL CARD (New Moon / Full Moon only) ── */}
-          {moonData && activeTab === 'today' && ['New Moon', 'Full Moon'].includes(moonData.phaseName) && (
-            <View>
-              <TouchableOpacity style={styles.moonRitualCard} activeOpacity={0.8}
-                onPress={openMoonRitual}>
-                <LinearGradient
-                  colors={moonData.phaseName === 'New Moon' ? ['#0E0E22', '#1A1060'] : ['#2D1B69', '#0E0E22']}
-                  style={styles.moonRitualGradient}>
-                  <Text style={styles.moonRitualMoon}>{moonData.phaseName === 'New Moon' ? '🌑' : '🌕'}</Text>
-                  <View style={{ flex: 1 }}>
-                    <Text style={styles.moonRitualLabel}>{moonData.phaseName === 'New Moon' ? 'NEW MOON RITUAL' : 'FULL MOON RITUAL'}</Text>
-                    <Text style={styles.moonRitualTitle}>{moonData.phaseName} in {moonData.sign}</Text>
-                    <Text style={styles.moonRitualSub}>
-                      {moonData.phaseName === 'New Moon' ? 'Set your intentions for this lunar cycle' : 'Reflect on what has come to light'}
-                    </Text>
-                  </View>
-                  <Text style={{ fontSize: 14, color: T.gold }}>→</Text>
-                </LinearGradient>
-              </TouchableOpacity>
-              <TouchableOpacity style={styles.lunarShareBtn} activeOpacity={0.7}
-                onPress={async () => {
-                  haptic.medium();
-                  await shareLunarCard();
-                  trackEvent('share').catch(() => {});
-                  awardXP(userProfile?.id || 'default', 'share').catch(() => {});
-                }}>
-                <Text style={styles.lunarShareText}>Share {moonData.phaseName} Card ↗</Text>
-              </TouchableOpacity>
-            </View>
-          )}
-
-          {/* ── 5. COSMIC WEATHER STRIP ── */}
-          <View style={styles.cwHeader}>
-            <Text style={styles.sectionLabel}>COSMIC WEATHER</Text>
-            <View style={styles.cwBadge}>
-              <View style={[styles.cwBadgeDot, { backgroundColor: highCount >= 3 ? '#10B981' : lowCount >= 3 ? '#F59E0B' : T.gold }]} />
-              <Text style={styles.cwBadgeText}>{cosmicWeatherWord}</Text>
-            </View>
-          </View>
-          {isCosmicDownload && (
-            <View style={styles.downloadBanner}>
-              <Text style={styles.downloadIcon}>★</Text>
-              <View style={{ flex: 1 }}>
-                <Text style={styles.downloadTitle}>COSMIC DOWNLOAD DAY</Text>
-                <Text style={styles.downloadSub}>Multiple transits activating your chart — today's reading goes deeper</Text>
+                {/* Deep Dive */}
+                <TouchableOpacity style={styles.briefingMoreBtn} activeOpacity={0.7}
+                  onPress={() => {
+                    haptic.light();
+                    setShowBriefing(true);
+                    completeQuestAction('forecast_read').then(r => {
+                      if (r) { setQuestData(prev => prev ? { ...prev, quests: r.quests, allComplete: r.allComplete } : prev); }
+                      if (r?.justCompleted) {
+                        trackEvent('quest_complete').catch(() => {});
+                        awardXP(userProfile?.id || 'default', 'quest_bonus').then(xp => { if (xp) showXPGain(xp.amount); }).catch(() => {});
+                      }
+                    }).catch(() => {});
+                  }}>
+                  <Text style={styles.briefingMoreText}>Deep Dive</Text>
+                  <Text style={styles.briefingMoreArrow}>→</Text>
+                </TouchableOpacity>
               </View>
             </View>
           )}
-          <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.cwStrip}
-            contentContainerStyle={{ paddingRight: 16 }}>
-            {energyDisplay.map((e, i) => (
-              <TouchableOpacity key={i} style={styles.cwCard} activeOpacity={0.7}
-                onPress={() => { haptic.light(); setEnergyModal(e); completeQuestAction('energy_explored').catch(() => {}); }}>
-                <View style={[styles.cwRing, { borderColor: e.pct >= 60 ? e.color : 'rgba(0,0,0,0.08)' }]}>
-                  <Text style={[styles.cwPct, { color: e.color }]}>{e.pct}</Text>
-                </View>
-                <Text style={styles.cwTag}>{e.tag}</Text>
-                {e.isHigh && <Text style={styles.cwMarker}>★</Text>}
-                {e.isLow && <Text style={[styles.cwMarker, { color: '#F59E0B' }]}>↓</Text>}
-              </TouchableOpacity>
-            ))}
-          </ScrollView>
-
-          {/* ── 6. LOVE & CAREER CARDS ── */}
-          <View style={styles.domainRow}>
-            <TouchableOpacity style={[styles.domainCard, { borderLeftColor: '#E85090' }]}
-              activeOpacity={0.7} onPress={() => openDomainModal('Love')}>
-              <Text style={styles.domainIcon}>♡</Text>
-              <Text style={styles.domainName}>Love & Connection</Text>
-              <Text style={styles.domainVibe}>{forecast?.loveVibe || 'Tap to reveal'}</Text>
-              <Text style={styles.domainCta}>Deep Dive →</Text>
-            </TouchableOpacity>
-            <TouchableOpacity style={[styles.domainCard, { borderLeftColor: '#5090E8' }]}
-              activeOpacity={0.7} onPress={() => openDomainModal('Career')}>
-              <Text style={styles.domainIcon}>◆</Text>
-              <Text style={styles.domainName}>Career & Ambition</Text>
-              <Text style={styles.domainVibe}>{forecast?.careerVibe || 'Tap to reveal'}</Text>
-              <Text style={styles.domainCta}>Deep Dive →</Text>
-            </TouchableOpacity>
-          </View>
-
-          {/* ── 7. SKY NOW STRIP ── */}
-          <Text style={styles.sectionLabel}>SKY NOW</Text>
-          <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.pstrip}
-            contentContainerStyle={{ paddingRight: 20 }}>
-            {planetStrip.map((p, i) => (
-              <TouchableOpacity key={i} style={styles.pchip} activeOpacity={0.7}
-                onPress={() => navigation.navigate('Sky')}>
-                <Text style={styles.pchipGlyph}>{p.glyph}</Text>
-                <View>
-                  <Text style={styles.pchipName}>{p.name}</Text>
-                  <Text style={styles.pchipPos}>{p.pos}</Text>
-                </View>
-              </TouchableOpacity>
-            ))}
-          </ScrollView>
-
-          {/* ── 8. COSMIC WINDOWS ── */}
-          {cosmicWindows.length > 0 && (
-            <View style={styles.windowCard}>
-              <Text style={styles.windowLabel}>COSMIC WINDOW</Text>
-              {cosmicWindows.slice(0, 2).map((w, i) => (
-                <View key={i} style={styles.windowRow}>
-                  <View style={[styles.windowDot, w.significance === 'exact' && { backgroundColor: '#E2C46A' }]} />
-                  <Text style={styles.windowText}>{w.description}</Text>
-                  {w.significance === 'exact' && <Text style={styles.windowExact}>EXACT</Text>}
-                </View>
-              ))}
+          {activeTab === 'today' && forecastLoading && !forecast?.navigatorHeadline && (
+            <View style={styles.dailyCard}>
+              <LinearGradient colors={['#171428', '#14122A', '#0F1220']}
+                start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }}
+                style={[styles.dailyHd, { alignItems: 'center', paddingVertical: 32 }]}>
+                <ActivityIndicator size="small" color={T.gold} />
+                <Text style={{ fontSize: 11, color: 'rgba(250,248,242,0.35)', marginTop: 10, textAlign: 'center' }}>Reading the stars…</Text>
+              </LinearGradient>
             </View>
           )}
 
-          {/* ── 9. COSMIC SEASON ── */}
-          {cosmicSeason && activeTab === 'today' && (
-            <View style={styles.seasonCard}>
-              <View style={styles.seasonHeader}>
-                <Text style={styles.seasonLabel}>YOUR COSMIC SEASON</Text>
-                <Text style={styles.seasonDays}>{cosmicSeason.daysRemaining}d left</Text>
-              </View>
-              <Text style={styles.seasonTitle}>{cosmicSeason.description}</Text>
-              <View style={styles.seasonBarTrack}>
-                <View style={[styles.seasonBarFill, { width: `${cosmicSeason.progress}%` }]} />
-              </View>
-              <View style={styles.seasonFooter}>
-                <Text style={styles.seasonFooterText}>
-                  {cosmicSeason.isRetrograde ? '℞ Retrograde — revisiting themes' : `Until ~${cosmicSeason.estimatedEndDate}`}
+          {/* Weekly/Monthly reading card */}
+          {activeTab !== 'today' && (
+            <View style={styles.dailyCard}>
+              <LinearGradient colors={['#171428', '#14122A', '#0F1220']}
+                start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }}
+                style={styles.dailyHd}>
+                <Text style={styles.dailyDate}>
+                  {activeTab === 'weekly' ? 'THIS WEEK' : 'THIS MONTH'}
                 </Text>
-                <Text style={styles.seasonFooterPct}>{cosmicSeason.progress}%</Text>
+                {forecastLoading ? (
+                  <View style={{ paddingVertical: 12, gap: 10 }}>
+                    <View style={styles.skeletonLine} />
+                    <View style={[styles.skeletonLine, { width: '60%' }]} />
+                    <ActivityIndicator size="small" color={T.gold} style={{ marginTop: 4 }} />
+                  </View>
+                ) : (
+                  <Text style={styles.dailyHeadline}>{forecast?.header || (activeTab === 'weekly' ? 'Your Weekly Overview' : 'Your Monthly Overview')}</Text>
+                )}
+              </LinearGradient>
+              <View style={styles.dailyBody}>
+                {forecastLoading ? (
+                  <View style={{ gap: 12, paddingVertical: 8 }}>
+                    <View style={[styles.skeletonBodyLine, { width: '90%' }]} />
+                    <View style={[styles.skeletonBodyLine, { width: '100%' }]} />
+                    <View style={[styles.skeletonBodyLine, { width: '75%' }]} />
+                  </View>
+                ) : forecast ? (
+                  <>
+                    {forecast.mantra && (
+                      <View style={styles.mantraBox}>
+                        <Text style={styles.mantraText}>"{forecast.mantra}"</Text>
+                      </View>
+                    )}
+                    {paragraphs.map((p, i) => (
+                      <View key={i} style={styles.paraBlock}>
+                        {getParaLabels()[i] && (
+                          <Text style={styles.paraLabel}>{getParaLabels()[i]}</Text>
+                        )}
+                        <AstroText text={p} style={styles.dailyTxt} />
+                      </View>
+                    ))}
+                    {actionItems.length > 0 && (
+                      <View style={styles.actionBox}>
+                        <Text style={styles.actionLabel}>KEY MOVES</Text>
+                        {actionItems.map((item, i) => (
+                          <View key={i} style={styles.actionRow}>
+                            <Text style={styles.actionArrow}>→</Text>
+                            <Text style={styles.actionItem}>{item}</Text>
+                          </View>
+                        ))}
+                      </View>
+                    )}
+                  </>
+                ) : null}
               </View>
             </View>
           )}
 
-          {/* ── 10. LUCKY STATS ── */}
-          {forecast?.luckyStats && (
-            <View style={styles.luckyRow}>
-              <View style={styles.luckyStat}>
-                <Text style={styles.luckyLabel}>NUMBER</Text>
-                <Text style={styles.luckyNum}>{forecast.luckyStats.number}</Text>
-              </View>
-              <View style={styles.luckyDivider} />
-              <View style={styles.luckyStat}>
-                <Text style={styles.luckyLabel}>COLOR</Text>
-                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 5, justifyContent: 'center' }}>
-                  {forecast.luckyStats.colorHex && (
-                    <View style={{ width: 12, height: 12, borderRadius: 6, backgroundColor: forecast.luckyStats.colorHex, borderWidth: 1, borderColor: 'rgba(0,0,0,0.08)' }} />
+          {/* ── 4. LIFE AREA NAVIGATOR (today only) ── */}
+          {activeTab === 'today' && <Text style={styles.sectionLabel}>LIFE AREA NAVIGATOR</Text>}
+          {activeTab === 'today' &&
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: 16 }}
+            contentContainerStyle={{ paddingHorizontal: 20, gap: 12 }}>
+            {[
+              { key: 'love', icon: '♡', title: 'Love', subtitle: 'Relationships', color: '#E85090' },
+              { key: 'career', icon: '◆', title: 'Career', subtitle: 'Work & Money', color: '#5090E8' },
+              { key: 'vitality', icon: '✦', title: 'Vitality', subtitle: 'Energy & Rhythm', color: '#50C878' },
+              { key: 'growth', icon: '◎', title: 'Growth', subtitle: 'Learning & Wisdom', color: '#F59E0B' },
+              { key: 'social', icon: '✧', title: 'Social', subtitle: 'Communication', color: '#8B5CF6' },
+            ].map((area) => {
+              const data = forecast?.lifeAreas?.[area.key];
+              return (
+                <TouchableOpacity key={area.key} style={[styles.lifeAreaCard, { borderTopColor: area.color }]}
+                  activeOpacity={0.7}
+                  onPress={() => {
+                    haptic.light();
+                    setLifeAreaModal(area.key);
+                  }}>
+                  <View style={styles.lifeAreaHeader}>
+                    <Text style={[styles.lifeAreaIcon, { color: area.color }]}>{area.icon}</Text>
+                    <View style={{ flex: 1 }}>
+                      <Text style={styles.lifeAreaTitle}>{area.title}</Text>
+                      <Text style={styles.lifeAreaSubtitle}>{area.subtitle}</Text>
+                    </View>
+                    <View style={[styles.lifeAreaEnergyBadge, { backgroundColor: area.color + '18' }]}>
+                      <Text style={[styles.lifeAreaEnergyText, { color: area.color }]}>{data?.energy || 'Steady'}</Text>
+                    </View>
+                  </View>
+                  {data?.planetaryReason && (
+                    <Text style={styles.lifeAreaPlanetReason}>{data.planetaryReason}</Text>
                   )}
-                  <Text style={styles.luckyVal}>{forecast.luckyStats.color}</Text>
-                </View>
-              </View>
-              <View style={styles.luckyDivider} />
-              <View style={styles.luckyStat}>
-                <Text style={styles.luckyLabel}>CRYSTAL</Text>
-                <Text style={styles.luckyVal}>{forecast.luckyStats.crystal || '—'}</Text>
-              </View>
-            </View>
-          )}
-
-          {/* ── 11. COSMIC JOURNAL ── */}
-          {isDaily && (
-            <View style={styles.journalCard}>
-              <View style={styles.jcardHeader}>
-                <Text style={styles.jcardTitle}>COSMIC JOURNAL</Text>
-                <View style={[styles.jcardBadge, journalSaved && { backgroundColor: '#D8F0D0' }]}>
-                  <Text style={styles.jcardBadgeText}>{journalSaved ? 'Saved' : 'Today'}</Text>
-                </View>
-              </View>
-              <Text style={styles.jcardPrompt}>
-                {forecast?.mantra
-                  ? `"${forecast.mantra}"`
-                  : '"What is the universe trying to teach you right now?"'}
-              </Text>
-              <View style={{ flexDirection: 'row', gap: 8 }}>
-                <TouchableOpacity style={[styles.jcardBtn, { flex: 1 }]} activeOpacity={0.7}
-                  onPress={() => setShowJournal(true)}>
-                  <Text style={styles.jcardBtnText}>{journalSaved ? '📖 View Entry' : '✍ Write Today\'s Entry'}</Text>
+                  {data?.doItems && data.doItems.length > 0 && (
+                    <View style={styles.lifeAreaDoSection}>
+                      {data.doItems.slice(0, 2).map((item, i) => (
+                        <View key={i} style={styles.lifeAreaDoRow}>
+                          <Text style={[styles.lifeAreaDoIcon, { color: area.color }]}>→</Text>
+                          <Text style={styles.lifeAreaDoText}>{item}</Text>
+                        </View>
+                      ))}
+                    </View>
+                  )}
+                  {data?.avoidItems && data.avoidItems.length > 0 && !data.avoidItems[0]?.includes?.('Steady skies') && (
+                    <View style={styles.lifeAreaAvoidSection}>
+                      {data.avoidItems.slice(0, 1).map((item, i) => (
+                        <View key={i} style={styles.lifeAreaAvoidRow}>
+                          <Text style={styles.lifeAreaAvoidIcon}>⊘</Text>
+                          <Text style={styles.lifeAreaAvoidText}>{item}</Text>
+                        </View>
+                      ))}
+                    </View>
+                  )}
+                  {data?.navigatorNote && (
+                    <Text style={styles.lifeAreaNote}>"{data.navigatorNote}"</Text>
+                  )}
+                  <Text style={[styles.lifeAreaCta, { color: area.color }]}>Deep Dive →</Text>
                 </TouchableOpacity>
-                <TouchableOpacity style={[styles.jcardBtn, { paddingHorizontal: 14 }]} activeOpacity={0.7}
-                  onPress={() => navigation.navigate('JournalHistory')}>
-                  <Text style={[styles.jcardBtnText, { color: T.gold }]}>All →</Text>
-                </TouchableOpacity>
-              </View>
-            </View>
-          )}
+              );
+            })}
+          </ScrollView>}
 
-          {/* ── 12. TOMORROW'S PREVIEW (Forward Hook) ── */}
-          {activeTab === 'today' && tomorrowMoon && (
-            <TouchableOpacity style={styles.tomorrowCard} activeOpacity={0.8}
-              onPress={() => { haptic.light(); setActiveTab('tomorrow'); mainScrollRef.current?.scrollTo({ y: 0, animated: true }); }}>
-              <View style={styles.tomorrowHeader}>
-                <Text style={styles.tomorrowLabel}>TOMORROW</Text>
-                <Text style={styles.tomorrowArrow}>→</Text>
-              </View>
-              <Text style={styles.tomorrowText}>
-                Moon in {tomorrowMoon.sign}
-                {tomorrowMoon.phaseName === 'Full Moon' || tomorrowMoon.phaseName === 'New Moon'
-                  ? ` · ${tomorrowMoon.phaseName}` : ''}
-                {tomorrowWindows.length > 0
-                  ? ` · ${tomorrowWindows[0].planet || ''} activating your chart` : ''}
-              </Text>
-              <Text style={styles.tomorrowHook}>
-                {tomorrowMoon.phaseName === 'Full Moon' ? 'Emotions peak. We\'ll have a ritual ready.'
-                  : tomorrowMoon.phaseName === 'New Moon' ? 'New cycle begins. Set your intention.'
-                  : tomorrowWindows.length > 0 ? 'Something is building. Check back in the morning.'
-                  : 'Your morning reading will be ready at sunrise.'}
-              </Text>
+
+          {/* ── TODAY'S SKY — personalized card ── */}
+          {activeTab === 'today' && (
+            <TouchableOpacity
+              style={styles.skyCard}
+              activeOpacity={0.85}
+              onPress={() => {
+                haptic.light();
+                navigation.navigate('TodaysSky');
+              }}>
+              <LinearGradient
+                colors={['#0F0C24', '#161038', '#0E1628', '#0C1220']}
+                locations={[0, 0.35, 0.7, 1]}
+                start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }}
+                style={styles.skyGrad}>
+
+                {/* Decorative glow */}
+                <View style={styles.skyGlow} />
+
+                {/* Top row: label + arrow */}
+                <View style={styles.skyTopRow}>
+                  <Text style={styles.skyLabel}>TODAY'S SKY</Text>
+                  <View style={styles.skyArrowCircle}>
+                    <Text style={styles.skyArrowText}>→</Text>
+                  </View>
+                </View>
+
+                {/* Moon headline */}
+                <View style={styles.skyMoonRow}>
+                  <Text style={styles.skyMoonEmoji}>{moonIcon}</Text>
+                  <View style={{ flex: 1 }}>
+                    <Text style={styles.skyMoonPhase}>{moonData?.phaseName || 'Moon'}</Text>
+                    <Text style={styles.skyMoonSign}>in {moonData?.sign || '—'}{moonData?.illumination != null ? ` · ${moonData.illumination.toFixed(0)}% illuminated` : ''}</Text>
+                  </View>
+                </View>
+
+                {/* Divider */}
+                <View style={styles.skyDivider} />
+
+                {/* Personalized energy snapshot */}
+                <View style={styles.skySnapGrid}>
+                  {/* Cosmic energy */}
+                  {forecast?.powerCosmic && (
+                    <View style={styles.skySnapItem}>
+                      <Text style={styles.skySnapIcon}>✦</Text>
+                      <View>
+                        <Text style={styles.skySnapLabel}>Cosmic Energy</Text>
+                        <Text style={styles.skySnapValue}>{forecast.powerCosmic}</Text>
+                      </View>
+                    </View>
+                  )}
+                  {/* Most activated area */}
+                  {forecast?.lifeAreas && (() => {
+                    const areas = [
+                      { key: 'love', icon: '♡', label: 'Love', color: '#E85090' },
+                      { key: 'career', icon: '◆', label: 'Career', color: '#5090E8' },
+                      { key: 'vitality', icon: '✦', label: 'Vitality', color: '#50C878' },
+                      { key: 'growth', icon: '◎', label: 'Growth', color: '#F59E0B' },
+                      { key: 'social', icon: '✧', label: 'Social', color: '#8B5CF6' },
+                    ];
+                    const top = areas
+                      .filter(a => forecast.lifeAreas[a.key])
+                      .sort((a, b) => (forecast.lifeAreas[b.key].intensity || 3) - (forecast.lifeAreas[a.key].intensity || 3))[0];
+                    if (!top) return null;
+                    return (
+                      <View style={styles.skySnapItem}>
+                        <Text style={[styles.skySnapIcon, { color: top.color }]}>{top.icon}</Text>
+                        <View>
+                          <Text style={styles.skySnapLabel}>Most Active</Text>
+                          <Text style={styles.skySnapValue}>{top.label} · {forecast.lifeAreas[top.key].energy}</Text>
+                        </View>
+                      </View>
+                    );
+                  })()}
+                </View>
+
+                {/* Cosmic season bar */}
+                {cosmicSeason && (
+                  <View style={styles.skySeasonWrap}>
+                    <View style={styles.skySeasonInfo}>
+                      <Text style={styles.skySeasonText}>{cosmicSeason.description}</Text>
+                      <Text style={styles.skySeasonPct}>{cosmicSeason.progress}%</Text>
+                    </View>
+                    <View style={styles.skySeasonTrack}>
+                      <View style={[styles.skySeasonFill, { width: `${cosmicSeason.progress}%` }]} />
+                    </View>
+                  </View>
+                )}
+
+                {/* CTA */}
+                <View style={styles.skyCtaRow}>
+                  <Text style={styles.skyCta}>Explore your full sky map</Text>
+                  <Text style={styles.skyCtaArrow}>→</Text>
+                </View>
+
+              </LinearGradient>
             </TouchableOpacity>
+          )}
+
+          {/* ── PREVIOUSLY ON (today only) ── */}
+          {activeTab === 'today' && narrativeCtx?.yesterday && (narrativeCtx.yesterday.forecastHeader || narrativeCtx.yesterday.journalText) && (
+            <View style={styles.previouslyCard}>
+              <Text style={styles.previouslyLabel}>PREVIOUSLY</Text>
+              <Text style={styles.previouslyText}>
+                {narrativeCtx.yesterday.forecastHeader ? `"${narrativeCtx.yesterday.forecastHeader}"` : ''}
+                {narrativeCtx.yesterday.forecastHeader && narrativeCtx.yesterday.journalText ? ' — ' : ''}
+                {narrativeCtx.yesterday.journalText ? `you wrote about ${narrativeCtx.yesterday.journalText.substring(0, 60).toLowerCase()}${narrativeCtx.yesterday.journalText.length > 60 ? '...' : ''}` : ''}
+                {narrativeCtx.yesterday.journalMood ? ` (mood: ${narrativeCtx.yesterday.journalMood})` : ''}
+              </Text>
+            </View>
+          )}
+
+          {/* ── COSMIC JOURNAL (today only) ── */}
+          {activeTab === 'today' && <TouchableOpacity style={styles.journalCard} activeOpacity={0.85}
+            onPress={() => navigation.navigate('Journal', { mantra: forecast?.mantra })}>
+            <View style={styles.jcardHeader}>
+              <Text style={styles.jcardTitle}>YOUR COSMIC JOURNAL</Text>
+              <View style={[styles.jcardBadge, journalSaved && { backgroundColor: '#D8F0D0' }]}>
+                <Text style={styles.jcardBadgeText}>{journalSaved ? 'Saved' : 'Today'}</Text>
+              </View>
+            </View>
+            <Text style={styles.jcardPrompt}>
+              {forecast?.mantra
+                ? `"${forecast.mantra}"`
+                : '"What is the universe trying to teach you right now?"'}
+            </Text>
+            <View style={styles.jcardFooter}>
+              <Text style={styles.jcardCta}>{journalSaved ? '📖 Read Today\'s Page' : '✍ Write Today\'s Page'}</Text>
+              <Text style={styles.jcardArrow}>→</Text>
+            </View>
+          </TouchableOpacity>}
+
+          {/* ── EVENING REFLECTION (after 6 PM, today only) ── */}
+          {activeTab === 'today' && isEvening && (
+            <View style={styles.eveningCard}>
+              <Text style={styles.eveningLabel}>EVENING REFLECTION</Text>
+              <Text style={styles.eveningPrompt}>How did your day match the navigator's reading?</Text>
+              <TouchableOpacity style={styles.eveningBtn} activeOpacity={0.7}
+                onPress={() => navigation.navigate('Journal', { mantra: forecast?.mantra })}>
+                <Text style={styles.eveningBtnText}>Reflect in Journal →</Text>
+              </TouchableOpacity>
+            </View>
           )}
 
           {/* ═══════════════════════════════════════════════ */}
@@ -1185,12 +1017,12 @@ export default function HomeScreen({ navigation, route }) {
 
           {activeTab === 'today' && (todayCosmicLine || todayUnlock || monthlyRecap || questData?.quests || nextBadge || cosmicWhisper) && (
             <View style={{ marginTop: 12, marginBottom: 4, paddingTop: 14, borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: 'rgba(0,0,0,0.06)' }}>
-              <Text style={{ fontSize: 9, fontFamily: FONTS.sansSemiBold, letterSpacing: 2, color: T.stone, paddingHorizontal: 20 }}>YOUR EXTRAS</Text>
+              <Text style={{ fontSize: 9, fontFamily: FONTS.sansSemiBold, letterSpacing: 2, color: T.stone, paddingHorizontal: 20 }}>YOUR COSMIC STORY</Text>
             </View>
           )}
 
           {/* ── TODAY'S COSMIC ALERT ── */}
-          {todayCosmicLine && activeTab === 'today' && (
+          {activeTab === 'today' && todayCosmicLine && (
             <View style={styles.cosmicAlertCard}>
               <View style={styles.cosmicAlertDot} />
               <View style={{ flex: 1 }}>
@@ -1201,7 +1033,7 @@ export default function HomeScreen({ navigation, route }) {
           )}
 
           {/* ── NEW INSIGHT UNLOCKED (drip-feed) ── */}
-          {todayUnlock && activeTab === 'today' && (
+          {activeTab === 'today' && todayUnlock && (
             <TouchableOpacity style={styles.unlockCard} activeOpacity={0.8}
               onPress={() => {
                 markUnlockShown();
@@ -1213,7 +1045,7 @@ export default function HomeScreen({ navigation, route }) {
                 <View style={{ flex: 1 }}>
                   <Text style={styles.unlockCardLabel}>NEW INSIGHT UNLOCKED</Text>
                   <Text style={styles.unlockCardTitle}>{todayUnlock.planet}</Text>
-                  <Text style={styles.unlockCardSub}>Day {todayUnlock.dayNum} — Tap to reveal what your chart says</Text>
+                  <Text style={styles.unlockCardSub}>Day {todayUnlock.dayNum} — {UNLOCK_NARRATIVES[todayUnlock.planet] || 'A new chapter unfolds'}</Text>
                 </View>
                 <Text style={styles.unlockCardArrow}>→</Text>
               </LinearGradient>
@@ -1221,7 +1053,7 @@ export default function HomeScreen({ navigation, route }) {
           )}
 
           {/* ── MONTHLY RECAP (1st-3rd of month) ── */}
-          {monthlyRecap && activeTab === 'today' && today.getDate() <= 3 && (
+          {activeTab === 'today' && monthlyRecap && today.getDate() <= 3 && (
             <View style={styles.recapCardWrap}>
               <MonthlyRecapCard
                 innerRef={recapCardRef}
@@ -1245,7 +1077,7 @@ export default function HomeScreen({ navigation, route }) {
           )}
 
           {/* ── DAILY QUESTS ── */}
-          {questData?.quests && activeTab === 'today' && (
+          {activeTab === 'today' && questData?.quests && (
             <QuestCard
               quests={questData.quests}
               allComplete={questData.allComplete}
@@ -1254,12 +1086,12 @@ export default function HomeScreen({ navigation, route }) {
           )}
 
           {/* ── NEXT BADGE PROGRESS ── */}
-          {nextBadge && activeTab === 'today' && (
+          {activeTab === 'today' && nextBadge && (
             <View style={styles.nextBadgeCard}>
               <View style={styles.nextBadgeHeader}>
                 <Text style={styles.nextBadgeIcon}>{nextBadge.badge.icon}</Text>
                 <View style={{ flex: 1 }}>
-                  <Text style={styles.nextBadgeLabel}>NEXT ACHIEVEMENT</Text>
+                  <Text style={styles.nextBadgeLabel}>YOUR NEXT CHAPTER</Text>
                   <Text style={styles.nextBadgeName}>{nextBadge.badge.name}</Text>
                 </View>
                 <Text style={styles.nextBadgeCount}>{nextBadge.current}/{nextBadge.target}</Text>
@@ -1267,12 +1099,12 @@ export default function HomeScreen({ navigation, route }) {
               <View style={styles.nextBadgeBarBg}>
                 <View style={[styles.nextBadgeBarFill, { width: `${(nextBadge.progress * 100).toFixed(0)}%` }]} />
               </View>
-              <Text style={styles.nextBadgeSub}>{nextBadge.remaining} {nextBadge.label.toLowerCase()} to go</Text>
+              <Text style={styles.nextBadgeSub}>{nextBadge.remaining} more to unlock this chapter</Text>
             </View>
           )}
 
           {/* ── COSMIC WHISPER (Easter egg) — tap to share ── */}
-          {cosmicWhisper && (
+          {activeTab === 'today' && cosmicWhisper && (
             <TouchableOpacity
               style={[styles.whisperCard, whisperRarity && styles.whisperCardRare]}
               activeOpacity={0.75}
@@ -1295,8 +1127,68 @@ export default function HomeScreen({ navigation, route }) {
             </TouchableOpacity>
           )}
 
+          {/* ── YOUR CIRCLE ── */}
+          {partnerProfiles && partnerProfiles.length > 0 && (
+            <TouchableOpacity style={styles.circleWidget} activeOpacity={0.7}
+              onPress={() => navigation.navigate('Circle')}>
+              <View style={styles.circleWidgetLeft}>
+                <Text style={styles.circleWidgetTitle}>YOUR CIRCLE</Text>
+                <View style={styles.circleWidgetOrbs}>
+                  {partnerProfiles.slice(0, 5).map((p, i) => {
+                    const role = p.relationshipType || 'other';
+                    const colors = (ROLE_COLORS[role] || ROLE_COLORS.other).bg;
+                    let score = null;
+                    try {
+                      if (p.isZodiacOnly) {
+                        const uSun = userProfile?.chart?.planets?.find(pl => pl.name === 'Sun')?.sign;
+                        score = calculateZodiacOnlyScore(uSun, p.zodiacSign).harmonyScore;
+                      } else if (p.chart && userProfile?.chart) {
+                        score = calculateSynastryScore(userProfile.chart, p.chart, role).harmonyScore;
+                      }
+                    } catch (e) {}
+                    return (
+                      <View key={p.id} style={[styles.circleWidgetOrb, { marginLeft: i > 0 ? -8 : 0 }]}>
+                        <LinearGradient colors={colors} style={styles.circleWidgetOrbInner}>
+                          <Text style={styles.circleWidgetOrbText}>{(p.name || '?')[0].toUpperCase()}</Text>
+                        </LinearGradient>
+                        {score != null && (
+                          <View style={styles.circleWidgetOrbScore}>
+                            <Text style={{ fontSize: 7, color: T.gold, fontFamily: FONTS.sansSemiBold }}>{score}</Text>
+                          </View>
+                        )}
+                      </View>
+                    );
+                  })}
+                  {partnerProfiles.length > 5 && (
+                    <View style={[styles.circleWidgetOrb, { marginLeft: -8 }]}>
+                      <View style={[styles.circleWidgetOrbInner, { backgroundColor: 'rgba(200,168,75,0.1)', borderColor: 'rgba(200,168,75,0.3)' }]}>
+                        <Text style={{ fontSize: 10, color: T.gold }}>+{partnerProfiles.length - 5}</Text>
+                      </View>
+                    </View>
+                  )}
+                </View>
+                <Text style={styles.circleWidgetSub}>
+                  {(() => {
+                    const counts = {};
+                    partnerProfiles.forEach(p => { const r = p.relationshipType || 'other'; counts[r] = (counts[r] || 0) + 1; });
+                    const parts = [];
+                    if (counts.partner) parts.push(`${counts.partner} partner${counts.partner > 1 ? 's' : ''}`);
+                    if (counts.friend) parts.push(`${counts.friend} friend${counts.friend > 1 ? 's' : ''}`);
+                    const fam = (counts.parent || 0) + (counts.sibling || 0) + (counts.child || 0);
+                    if (fam) parts.push(`${fam} family`);
+                    const work = (counts.boss || 0) + (counts.colleague || 0);
+                    if (work) parts.push(`${work} work`);
+                    if (counts.other) parts.push(`${counts.other} other`);
+                    return parts.join(' · ');
+                  })()}
+                </Text>
+              </View>
+              <Text style={{ fontSize: 16, color: T.stone }}>›</Text>
+            </TouchableOpacity>
+          )}
+
           {/* ── QUICK ACTIONS ── */}
-          <Text style={styles.sectionLabel}>EXPLORE</Text>
+          <Text style={styles.sectionLabel}>CONTINUE YOUR STORY</Text>
           <View style={styles.quickRow}>
             <TouchableOpacity style={styles.quickCard} activeOpacity={0.7}
               onPress={() => navigation.navigate('Chart')}>
@@ -1314,9 +1206,9 @@ export default function HomeScreen({ navigation, route }) {
               <Text style={styles.quickLabel}>Quick Chart</Text>
             </TouchableOpacity>
             <TouchableOpacity style={styles.quickCard} activeOpacity={0.7}
-              onPress={() => navigation.navigate('Match')}>
+              onPress={() => navigation.navigate('Circle')}>
               <Text style={styles.quickIcon}>♡</Text>
-              <Text style={styles.quickLabel}>Compatibility</Text>
+              <Text style={styles.quickLabel}>Your Circle</Text>
             </TouchableOpacity>
           </View>
 
@@ -1325,9 +1217,9 @@ export default function HomeScreen({ navigation, route }) {
             <LinearGradient colors={['#1A1530', '#14112A', '#101320']}
               start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={styles.promo}>
               <Text style={styles.promoLbl}>REPORTS</Text>
-              <Text style={styles.promoTitle}>Deep Chart Analysis</Text>
-              <Text style={styles.promoSub}>Love, Career, Purpose — written for your exact chart</Text>
-              <View style={styles.promoCta}><Text style={styles.promoCtaText}>Explore Reports →</Text></View>
+              <Text style={styles.promoTitle}>Your Cosmic Deep Dives</Text>
+              <Text style={styles.promoSub}>Love, Career, Purpose — chapters written for this moment in your journey</Text>
+              <View style={styles.promoCta}><Text style={styles.promoCtaText}>Open Your Reports →</Text></View>
             </LinearGradient>
           </TouchableOpacity>
 
@@ -1335,135 +1227,519 @@ export default function HomeScreen({ navigation, route }) {
         </View>
       </ScrollView>
 
-      {/* ── ENERGY DETAIL MODAL ── */}
-      <Modal visible={!!energyModal} animationType="fade" transparent>
-        <TouchableOpacity style={styles.energyOverlay} activeOpacity={1} onPress={() => setEnergyModal(null)}>
-          <View style={styles.energySheet}>
-            {energyModal && (
-              <>
-                <View style={styles.energySheetHeader}>
-                  <Text style={[styles.energySheetIcon, { color: energyModal.color }]}>{energyModal.icon}</Text>
-                  <Text style={styles.energySheetTitle}>{energyModal.tag}</Text>
-                  <TouchableOpacity onPress={() => setEnergyModal(null)}>
-                    <Text style={{ fontSize: 16, color: T.stone, padding: 4 }}>✕</Text>
-                  </TouchableOpacity>
-                </View>
-                <View style={styles.energySheetBarWrap}>
-                  <View style={styles.energySheetBarBg}>
-                    <View style={[styles.energySheetBarFill, { width: `${energyModal.pct}%`, backgroundColor: energyModal.color }]} />
-                  </View>
-                  <Text style={[styles.energySheetLevel, { color: energyModal.color }]}>{energyModal.val}</Text>
-                </View>
-                <Text style={styles.energySheetPeriod}>
-                  {activeTab === 'yesterday' ? "Yesterday's" : activeTab === 'today' ? "Today's" : activeTab === 'tomorrow' ? "Tomorrow's" : activeTab === 'weekly' ? 'This Week\'s' : activeTab === 'monthly' ? 'This Month\'s' : 'This Year\'s'} cosmic energy for {energyModal.tag.toLowerCase()}
-                </Text>
-                <Text style={styles.energySheetDesc}>
-                  {getEnergyDescription(energyModal.key, energyModal.pct)}
-                </Text>
-                {(energyModal.key === 'Love' || energyModal.key === 'Career') ? (
-                  <TouchableOpacity style={[styles.energySheetBtn, { backgroundColor: energyModal.color + '18', borderColor: energyModal.color + '30' }]}
-                    activeOpacity={0.7} onPress={() => { setEnergyModal(null); setTimeout(() => openDomainModal(energyModal.key), 300); }}>
-                    <Text style={[styles.energySheetBtnText, { color: energyModal.color }]}>Full {energyModal.tag.charAt(0) + energyModal.tag.slice(1).toLowerCase()} Reading →</Text>
-                  </TouchableOpacity>
-                ) : (
-                  <TouchableOpacity style={[styles.energySheetBtn, { backgroundColor: energyModal.color + '18', borderColor: energyModal.color + '30' }]}
-                    activeOpacity={0.7} onPress={() => {
-                      const key = energyModal.key;
-                      setEnergyModal(null);
-                      setTimeout(() => {
-                        if (key === 'Mood') setShowJournal(true);
-                        else if (key === 'Social') navigation.navigate('Match');
-                        else if (key === 'Focus' || key === 'Creativity') navigation.navigate('AskAI', { initialMessage: `How can I boost my ${key.toLowerCase()} energy today based on my chart?` });
-                        else navigation.navigate('Sky');
-                      }, 300);
-                    }}>
-                    <Text style={[styles.energySheetBtnText, { color: energyModal.color }]}>
-                      {energyModal.key === 'Mood' ? 'Reflect in Journal →'
-                        : energyModal.key === 'Social' ? 'Check Compatibility →'
-                        : energyModal.key === 'Focus' || energyModal.key === 'Creativity' ? 'Ask Celestia →'
-                        : 'View Today\'s Sky →'}
-                    </Text>
-                  </TouchableOpacity>
-                )}
-              </>
+      {/* ── DEEP DIVE MODAL ── */}
+      <Modal visible={showBriefing} animationType="slide" presentationStyle="pageSheet">
+        <View style={{ flex: 1, backgroundColor: T.cream }}>
+          <ScrollView style={{ flex: 1 }} contentContainerStyle={{ paddingBottom: 50 }} showsVerticalScrollIndicator={false}>
+          {/* ── Hero: same headline as card for continuity ── */}
+          <LinearGradient colors={['#171428', '#14122A', '#0F1220']}
+            start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }}
+            style={styles.ddHero}>
+            <View style={styles.ddHeaderRow}>
+              <Text style={styles.ddDate}>{formatDateHeader().toUpperCase()}</Text>
+              <TouchableOpacity onPress={() => setShowBriefing(false)} hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}>
+                <Text style={styles.ddClose}>✕</Text>
+              </TouchableOpacity>
+            </View>
+            {/* Decorative compass icon */}
+            <View style={styles.ddCompassWrap}>
+              <View style={styles.ddCompassGlow} />
+              <View style={styles.ddCompassRing}>
+                <Text style={styles.ddCompassIcon}>✦</Text>
+              </View>
+            </View>
+            <Text style={styles.ddLabel}>YOUR NAVIGATOR BRIEFING</Text>
+            <Text style={styles.ddHeadline}>{forecast?.navigatorHeadline}</Text>
+            {forecast?.navigatorSummary && (
+              <Text style={styles.ddSummary}>{forecast.navigatorSummary}</Text>
             )}
-          </View>
-        </TouchableOpacity>
-      </Modal>
+            {/* Glance chips in glass container */}
+            <View style={styles.ddChipsGlass}>
+              <View style={styles.ddChipItem}><Text style={styles.ddChipText}>{moonIcon} {moonPhase}</Text></View>
+              {forecast?.powerCosmic && (
+                <View style={styles.ddChipItem}><Text style={styles.ddChipText}>✦ {forecast.powerCosmic}</Text></View>
+              )}
+              {forecast?.luckyStats && (
+                <View style={styles.ddChipItem}><Text style={styles.ddChipText}>#{forecast.luckyStats.number}</Text></View>
+              )}
+            </View>
+          </LinearGradient>
 
-      {/* ── PLANET INFLUENCE MODAL ── */}
-      <Modal visible={!!influenceModal} animationType="fade" transparent>
-        <TouchableOpacity style={styles.energyOverlay} activeOpacity={1} onPress={() => setInfluenceModal(null)}>
-          <View style={styles.influenceSheet}>
-            {influenceModal && (
-              <>
-                <View style={styles.influenceSheetHeader}>
-                  <Text style={styles.influenceSheetGlyph}>{influenceModal.glyph}</Text>
-                  <Text style={styles.influenceSheetTag}>{influenceModal.tag}</Text>
-                  <TouchableOpacity onPress={() => setInfluenceModal(null)}>
-                    <Text style={{ fontSize: 16, color: T.stone, padding: 4 }}>✕</Text>
-                  </TouchableOpacity>
-                </View>
-                <Text style={styles.influenceSheetEffect}>{influenceModal.effect}</Text>
-              </>
+            {/* ── 1. THE READING — full horoscope paragraphs ── */}
+            {paragraphs.length > 0 && (
+              <View style={styles.ddSection}>
+                <Text style={styles.ddSectionLabel}>YOUR READING</Text>
+                {paragraphs.map((p, i) => (
+                  <View key={i} style={styles.ddParaBlock}>
+                    {getParaLabels()[i] && (
+                      <Text style={styles.ddParaLabel}>{getParaLabels()[i]}</Text>
+                    )}
+                    <AstroText text={p} style={styles.ddParaText} />
+                  </View>
+                ))}
+              </View>
             )}
-          </View>
-        </TouchableOpacity>
+
+            {/* ── 2. PLANET INFLUENCES — why you feel this way ── */}
+            {forecast?.planetInfluences && forecast.planetInfluences.length > 0 && (
+              <View style={styles.ddSection}>
+                <Text style={styles.ddSectionLabel}>WHAT'S DRIVING TODAY</Text>
+                {forecast.planetInfluences.map((inf, i) => (
+                  <View key={i} style={styles.ddInfluenceCard}>
+                    <Text style={styles.ddInfluenceGlyph}>{inf.glyph}</Text>
+                    <View style={{ flex: 1 }}>
+                      <Text style={styles.ddInfluenceTag}>{inf.tag}</Text>
+                      <Text style={styles.ddInfluenceEffect}>{inf.effect}</Text>
+                    </View>
+                  </View>
+                ))}
+              </View>
+            )}
+
+            {/* ── 3. LIFE AREAS — deep per-area breakdown ── */}
+            {forecast?.lifeAreas && (
+              <View style={styles.ddSection}>
+                <Text style={styles.ddSectionLabel}>LIFE AREAS</Text>
+                {[
+                  { key: 'love', icon: '♡', title: 'Love', sub: 'Relationships & Intimacy', color: '#E85090' },
+                  { key: 'career', icon: '◆', title: 'Career', sub: 'Work & Finances', color: '#5090E8' },
+                  { key: 'vitality', icon: '✦', title: 'Vitality', sub: 'Energy & Wellness', color: '#50C878' },
+                  { key: 'growth', icon: '◎', title: 'Growth', sub: 'Learning & Inner Work', color: '#F59E0B' },
+                  { key: 'social', icon: '✧', title: 'Social', sub: 'Community & Connection', color: '#8B5CF6' },
+                ].map((area) => {
+                  const data = forecast.lifeAreas[area.key];
+                  if (!data) return null;
+                  const intensityVal = Math.min(10, Math.max(1, data.intensity || 3));
+                  return (
+                    <View key={area.key} style={styles.laCard}>
+                      {/* ── Header: icon, title, archetype, energy badge ── */}
+                      <View style={[styles.laHeader, { borderLeftColor: area.color }]}>
+                        <View style={styles.laHeaderLeft}>
+                          <Text style={[styles.laIcon, { color: area.color }]}>{area.icon}</Text>
+                          <View>
+                            <Text style={styles.laTitle}>{area.title}</Text>
+                            <Text style={styles.laSub}>{area.sub}</Text>
+                          </View>
+                        </View>
+                        <View style={[styles.laEnergyBadge, { backgroundColor: area.color + '15' }]}>
+                          <Text style={[styles.laEnergyText, { color: area.color }]}>{data.energy || 'Steady'}</Text>
+                        </View>
+                      </View>
+
+                      {/* ── Intensity meter + archetype + driving planet ── */}
+                      <View style={styles.laMeta}>
+                        <View style={styles.laIntensityRow}>
+                          <Text style={styles.laMetaLabel}>Intensity</Text>
+                          <View style={styles.laIntensityTrack}>
+                            <View style={[styles.laIntensityFill, { width: `${intensityVal * 10}%`, backgroundColor: area.color }]} />
+                          </View>
+                          <Text style={[styles.laIntensityNum, { color: area.color }]}>{intensityVal}/10</Text>
+                        </View>
+                        <View style={styles.laMetaChips}>
+                          {data.archetype ? (
+                            <View style={[styles.laChip, { backgroundColor: area.color + '12' }]}>
+                              <Text style={[styles.laChipText, { color: area.color }]}>{data.archetype}</Text>
+                            </View>
+                          ) : null}
+                          {data.drivingPlanet ? (
+                            <View style={[styles.laChip, { backgroundColor: '#F5F3EE' }]}>
+                              <Text style={styles.laChipTextMuted}>{data.drivingPlanet}</Text>
+                            </View>
+                          ) : null}
+                        </View>
+                      </View>
+
+                      {/* ── Planetary reason ── */}
+                      {data.planetaryReason ? (
+                        <Text style={styles.laPlanetReason}>{data.planetaryReason}</Text>
+                      ) : null}
+
+                      {/* ── Full horoscope paragraph ── */}
+                      {data.horoscope ? (
+                        <View style={styles.laHoroscopeBox}>
+                          <Text style={styles.laHoroscopeText}>{data.horoscope}</Text>
+                        </View>
+                      ) : null}
+
+                      {/* ── Navigate Toward ── */}
+                      {data.doItems && data.doItems.length > 0 ? (
+                        <View style={styles.laDoSection}>
+                          <Text style={[styles.laDoLabel, { color: area.color }]}>NAVIGATE TOWARD</Text>
+                          {data.doItems.map((item, i) => (
+                            <View key={i} style={styles.laDoRow}>
+                              <Text style={[styles.laDoArrow, { color: area.color }]}>→</Text>
+                              <Text style={styles.laDoText}>{item}</Text>
+                            </View>
+                          ))}
+                        </View>
+                      ) : null}
+
+                      {/* ── Navigate Around ── */}
+                      {data.avoidItems && data.avoidItems.length > 0 && !data.avoidItems[0]?.includes?.('Steady skies') ? (
+                        <View style={styles.laAvoidSection}>
+                          <Text style={styles.laAvoidLabel}>NAVIGATE AROUND</Text>
+                          {data.avoidItems.map((item, i) => (
+                            <View key={i} style={styles.laDoRow}>
+                              <Text style={styles.laAvoidIcon}>⊘</Text>
+                              <Text style={[styles.laDoText, { color: T.stone }]}>{item}</Text>
+                            </View>
+                          ))}
+                        </View>
+                      ) : null}
+
+                      {/* ── Timing ── */}
+                      {data.timing ? (
+                        <View style={styles.laTimingRow}>
+                          <Text style={styles.laTimingIcon}>◷</Text>
+                          <Text style={styles.laTimingText}>{data.timing}</Text>
+                        </View>
+                      ) : null}
+
+                      {/* ── Ritual ── */}
+                      {data.ritual ? (
+                        <View style={[styles.laRitualBox, { borderLeftColor: area.color }]}>
+                          <Text style={[styles.laRitualLabel, { color: area.color }]}>TODAY'S PRACTICE</Text>
+                          <Text style={styles.laRitualText}>{data.ritual}</Text>
+                        </View>
+                      ) : null}
+
+                      {/* ── Affirmation ── */}
+                      {data.affirmation ? (
+                        <View style={styles.laAffirmationBox}>
+                          <Text style={styles.laAffirmationText}>"{data.affirmation}"</Text>
+                        </View>
+                      ) : null}
+
+                      {/* ── Navigator Note ── */}
+                      {data.navigatorNote ? (
+                        <Text style={styles.laNavNote}>— {data.navigatorNote}</Text>
+                      ) : null}
+                    </View>
+                  );
+                })}
+              </View>
+            )}
+
+            {/* ── 4. POWER MOVES — action items ── */}
+            {actionItems.length > 0 && (
+              <View style={styles.ddSection}>
+                <Text style={styles.ddSectionLabel}>POWER MOVES</Text>
+                <View style={styles.ddActionCard}>
+                  {actionItems.map((item, i) => (
+                    <View key={i} style={styles.ddActionRow}>
+                      <View style={styles.ddActionNum}>
+                        <Text style={styles.ddActionNumText}>{i + 1}</Text>
+                      </View>
+                      <Text style={styles.ddActionText}>{item}</Text>
+                    </View>
+                  ))}
+                </View>
+              </View>
+            )}
+
+            {/* ── 5. TODAY'S RITUAL ── */}
+            {forecast?.dailyRitual && (
+              <View style={styles.ddSection}>
+                <View style={styles.ddRitualCard}>
+                  <Text style={styles.ddRitualLabel}>TODAY'S RITUAL</Text>
+                  <Text style={styles.ddRitualText}>✧ {forecast.dailyRitual}</Text>
+                </View>
+              </View>
+            )}
+
+            {/* ── 6. DAY AT A GLANCE — cosmic stats ── */}
+            <View style={styles.ddSection}>
+              <Text style={styles.ddSectionLabel}>COSMIC STATS</Text>
+              <View style={styles.ddStatsCard}>
+                <View style={styles.ddStatRow}>
+                  <Text style={styles.ddStatLabel}>Moon</Text>
+                  <Text style={styles.ddStatValue}>{moonIcon} {moonPhase} in {moonSign}</Text>
+                </View>
+                <View style={styles.ddStatDivider} />
+                <View style={styles.ddStatRow}>
+                  <Text style={styles.ddStatLabel}>Energy</Text>
+                  <Text style={styles.ddStatValue}>{forecast?.powerCosmic || 'Balanced'}</Text>
+                </View>
+                {forecast?.luckyStats && (
+                  <>
+                    <View style={styles.ddStatDivider} />
+                    <View style={styles.ddStatRow}>
+                      <Text style={styles.ddStatLabel}>Power Number</Text>
+                      <Text style={[styles.ddStatValue, { fontFamily: FONTS.serif, fontSize: 18 }]}>{forecast.luckyStats.number}</Text>
+                    </View>
+                    <View style={styles.ddStatDivider} />
+                    <View style={styles.ddStatRow}>
+                      <Text style={styles.ddStatLabel}>Power Color</Text>
+                      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                        {forecast.luckyStats.colorHex && (
+                          <View style={{ width: 10, height: 10, borderRadius: 5, backgroundColor: forecast.luckyStats.colorHex }} />
+                        )}
+                        <Text style={styles.ddStatValue}>{forecast.luckyStats.color}</Text>
+                      </View>
+                    </View>
+                    {forecast.luckyStats.crystal && (
+                      <>
+                        <View style={styles.ddStatDivider} />
+                        <View style={styles.ddStatRow}>
+                          <Text style={styles.ddStatLabel}>Crystal</Text>
+                          <Text style={styles.ddStatValue}>✧ {forecast.luckyStats.crystal}</Text>
+                        </View>
+                      </>
+                    )}
+                  </>
+                )}
+              </View>
+            </View>
+
+            {/* ── 7. MANTRA — closing anchor ── */}
+            {forecast?.mantra && (
+              <View style={styles.ddSection}>
+                <View style={styles.ddMantraCard}>
+                  <Text style={styles.ddMantraLabel}>TODAY'S MANTRA</Text>
+                  <Text style={styles.ddMantraText}>"{forecast.mantra}"</Text>
+                </View>
+              </View>
+            )}
+
+            {/* ── 8. SHARE — viral insight ── */}
+            {forecast?.viralInsight && (
+              <View style={[styles.ddSection, { alignItems: 'center' }]}>
+                <TouchableOpacity style={styles.ddShareCard} activeOpacity={0.7}
+                  onPress={() => {
+                    haptic.medium();
+                    const sunSign = userProfile?.chart?.planets?.find(p => p.name === 'Sun')?.sign || '';
+                    Share.share({ message: `✦ ${forecast.viralInsight}\n\n— Celestia (${sunSign} Sun)` });
+                    trackEvent('share').catch(() => {});
+                    awardXP(userProfile?.id || 'default', 'share').catch(() => {});
+                  }}>
+                  <Text style={styles.ddShareText}>✦ {forecast.viralInsight}</Text>
+                  <Text style={styles.ddShareCta}>Share this insight ↗</Text>
+                </TouchableOpacity>
+              </View>
+            )}
+
+          </ScrollView>
+        </View>
       </Modal>
 
       {/* ── DOMAIN DEEP DIVE MODAL ── */}
-      <Modal visible={!!domainModal} animationType="slide" presentationStyle="pageSheet">
-        <View style={{ flex: 1, backgroundColor: T.cream }}>
-          <LinearGradient
-            colors={domainModal === 'Love' ? ['#3A0A2A', '#1A0A2E'] : ['#0A1A3A', '#0E0E22']}
-            style={styles.domModalHero}>
-            <View style={styles.domModalHeader}>
-              <TouchableOpacity onPress={() => setDomainModal(null)}>
-                <Text style={{ fontSize: 18, color: 'rgba(250,248,242,0.6)', padding: 4 }}>✕</Text>
-              </TouchableOpacity>
-            </View>
-            <Text style={styles.domModalIcon}>{domainModal === 'Love' ? '♡' : '◆'}</Text>
-            <Text style={styles.domModalTitle}>
-              {domainModal === 'Love' ? 'Love & Connection' : 'Career & Ambition'}
-            </Text>
-            {domainData?.vibe && <Text style={styles.domModalVibe}>{domainData.vibe}</Text>}
-          </LinearGradient>
+      {/* ── LIFE AREA DEEP DIVE MODAL ── */}
+      <Modal visible={!!lifeAreaModal} animationType="slide" presentationStyle="pageSheet">
+        {lifeAreaModal && (() => {
+          const meta = LIFE_AREA_META[lifeAreaModal];
+          const areaData = forecast?.lifeAreas?.[lifeAreaModal];
+          if (!meta) return null;
+          const intensityVal = Math.min(10, Math.max(1, areaData?.intensity || 3));
+          // Get related top-level data for love/career
+          const relatedHoroscope = lifeAreaModal === 'love' ? forecast?.loveHoroscope
+            : lifeAreaModal === 'career' ? forecast?.careerHoroscope : null;
+          const relatedArchetype = lifeAreaModal === 'love' ? forecast?.loveArchetype
+            : lifeAreaModal === 'career' ? forecast?.careerArchetype : null;
+          const relatedActions = lifeAreaModal === 'love' ? forecast?.loveActions
+            : lifeAreaModal === 'career' ? forecast?.careerActions : null;
+          const relatedVibe = lifeAreaModal === 'love' ? forecast?.loveVibe
+            : lifeAreaModal === 'career' ? forecast?.careerVibe : null;
+          const careerPower = lifeAreaModal === 'career' ? forecast?.careerPowerSource : null;
+          const wealthFlow = lifeAreaModal === 'career' ? forecast?.wealthFlow : null;
+          const marketTiming = lifeAreaModal === 'career' ? forecast?.marketTiming : null;
 
-          {domainLoading ? (
-            <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>
-              <ActivityIndicator size="large" color={T.gold} />
-              <Text style={{ fontSize: 13, color: T.stone, marginTop: 12 }}>Consulting the cosmos...</Text>
-            </View>
-          ) : domainData ? (
-            <ScrollView style={{ flex: 1, padding: 20 }} showsVerticalScrollIndicator={false}>
-              {/* Headline */}
-              <Text style={styles.domHeadline}>{domainData.headline}</Text>
-
-              {/* Analysis paragraphs */}
-              {domainData.analysis?.split('\n\n').filter(Boolean).map((p, i) => (
-                <Text key={i} style={styles.domPara}>{p}</Text>
-              ))}
-
-              {/* Action */}
-              {domainData.action && (
-                <View style={styles.domActionBox}>
-                  <Text style={styles.domActionLabel}>YOUR MOVE</Text>
-                  <Text style={styles.domActionText}>{domainData.action}</Text>
+          return (
+            <View style={{ flex: 1, backgroundColor: T.cream }}>
+              <ScrollView style={{ flex: 1 }} showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 50 }}>
+              {/* ── Hero ── */}
+              <LinearGradient colors={meta.gradient} style={styles.lamHero}>
+                {/* Top bar: date + close */}
+                <View style={styles.lamTopBar}>
+                  <Text style={styles.lamDateLabel}>{formatDateHeader().toUpperCase()}</Text>
+                  <TouchableOpacity onPress={() => setLifeAreaModal(null)} hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}>
+                    <Text style={styles.lamCloseBtn}>✕</Text>
+                  </TouchableOpacity>
                 </View>
-              )}
 
-              {/* Timing */}
-              {domainData.timing && (
-                <View style={styles.domTimingBox}>
-                  <Text style={styles.domTimingLabel}>TIMING</Text>
-                  <Text style={styles.domTimingText}>{domainData.timing}</Text>
+                {/* Icon with glow ring */}
+                <View style={styles.lamIconWrap}>
+                  <View style={[styles.lamIconGlow, { backgroundColor: meta.color + '18', shadowColor: meta.color }]} />
+                  <View style={[styles.lamIconRing, { borderColor: meta.color + '35' }]}>
+                    <Text style={[styles.lamHeroIcon, { color: meta.color }]}>{meta.icon}</Text>
+                  </View>
                 </View>
-              )}
 
-              <View style={{ height: 40 }} />
-            </ScrollView>
-          ) : null}
-        </View>
+                {/* Title + Subtitle */}
+                <Text style={styles.lamHeroTitle}>{meta.title}</Text>
+                <Text style={styles.lamHeroSub}>{meta.sub}</Text>
+
+                {/* Energy badge + Intensity bar in a glass card */}
+                <View style={styles.lamGlassCard}>
+                  <View style={styles.lamGlassRow}>
+                    <View style={[styles.lamEnergyPill, { backgroundColor: meta.color + '25' }]}>
+                      <Text style={[styles.lamEnergyPillText, { color: meta.color }]}>{areaData?.energy || 'Steady'}</Text>
+                    </View>
+                    <View style={styles.lamIntensityWrap}>
+                      <Text style={styles.lamIntensityLabelLeft}>Intensity</Text>
+                      <View style={styles.lamIntensityTrack}>
+                        <View style={[styles.lamIntensityFill, { width: `${intensityVal * 10}%`, backgroundColor: meta.color }]} />
+                      </View>
+                      <Text style={[styles.lamIntensityNum, { color: meta.color }]}>{intensityVal}/10</Text>
+                    </View>
+                  </View>
+                  {/* Archetype + Driving Planet */}
+                  <View style={styles.lamGlassChips}>
+                    {(areaData?.archetype || relatedArchetype) ? (
+                      <View style={[styles.lamHeroChip, { borderColor: meta.color + '30' }]}>
+                        <Text style={[styles.lamHeroChipText, { color: meta.color }]}>{areaData?.archetype || relatedArchetype}</Text>
+                      </View>
+                    ) : null}
+                    {areaData?.drivingPlanet ? (
+                      <View style={[styles.lamHeroChip, { borderColor: 'rgba(255,255,255,0.15)' }]}>
+                        <Text style={styles.lamHeroChipTextLight}>{areaData.drivingPlanet}</Text>
+                      </View>
+                    ) : null}
+                  </View>
+                </View>
+              </LinearGradient>
+
+                <View style={{ padding: 20 }}>
+
+                  {/* ── 1. Planetary Reason ── */}
+                  {areaData?.planetaryReason ? (
+                    <Text style={styles.lamPlanetReason}>{areaData.planetaryReason}</Text>
+                  ) : null}
+
+                  {/* ── 2. Full Horoscope Reading ── */}
+                  {(areaData?.horoscope || relatedHoroscope) ? (
+                    <View style={styles.lamReadingBox}>
+                      <Text style={styles.lamSectionLabel}>YOUR READING</Text>
+                      <Text style={styles.lamReadingText}>{areaData?.horoscope || ''}</Text>
+                      {relatedHoroscope && relatedHoroscope !== areaData?.horoscope ? (
+                        <Text style={[styles.lamReadingText, { marginTop: 10 }]}>{relatedHoroscope}</Text>
+                      ) : null}
+                    </View>
+                  ) : null}
+
+                  {/* ── 3. Vibe (love/career only) ── */}
+                  {relatedVibe ? (
+                    <View style={[styles.lamVibeBox, { borderLeftColor: meta.color }]}>
+                      <Text style={[styles.lamVibeLabel, { color: meta.color }]}>TODAY'S VIBE</Text>
+                      <Text style={styles.lamVibeText}>{relatedVibe}</Text>
+                    </View>
+                  ) : null}
+
+                  {/* ── 4. Navigate Toward ── */}
+                  {areaData?.doItems && areaData.doItems.length > 0 ? (
+                    <View style={styles.lamDoSection}>
+                      <Text style={[styles.lamSectionLabel, { color: meta.color }]}>NAVIGATE TOWARD</Text>
+                      {areaData.doItems.map((item, i) => (
+                        <View key={i} style={styles.lamDoRow}>
+                          <View style={[styles.lamDoDot, { backgroundColor: meta.color }]} />
+                          <Text style={styles.lamDoText}>{item}</Text>
+                        </View>
+                      ))}
+                    </View>
+                  ) : null}
+
+                  {/* ── 5. Related Actions (love/career extra) ── */}
+                  {relatedActions && relatedActions.length > 0 ? (
+                    <View style={styles.lamDoSection}>
+                      <Text style={[styles.lamSectionLabel, { color: meta.color }]}>POWER ACTIONS</Text>
+                      {relatedActions.map((item, i) => (
+                        <View key={i} style={styles.lamDoRow}>
+                          <Text style={[styles.lamDoArrow, { color: meta.color }]}>→</Text>
+                          <Text style={styles.lamDoText}>{item}</Text>
+                        </View>
+                      ))}
+                    </View>
+                  ) : null}
+
+                  {/* ── 6. Navigate Around ── */}
+                  {areaData?.avoidItems && areaData.avoidItems.length > 0 && !areaData.avoidItems[0]?.includes?.('Steady skies') ? (
+                    <View style={styles.lamAvoidSection}>
+                      <Text style={styles.lamAvoidLabel}>NAVIGATE AROUND</Text>
+                      {areaData.avoidItems.map((item, i) => (
+                        <View key={i} style={styles.lamDoRow}>
+                          <Text style={styles.lamAvoidIcon}>⊘</Text>
+                          <Text style={[styles.lamDoText, { color: T.stone }]}>{item}</Text>
+                        </View>
+                      ))}
+                    </View>
+                  ) : null}
+
+                  {/* ── 7. Career extras: Power Source, Wealth Flow, Market Timing ── */}
+                  {(careerPower || wealthFlow || marketTiming) ? (
+                    <View style={styles.lamCareerExtras}>
+                      {careerPower ? (
+                        <View style={styles.lamCareerRow}>
+                          <Text style={styles.lamCareerRowLabel}>POWER SOURCE</Text>
+                          <Text style={styles.lamCareerRowText}>{careerPower}</Text>
+                        </View>
+                      ) : null}
+                      {wealthFlow ? (
+                        <View style={styles.lamCareerRow}>
+                          <Text style={styles.lamCareerRowLabel}>WEALTH FLOW</Text>
+                          <Text style={styles.lamCareerRowText}>{wealthFlow}</Text>
+                        </View>
+                      ) : null}
+                      {marketTiming ? (
+                        <View style={styles.lamCareerRow}>
+                          <Text style={styles.lamCareerRowLabel}>TIMING</Text>
+                          <Text style={styles.lamCareerRowText}>{marketTiming}</Text>
+                        </View>
+                      ) : null}
+                    </View>
+                  ) : null}
+
+                  {/* ── 8. Timing ── */}
+                  {areaData?.timing ? (
+                    <View style={styles.lamTimingRow}>
+                      <Text style={styles.lamTimingIcon}>◷</Text>
+                      <View style={{ flex: 1 }}>
+                        <Text style={styles.lamTimingLabel}>BEST WINDOW</Text>
+                        <Text style={styles.lamTimingText}>{areaData.timing}</Text>
+                      </View>
+                    </View>
+                  ) : null}
+
+                  {/* ── 9. Today's Practice / Ritual ── */}
+                  {areaData?.ritual ? (
+                    <View style={[styles.lamRitualBox, { borderLeftColor: meta.color }]}>
+                      <Text style={[styles.lamRitualLabel, { color: meta.color }]}>TODAY'S PRACTICE</Text>
+                      <Text style={styles.lamRitualText}>{areaData.ritual}</Text>
+                    </View>
+                  ) : null}
+
+                  {/* ── 10. Affirmation ── */}
+                  {areaData?.affirmation ? (
+                    <View style={styles.lamAffirmationBox}>
+                      <Text style={styles.lamAffirmationText}>"{areaData.affirmation}"</Text>
+                    </View>
+                  ) : null}
+
+                  {/* ── 11. Navigator Note ── */}
+                  {areaData?.navigatorNote ? (
+                    <View style={styles.lamNoteBox}>
+                      <Text style={styles.lamNoteText}>— {areaData.navigatorNote}</Text>
+                    </View>
+                  ) : null}
+
+                  {/* ── 12. Ask AI for more ── */}
+                  <TouchableOpacity
+                    style={[styles.lamAskAI, { backgroundColor: meta.color }]}
+                    activeOpacity={0.8}
+                    onPress={() => {
+                      setLifeAreaModal(null);
+                      setTimeout(() => {
+                        navigation.navigate('AskAI', {
+                          initialMessage: `Tell me more about my ${meta.title.toLowerCase()} energy today. What should I know based on my chart and current transits?`
+                        });
+                      }, 300);
+                    }}>
+                    <Text style={styles.lamAskAIText}>Go Deeper with AI</Text>
+                  </TouchableOpacity>
+
+                </View>
+              </ScrollView>
+            </View>
+          );
+        })()}
       </Modal>
 
       {/* ── OFFSCREEN SHARE CARDS (for capture) ── */}
@@ -1473,14 +1749,14 @@ export default function HomeScreen({ navigation, route }) {
           sunSign={userProfile?.chart?.planets?.find(p => p.name === 'Sun')?.sign || ''}
           viralInsight={forecast?.viralInsight}
           mantra={forecast?.mantra}
-          date={formatDateHeader(getDateForTab(activeTab))}
+          date={formatDateHeader()}
         />
         <DailyStoryCard
           innerRef={storyCardRef}
           sunSign={userProfile?.chart?.planets?.find(p => p.name === 'Sun')?.sign || ''}
           viralInsight={forecast?.viralInsight}
           mantra={forecast?.mantra}
-          date={formatDateHeader(getDateForTab(activeTab))}
+          date={formatDateHeader()}
         />
         <MercuryRxCard
           innerRef={rxCardRef}
@@ -1490,7 +1766,7 @@ export default function HomeScreen({ navigation, route }) {
           innerRef={lunarCardRef}
           eventType={moonData?.phaseName || 'Full Moon'}
           moonSign={moonData?.sign}
-          date={formatDateHeader(getDateForTab(activeTab))}
+          date={formatDateHeader()}
         />
         {cosmicWhisper && (
           <WhisperShareCard
@@ -1604,7 +1880,7 @@ export default function HomeScreen({ navigation, route }) {
           await saveBoolean(StorageKeys.NOTIFICATION_ASKED, true);
           const granted = await requestNotificationPermission();
           if (granted) {
-            scheduleAllNotifications(userProfile, forecast, streakData, moonData, energyData, cosmicWindows).catch(() => {});
+            scheduleAllNotifications(userProfile, forecast, streakData, moonData, null, cosmicWindows).catch(() => {});
           }
         }}
         onDismiss={async () => {
@@ -1790,7 +2066,7 @@ const styles = StyleSheet.create({
   periodTabText: { fontSize: 12, fontFamily: FONTS.sansMedium, color: T.stone },
   periodTabTextOn: { color: T.cream },
 
-  content: { paddingHorizontal: 20, paddingTop: 0 },
+  content: { paddingHorizontal: 20, paddingTop: 14 },
 
   // Forecast card
   dailyCard: { borderRadius: 22, overflow: 'hidden', marginBottom: 16, shadowColor: '#000', shadowOffset: { width: 0, height: 6 }, shadowOpacity: 0.1, shadowRadius: 28 },
@@ -1806,47 +2082,28 @@ const styles = StyleSheet.create({
   paraBlock: { marginBottom: 12 },
   paraLabel: { fontSize: 9, fontFamily: FONTS.sansSemiBold, letterSpacing: 1.5, color: T.gold, marginBottom: 4 },
   dailyTxt: { fontSize: 13.5, color: T.ink, lineHeight: 22.5, marginBottom: 6 },
-  influenceRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginBottom: 12 },
-  influencePill: { flexDirection: 'row', alignItems: 'center', gap: 5, backgroundColor: 'rgba(14,14,34,0.06)', borderRadius: 100, paddingVertical: 5, paddingHorizontal: 10, borderWidth: 1, borderColor: 'rgba(14,14,34,0.08)' },
-  influenceGlyph: { fontSize: 13, color: T.gold },
-  influenceTag: { fontSize: 10.5, fontFamily: FONTS.sansMedium, color: T.navy },
-  ritualBox: { backgroundColor: 'rgba(160,128,224,0.08)', borderRadius: 14, padding: 14, marginBottom: 12, borderLeftWidth: 3, borderLeftColor: '#A080E0' },
-  ritualLabel: { fontSize: 9, fontFamily: FONTS.sansSemiBold, letterSpacing: 1.5, color: '#A080E0', marginBottom: 6 },
-  ritualText: { fontSize: 13, color: T.ink, lineHeight: 20 },
   actionBox: { backgroundColor: T.warm, borderRadius: 14, padding: 14, marginBottom: 12 },
   actionLabel: { fontSize: 9, fontFamily: FONTS.sansSemiBold, letterSpacing: 1.5, color: T.stone, marginBottom: 8 },
   actionRow: { flexDirection: 'row', alignItems: 'flex-start', gap: 8, marginBottom: 4 },
   actionArrow: { fontSize: 12, color: T.gold, marginTop: 2 },
   actionItem: { fontSize: 13, color: T.ink, lineHeight: 20, flex: 1 },
-  viralBox: { backgroundColor: T.navy, borderRadius: 12, padding: 14, marginBottom: 12, alignItems: 'center' },
-  viralText: { fontSize: 13, color: T.cream, fontFamily: FONTS.sansMedium, textAlign: 'center', lineHeight: 20 },
-  dailyActs: { flexDirection: 'row', gap: 9, marginTop: 4 },
-  btnOutline: { flex: 1, height: 40, borderWidth: 1.5, borderColor: T.border, borderRadius: 12, alignItems: 'center', justifyContent: 'center' },
-  btnOutlineText: { fontSize: 12, fontFamily: FONTS.sansMedium, color: '#6B6050' },
-  btnStory: { height: 40, borderWidth: 1.5, borderColor: 'rgba(200,168,75,0.3)', borderRadius: 12, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 14 },
-  btnStoryText: { fontSize: 12, fontFamily: FONTS.sansMedium, color: T.gold },
-  btnFill: { flex: 1, height: 40, backgroundColor: T.navy, borderRadius: 12, alignItems: 'center', justifyContent: 'center' },
-  btnFillText: { fontSize: 12, fontFamily: FONTS.sansMedium, color: T.cream },
 
-  // Energy grid
-  // (egrid replaced by cwStrip)
-  // Cosmic Weather Strip
-  cwHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 },
-  cwBadge: { flexDirection: 'row', alignItems: 'center', gap: 5, backgroundColor: 'rgba(200,168,75,0.08)', borderRadius: 100, paddingVertical: 4, paddingHorizontal: 10, borderWidth: 1, borderColor: 'rgba(200,168,75,0.15)' },
-  cwBadgeDot: { width: 6, height: 6, borderRadius: 3 },
-  cwBadgeText: { fontSize: 11, fontFamily: FONTS.sansSemiBold, color: T.gold, letterSpacing: 0.5 },
-  cwStrip: { marginBottom: 15, flexGrow: 0 },
-  cwCard: { alignItems: 'center', marginRight: 14, width: 56, position: 'relative' },
-  cwRing: { width: 48, height: 48, borderRadius: 24, borderWidth: 2.5, alignItems: 'center', justifyContent: 'center', backgroundColor: 'white', marginBottom: 5 },
-  cwPct: { fontSize: 15, fontFamily: FONTS.sansSemiBold },
-  cwTag: { fontSize: 8, fontFamily: FONTS.sansSemiBold, letterSpacing: 1, color: T.stone },
-  cwMarker: { position: 'absolute', top: -2, right: 2, fontSize: 10, color: '#10B981' },
+  // Day at a Glance
+  dagCard: { backgroundColor: 'white', borderRadius: 16, padding: 16, marginBottom: 14, borderWidth: 1, borderColor: T.border },
+  dagSectionLabel: { fontSize: 9, fontFamily: FONTS.sansSemiBold, letterSpacing: 2, color: T.stone, marginBottom: 12 },
+  dagGrid: { flexDirection: 'row', alignItems: 'center' },
+  dagCell: { flex: 1, alignItems: 'center', paddingVertical: 4 },
+  dagDivider: { width: 1, height: 32, backgroundColor: '#EDE6D8' },
+  dagLabel: { fontSize: 8, fontFamily: FONTS.sansSemiBold, letterSpacing: 1.2, color: T.stone, marginBottom: 4 },
+  dagValue: { fontSize: 14, fontFamily: FONTS.sansMedium, color: T.navy, textAlign: 'center' },
+  dagSub: { fontSize: 11, color: T.stone, marginTop: 2 },
 
-  // Cosmic Download banner
-  downloadBanner: { flexDirection: 'row', alignItems: 'center', gap: 10, backgroundColor: 'rgba(200,168,75,0.08)', borderWidth: 1, borderColor: 'rgba(200,168,75,0.2)', borderRadius: 14, padding: 12, marginBottom: 12 },
-  downloadIcon: { fontSize: 20, color: T.gold },
-  downloadTitle: { fontSize: 9, fontFamily: FONTS.sansSemiBold, letterSpacing: 1.5, color: T.gold, marginBottom: 2 },
-  downloadSub: { fontSize: 11.5, color: '#8B6A28', lineHeight: 16 },
+  // Evening Reflection
+  eveningCard: { backgroundColor: '#F8F4EE', borderWidth: 1, borderColor: '#EDE6D8', borderRadius: 16, padding: 16, marginBottom: 15 },
+  eveningLabel: { fontSize: 9, fontFamily: FONTS.sansSemiBold, letterSpacing: 2, color: T.gold, marginBottom: 8 },
+  eveningPrompt: { fontFamily: FONTS.serifItalic || FONTS.serif, fontSize: 15, color: T.navy, fontStyle: 'italic', lineHeight: 22, marginBottom: 12 },
+  eveningBtn: { backgroundColor: T.warm, borderRadius: 10, paddingVertical: 10, alignItems: 'center' },
+  eveningBtnText: { fontSize: 12, fontFamily: FONTS.sansMedium, color: T.ink },
 
   // What's New Today banner
   changeBanner: { flexDirection: 'row', alignItems: 'center', gap: 10, backgroundColor: '#EEF0FF', borderWidth: 1, borderColor: '#D8DCFF', borderRadius: 14, padding: 13, marginBottom: 12 },
@@ -1886,24 +2143,37 @@ const styles = StyleSheet.create({
   lunarShareBtn: { alignSelf: 'center', marginTop: -4, marginBottom: 12, paddingVertical: 6, paddingHorizontal: 16 },
   lunarShareText: { fontSize: 12, fontFamily: FONTS.sansSemiBold, color: T.gold },
 
-  // Tomorrow preview (forward hook)
-  tomorrowCard: { backgroundColor: '#F8F6F0', borderWidth: 1, borderColor: '#EDE6D8', borderRadius: 16, padding: 14, marginBottom: 15 },
-  tomorrowHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 6 },
-  tomorrowLabel: { fontSize: 9, fontFamily: FONTS.sansSemiBold, letterSpacing: 2, color: T.stone },
-  tomorrowArrow: { fontSize: 13, color: T.stone },
-  tomorrowText: { fontSize: 13, fontFamily: FONTS.sansMedium, color: T.navy, marginBottom: 4 },
-  tomorrowHook: { fontSize: 12, color: T.stone, lineHeight: 17, fontStyle: 'italic' },
-
-  // Domain cards
-  domainRow: { flexDirection: 'row', gap: 10, marginBottom: 15 },
-  domainCard: { flex: 1, backgroundColor: 'white', borderRadius: 16, padding: 14, borderLeftWidth: 3, borderWidth: 1, borderColor: T.border, shadowColor: '#000', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.04, shadowRadius: 8 },
-  domainIcon: { fontSize: 20, marginBottom: 6 },
-  domainName: { fontSize: 12, fontFamily: FONTS.sansSemiBold, color: T.navy, marginBottom: 4 },
-  domainVibe: { fontSize: 11, color: T.stone, marginBottom: 8, lineHeight: 16 },
-  domainCta: { fontSize: 11, color: T.gold, fontFamily: FONTS.sansMedium },
 
   // Section label
   sectionLabel: { fontSize: 10, fontFamily: FONTS.sansSemiBold, letterSpacing: 2, color: T.stone, marginBottom: 9 },
+
+  // ── Today's Sky card ──
+  skyCard: { marginBottom: 16, borderRadius: 20, overflow: 'hidden', shadowColor: '#0A0818', shadowOffset: { width: 0, height: 6 }, shadowOpacity: 0.25, shadowRadius: 14, elevation: 8 },
+  skyGrad: { padding: 20, position: 'relative', overflow: 'hidden' },
+  skyGlow: { position: 'absolute', width: 180, height: 180, borderRadius: 90, backgroundColor: 'rgba(100,80,200,0.08)', right: -40, top: -50 },
+  skyTopRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 },
+  skyLabel: { fontSize: 9, fontFamily: FONTS.sansSemiBold, letterSpacing: 2, color: 'rgba(200,168,75,0.45)' },
+  skyArrowCircle: { width: 30, height: 30, borderRadius: 15, backgroundColor: 'rgba(200,168,75,0.1)', borderWidth: 1, borderColor: 'rgba(200,168,75,0.15)', alignItems: 'center', justifyContent: 'center' },
+  skyArrowText: { fontSize: 13, color: T.gold },
+  skyMoonRow: { flexDirection: 'row', alignItems: 'center', gap: 14, marginBottom: 16 },
+  skyMoonEmoji: { fontSize: 36 },
+  skyMoonPhase: { fontFamily: FONTS.serif, fontSize: 22, color: T.cream, lineHeight: 28 },
+  skyMoonSign: { fontFamily: FONTS.sans, fontSize: 12, color: 'rgba(250,248,242,0.4)', marginTop: 2 },
+  skyDivider: { height: 1, backgroundColor: 'rgba(255,255,255,0.06)', marginBottom: 14 },
+  skySnapGrid: { flexDirection: 'row', gap: 12, marginBottom: 14 },
+  skySnapItem: { flex: 1, flexDirection: 'row', alignItems: 'center', gap: 8, backgroundColor: 'rgba(255,255,255,0.04)', borderRadius: 12, paddingVertical: 10, paddingHorizontal: 12, borderWidth: 1, borderColor: 'rgba(255,255,255,0.06)' },
+  skySnapIcon: { fontSize: 16, color: T.gold },
+  skySnapLabel: { fontSize: 9, fontFamily: FONTS.sans, color: 'rgba(250,248,242,0.35)', letterSpacing: 0.5 },
+  skySnapValue: { fontSize: 12, fontFamily: FONTS.sansSemiBold, color: 'rgba(250,248,242,0.75)', marginTop: 1 },
+  skySeasonWrap: { backgroundColor: 'rgba(255,255,255,0.04)', borderRadius: 10, padding: 12, marginBottom: 14, borderWidth: 1, borderColor: 'rgba(255,255,255,0.05)' },
+  skySeasonInfo: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 },
+  skySeasonText: { fontSize: 11, color: 'rgba(250,248,242,0.5)', fontFamily: FONTS.sans },
+  skySeasonPct: { fontSize: 10, fontFamily: FONTS.sansSemiBold, color: T.gold },
+  skySeasonTrack: { height: 3, backgroundColor: 'rgba(255,255,255,0.08)', borderRadius: 2, overflow: 'hidden' },
+  skySeasonFill: { height: 3, backgroundColor: T.gold, borderRadius: 2 },
+  skyCtaRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6 },
+  skyCta: { fontSize: 13, fontFamily: FONTS.sansSemiBold, color: T.gold },
+  skyCtaArrow: { fontSize: 13, color: T.gold },
 
   // Planet strip
   pstrip: { marginBottom: 15 },
@@ -1912,14 +2182,6 @@ const styles = StyleSheet.create({
   pchipName: { fontSize: 9.5, fontFamily: FONTS.sansSemiBold, letterSpacing: 0.7, color: T.stone },
   pchipPos: { fontFamily: FONTS.serif, fontSize: 13.5, color: T.navy },
 
-  // Lucky stats
-  luckyRow: { flexDirection: 'row', alignItems: 'center', marginBottom: 15, backgroundColor: 'white', borderRadius: 16, padding: 14, borderWidth: 1, borderColor: T.border },
-  luckyStat: { flex: 1, alignItems: 'center' },
-  luckyDivider: { width: 1, height: 28, backgroundColor: '#EDE6D8' },
-  luckyLabel: { fontSize: 8, fontFamily: FONTS.sansSemiBold, letterSpacing: 1.2, color: T.stone, marginBottom: 4 },
-  luckyNum: { fontFamily: FONTS.serif, fontSize: 22, color: T.navy },
-  luckyVal: { fontFamily: FONTS.serif, fontSize: 13, color: T.navy, textAlign: 'center' },
-
   // Journal
   journalCard: { backgroundColor: 'white', borderRadius: 18, padding: 16, paddingHorizontal: 18, marginBottom: 15, borderWidth: 1, borderColor: T.border },
   jcardHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 },
@@ -1927,8 +2189,9 @@ const styles = StyleSheet.create({
   jcardBadge: { backgroundColor: '#F0E8D6', borderRadius: 100, paddingVertical: 3, paddingHorizontal: 10 },
   jcardBadgeText: { fontSize: 10, color: '#6B6050' },
   jcardPrompt: { fontFamily: FONTS.serifItalic || FONTS.serif, fontSize: 15, color: T.navy, lineHeight: 22, marginBottom: 12, fontStyle: 'italic' },
-  jcardBtn: { height: 36, backgroundColor: T.warm, borderRadius: 10, alignItems: 'center', justifyContent: 'center' },
-  jcardBtnText: { fontSize: 12, fontFamily: FONTS.sansMedium, color: T.ink },
+  jcardFooter: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', backgroundColor: T.warm, borderRadius: 10, paddingVertical: 10, paddingHorizontal: 14 },
+  jcardCta: { fontSize: 13, fontFamily: FONTS.sansSemiBold, color: T.ink },
+  jcardArrow: { fontSize: 14, color: T.gold },
 
   // Quick actions
   quickRow: { flexDirection: 'row', gap: 9, marginBottom: 15 },
@@ -1945,41 +2208,66 @@ const styles = StyleSheet.create({
   promoCtaText: { fontSize: 12, fontFamily: FONTS.sansMedium, color: 'white' },
 
   // Domain Modal
-  domModalHero: { paddingTop: 56, paddingHorizontal: 22, paddingBottom: 28, alignItems: 'center' },
-  domModalHeader: { width: '100%', alignItems: 'flex-end', marginBottom: 10 },
-  domModalIcon: { fontSize: 40, color: 'rgba(250,248,242,0.3)', marginBottom: 8 },
-  domModalTitle: { fontFamily: FONTS.serif, fontSize: 24, color: T.cream, marginBottom: 4 },
-  domModalVibe: { fontSize: 13, color: 'rgba(250,248,242,0.5)', fontStyle: 'italic' },
-  domHeadline: { fontFamily: FONTS.serif, fontSize: 22, color: T.navy, marginBottom: 16, lineHeight: 28 },
-  domPara: { fontSize: 14, color: T.ink, lineHeight: 23, marginBottom: 14 },
-  domActionBox: { backgroundColor: T.warm, borderRadius: 14, padding: 16, marginBottom: 12 },
-  domActionLabel: { fontSize: 9, fontFamily: FONTS.sansSemiBold, letterSpacing: 1.5, color: T.gold, marginBottom: 6 },
-  domActionText: { fontSize: 14, color: T.ink, lineHeight: 22 },
-  domTimingBox: { backgroundColor: T.navy, borderRadius: 14, padding: 16, marginBottom: 12, alignItems: 'center' },
-  domTimingLabel: { fontSize: 9, fontFamily: FONTS.sansSemiBold, letterSpacing: 1.5, color: 'rgba(200,168,75,0.6)', marginBottom: 6 },
-  domTimingText: { fontSize: 14, color: T.cream, lineHeight: 22, textAlign: 'center' },
+  // ── Life Area Modal (lam*) ──
+  lamHero: { paddingTop: Platform.OS === 'ios' ? 56 : 40, paddingHorizontal: 22, paddingBottom: 24, alignItems: 'center', borderBottomLeftRadius: 28, borderBottomRightRadius: 28 },
+  lamTopBar: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', width: '100%', marginBottom: 16 },
+  lamDateLabel: { fontSize: 10, fontFamily: FONTS.sansMedium, letterSpacing: 2, color: 'rgba(250,248,242,0.3)' },
+  lamCloseBtn: { fontSize: 18, color: 'rgba(250,248,242,0.5)', padding: 4 },
+  lamIconWrap: { alignItems: 'center', justifyContent: 'center', marginBottom: 14, width: 80, height: 80 },
+  lamIconGlow: { position: 'absolute', width: 80, height: 80, borderRadius: 40, shadowOffset: { width: 0, height: 0 }, shadowOpacity: 0.6, shadowRadius: 24, elevation: 8 },
+  lamIconRing: { width: 64, height: 64, borderRadius: 32, borderWidth: 1.5, alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(255,255,255,0.04)' },
+  lamHeroIcon: { fontSize: 30 },
+  lamHeroTitle: { fontFamily: FONTS.serif, fontSize: 26, color: T.cream, marginBottom: 4, textAlign: 'center', letterSpacing: 0.3 },
+  lamHeroSub: { fontSize: 11, color: 'rgba(250,248,242,0.4)', marginBottom: 18, letterSpacing: 1, fontFamily: FONTS.sans },
+  lamGlassCard: { backgroundColor: 'rgba(255,255,255,0.06)', borderRadius: 16, paddingVertical: 12, paddingHorizontal: 16, width: '100%', borderWidth: 1, borderColor: 'rgba(255,255,255,0.08)' },
+  lamGlassRow: { flexDirection: 'row', alignItems: 'center', gap: 12, marginBottom: 10 },
+  lamEnergyPill: { borderRadius: 10, paddingVertical: 5, paddingHorizontal: 14 },
+  lamEnergyPillText: { fontSize: 12, fontFamily: FONTS.sansBold },
+  lamIntensityWrap: { flexDirection: 'row', alignItems: 'center', gap: 6, flex: 1 },
+  lamIntensityLabelLeft: { fontSize: 10, color: 'rgba(250,248,242,0.35)', fontFamily: FONTS.sans, width: 48 },
+  lamIntensityTrack: { flex: 1, height: 4, backgroundColor: 'rgba(255,255,255,0.1)', borderRadius: 2, overflow: 'hidden' },
+  lamIntensityFill: { height: 4, borderRadius: 2 },
+  lamIntensityNum: { fontSize: 11, fontFamily: FONTS.sansBold, width: 28, textAlign: 'right' },
+  lamGlassChips: { flexDirection: 'row', gap: 8, flexWrap: 'wrap' },
+  lamHeroChip: { borderRadius: 10, paddingVertical: 4, paddingHorizontal: 12, borderWidth: 1, backgroundColor: 'transparent' },
+  lamHeroChipText: { fontSize: 11, fontFamily: FONTS.sansSemiBold },
+  lamHeroChipTextLight: { fontSize: 11, color: 'rgba(250,248,242,0.6)', fontFamily: FONTS.sans },
+  lamPlanetReason: { fontFamily: FONTS.sans, fontSize: 13, color: T.stone, lineHeight: 19, marginBottom: 16, fontStyle: 'italic' },
+  lamReadingBox: { backgroundColor: '#FFFFFF', borderRadius: 14, padding: 16, marginBottom: 16, borderWidth: 1, borderColor: 'rgba(0,0,0,0.05)' },
+  lamSectionLabel: { fontFamily: FONTS.sansSemiBold, fontSize: 10, letterSpacing: 1.2, color: T.stone, marginBottom: 10 },
+  lamReadingText: { fontFamily: FONTS.sans, fontSize: 14, color: T.ink, lineHeight: 23 },
+  lamVibeBox: { borderLeftWidth: 3, paddingLeft: 14, marginBottom: 16, paddingVertical: 4 },
+  lamVibeLabel: { fontFamily: FONTS.sansSemiBold, fontSize: 9, letterSpacing: 1.2, marginBottom: 4 },
+  lamVibeText: { fontFamily: FONTS.sans, fontSize: 14, color: T.ink, lineHeight: 22 },
+  lamDoSection: { marginBottom: 16 },
+  lamDoRow: { flexDirection: 'row', gap: 8, marginBottom: 6, alignItems: 'flex-start' },
+  lamDoDot: { width: 6, height: 6, borderRadius: 3, marginTop: 6 },
+  lamDoArrow: { fontSize: 14, marginTop: 1 },
+  lamDoText: { fontFamily: FONTS.sans, fontSize: 14, color: T.navy, lineHeight: 20, flex: 1 },
+  lamAvoidSection: { marginBottom: 16 },
+  lamAvoidLabel: { fontFamily: FONTS.sansSemiBold, fontSize: 10, letterSpacing: 1.2, color: '#D97706', marginBottom: 10 },
+  lamAvoidIcon: { fontSize: 13, color: '#D97706', marginTop: 2 },
+  lamCareerExtras: { backgroundColor: '#FFFFFF', borderRadius: 14, padding: 16, marginBottom: 16, borderWidth: 1, borderColor: 'rgba(0,0,0,0.05)' },
+  lamCareerRow: { marginBottom: 12 },
+  lamCareerRowLabel: { fontFamily: FONTS.sansSemiBold, fontSize: 9, letterSpacing: 1.2, color: T.gold, marginBottom: 4 },
+  lamCareerRowText: { fontFamily: FONTS.sans, fontSize: 13, color: T.ink, lineHeight: 20 },
+  lamTimingRow: { flexDirection: 'row', gap: 10, alignItems: 'flex-start', backgroundColor: '#F8F6F0', borderRadius: 12, padding: 14, marginBottom: 16 },
+  lamTimingIcon: { fontSize: 16, color: T.stone, marginTop: 2 },
+  lamTimingLabel: { fontFamily: FONTS.sansSemiBold, fontSize: 9, letterSpacing: 1.2, color: T.stone, marginBottom: 3 },
+  lamTimingText: { fontFamily: FONTS.sans, fontSize: 13, color: T.ink, lineHeight: 19 },
+  lamRitualBox: { borderLeftWidth: 3, paddingLeft: 14, marginBottom: 16, paddingVertical: 6 },
+  lamRitualLabel: { fontFamily: FONTS.sansSemiBold, fontSize: 9, letterSpacing: 1.2, marginBottom: 5 },
+  lamRitualText: { fontFamily: FONTS.sans, fontSize: 14, color: T.ink, lineHeight: 22 },
+  lamAffirmationBox: { backgroundColor: '#FBF9F3', borderRadius: 14, padding: 18, marginBottom: 16, alignItems: 'center', borderWidth: 1, borderColor: 'rgba(200,168,75,0.15)' },
+  lamAffirmationText: { fontFamily: FONTS.serifItalic || FONTS.serif, fontSize: 15, color: T.gold, textAlign: 'center', lineHeight: 24 },
+  lamNoteBox: { marginBottom: 20 },
+  lamNoteText: { fontFamily: FONTS.sans, fontSize: 13, color: T.stone, fontStyle: 'italic', lineHeight: 20 },
+  lamAskAI: { borderRadius: 14, paddingVertical: 16, alignItems: 'center', marginBottom: 8 },
+  lamAskAIText: { fontFamily: FONTS.sansSemiBold, fontSize: 15, color: '#FFFFFF' },
 
-  // Energy detail modal
-  energyOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.4)', justifyContent: 'flex-end' },
-  energySheet: { backgroundColor: T.cream, borderTopLeftRadius: 24, borderTopRightRadius: 24, padding: 22, paddingBottom: 36 },
-  energySheetHeader: { flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 16 },
-  energySheetIcon: { fontSize: 24 },
-  energySheetTitle: { fontFamily: FONTS.serif, fontSize: 20, color: T.navy, flex: 1 },
-  energySheetBarWrap: { marginBottom: 14 },
-  energySheetBarBg: { width: '100%', height: 6, borderRadius: 3, backgroundColor: 'rgba(0,0,0,0.06)', overflow: 'hidden', marginBottom: 6 },
-  energySheetBarFill: { height: '100%', borderRadius: 3 },
-  energySheetLevel: { fontSize: 13, fontFamily: FONTS.sansSemiBold },
-  energySheetPeriod: { fontSize: 11, color: T.stone, marginBottom: 10 },
-  energySheetDesc: { fontSize: 14, color: T.ink, lineHeight: 22, marginBottom: 16 },
-  energySheetBtn: { borderRadius: 12, borderWidth: 1, paddingVertical: 12, alignItems: 'center' },
-  energySheetBtnText: { fontSize: 13, fontFamily: FONTS.sansSemiBold },
+  // Influence overlay (shared with planet influence modal)
 
   // Planet influence modal
-  influenceSheet: { backgroundColor: 'white', borderRadius: 20, marginHorizontal: 30, padding: 24, maxWidth: 380, width: '100%', alignSelf: 'center' },
-  influenceSheetHeader: { flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 14 },
-  influenceSheetGlyph: { fontSize: 28, color: T.gold },
-  influenceSheetTag: { fontFamily: FONTS.serifMedium, fontSize: 18, color: T.navy, flex: 1 },
-  influenceSheetEffect: { fontSize: 14, color: T.ink, lineHeight: 22 },
 
   // Skeleton loading
   skeletonLine: { height: 14, backgroundColor: 'rgba(250,248,242,0.08)', borderRadius: 7, width: '80%' },
@@ -2072,4 +2360,139 @@ const styles = StyleSheet.create({
   // XP float
   xpFloat: { position: 'absolute', top: Platform.OS === 'ios' ? 90 : 60, alignSelf: 'center', backgroundColor: 'rgba(200,168,75,0.18)', borderRadius: 100, paddingVertical: 6, paddingHorizontal: 16, zIndex: 999 },
   xpFloatText: { fontFamily: FONTS.sansSemiBold, fontSize: 13, color: T.gold },
+  previouslyCard: { backgroundColor: T.warm, borderRadius: 14, padding: 14, marginHorizontal: 20, marginBottom: 12 },
+  previouslyLabel: { fontSize: 9, letterSpacing: 2, color: T.stone, fontFamily: FONTS.sansSemiBold, marginBottom: 6 },
+  previouslyText: { fontSize: 14, color: T.ink, fontFamily: FONTS.serifItalic || FONTS.serif, lineHeight: 20 },
+
+  // Navigator Briefing
+  // Briefing deep dive button
+  briefingMoreBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', marginTop: 14, paddingVertical: 10, backgroundColor: 'rgba(200,168,75,0.08)', borderRadius: 12, borderWidth: 1, borderColor: 'rgba(200,168,75,0.18)' },
+  briefingMoreText: { fontSize: 13, fontFamily: FONTS.sansSemiBold, color: T.gold },
+  briefingMoreArrow: { fontSize: 14, color: T.gold, marginLeft: 6 },
+  // Deep Dive Modal
+  ddHero: { paddingTop: Platform.OS === 'ios' ? 56 : 40, paddingBottom: 24, paddingHorizontal: 22, alignItems: 'center', borderBottomLeftRadius: 28, borderBottomRightRadius: 28 },
+  ddHeaderRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', width: '100%', marginBottom: 14 },
+  ddDate: { fontSize: 10, fontFamily: FONTS.sansMedium, letterSpacing: 2, color: 'rgba(250,248,242,0.3)' },
+  ddClose: { fontSize: 18, color: 'rgba(250,248,242,0.5)', padding: 4 },
+  ddCompassWrap: { alignItems: 'center', justifyContent: 'center', width: 56, height: 56, marginBottom: 12 },
+  ddCompassGlow: { position: 'absolute', width: 56, height: 56, borderRadius: 28, backgroundColor: 'rgba(200,168,75,0.12)', shadowColor: '#C8A84B', shadowOffset: { width: 0, height: 0 }, shadowOpacity: 0.4, shadowRadius: 20, elevation: 6 },
+  ddCompassRing: { width: 44, height: 44, borderRadius: 22, borderWidth: 1.5, borderColor: 'rgba(200,168,75,0.25)', alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(255,255,255,0.04)' },
+  ddCompassIcon: { fontSize: 20, color: T.gold },
+  ddLabel: { fontSize: 9, fontFamily: FONTS.sansSemiBold, letterSpacing: 2, color: 'rgba(200,168,75,0.45)', marginBottom: 10 },
+  ddHeadline: { fontFamily: FONTS.serif, fontSize: 26, color: T.cream, lineHeight: 33, marginBottom: 8, textAlign: 'center' },
+  ddSummary: { fontFamily: FONTS.sans, fontSize: 14, color: 'rgba(250,248,242,0.55)', lineHeight: 21, marginBottom: 14, textAlign: 'center' },
+  ddChipsGlass: { flexDirection: 'row', gap: 6, flexWrap: 'wrap', backgroundColor: 'rgba(255,255,255,0.05)', borderRadius: 12, paddingVertical: 8, paddingHorizontal: 12, borderWidth: 1, borderColor: 'rgba(255,255,255,0.07)' },
+  ddChipItem: { paddingHorizontal: 8, paddingVertical: 2 },
+  ddChipText: { fontSize: 11, color: 'rgba(250,248,242,0.55)', fontFamily: FONTS.sans },
+  ddSection: { paddingHorizontal: 22, marginTop: 20 },
+  ddSectionLabel: { fontSize: 10, fontFamily: FONTS.sansSemiBold, letterSpacing: 2, color: T.stone, marginBottom: 12 },
+  ddParaBlock: { marginBottom: 14 },
+  ddParaLabel: { fontSize: 9, fontFamily: FONTS.sansSemiBold, letterSpacing: 1.5, color: T.gold, marginBottom: 5 },
+  ddParaText: { fontSize: 14, color: T.ink, lineHeight: 23 },
+  ddInfluenceCard: { flexDirection: 'row', alignItems: 'flex-start', gap: 12, backgroundColor: '#FFFFFF', borderRadius: 14, padding: 14, marginBottom: 8, borderWidth: 1, borderColor: 'rgba(0,0,0,0.05)' },
+  ddInfluenceGlyph: { fontSize: 22, color: T.gold, marginTop: 2 },
+  ddInfluenceTag: { fontFamily: FONTS.sansSemiBold, fontSize: 13, color: T.navy, marginBottom: 2 },
+  ddInfluenceEffect: { fontSize: 12, color: T.stone, lineHeight: 17 },
+  // ── Life Area deep cards ──
+  laCard: { backgroundColor: '#FFFFFF', borderRadius: 16, marginBottom: 12, overflow: 'hidden', borderWidth: 1, borderColor: 'rgba(0,0,0,0.05)' },
+  laHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 16, paddingVertical: 14, borderLeftWidth: 4 },
+  laHeaderLeft: { flexDirection: 'row', alignItems: 'center', gap: 10, flex: 1 },
+  laIcon: { fontSize: 20 },
+  laTitle: { fontFamily: FONTS.sansBold, fontSize: 15, color: T.navy },
+  laSub: { fontFamily: FONTS.sans, fontSize: 11, color: T.stone, marginTop: 1 },
+  laEnergyBadge: { borderRadius: 10, paddingVertical: 4, paddingHorizontal: 12 },
+  laEnergyText: { fontSize: 11, fontFamily: FONTS.sansSemiBold },
+  laMeta: { paddingHorizontal: 16, paddingBottom: 10 },
+  laIntensityRow: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 8 },
+  laMetaLabel: { fontFamily: FONTS.sans, fontSize: 10, color: T.stone, width: 52 },
+  laIntensityTrack: { flex: 1, height: 4, backgroundColor: '#F0EDE6', borderRadius: 2, overflow: 'hidden' },
+  laIntensityFill: { height: 4, borderRadius: 2 },
+  laIntensityNum: { fontFamily: FONTS.sansSemiBold, fontSize: 11, width: 30, textAlign: 'right' },
+  laMetaChips: { flexDirection: 'row', gap: 6, flexWrap: 'wrap' },
+  laChip: { borderRadius: 8, paddingVertical: 3, paddingHorizontal: 10 },
+  laChipText: { fontSize: 10, fontFamily: FONTS.sansSemiBold },
+  laChipTextMuted: { fontSize: 10, fontFamily: FONTS.sans, color: T.stone },
+  laPlanetReason: { fontFamily: FONTS.sans, fontSize: 12, color: T.stone, lineHeight: 17, paddingHorizontal: 16, marginBottom: 10 },
+  laHoroscopeBox: { backgroundColor: '#FAFAF7', borderRadius: 10, marginHorizontal: 16, marginBottom: 12, padding: 14 },
+  laHoroscopeText: { fontFamily: FONTS.sans, fontSize: 13, color: T.navy, lineHeight: 20 },
+  laDoSection: { paddingHorizontal: 16, marginBottom: 8 },
+  laDoLabel: { fontFamily: FONTS.sansSemiBold, fontSize: 10, letterSpacing: 1, marginBottom: 6 },
+  laDoRow: { flexDirection: 'row', gap: 6, marginBottom: 5, alignItems: 'flex-start' },
+  laDoArrow: { fontSize: 13, marginTop: 1 },
+  laDoText: { fontFamily: FONTS.sans, fontSize: 13, color: T.navy, lineHeight: 18, flex: 1 },
+  laAvoidSection: { paddingHorizontal: 16, marginBottom: 8 },
+  laAvoidLabel: { fontFamily: FONTS.sansSemiBold, fontSize: 10, color: '#D97706', letterSpacing: 1, marginBottom: 6 },
+  laAvoidIcon: { fontSize: 12, color: '#D97706', marginTop: 1 },
+  laTimingRow: { flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: 16, marginBottom: 10 },
+  laTimingIcon: { fontSize: 13, color: T.stone },
+  laTimingText: { fontFamily: FONTS.sans, fontSize: 12, color: T.stone, lineHeight: 17, flex: 1 },
+  laRitualBox: { borderLeftWidth: 3, marginHorizontal: 16, marginBottom: 10, paddingLeft: 12, paddingVertical: 8 },
+  laRitualLabel: { fontFamily: FONTS.sansSemiBold, fontSize: 9, letterSpacing: 1.2, marginBottom: 4 },
+  laRitualText: { fontFamily: FONTS.sans, fontSize: 12, color: T.navy, lineHeight: 18 },
+  laAffirmationBox: { backgroundColor: '#FBF9F3', borderRadius: 10, marginHorizontal: 16, marginBottom: 10, padding: 12, alignItems: 'center' },
+  laAffirmationText: { fontFamily: FONTS.serifItalic || FONTS.serif, fontSize: 13, color: T.gold, textAlign: 'center', lineHeight: 20 },
+  laNavNote: { fontFamily: FONTS.sans, fontSize: 11, color: T.stone, fontStyle: 'italic', paddingHorizontal: 16, paddingBottom: 14, lineHeight: 16 },
+  ddActionCard: { backgroundColor: '#FFFFFF', borderRadius: 14, padding: 16, borderWidth: 1, borderColor: 'rgba(0,0,0,0.05)' },
+  ddActionRow: { flexDirection: 'row', alignItems: 'center', gap: 12, marginBottom: 10 },
+  ddActionNum: { width: 24, height: 24, borderRadius: 12, backgroundColor: T.navy, alignItems: 'center', justifyContent: 'center' },
+  ddActionNumText: { fontSize: 11, fontFamily: FONTS.sansSemiBold, color: T.cream },
+  ddActionText: { fontSize: 13, color: T.navy, flex: 1, lineHeight: 18 },
+  ddRitualCard: { backgroundColor: 'rgba(160,128,224,0.08)', borderRadius: 16, padding: 18, borderLeftWidth: 3, borderLeftColor: '#A080E0' },
+  ddRitualLabel: { fontSize: 9, fontFamily: FONTS.sansSemiBold, letterSpacing: 2, color: '#A080E0', marginBottom: 8 },
+  ddRitualText: { fontSize: 14, color: T.ink, lineHeight: 21 },
+  ddStatsCard: { backgroundColor: '#FFFFFF', borderRadius: 14, padding: 16, borderWidth: 1, borderColor: 'rgba(0,0,0,0.05)' },
+  ddStatRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingVertical: 8 },
+  ddStatLabel: { fontSize: 12, color: T.stone, fontFamily: FONTS.sansMedium },
+  ddStatValue: { fontSize: 14, color: T.navy, fontFamily: FONTS.sansMedium },
+  ddStatDivider: { height: StyleSheet.hairlineWidth, backgroundColor: 'rgba(0,0,0,0.06)' },
+  ddMantraCard: { alignItems: 'center', paddingVertical: 24, backgroundColor: 'rgba(200,168,75,0.06)', borderRadius: 16, borderWidth: 1, borderColor: 'rgba(200,168,75,0.15)' },
+  ddMantraLabel: { fontSize: 9, fontFamily: FONTS.sansSemiBold, letterSpacing: 2, color: T.gold, marginBottom: 10 },
+  ddMantraText: { fontFamily: FONTS.serif, fontSize: 17, color: T.navy, textAlign: 'center', paddingHorizontal: 28, lineHeight: 25 },
+  ddShareCard: { backgroundColor: T.navy, borderRadius: 16, padding: 20, alignItems: 'center', width: '100%' },
+  ddShareText: { fontSize: 14, color: T.cream, fontFamily: FONTS.sansMedium, textAlign: 'center', lineHeight: 21, marginBottom: 10 },
+  ddShareCta: { fontSize: 11, color: 'rgba(200,168,75,0.7)', fontFamily: FONTS.sansMedium },
+
+  // Navigate Toward / Around
+  navDoLabel: { fontSize: 9, fontFamily: FONTS.sansSemiBold, letterSpacing: 2, color: '#10B981', marginBottom: 10 },
+  navDoRow: { flexDirection: 'row', gap: 8, marginBottom: 8, alignItems: 'flex-start' },
+  navDoIcon: { fontSize: 13, color: '#10B981', marginTop: 1, fontWeight: '600' },
+  navDoAction: { fontFamily: FONTS.sansMedium, fontSize: 13, color: T.navy, lineHeight: 18 },
+  navDoReason: { fontFamily: FONTS.sans, fontSize: 11, color: T.stone, lineHeight: 16, marginTop: 1 },
+  navAvoidLabel: { fontSize: 9, fontFamily: FONTS.sansSemiBold, letterSpacing: 2, color: '#F59E0B', marginBottom: 10 },
+  navAvoidRow: { flexDirection: 'row', gap: 8, marginBottom: 8, alignItems: 'flex-start' },
+  navAvoidIcon: { fontSize: 12, color: '#F59E0B', marginTop: 1 },
+  navAvoidAction: { fontFamily: FONTS.sansMedium, fontSize: 13, color: T.navy, lineHeight: 18 },
+  navAvoidReason: { fontFamily: FONTS.sans, fontSize: 11, color: T.stone, lineHeight: 16, marginTop: 1 },
+  navAvoidAlt: { fontFamily: FONTS.sans, fontSize: 11, color: '#10B981', lineHeight: 16, marginTop: 2, fontStyle: 'italic' },
+
+  // Life Area Navigator Cards
+  lifeAreaCard: { width: 260, backgroundColor: '#FFFFFF', borderWidth: 1, borderColor: 'rgba(0,0,0,0.06)', borderRadius: 16, borderTopWidth: 3, padding: 16 },
+  lifeAreaHeader: { flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 10 },
+  lifeAreaIcon: { fontSize: 20 },
+  lifeAreaTitle: { fontFamily: FONTS.sansSemiBold, fontSize: 14, color: T.navy },
+  lifeAreaSubtitle: { fontFamily: FONTS.sans, fontSize: 11, color: T.stone },
+  lifeAreaEnergyBadge: { borderRadius: 100, paddingVertical: 3, paddingHorizontal: 10 },
+  lifeAreaEnergyText: { fontSize: 10, fontFamily: FONTS.sansSemiBold, letterSpacing: 0.5 },
+  lifeAreaPlanetReason: { fontFamily: FONTS.sans, fontSize: 11, color: T.stone, marginBottom: 10, lineHeight: 16, fontStyle: 'italic' },
+  lifeAreaDoSection: { marginBottom: 8 },
+  lifeAreaDoRow: { flexDirection: 'row', gap: 6, marginBottom: 4, alignItems: 'flex-start' },
+  lifeAreaDoIcon: { fontSize: 12, marginTop: 1, fontWeight: '600' },
+  lifeAreaDoText: { fontFamily: FONTS.sans, fontSize: 12, color: T.ink, lineHeight: 17, flex: 1 },
+  lifeAreaAvoidSection: { marginBottom: 8 },
+  lifeAreaAvoidRow: { flexDirection: 'row', gap: 6, marginBottom: 4, alignItems: 'flex-start' },
+  lifeAreaAvoidIcon: { fontSize: 11, color: '#F59E0B', marginTop: 1 },
+  lifeAreaAvoidText: { fontFamily: FONTS.sans, fontSize: 12, color: T.stone, lineHeight: 17, flex: 1 },
+  lifeAreaNote: { fontFamily: FONTS.serifItalic || FONTS.serif, fontSize: 12, color: T.ink, lineHeight: 18, fontStyle: 'italic', marginBottom: 10 },
+  lifeAreaCta: { fontFamily: FONTS.sansSemiBold, fontSize: 12, letterSpacing: 0.3 },
+
+  // Circle widget
+  circleWidget: { flexDirection: 'row', alignItems: 'center', backgroundColor: 'white', borderRadius: 16, padding: 14, paddingHorizontal: 16, marginBottom: 14, borderWidth: 1, borderColor: T.border },
+  circleWidgetLeft: { flex: 1 },
+  circleWidgetTitle: { fontSize: 9, fontFamily: FONTS.sansSemiBold, letterSpacing: 2, color: T.stone, marginBottom: 8 },
+  circleWidgetOrbs: { flexDirection: 'row', alignItems: 'center', marginBottom: 6 },
+  circleWidgetOrb: { width: 32, height: 32, borderRadius: 16, position: 'relative' },
+  circleWidgetOrbInner: { width: 32, height: 32, borderRadius: 16, alignItems: 'center', justifyContent: 'center', borderWidth: 1.5, borderColor: 'rgba(255,255,255,0.8)' },
+  circleWidgetOrbText: { fontSize: 12, fontFamily: FONTS.sansSemiBold, color: '#FFFFFF' },
+  circleWidgetOrbScore: { position: 'absolute', bottom: -4, right: -2, backgroundColor: T.navy, borderRadius: 6, paddingHorizontal: 3, paddingVertical: 1, minWidth: 16, alignItems: 'center' },
+  circleWidgetSub: { fontSize: 11, color: T.stone, fontFamily: FONTS.sans },
 });

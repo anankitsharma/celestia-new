@@ -13,7 +13,10 @@ import { useShareCard } from '../components/ShareCard';
 import CosmicIDCard from '../components/CosmicIDCard';
 import CosmicRarityCard from '../components/CosmicRarityCard';
 import { getCosmicArchetype, getComboRarity } from '../services/cosmicIdentityService';
-import { getNotificationSettings } from '../services/notificationService';
+import { getNotificationSettings, scheduleAllNotifications, cancelAllNotifications, requestNotificationPermission, hasNotificationPermission } from '../services/notificationService';
+import { ForecastRepository } from '../services/database/rep_forecasts';
+import * as Notifications from 'expo-notifications';
+import { getCosmicSeason } from '../services/astrologyService';
 import { shareReferralLink, getReferralStats, getOrCreateReferralCode } from '../services/referralService';
 import { useAuth } from '../contexts/AuthContext';
 
@@ -43,8 +46,11 @@ export default function ProfileScreen({ navigation }) {
   const [notifSummary, setNotifSummary] = useState('');
   const [referralStats, setReferralStats] = useState(null);
   const [referralCode, setReferralCode] = useState('');
+  const [cosmicSeason, setCosmicSeason] = useState(null);
   const { cardRef: cosmicCardRef, captureAndShare: shareCosmicID } = useShareCard();
   const { cardRef: rarityCardRef, captureAndShare: shareRarity } = useShareCard();
+  const [debugData, setDebugData] = useState(null);
+  const [debugExpanded, setDebugExpanded] = useState(false);
 
   useEffect(() => {
     loadSettings();
@@ -68,6 +74,11 @@ export default function ProfileScreen({ navigation }) {
       setReferralStats(refStats);
       setReferralCode(refCode);
     } catch (e) { console.error('Engagement load error:', e); }
+    try {
+      if (userProfile?.chart) {
+        setCosmicSeason(getCosmicSeason(userProfile.chart, new Date()));
+      }
+    } catch (e) {}
   };
 
   const loadNotifSummary = async () => {
@@ -231,13 +242,14 @@ export default function ProfileScreen({ navigation }) {
                   <Text style={styles.engageEmoji}>{getStreakEmoji(streakInfo.current_streak)}</Text>
                   <Text style={styles.engageNum}>{streakInfo.current_streak}</Text>
                   <Text style={styles.engageLbl}>Day Streak</Text>
+                  <Text style={{ fontSize: 9, color: '#97907F', marginTop: 2, textAlign: 'center' }}>Your devotion to the cosmic practice</Text>
                 </View>
               )}
               {xpInfo?.levelInfo && (
                 <View style={styles.engageCard}>
                   <Text style={styles.engageEmoji}>{'✦'}</Text>
                   <Text style={styles.engageNum}>{xpInfo.total_xp || 0}</Text>
-                  <Text style={styles.engageLbl}>{xpInfo.levelInfo.current.name}</Text>
+                  <Text style={styles.engageLbl}>Chapter: {xpInfo.levelInfo.current.name}</Text>
                   <View style={styles.xpBarBg}>
                     <View style={[styles.xpBarFill, { width: `${(xpInfo.levelInfo.progress * 100).toFixed(0)}%` }]} />
                   </View>
@@ -252,16 +264,28 @@ export default function ProfileScreen({ navigation }) {
                 <View style={styles.engageCard}>
                   <Text style={styles.engageEmoji}>{'📅'}</Text>
                   <Text style={styles.engageNum}>{streakInfo.total_check_ins || 0}</Text>
-                  <Text style={styles.engageLbl}>Total Days</Text>
+                  <Text style={styles.engageLbl}>Pages Written</Text>
                 </View>
               )}
+            </View>
+          )}
+
+          {/* Current Cosmic Arc */}
+          {cosmicSeason && (
+            <View style={{ backgroundColor: 'rgba(200,168,75,0.06)', borderRadius: 14, padding: 14, marginTop: 10, marginBottom: 4, borderWidth: 1, borderColor: 'rgba(200,168,75,0.12)' }}>
+              <Text style={{ fontSize: 9, letterSpacing: 2, color: '#97907F', fontFamily: FONTS.sansSemiBold, marginBottom: 6 }}>YOUR CURRENT ARC</Text>
+              <Text style={{ fontSize: 14, color: '#0E0E22', fontFamily: FONTS.serif, marginBottom: 4 }}>{cosmicSeason.description}</Text>
+              <View style={{ height: 3, backgroundColor: 'rgba(200,168,75,0.12)', borderRadius: 2, marginBottom: 4 }}>
+                <View style={{ height: 3, backgroundColor: '#C8A84B', borderRadius: 2, width: `${cosmicSeason.progress}%` }} />
+              </View>
+              <Text style={{ fontSize: 10, color: '#97907F' }}>{cosmicSeason.progress}% through · {cosmicSeason.daysRemaining} days remaining{cosmicSeason.isRetrograde ? ' · Retrograde' : ''}</Text>
             </View>
           )}
 
           {/* Badges */}
           {badges.length > 0 && (
             <View style={styles.badgeSection}>
-              <Text style={styles.secLbl}>ACHIEVEMENTS ({badges.filter(b => b.unlocked).length}/{badges.length})</Text>
+              <Text style={styles.secLbl}>YOUR COSMIC JOURNEY ({badges.filter(b => b.unlocked).length}/{badges.length})</Text>
               <View style={styles.badgeGrid}>
                 {badges.map((b) => (
                   <View key={b.id} style={[styles.badgeItem, !b.unlocked && styles.badgeLocked]}>
@@ -276,13 +300,13 @@ export default function ProfileScreen({ navigation }) {
           {/* Level Rewards */}
           {xpInfo?.levelInfo && (
             <View style={styles.badgeSection}>
-              <Text style={styles.secLbl}>LEVEL REWARDS</Text>
+              <Text style={styles.secLbl}>YOUR NEXT CHAPTERS</Text>
               <View style={styles.roadmapCard}>
                 {[
-                  { level: 2, name: 'Constellation', xp: 75, reward: 'Reading Voice customization', icon: '✦' },
-                  { level: 3, name: 'Nebula', xp: 300, reward: 'Yesterday & Tomorrow forecasts', icon: '🌀' },
-                  { level: 4, name: 'Galaxy', xp: 1000, reward: 'Deep Match compatibility reports', icon: '🌌' },
-                  { level: 5, name: 'Cosmos', xp: 3000, reward: 'Cosmic ID Card & exclusive badge frame', icon: '👑' },
+                  { level: 2, name: 'Constellation', xp: 75, reward: 'Customize your reading voice', icon: '✦' },
+                  { level: 3, name: 'Nebula', xp: 300, reward: 'Unlock past & future chapters', icon: '🌀' },
+                  { level: 4, name: 'Galaxy', xp: 1000, reward: 'Deep relationship story reports', icon: '🌌' },
+                  { level: 5, name: 'Cosmos', xp: 3000, reward: 'Your full Cosmic Identity revealed', icon: '👑' },
                 ].map((m, i) => {
                   const reached = (xpInfo?.levelInfo?.current?.level || 1) >= m.level;
                   return (
@@ -305,7 +329,7 @@ export default function ProfileScreen({ navigation }) {
           {/* Streak Rewards Roadmap */}
           {streakInfo && (
             <View style={styles.badgeSection}>
-              <Text style={styles.secLbl}>STREAK MILESTONES</Text>
+              <Text style={styles.secLbl}>DEVOTION MILESTONES</Text>
               <View style={styles.roadmapCard}>
                 {[
                   { day: 3, label: 'Cosmic Explorer', reward: '1.0x XP multiplier', icon: '⭐' },
@@ -492,20 +516,268 @@ export default function ProfileScreen({ navigation }) {
           {/* Dev Tools — hidden in production */}
           {__DEV__ && (
             <>
-              <Text style={[styles.secLbl, { marginTop: 8, color: T.gold }]}>DEVELOPMENT</Text>
+              <Text style={[styles.secLbl, { marginTop: 8, color: T.gold }]}>DEBUG PANEL</Text>
               <View style={styles.devCard}>
-                <TouchableOpacity
-                  style={styles.devRow}
-                  activeOpacity={0.7}
-                  onPress={() => navigation.navigate('OnboardingFlow')}
-                >
-                  <View style={styles.devIcon}>
-                    <Text style={{ fontSize: 14, color: T.gold }}>✦</Text>
-                  </View>
+                {/* Show Onboarding */}
+                <TouchableOpacity style={styles.devRow} activeOpacity={0.7}
+                  onPress={() => navigation.navigate('OnboardingFlow')}>
+                  <View style={styles.devIcon}><Text style={{ fontSize: 14, color: T.gold }}>✦</Text></View>
                   <Text style={styles.devLabel}>Show Onboarding</Text>
                   <Text style={[styles.prowArr, { color: 'rgba(200,168,75,0.5)' }]}>›</Text>
                 </TouchableOpacity>
+
+                {/* Send Test Notification */}
+                <TouchableOpacity style={styles.devRow} activeOpacity={0.7}
+                  onPress={async () => {
+                    try {
+                      const perm = await hasNotificationPermission();
+                      if (!perm) {
+                        await requestNotificationPermission();
+                      }
+                      await Notifications.scheduleNotificationAsync({
+                        content: {
+                          title: 'Navigator Update',
+                          body: 'This is a test notification from Celestia debug panel.',
+                          data: { type: 'debug_test' },
+                        },
+                        trigger: { seconds: 2 },
+                      });
+                      Alert.alert('Sent', 'Test notification in 2 seconds');
+                    } catch (e) { Alert.alert('Error', e.message); }
+                  }}>
+                  <View style={styles.devIcon}><Text style={{ fontSize: 14, color: T.gold }}>🔔</Text></View>
+                  <Text style={styles.devLabel}>Send Test Notification (2s)</Text>
+                </TouchableOpacity>
+
+                {/* Schedule All Notifications */}
+                <TouchableOpacity style={styles.devRow} activeOpacity={0.7}
+                  onPress={async () => {
+                    try {
+                      const profileId = userProfile?.id || 'default';
+                      const today = new Date().toISOString().split('T')[0];
+                      const key = `${profileId}_today_${today}`;
+                      const forecast = await ForecastRepository.getForecast(key);
+                      const streak = await getStreakData(profileId);
+                      await scheduleAllNotifications(userProfile, forecast, streak, null, null, null);
+                      Alert.alert('Done', 'All notifications scheduled with current forecast data');
+                    } catch (e) { Alert.alert('Error', e.message); }
+                  }}>
+                  <View style={styles.devIcon}><Text style={{ fontSize: 14, color: T.gold }}>📬</Text></View>
+                  <Text style={styles.devLabel}>Schedule All Notifications</Text>
+                </TouchableOpacity>
+
+                {/* Cancel All Notifications */}
+                <TouchableOpacity style={styles.devRow} activeOpacity={0.7}
+                  onPress={async () => {
+                    await cancelAllNotifications();
+                    Alert.alert('Done', 'All scheduled notifications cancelled');
+                  }}>
+                  <View style={styles.devIcon}><Text style={{ fontSize: 14, color: T.gold }}>🚫</Text></View>
+                  <Text style={styles.devLabel}>Cancel All Notifications</Text>
+                </TouchableOpacity>
+
+                {/* Show Scheduled Notifications */}
+                <TouchableOpacity style={styles.devRow} activeOpacity={0.7}
+                  onPress={async () => {
+                    const scheduled = await Notifications.getAllScheduledNotificationsAsync();
+                    Alert.alert(
+                      `${scheduled.length} Scheduled`,
+                      scheduled.slice(0, 5).map(n =>
+                        `${n.content.title || 'No title'}\n${n.content.body?.slice(0, 60) || ''}`
+                      ).join('\n\n') + (scheduled.length > 5 ? `\n\n...and ${scheduled.length - 5} more` : '')
+                    );
+                  }}>
+                  <View style={styles.devIcon}><Text style={{ fontSize: 14, color: T.gold }}>📋</Text></View>
+                  <Text style={styles.devLabel}>Show Scheduled Notifications</Text>
+                </TouchableOpacity>
+
+                {/* Show Notification Permission */}
+                <TouchableOpacity style={styles.devRow} activeOpacity={0.7}
+                  onPress={async () => {
+                    const perm = await Notifications.getPermissionsAsync();
+                    Alert.alert('Permission Status', JSON.stringify(perm.status, null, 2));
+                  }}>
+                  <View style={styles.devIcon}><Text style={{ fontSize: 14, color: T.gold }}>🔐</Text></View>
+                  <Text style={styles.devLabel}>Notification Permission</Text>
+                </TouchableOpacity>
+
+                {/* Load & Show Forecast Data */}
+                <TouchableOpacity style={styles.devRow} activeOpacity={0.7}
+                  onPress={async () => {
+                    try {
+                      const profileId = userProfile?.id || 'default';
+                      const today = new Date().toISOString().split('T')[0];
+                      const key = `${profileId}_today_${today}`;
+                      const forecast = await ForecastRepository.getForecast(key);
+                      if (!forecast) {
+                        Alert.alert('No Forecast', `No cached forecast for key: ${key}\n\nGo to Today tab and load your forecast first.`);
+                        return;
+                      }
+                      setDebugData(forecast);
+                      setDebugExpanded(true);
+                    } catch (e) { Alert.alert('Error', e.message); }
+                  }}>
+                  <View style={styles.devIcon}><Text style={{ fontSize: 14, color: T.gold }}>📊</Text></View>
+                  <Text style={styles.devLabel}>Load Today's Forecast Data</Text>
+                </TouchableOpacity>
+
+                {/* Clear Forecast Cache */}
+                <TouchableOpacity style={styles.devRow} activeOpacity={0.7}
+                  onPress={() => {
+                    Alert.alert('Clear Cache', 'Delete all cached forecasts and go to Today for fresh data?', [
+                      { text: 'Cancel', style: 'cancel' },
+                      { text: 'Clear & Reload', style: 'destructive', onPress: async () => {
+                        await ForecastRepository.clearAll();
+                        navigation.navigate('Main', { screen: 'Today' });
+                      }},
+                    ]);
+                  }}>
+                  <View style={styles.devIcon}><Text style={{ fontSize: 14, color: T.gold }}>🗑️</Text></View>
+                  <Text style={styles.devLabel}>Clear Cache & Reload Today</Text>
+                </TouchableOpacity>
+
+                {/* Send Navigator Excerpt Notification */}
+                <TouchableOpacity style={styles.devRow} activeOpacity={0.7}
+                  onPress={async () => {
+                    try {
+                      const profileId = userProfile?.id || 'default';
+                      const today = new Date().toISOString().split('T')[0];
+                      const key = `${profileId}_today_${today}`;
+                      const forecast = await ForecastRepository.getForecast(key);
+                      if (!forecast?.notificationExcerpt) {
+                        Alert.alert('No Excerpt', 'No notificationExcerpt in today\'s forecast. Load forecast first.');
+                        return;
+                      }
+                      const perm = await hasNotificationPermission();
+                      if (!perm) await requestNotificationPermission();
+                      await Notifications.scheduleNotificationAsync({
+                        content: {
+                          title: forecast.notificationExcerpt.title || 'Navigator Update',
+                          body: forecast.notificationExcerpt.body || forecast.navigatorHeadline || 'Your cosmic briefing is ready.',
+                          data: { type: 'cosmic_morning', screen: 'Today' },
+                        },
+                        trigger: { seconds: 2 },
+                      });
+                      Alert.alert('Sent', `Excerpt notification in 2s:\n\n${forecast.notificationExcerpt.title}\n${forecast.notificationExcerpt.body}`);
+                    } catch (e) { Alert.alert('Error', e.message); }
+                  }}>
+                  <View style={styles.devIcon}><Text style={{ fontSize: 14, color: T.gold }}>✉️</Text></View>
+                  <Text style={styles.devLabel}>Send Navigator Excerpt Notif</Text>
+                </TouchableOpacity>
+
+                {/* Test Deep Link to Transits */}
+                <TouchableOpacity style={styles.devRow} activeOpacity={0.7}
+                  onPress={() => {
+                    navigation.navigate('Main', { screen: 'Today', params: { scrollToSection: 'transits' } });
+                  }}>
+                  <View style={styles.devIcon}><Text style={{ fontSize: 14, color: T.gold }}>🔗</Text></View>
+                  <Text style={styles.devLabel}>Deep Link → Today Transits</Text>
+                </TouchableOpacity>
+
+                {/* Notification Settings Dump */}
+                <TouchableOpacity style={styles.devRow} activeOpacity={0.7}
+                  onPress={async () => {
+                    const ns = await getNotificationSettings();
+                    Alert.alert('Notification Settings', JSON.stringify(ns, null, 2));
+                  }}>
+                  <View style={styles.devIcon}><Text style={{ fontSize: 14, color: T.gold }}>⚙️</Text></View>
+                  <Text style={styles.devLabel}>Dump Notification Settings</Text>
+                </TouchableOpacity>
               </View>
+
+              {/* Debug Data Viewer */}
+              {debugExpanded && debugData && (
+                <View style={styles.devCard}>
+                  <TouchableOpacity style={styles.devRow} activeOpacity={0.7}
+                    onPress={() => setDebugExpanded(false)}>
+                    <Text style={[styles.devLabel, { color: T.gold }]}>FORECAST DATA (tap to close)</Text>
+                  </TouchableOpacity>
+
+                  {/* Navigator Headline */}
+                  {debugData.navigatorHeadline && (
+                    <View style={styles.debugBlock}>
+                      <Text style={styles.debugKey}>navigatorHeadline</Text>
+                      <Text style={styles.debugVal}>{debugData.navigatorHeadline}</Text>
+                    </View>
+                  )}
+
+                  {/* Navigator Summary */}
+                  {debugData.navigatorSummary && (
+                    <View style={styles.debugBlock}>
+                      <Text style={styles.debugKey}>navigatorSummary</Text>
+                      <Text style={styles.debugVal}>{debugData.navigatorSummary}</Text>
+                    </View>
+                  )}
+
+                  {/* Notification Excerpt */}
+                  {debugData.notificationExcerpt && (
+                    <View style={styles.debugBlock}>
+                      <Text style={styles.debugKey}>notificationExcerpt</Text>
+                      <Text style={styles.debugVal}>Title: {debugData.notificationExcerpt.title}</Text>
+                      <Text style={styles.debugVal}>Body: {debugData.notificationExcerpt.body}</Text>
+                      <Text style={styles.debugVal}>Area: {debugData.notificationExcerpt.lifeArea}</Text>
+                    </View>
+                  )}
+
+                  {/* Navigate Toward */}
+                  {debugData.navigateToward && (
+                    <View style={styles.debugBlock}>
+                      <Text style={styles.debugKey}>navigateToward</Text>
+                      {(Array.isArray(debugData.navigateToward) ? debugData.navigateToward : [debugData.navigateToward]).map((item, i) => (
+                        <Text key={i} style={styles.debugVal}>+ {item.action || item} → {item.reason || ''}</Text>
+                      ))}
+                    </View>
+                  )}
+
+                  {/* Navigate Around */}
+                  {debugData.navigateAround && (
+                    <View style={styles.debugBlock}>
+                      <Text style={styles.debugKey}>navigateAround</Text>
+                      {(Array.isArray(debugData.navigateAround) ? debugData.navigateAround : [debugData.navigateAround]).map((item, i) => (
+                        <Text key={i} style={styles.debugVal}>- {item.action || item} → {item.reason || ''}{item.alternative ? ` (alt: ${item.alternative})` : ''}</Text>
+                      ))}
+                    </View>
+                  )}
+
+                  {/* Life Areas */}
+                  {debugData.lifeAreas && (
+                    <View style={styles.debugBlock}>
+                      <Text style={styles.debugKey}>lifeAreas</Text>
+                      {Object.entries(debugData.lifeAreas).map(([area, data]) => (
+                        <View key={area} style={{ marginBottom: 8, paddingLeft: 8, borderLeftWidth: 2, borderLeftColor: 'rgba(200,168,75,0.3)' }}>
+                          <Text style={[styles.debugVal, { fontFamily: FONTS.sansSemiBold, color: T.gold }]}>{area.toUpperCase()}</Text>
+                          <Text style={styles.debugVal}>Energy: {data.energy}</Text>
+                          <Text style={styles.debugVal}>Why: {data.planetaryReason}</Text>
+                          {data.doItems?.map((d, j) => <Text key={`do${j}`} style={styles.debugVal}>  + {d}</Text>)}
+                          {data.avoidItems?.map((a, j) => <Text key={`av${j}`} style={styles.debugVal}>  - {a}</Text>)}
+                          <Text style={styles.debugVal}>Note: {data.navigatorNote}</Text>
+                        </View>
+                      ))}
+                    </View>
+                  )}
+
+                  {/* Core forecast fields */}
+                  <View style={styles.debugBlock}>
+                    <Text style={styles.debugKey}>Core Fields</Text>
+                    <Text style={styles.debugVal}>Overall: {debugData.overallTheme || 'n/a'}</Text>
+                    <Text style={styles.debugVal}>Mood: {debugData.emotionalWeather || 'n/a'}</Text>
+                    <Text style={styles.debugVal}>Lucky #: {debugData.luckyNumber || 'n/a'}</Text>
+                    <Text style={styles.debugVal}>Color: {debugData.luckyColor || 'n/a'}</Text>
+                    <Text style={styles.debugVal}>Crystal: {debugData.luckyItem || 'n/a'}</Text>
+                    <Text style={styles.debugVal}>Energy: {debugData.energyLevel || 'n/a'}/10</Text>
+                  </View>
+
+                  {/* Raw JSON dump */}
+                  <TouchableOpacity style={styles.devRow} activeOpacity={0.7}
+                    onPress={() => {
+                      const raw = JSON.stringify(debugData, null, 2);
+                      Alert.alert('Raw Forecast (truncated)', raw.slice(0, 1500) + (raw.length > 1500 ? '\n...' : ''));
+                    }}>
+                    <View style={styles.devIcon}><Text style={{ fontSize: 14, color: T.gold }}>{ '{}'}</Text></View>
+                    <Text style={styles.devLabel}>Show Raw JSON</Text>
+                  </TouchableOpacity>
+                </View>
+              )}
             </>
           )}
 
@@ -625,4 +897,7 @@ const styles = StyleSheet.create({
   devRow: { flexDirection: 'row', alignItems: 'center', paddingVertical: 14, paddingHorizontal: 16 },
   devIcon: { width: 34, height: 34, borderRadius: 10, backgroundColor: 'rgba(200,168,75,0.12)', borderWidth: 1, borderColor: 'rgba(200,168,75,0.2)', alignItems: 'center', justifyContent: 'center', marginRight: 11 },
   devLabel: { fontSize: 14, color: T.navy, flex: 1, fontFamily: FONTS.sansMedium },
+  debugBlock: { paddingHorizontal: 16, paddingVertical: 8, borderBottomWidth: 1, borderBottomColor: 'rgba(200,168,75,0.1)' },
+  debugKey: { fontSize: 10, letterSpacing: 1.5, color: T.gold, fontFamily: FONTS.sansSemiBold, marginBottom: 4, textTransform: 'uppercase' },
+  debugVal: { fontSize: 12, color: T.ink, lineHeight: 18, marginBottom: 2 },
 });

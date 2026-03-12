@@ -9,8 +9,8 @@ const QUEST_POOL = [
   { id: 'deep_dive', label: 'Deep dive into a placement', icon: '🌊', checkKey: 'deep_dive_done' },
   { id: 'chat', label: 'Ask Celestia a question', icon: '☽', checkKey: 'chat_sent' },
   { id: 'share', label: 'Share your reading', icon: '↗', checkKey: 'shared' },
-  { id: 'check_transits', label: 'Check today\'s sky', icon: '✧', checkKey: 'transits_checked' },
-  { id: 'compatibility', label: 'Check a compatibility match', icon: '♡', checkKey: 'compat_checked' },
+  { id: 'check_transits', label: 'Explore today\'s sky', icon: '✧', checkKey: 'transits_checked' },
+  { id: 'compatibility', label: 'Check your circle', icon: '♡', checkKey: 'compat_checked' },
   { id: 'energy_grid', label: 'Explore your energy grid', icon: '◎', checkKey: 'energy_explored' },
 ];
 

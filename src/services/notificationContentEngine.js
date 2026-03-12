@@ -6,6 +6,24 @@ import { isMercuryRetrograde } from './astrologyService';
 const TEMPLATES = {
   COSMIC_MORNING: [
     {
+      id: 'cm_navigator_excerpt',
+      requires: ['forecast'],
+      weight: (d) => d.forecast?.navigatorHeadline ? 10 : 0,
+      generate: (d) => ({
+        title: d.forecast.navigatorHeadline,
+        body: d.forecast.notificationExcerpt?.body || d.forecast.navigatorSummary || 'Your daily navigator briefing is ready.',
+      }),
+    },
+    {
+      id: 'cm_navigator_headline',
+      requires: ['forecast'],
+      weight: (d) => d.forecast?.navigatorHeadline ? 8 : 0,
+      generate: (d) => ({
+        title: d.forecast.navigatorHeadline,
+        body: d.forecast.navigatorSummary || 'Your daily navigator briefing is ready.',
+      }),
+    },
+    {
       id: 'cm_moon_sign',
       requires: ['moonData'],
       weight: (d) => d.userMoonSign ? 4 : 2,
@@ -86,6 +104,24 @@ const TEMPLATES = {
       generate: (d) => ({
         title: 'Your cosmic mantra',
         body: `"${d.forecast.mantra}"`,
+      }),
+    },
+    {
+      id: 'cm_yesterday_thread',
+      requires: ['yesterdayForecast'],
+      weight: (d) => d.yesterdayForecast?.header ? 6 : 0,
+      generate: (d) => ({
+        title: 'Your story continues',
+        body: `Yesterday: "${d.yesterdayForecast.header}". Today the energy shifts — your next chapter is ready.`,
+      }),
+    },
+    {
+      id: 'cm_journal_follow',
+      requires: ['yesterdayJournal'],
+      weight: (d) => d.yesterdayJournal?.mood ? 5 : 0,
+      generate: (d) => ({
+        title: `Good morning, ${d.userName}`,
+        body: `You felt ${d.yesterdayJournal.mood} yesterday. The Moon moved to ${d.moonData?.sign || 'a new sign'} overnight — see what today brings.`,
       }),
     },
   ],
@@ -471,7 +507,7 @@ export function generateNotificationContent(category, data, history = []) {
 /**
  * Build the data object for content generation from astrology services.
  */
-export function buildNotificationData(userProfile, forecast, moonData, energyData, cosmicWindows, streakData) {
+export function buildNotificationData(userProfile, forecast, moonData, energyData, cosmicWindows, streakData, yesterdayForecast, yesterdayJournal) {
   const chart = userProfile?.chart;
   const sun = chart?.planets?.find(p => p.name === 'Sun');
   const moon = chart?.planets?.find(p => p.name === 'Moon');
@@ -493,6 +529,8 @@ export function buildNotificationData(userProfile, forecast, moonData, energyDat
     energyData: energyData || null,
     cosmicWindows: cosmicWindows || [],
     streakData: streakData || null,
+    yesterdayForecast: yesterdayForecast || null,
+    yesterdayJournal: yesterdayJournal || null,
     mercuryRx,
   };
 }
