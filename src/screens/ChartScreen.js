@@ -4,6 +4,8 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { T, FONTS } from '../constants/theme';
 import ChartWheel from '../components/ChartWheel';
 import { useUserProfile } from '../contexts/UserProfileContext';
+import { useRevenueCat } from '../contexts/RevenueCatContext';
+
 import { HOUSE_THEMES } from '../constants/AstrologyCore';
 import { generatePlacementDeepDive, generateAspectDeepDive, generateHouseDeepDive } from '../services/geminiService';
 import { haptic } from '../services/hapticService';
@@ -39,7 +41,9 @@ const ASPECT_NATURE = {
 };
 
 export default function ChartScreen() {
+  const { isPro } = useRevenueCat();
   const { userProfile, isLoading } = useUserProfile();
+
   const [tab, setTab] = useState(0);
   const tabs = ['Planets', 'Aspects', 'Houses'];
   const [deepDive, setDeepDive] = useState(null);
@@ -81,13 +85,14 @@ export default function ChartScreen() {
     try {
       const windows = getActiveCosmicWindows(userProfile?.chart, new Date());
       setActiveWindows(windows);
-    } catch (e) {}
+    } catch (e) { }
   }, []);
 
   const handlePlanetTap = async (planet) => {
     if (!planet.name || planet.name === 'South Node') return;
     // Check if locked (drip-feed)
-    if (!unlockedPlanets.includes(planet.name)) {
+    if (!isPro && !unlockedPlanets.includes(planet.name)) {
+
       const unlockDay = getUnlockDayForPlanet(planet.name);
       haptic.light();
       setDeepDiveType('planet');
@@ -115,9 +120,9 @@ export default function ChartScreen() {
       );
       setDeepDive({ ...result, planetName: planet.name, sign: p?.sign, house: p?.house });
       haptic.light();
-      trackEvent('deep_dive', { planet: planet.name }).catch(() => {});
-      awardXP(userProfile?.id || 'default', 'deep_dive').catch(() => {});
-      completeQuestAction('deep_dive_done').catch(() => {});
+      trackEvent('deep_dive', { planet: planet.name }).catch(() => { });
+      awardXP(userProfile?.id || 'default', 'deep_dive').catch(() => { });
+      completeQuestAction('deep_dive_done').catch(() => { });
     } catch (e) {
       console.error('Deep dive error:', e);
       setDeepDive({ hook: 'Unable to load insight right now.', planetName: planet.name });
@@ -137,9 +142,9 @@ export default function ChartScreen() {
       );
       setDeepDive({ ...result, planet1: aspect.planet1, planet2: aspect.planet2, aspectType: aspect.type, orb: aspect.orb, color: aspect.color });
       haptic.light();
-      trackEvent('deep_dive', { planet: aspect.planet1 }).catch(() => {});
-      awardXP(userProfile?.id || 'default', 'deep_dive').catch(() => {});
-      completeQuestAction('deep_dive_done').catch(() => {});
+      trackEvent('deep_dive', { planet: aspect.planet1 }).catch(() => { });
+      awardXP(userProfile?.id || 'default', 'deep_dive').catch(() => { });
+      completeQuestAction('deep_dive_done').catch(() => { });
     } catch (e) {
       console.error('Aspect deep dive error:', e);
       setDeepDive({ hook: 'Unable to load insight right now.', planet1: aspect.planet1, planet2: aspect.planet2, aspectType: aspect.type });
@@ -162,9 +167,9 @@ export default function ChartScreen() {
       );
       setDeepDive({ ...result, houseNumber: house.number, sign: house.sign, theme: house.theme, planetsInHouse });
       haptic.light();
-      trackEvent('deep_dive', { planet: `House_${house.number}` }).catch(() => {});
-      awardXP(userProfile?.id || 'default', 'deep_dive').catch(() => {});
-      completeQuestAction('deep_dive_done').catch(() => {});
+      trackEvent('deep_dive', { planet: `House_${house.number}` }).catch(() => { });
+      awardXP(userProfile?.id || 'default', 'deep_dive').catch(() => { });
+      completeQuestAction('deep_dive_done').catch(() => { });
     } catch (e) {
       console.error('House deep dive error:', e);
       setDeepDive({ hook: 'Unable to load insight right now.', houseNumber: house.number, sign: house.sign });
@@ -180,9 +185,9 @@ export default function ChartScreen() {
       .map(p => ({
         icon: PLANET_GLYPHS[p.name] || '★',
         planet: p.name === 'North Node' ? 'N. NODE' :
-                p.name === 'Ascendant' ? 'RISING' :
-                p.name === 'Midheaven' ? 'MIDHEAVEN' :
-                p.name.toUpperCase(),
+          p.name === 'Ascendant' ? 'RISING' :
+            p.name === 'Midheaven' ? 'MIDHEAVEN' :
+              p.name.toUpperCase(),
         sign: p.sign,
         deg: `${p.degree.toFixed(0)}° ${Math.round((p.degree % 1) * 60).toString().padStart(2, '0')}'`,
         house: p.house ? `House ${toRoman(p.house)}` : '',
@@ -235,7 +240,7 @@ export default function ChartScreen() {
 
   return (
     <View style={{ flex: 1, backgroundColor: T.cream }}>
-      <ScrollView showsVerticalScrollIndicator={false}>
+      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 110 }}>
         <LinearGradient colors={['#0E0E22', '#17132E', '#111524']} locations={[0, 0.5, 1]} style={styles.hero}>
           <View style={styles.heroGlow} />
           <View style={styles.topRow}>
@@ -307,7 +312,9 @@ export default function ChartScreen() {
         </View>
 
         {/* Unlock progress bar */}
-        {unlockProgress && !unlockProgress.isComplete && tab === 0 && (
+        {/* Unlock Bar — hidden for Pro users */}
+        {!isPro && unlockProgress && !unlockProgress.isComplete && tab === 0 && (
+
           <View style={styles.unlockBar}>
             <View style={styles.unlockBarInner}>
               <View style={styles.unlockBarTrack}>
@@ -323,7 +330,8 @@ export default function ChartScreen() {
 
         <View style={styles.list}>
           {tab === 0 && planetPlacements.map((p, i) => {
-            const isLocked = !unlockedPlanets.includes(p.name);
+            const isLocked = !isPro && !unlockedPlanets.includes(p.name);
+
             return (
               <TouchableOpacity key={i} style={[styles.plrow, isLocked && styles.plrowLocked]} activeOpacity={0.7}
                 onPress={() => handlePlanetTap(p)}>
@@ -444,8 +452,8 @@ export default function ChartScreen() {
               <ActivityIndicator size="large" color={T.gold} />
               <Text style={{ fontSize: 14, color: T.stone, marginTop: 12 }}>
                 {deepDiveType === 'planet' ? 'Reading your placement...' :
-                 deepDiveType === 'aspect' ? 'Interpreting the aspect...' :
-                 'Exploring this house...'}
+                  deepDiveType === 'aspect' ? 'Interpreting the aspect...' :
+                    'Exploring this house...'}
               </Text>
             </View>
           ) : deepDive ? (

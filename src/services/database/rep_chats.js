@@ -67,5 +67,17 @@ export const ChatRepository = {
         const db = await getDB();
         await db.runAsync(`DELETE FROM chat_messages WHERE session_id = ?;`, [sessionId]);
         await db.runAsync(`DELETE FROM chat_sessions WHERE id = ?;`, [sessionId]);
+    },
+
+    getUserMessageCountForDay: async (timestamp) => {
+        const db = await getDB();
+        const startOfDay = new Date(timestamp).setHours(0, 0, 0, 0);
+        const endOfDay = new Date(timestamp).setHours(23, 59, 59, 999);
+        const result = await db.getFirstAsync(
+            `SELECT COUNT(*) as count FROM chat_messages WHERE role = 'user' AND created_at >= ? AND created_at <= ?;`,
+            [startOfDay, endOfDay]
+        );
+        return result?.count || 0;
     }
 };
+

@@ -15,6 +15,9 @@ import { haptic } from '../services/hapticService';
 import { trackEvent } from '../services/achievementService';
 import { awardXP } from '../services/xpService';
 import GenerationOverlay from '../components/GenerationOverlay';
+import { useRevenueCat } from '../contexts/RevenueCatContext';
+import { useNavigation } from '@react-navigation/native';
+
 
 const { width: SCREEN_W, height: SCREEN_H } = Dimensions.get('window');
 
@@ -309,8 +312,8 @@ const generateDeepReportHTML = (report, profile, reportType) => {
 
   // Big Three sections
   const BIG3_CONFIG = {
-    sun:    { band: '#2A1F08', glyph: '☉', label: 'Your Sun', sublabel: 'Identity · Ego · Life Force' },
-    moon:   { band: '#0D1E35', glyph: '☽', label: 'Your Moon', sublabel: 'Emotions · Inner World · Needs' },
+    sun: { band: '#2A1F08', glyph: '☉', label: 'Your Sun', sublabel: 'Identity · Ego · Life Force' },
+    moon: { band: '#0D1E35', glyph: '☽', label: 'Your Moon', sublabel: 'Emotions · Inner World · Needs' },
     rising: { band: '#0D2535', glyph: 'ASC', label: 'Your Rising', sublabel: 'First Impression · Outer Self · Path' },
   };
 
@@ -1094,7 +1097,10 @@ const buildPdfFilename = (name, type) => {
 
 // ── Component ───────────────────────────────────────────────────────────────
 export default function ReportsScreen() {
+  const navigation = useNavigation();
+  const { isPro } = useRevenueCat();
   const { userProfile } = useUserProfile();
+
   const sunSign = userProfile?.chart?.planets?.find(p => p.name === 'Sun')?.sign;
 
   const [reportModal, setReportModal] = useState(false);
@@ -1128,7 +1134,7 @@ export default function ReportsScreen() {
   useEffect(() => {
     getNarrativeContext(userProfile?.id || 'default', userProfile?.chart)
       .then(ctx => setNarrativeCtx(ctx))
-      .catch(() => {});
+      .catch(() => { });
   }, [userProfile?.id]);
 
   const getReportDescription = (type) => {
@@ -1159,6 +1165,14 @@ export default function ReportsScreen() {
       Alert.alert('Profile Required', 'Complete onboarding to generate reports.');
       return;
     }
+
+    // Selective Gating: Only 'monthly' is free
+    if (!isPro && r.type !== 'monthly') {
+      haptic.medium();
+      navigation.navigate('Paywall', { source: 'reports', reportName: r.name });
+      return;
+    }
+
     setReportTitle(r.name);
     setReportType(r.type);
     setReportData(null);
@@ -1170,8 +1184,8 @@ export default function ReportsScreen() {
       haptic.success();
       // Track report generation
       const profileId = userProfile?.id || 'default';
-      trackEvent('report_generated').catch(() => {});
-      awardXP(profileId, 'report_read').catch(() => {});
+      trackEvent('report_generated').catch(() => { });
+      awardXP(profileId, 'report_read').catch(() => { });
     } catch (e) {
       console.error('Report generation error:', e);
       Alert.alert('Error', 'Failed to generate report. Please try again.');
@@ -1195,7 +1209,15 @@ export default function ReportsScreen() {
 
   const handleDownloadPdf = async () => {
     if (!userProfile?.chart) return;
+
+    // Allow 'monthly' reports to be downloaded even for free users
+    if (!isPro && reportType !== 'monthly') {
+      haptic.medium();
+      navigation.navigate('Paywall', { source: 'reports', reportName: theme.title });
+      return;
+    }
     pdfCancelledRef.current = false;
+
     setPdfLoading(true);
     setGenStep(0);
     const theme = REPORT_THEMES[reportType] || DEFAULT_THEME;
@@ -1270,12 +1292,12 @@ export default function ReportsScreen() {
       await Share.share({
         message: `${reportData.title}\n\n${reportData.summary}\n\n${sections}\n\n${reportData.keyInsight ? `✦ ${reportData.keyInsight}` : ''}\n\n— Celestia`,
       });
-    } catch (e) {}
+    } catch (e) { }
   };
 
   return (
     <View style={{ flex: 1, backgroundColor: T.cream }}>
-      <ScrollView showsVerticalScrollIndicator={false}>
+      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 112 }}>
         <View style={styles.top}>
           <Text style={styles.h1}>Reports</Text>
           <Text style={styles.sub}>
@@ -1318,11 +1340,16 @@ export default function ReportsScreen() {
             <TouchableOpacity key={i} style={styles.rtile} activeOpacity={0.8} onPress={() => handleReport(r)}>
               <LinearGradient colors={r.bg} style={styles.rtileColor}>
                 <Text style={{ fontSize: 32, color: r.accent }}>{r.icon}</Text>
+                {!isPro && r.type !== 'monthly' && (
+                  <View style={styles.tileLock}><Text style={{ fontSize: 10 }}>🔒</Text></View>
+                )}
               </LinearGradient>
               <View style={styles.rtileBody}>
                 <Text style={styles.rtileName}>{r.name}</Text>
                 <Text style={styles.rtileDesc}>{getReportDescription(r.type)}</Text>
-                <Text style={styles.rtilePrice}>Free</Text>
+                <Text style={[styles.rtilePrice, !isPro && r.type !== 'monthly' && { color: T.gold, fontSize: 14 }]}>
+                  {(!isPro && r.type !== 'monthly') ? 'In Pro' : 'Free'}
+                </Text>
               </View>
             </TouchableOpacity>
           ))}
@@ -1452,6 +1479,7 @@ const styles = StyleSheet.create({
   rtileName: { fontFamily: FONTS.serif, fontSize: 16, color: T.navy, marginBottom: 2 },
   rtileDesc: { fontSize: 10, color: T.stone, lineHeight: 14, marginBottom: 9 },
   rtilePrice: { fontFamily: FONTS.serif, fontSize: 19, color: T.navy },
+  tileLock: { position: 'absolute', top: 8, right: 8, width: 20, height: 20, borderRadius: 10, backgroundColor: 'rgba(0,0,0,0.3)', alignItems: 'center', justifyContent: 'center' },
   // Modal
   modal: { flex: 1, backgroundColor: T.cream },
   modalHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', padding: 20, paddingTop: 20, borderBottomWidth: 1, borderBottomColor: '#EDE6D8' },

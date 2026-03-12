@@ -13,6 +13,8 @@ import AstroText from '../components/AstroText';
 import CosmicTooltip from '../components/CosmicTooltip';
 import { useShareCard } from '../components/ShareCard';
 import TransitShareCard from '../components/TransitShareCard';
+import { useRevenueCat } from '../contexts/RevenueCatContext';
+import LockedFeatureOverlay from '../components/LockedFeatureOverlay';
 
 const PLANET_GLYPHS = {
   Sun: '☉', Moon: '☽', Mercury: '☿', Venus: '♀', Mars: '♂',
@@ -37,6 +39,7 @@ const getIntensity = (orb, aspectType) => {
 };
 
 export default function TransitsScreen({ navigation, route }) {
+  const { isPro } = useRevenueCat();
   const { userProfile } = useUserProfile();
   const [expanded, setExpanded] = useState(0);
   const [transits, setTransits] = useState([]);
@@ -77,13 +80,13 @@ export default function TransitsScreen({ navigation, route }) {
             .finally(() => setRxInsightLoading(false));
         }
       }
-    } catch {}
+    } catch { }
 
     // Load cosmic season for narrative thread
     try {
       const season = getCosmicSeason(userProfile.chart, new Date());
       setCosmicSeason(season);
-    } catch (e) {}
+    } catch (e) { }
 
     // Find upcoming significant transit (next 7-14 days)
     try {
@@ -101,17 +104,17 @@ export default function TransitsScreen({ navigation, route }) {
           break;
         }
       }
-    } catch (e) {}
+    } catch (e) { }
 
-    trackEvent('sky_tab_open').catch(() => {});
-    completeQuestAction('transits_checked').catch(() => {});
+    trackEvent('sky_tab_open').catch(() => { });
+    completeQuestAction('transits_checked').catch(() => { });
   }, [userProfile]);
 
   // Auto-scroll to Mercury Rx section when navigated from Home Rx banner
   useEffect(() => {
     if (route?.params?.highlightMercuryRx && mercuryRxData && rxScrollRef.current) {
       setTimeout(() => {
-        rxScrollRef.current.measureLayout?.(undefined, () => {}, () => {});
+        rxScrollRef.current.measureLayout?.(undefined, () => { }, () => { });
       }, 500);
       navigation.setParams({ highlightMercuryRx: undefined });
     }
@@ -139,10 +142,10 @@ export default function TransitsScreen({ navigation, route }) {
   const handleExpand = useCallback((index) => {
     const newIdx = expanded === index ? -1 : index;
     setExpanded(newIdx);
-    if (newIdx >= 0 && transits[newIdx]) {
+    if (newIdx >= 0 && transits[newIdx] && isPro) {
       fetchAiInsight(transits[newIdx], newIdx);
     }
-  }, [expanded, transits, fetchAiInsight]);
+  }, [expanded, transits, fetchAiInsight, isPro]);
 
   const buildTransits = () => {
     try {
@@ -204,7 +207,7 @@ export default function TransitsScreen({ navigation, route }) {
         generateTransitInsight(
           t.transitPlanet, t.transitSign, t.natalPlanet, natalP?.sign || t.natalSign,
           natalP?.house || null, t.aspectType, t.orbNum?.toFixed(1) || '3', userProfile?.id
-        ).then(result => setAiInsights(prev => ({ ...prev, 0: result }))).catch(() => {});
+        ).then(result => setAiInsights(prev => ({ ...prev, 0: result }))).catch(() => { });
       }
     } catch (e) {
       console.error('Transit calculation error:', e);
@@ -361,7 +364,7 @@ export default function TransitsScreen({ navigation, route }) {
                 </TouchableOpacity>
 
                 <View style={styles.tintensity}>
-                  {[1,2,3,4,5].map(d => (
+                  {[1, 2, 3, 4, 5].map(d => (
                     <View key={d} style={[styles.tidot, d <= t.intensity ? { backgroundColor: t.color } : styles.tidotOff]} />
                   ))}
                 </View>
@@ -386,40 +389,49 @@ export default function TransitsScreen({ navigation, route }) {
                         <Text style={styles.taiLoadingText}>Reading your chart...</Text>
                       </View>
                     )}
-                    {aiInsights[i] && (
-                      <View style={styles.taiSection}>
-                        <Text style={styles.taiLabel}>PERSONALIZED FOR YOUR CHART</Text>
-                        <AstroText text={aiInsights[i].personalMeaning} style={styles.taiText} />
-
-                        {aiInsights[i].houseActivation && (
-                          <View style={styles.taiHouseBox}>
-                            <Text style={styles.taiHouseText}>✦ {aiInsights[i].houseActivation}</Text>
-                          </View>
-                        )}
-
-                        <View style={styles.taiDoAvoid}>
-                          <View style={[styles.taiDoAvoidCard, { borderLeftColor: '#7EC8A0' }]}>
-                            <Text style={[styles.taiDoAvoidLabel, { color: '#7EC8A0' }]}>DO THIS</Text>
-                            <Text style={styles.taiDoAvoidText}>{aiInsights[i].doThis}</Text>
-                          </View>
-                          <View style={[styles.taiDoAvoidCard, { borderLeftColor: '#E8A060' }]}>
-                            <Text style={[styles.taiDoAvoidLabel, { color: '#E8A060' }]}>WATCH FOR</Text>
-                            <Text style={styles.taiDoAvoidText}>{aiInsights[i].avoidThis}</Text>
-                          </View>
-                        </View>
-
-                        {aiInsights[i]?.ritual && (
-                          <View style={styles.taiRitualCard}>
-                            <View style={styles.taiRitualHeader}>
-                              <Text style={styles.taiRitualLabel}>RITUAL</Text>
-                              {aiInsights[i].ritualDuration && (
-                                <Text style={styles.taiRitualDuration}>{aiInsights[i].ritualDuration}</Text>
-                              )}
-                            </View>
-                            <Text style={styles.taiRitualText}>✧ {aiInsights[i].ritual}</Text>
-                          </View>
-                        )}
+                    {!isPro ? (
+                      <View style={{ marginTop: 10 }}>
+                        <LockedFeatureOverlay
+                          title="Personalized Insights Locked"
+                          description="Unlock Celestia Pro to see how this transit specifically activates your birth chart."
+                          compact
+                        />
                       </View>
+                    ) : (
+                      aiInsights[i] && (
+                        <View style={styles.taiSection}>
+                          <Text style={styles.taiLabel}>PERSONALIZED FOR YOUR CHART</Text>
+                          <AstroText text={aiInsights[i].personalMeaning} style={styles.taiText} />
+
+                          {aiInsights[i].houseActivation && (
+                            <View style={styles.taiHouseBox}>
+                              <Text style={styles.taiHouseText}>✦ {aiInsights[i].houseActivation}</Text>
+                            </View>
+                          )}
+
+                          <View style={styles.taiDoAvoid}>
+                            <View style={[styles.taiDoAvoidCard, { borderLeftColor: '#7EC8A0' }]}>
+                              <Text style={[styles.taiDoAvoidLabel, { color: '#7EC8A0' }]}>DO THIS</Text>
+                              <Text style={styles.taiDoAvoidText}>{aiInsights[i].doThis}</Text>
+                            </View>
+                            <View style={[styles.taiDoAvoidCard, { borderLeftColor: '#E8A060' }]}>
+                              <Text style={[styles.taiDoAvoidLabel, { color: '#E8A060' }]}>WATCH FOR</Text>
+                              <Text style={styles.taiDoAvoidText}>{aiInsights[i].avoidThis}</Text>
+                            </View>
+                          </View>
+
+                          {aiInsights[i]?.ritual && (
+                            <View style={styles.taiRitualCard}>
+                              <View style={styles.taiRitualHeader}>
+                                <Text style={styles.taiRitualLabel}>RITUAL</Text>
+                                {aiInsights[i].ritualDuration && (
+                                  <Text style={styles.taiRitualDuration}>{aiInsights[i].ritualDuration}</Text>
+                                )}</View>
+                              <Text style={styles.taiRitualText}>✧ {aiInsights[i].ritual}</Text>
+                            </View>
+                          )}
+                        </View>
+                      )
                     )}
 
                     <View style={styles.tbodyMeta}>
@@ -437,8 +449,8 @@ export default function TransitsScreen({ navigation, route }) {
                           // Wait a tick for render, then capture
                           setTimeout(async () => {
                             await shareTransit(`${t.aspect} — ${t.body?.slice(0, 100) || ''}`);
-                            trackEvent('share').catch(() => {});
-                            awardXP(userProfile?.id || 'default', 'share').catch(() => {});
+                            trackEvent('share').catch(() => { });
+                            awardXP(userProfile?.id || 'default', 'share').catch(() => { });
                           }, 100);
                         }}>
                           <Text style={styles.tbodyShareText}>Share ↗</Text>
