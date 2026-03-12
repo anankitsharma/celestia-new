@@ -16,7 +16,9 @@ import NotificationSettingsScreen from '../screens/NotificationSettingsScreen';
 import AuthScreen from '../screens/AuthScreen';
 import QuickChartScreen from '../screens/QuickChartScreen';
 import JournalScreen from '../screens/JournalScreen';
+import PaywallScreen from '../screens/PaywallScreen';
 import TabBar from '../components/TabBar';
+
 
 const Stack = createNativeStackNavigator();
 const Tab = createBottomTabNavigator();
@@ -49,6 +51,8 @@ export default function AppNavigator() {
       <Stack.Screen name="QuickChart" component={QuickChartScreen} />
       <Stack.Screen name="TodaysSky" component={TransitsScreen} />
       <Stack.Screen name="Journal" component={JournalScreen} />
+      <Stack.Screen name="Paywall" component={PaywallScreen} options={{ presentation: 'fullScreenModal', animation: 'slide_from_bottom' }} />
     </Stack.Navigator>
+
   );
 }

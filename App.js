@@ -18,12 +18,14 @@ import {
 import { View, ActivityIndicator } from 'react-native';
 import AppNavigator from './src/navigation/AppNavigator';
 import { UserProfileProvider } from './src/contexts/UserProfileContext';
+
 import { AuthProvider } from './src/contexts/AuthContext';
 import { initSchema } from './src/services/database/schema';
 import { initNotificationChannels, handleNotificationNavigation } from './src/services/notificationService';
 import { initDeepLinks, registerDeepLinkHandler } from './src/services/deepLinkService';
 import { lookupInvite } from './src/services/inviteService';
 import { recordReferral } from './src/services/referralService';
+import { RevenueCatProvider } from './src/contexts/RevenueCatContext';
 
 export default function App() {
   const navigationRef = useNavigationContainerRef();
@@ -103,10 +105,12 @@ export default function App() {
   return (
     <AuthProvider>
       <UserProfileProvider>
-        <NavigationContainer ref={navigationRef}>
-          <StatusBar style="light" />
-          <AppNavigator />
-        </NavigationContainer>
+        <RevenueCatProvider>
+          <NavigationContainer ref={navigationRef}>
+            <StatusBar style="light" />
+            <AppNavigator />
+          </NavigationContainer>
+        </RevenueCatProvider>
       </UserProfileProvider>
     </AuthProvider>
   );

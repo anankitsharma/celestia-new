@@ -14,6 +14,9 @@ import { awardXP } from '../services/xpService';
 import { completeQuestAction } from '../services/questService';
 import { getActiveCosmicWindows, getMoonDataForDate } from '../services/astrologyService';
 import { getNarrativeContext } from '../services/narrativeService';
+import { useRevenueCat } from '../contexts/RevenueCatContext';
+import { useNavigation } from '@react-navigation/native';
+
 
 // ── DYNAMIC SUGGESTION QUESTIONS ─────────────────────────────
 // Natural questions a real astrology user would ask, grouped by topic.
@@ -194,7 +197,9 @@ const formatTime = (ts) => {
   return `${h}:${m} ${ap}`;
 };
 
-export default function ChatScreen({ route }) {
+export default function ChatScreen({ navigation, route }) {
+  const { isPro } = useRevenueCat();
+
   const { userProfile } = useUserProfile();
   const [messages, setMessages] = useState([]);
   const [inputText, setInputText] = useState('');
@@ -303,7 +308,7 @@ export default function ChatScreen({ route }) {
           question: `How does the Moon in ${moonData.sign} affect my ${moon?.sign || 'natal'} Moon today?`,
         });
       }
-    } catch (e) {}
+    } catch (e) { }
   }, [userProfile]);
 
   const initChat = async (ctx = null) => {
@@ -380,7 +385,23 @@ export default function ChatScreen({ route }) {
   const handleSend = async (textOverride) => {
     const text = (textOverride || inputText || '').trim();
     if (!text || sending) return;
+
+    // Check message limit for free users
+    if (!isPro) {
+      try {
+        const count = await ChatRepository.getUserMessageCountForDay(Date.now());
+        if (count >= 2) {
+          haptic.medium();
+          navigation.navigate('Paywall', { source: 'oracle' });
+          return;
+        }
+      } catch (e) {
+        console.error('Failed to check message count:', e);
+      }
+    }
+
     haptic.light();
+
     setInputText('');
 
     // Optimistically add user message to UI
@@ -424,9 +445,9 @@ export default function ChatScreen({ route }) {
 
       // Track chat engagement
       const profileId = userProfile?.id || 'default';
-      trackEvent('chat_message').catch(() => {});
-      awardXP(profileId, 'chat_message').catch(() => {});
-      completeQuestAction('chat_sent').catch(() => {});
+      trackEvent('chat_message').catch(() => { });
+      awardXP(profileId, 'chat_message').catch(() => { });
+      completeQuestAction('chat_sent').catch(() => { });
 
     } catch (e) {
       console.error('Chat error:', e);
@@ -537,7 +558,7 @@ export default function ChatScreen({ route }) {
       )}
 
       {/* Input */}
-      <View style={styles.inputBar}>
+      <View style={[styles.inputBar, !kbVisible && { paddingBottom: 110 }]}>
         <View style={styles.inputField}>
           <TextInput
             style={styles.inputText}

@@ -40,6 +40,8 @@ import LevelUpModal from '../components/LevelUpModal';
 import MercuryRxCard from '../components/MercuryRxCard';
 import LunarEventCard from '../components/LunarEventCard';
 import WhisperShareCard from '../components/WhisperShareCard';
+import { useRevenueCat } from '../contexts/RevenueCatContext';
+
 
 const { width: SCREEN_W } = Dimensions.get('window');
 
@@ -74,7 +76,9 @@ const formatDateHeader = (date = new Date()) => {
 };
 
 export default function HomeScreen({ navigation, route }) {
+  const { isPro } = useRevenueCat();
   const { userProfile, partnerProfiles, isLoading: profileLoading } = useUserProfile();
+
   const [activeTab, setActiveTab] = useState('today');
   const [moonData, setMoonData] = useState(null);
   const [transitPlanets, setTransitPlanets] = useState([]);
@@ -155,7 +159,7 @@ export default function HomeScreen({ navigation, route }) {
       transitsRef.current.measureLayout(
         mainScrollRef.current.getInnerViewRef?.() || mainScrollRef.current,
         (x, y) => mainScrollRef.current.scrollTo({ y: y - 80, animated: true }),
-        () => {}
+        () => { }
       );
     }
   }, []);
@@ -214,21 +218,21 @@ export default function HomeScreen({ navigation, route }) {
     try {
       const sig = calculateTransitSignificance(userProfile.chart, today);
       setTransitSignificance(sig);
-    } catch (e) {}
+    } catch (e) { }
 
     // Cosmic season
     try {
       const season = getCosmicSeason(userProfile.chart, today);
       setCosmicSeason(season);
-    } catch (e) {}
+    } catch (e) { }
 
     // Narrative context for story continuity
     getNarrativeContext(userProfile?.id || 'default', userProfile.chart)
       .then(ctx => setNarrativeCtx(ctx))
-      .catch(() => {});
+      .catch(() => { });
 
     // Journal count for recap
-    JournalRepository.getEntryCount(userProfile?.id || 'default').then(c => setJournalCount(c)).catch(() => {});
+    JournalRepository.getEntryCount(userProfile?.id || 'default').then(c => setJournalCount(c)).catch(() => { });
 
     // Monthly recap (1st-3rd of month)
     if (today.getDate() <= 3) {
@@ -250,11 +254,11 @@ export default function HomeScreen({ navigation, route }) {
           setMonthlyRecap(recap);
           await saveObject(recapKey, recap);
         }
-      }).catch(() => {});
+      }).catch(() => { });
     }
 
     // Drip-feed unlock check
-    getTodayUnlock().then(unlock => setTodayUnlock(unlock)).catch(() => {});
+    getTodayUnlock().then(unlock => setTodayUnlock(unlock)).catch(() => { });
 
     // Cosmic whisper (variable rate + tiered rarity)
     getCosmicWhisper(userProfile?.chart).then(whisper => {
@@ -262,7 +266,7 @@ export default function HomeScreen({ navigation, route }) {
         setCosmicWhisper(whisper.message);
         setWhisperRarity(whisper.rarity);
       }
-    }).catch(() => {});
+    }).catch(() => { });
 
     // Streak + engagement
     (async () => {
@@ -330,10 +334,10 @@ export default function HomeScreen({ navigation, route }) {
         }
 
         // Load daily quests
-        getTodayQuests().then(qd => setQuestData(qd)).catch(() => {});
+        getTodayQuests().then(qd => setQuestData(qd)).catch(() => { });
 
         // Load next badge progress
-        getNextBadgeProgress().then(nb => setNextBadge(nb)).catch(() => {});
+        getNextBadgeProgress().then(nb => setNextBadge(nb)).catch(() => { });
 
         // Session counting + notification soft-ask (after 3rd session)
         const todayKey = today.toISOString().split('T')[0];
@@ -395,13 +399,13 @@ export default function HomeScreen({ navigation, route }) {
       setForecast(data);
       // Schedule notifications with latest forecast (only on today tab)
       if (tab === 'today') {
-        scheduleAllNotifications(userProfile, data, streakData, moonData, null, cosmicWindows).catch(() => {});
+        scheduleAllNotifications(userProfile, data, streakData, moonData, null, cosmicWindows).catch(() => { });
         const todayStr = dateLabel;
-        getCosmicLineForDate(todayStr).then(line => setTodayCosmicLine(line)).catch(() => {});
+        getCosmicLineForDate(todayStr).then(line => setTodayCosmicLine(line)).catch(() => { });
         refillCosmicLinesIfNeeded(userProfile).then(generated => {
           if (generated) {
-            scheduleAllNotifications(userProfile, data, streakData, moonData, null, cosmicWindows).catch(() => {});
-            getCosmicLineForDate(todayStr).then(line => setTodayCosmicLine(line)).catch(() => {});
+            scheduleAllNotifications(userProfile, data, streakData, moonData, null, cosmicWindows).catch(() => { });
+            getCosmicLineForDate(todayStr).then(line => setTodayCosmicLine(line)).catch(() => { });
           }
         }).catch(e => console.warn('[CosmicLines] Refill failed:', e));
       }
@@ -417,17 +421,17 @@ export default function HomeScreen({ navigation, route }) {
     try {
       const chart = userProfile?.chart;
       if (chart) {
-        try { setMoonData(getMoonDataForDate(new Date())); } catch {}
-        try { setTransitPlanets(getTransitPlanets(new Date())); } catch {}
-        try { setCosmicWindows(getActiveCosmicWindows(chart, new Date()).slice(0, 3)); } catch {}
-        try { setCosmicChange(getCosmicChangeToday(chart)); } catch {}
-        try { setTransitSignificance(calculateTransitSignificance(chart, new Date())); } catch {}
-        try { setCosmicSeason(getCosmicSeason(chart, new Date())); } catch {}
+        try { setMoonData(getMoonDataForDate(new Date())); } catch { }
+        try { setTransitPlanets(getTransitPlanets(new Date())); } catch { }
+        try { setCosmicWindows(getActiveCosmicWindows(chart, new Date()).slice(0, 3)); } catch { }
+        try { setCosmicChange(getCosmicChangeToday(chart)); } catch { }
+        try { setTransitSignificance(calculateTransitSignificance(chart, new Date())); } catch { }
+        try { setCosmicSeason(getCosmicSeason(chart, new Date())); } catch { }
       }
       await loadTabData(activeTab);
-      getTodayQuests().then(qd => setQuestData(qd)).catch(() => {});
-      getNextBadgeProgress().then(nb => setNextBadge(nb)).catch(() => {});
-    } catch {} finally {
+      getTodayQuests().then(qd => setQuestData(qd)).catch(() => { });
+      getNextBadgeProgress().then(nb => setNextBadge(nb)).catch(() => { });
+    } catch { } finally {
       setRefreshing(false);
     }
   }, [userProfile, activeTab]);
@@ -437,7 +441,7 @@ export default function HomeScreen({ navigation, route }) {
       const entries = await loadObject(JOURNAL_KEY) || {};
       const dateStr = today.toISOString().split('T')[0];
       if (entries[dateStr]) { setJournalText(entries[dateStr]); setJournalSaved(true); }
-    } catch (e) {}
+    } catch (e) { }
   };
 
   const saveJournalEntry = async () => {
@@ -478,15 +482,21 @@ export default function HomeScreen({ navigation, route }) {
       completeQuestAction('journal_written').then(r => {
         if (r) { setQuestData(prev => prev ? { ...prev, quests: r.quests, allComplete: r.allComplete } : prev); }
         if (r?.justCompleted) {
-          trackEvent('quest_complete').catch(() => {});
-          awardXP(profileId, 'quest_bonus').then(xpB => { if (xpB) showXPGain(xpB.amount); }).catch(() => {});
+          trackEvent('quest_complete').catch(() => { });
+          awardXP(profileId, 'quest_bonus').then(xpB => { if (xpB) showXPGain(xpB.amount); }).catch(() => { });
         }
-      }).catch(() => {});
+      }).catch(() => { });
     } catch (e) { console.error(e); }
   };
 
   const openMoonRitual = async () => {
+    if (!isPro) {
+      haptic.medium();
+      navigation.navigate('Paywall', { source: 'strategy' });
+      return;
+    }
     if (!moonData) return;
+
     const isNewMoon = moonData.phaseName === 'New Moon';
     setShowMoonRitual(true);
     setRitualSaved(false);
@@ -506,7 +516,7 @@ export default function HomeScreen({ navigation, route }) {
     setMoonRitualLoading(true);
     try {
       const chart = userProfile?.chart?.planets;
-      const sig = chart ? `Sun: ${chart.find(p=>p.name==='Sun')?.sign}, Moon: ${chart.find(p=>p.name==='Moon')?.sign}, Rising: ${chart.find(p=>p.name==='Ascendant')?.sign}` : 'Unknown';
+      const sig = chart ? `Sun: ${chart.find(p => p.name === 'Sun')?.sign}, Moon: ${chart.find(p => p.name === 'Moon')?.sign}, Rising: ${chart.find(p => p.name === 'Ascendant')?.sign}` : 'Unknown';
       const ritual = await generateMoonRitual(moonData, sig, isNewMoon);
       if (ritual) {
         setMoonRitual(ritual);
@@ -585,6 +595,7 @@ export default function HomeScreen({ navigation, route }) {
   return (
     <View style={{ flex: 1, backgroundColor: T.cream }}>
       <ScrollView ref={mainScrollRef} showsVerticalScrollIndicator={false} bounces={true}
+        contentContainerStyle={{ paddingBottom: 110 }}
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={T.gold} colors={[T.gold]} />}>
         {/* ── HERO ── */}
         <LinearGradient colors={['#0E0E22', '#1A1535', '#0F1628']} locations={[0, 0.5, 1]} style={styles.hero}>
@@ -642,13 +653,20 @@ export default function HomeScreen({ navigation, route }) {
             <TouchableOpacity key={tab.key}
               style={[styles.periodTab, activeTab === tab.key && styles.periodTabOn]}
               onPress={() => {
+                if (tab.key !== 'today' && !isPro) {
+                  haptic.medium();
+                  navigation.navigate('Paywall', { source: 'strategy' });
+                  return;
+                }
                 haptic.selection(); setActiveTab(tab.key); mainScrollRef.current?.scrollTo({ y: 0, animated: true });
               }} activeOpacity={0.7}>
               <Text style={[styles.periodTabText, activeTab === tab.key && styles.periodTabTextOn]}>
                 {tab.label}
+                {tab.key !== 'today' && !isPro && <Text style={{ fontSize: 10 }}> 🔒</Text>}
               </Text>
             </TouchableOpacity>
           ))}
+
         </ScrollView>
 
         <View style={styles.content}>
@@ -720,15 +738,20 @@ export default function HomeScreen({ navigation, route }) {
                 {/* Deep Dive */}
                 <TouchableOpacity style={styles.briefingMoreBtn} activeOpacity={0.7}
                   onPress={() => {
+                    if (!isPro) {
+                      haptic.medium();
+                      navigation.navigate('Paywall', { source: 'natal' });
+                      return;
+                    }
                     haptic.light();
                     setShowBriefing(true);
                     completeQuestAction('forecast_read').then(r => {
                       if (r) { setQuestData(prev => prev ? { ...prev, quests: r.quests, allComplete: r.allComplete } : prev); }
                       if (r?.justCompleted) {
-                        trackEvent('quest_complete').catch(() => {});
-                        awardXP(userProfile?.id || 'default', 'quest_bonus').then(xp => { if (xp) showXPGain(xp.amount); }).catch(() => {});
+                        trackEvent('quest_complete').catch(() => { });
+                        awardXP(userProfile?.id || 'default', 'quest_bonus').then(xp => { if (xp) showXPGain(xp.amount); }).catch(() => { });
                       }
-                    }).catch(() => {});
+                    }).catch(() => { });
                   }}>
                   <Text style={styles.briefingMoreText}>Deep Dive</Text>
                   <Text style={styles.briefingMoreArrow}>→</Text>
@@ -808,64 +831,69 @@ export default function HomeScreen({ navigation, route }) {
           {/* ── 4. LIFE AREA NAVIGATOR (today only) ── */}
           {activeTab === 'today' && <Text style={styles.sectionLabel}>LIFE AREA NAVIGATOR</Text>}
           {activeTab === 'today' &&
-          <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: 16 }}
-            contentContainerStyle={{ paddingHorizontal: 20, gap: 12 }}>
-            {[
-              { key: 'love', icon: '♡', title: 'Love', subtitle: 'Relationships', color: '#E85090' },
-              { key: 'career', icon: '◆', title: 'Career', subtitle: 'Work & Money', color: '#5090E8' },
-              { key: 'vitality', icon: '✦', title: 'Vitality', subtitle: 'Energy & Rhythm', color: '#50C878' },
-              { key: 'growth', icon: '◎', title: 'Growth', subtitle: 'Learning & Wisdom', color: '#F59E0B' },
-              { key: 'social', icon: '✧', title: 'Social', subtitle: 'Communication', color: '#8B5CF6' },
-            ].map((area) => {
-              const data = forecast?.lifeAreas?.[area.key];
-              return (
-                <TouchableOpacity key={area.key} style={[styles.lifeAreaCard, { borderTopColor: area.color }]}
-                  activeOpacity={0.7}
-                  onPress={() => {
-                    haptic.light();
-                    setLifeAreaModal(area.key);
-                  }}>
-                  <View style={styles.lifeAreaHeader}>
-                    <Text style={[styles.lifeAreaIcon, { color: area.color }]}>{area.icon}</Text>
-                    <View style={{ flex: 1 }}>
-                      <Text style={styles.lifeAreaTitle}>{area.title}</Text>
-                      <Text style={styles.lifeAreaSubtitle}>{area.subtitle}</Text>
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: 16 }}
+              contentContainerStyle={{ paddingHorizontal: 20, gap: 12 }}>
+              {[
+                { key: 'love', icon: '♡', title: 'Love', subtitle: 'Relationships', color: '#E85090' },
+                { key: 'career', icon: '◆', title: 'Career', subtitle: 'Work & Money', color: '#5090E8' },
+                { key: 'vitality', icon: '✦', title: 'Vitality', subtitle: 'Energy & Rhythm', color: '#50C878' },
+                { key: 'growth', icon: '◎', title: 'Growth', subtitle: 'Learning & Wisdom', color: '#F59E0B' },
+                { key: 'social', icon: '✧', title: 'Social', subtitle: 'Communication', color: '#8B5CF6' },
+              ].map((area) => {
+                const data = forecast?.lifeAreas?.[area.key];
+                return (
+                  <TouchableOpacity key={area.key} style={[styles.lifeAreaCard, { borderTopColor: area.color }]}
+                    activeOpacity={0.7}
+                    onPress={() => {
+                      if (!isPro) {
+                        haptic.medium();
+                        navigation.navigate('Paywall', { source: `life_area_${area.key}` });
+                        return;
+                      }
+                      haptic.light();
+                      setLifeAreaModal(area.key);
+                    }}>
+                    <View style={styles.lifeAreaHeader}>
+                      <Text style={[styles.lifeAreaIcon, { color: area.color }]}>{area.icon}</Text>
+                      <View style={{ flex: 1 }}>
+                        <Text style={styles.lifeAreaTitle}>{area.title}</Text>
+                        <Text style={styles.lifeAreaSubtitle}>{area.subtitle}</Text>
+                      </View>
+                      <View style={[styles.lifeAreaEnergyBadge, { backgroundColor: area.color + '18' }]}>
+                        <Text style={[styles.lifeAreaEnergyText, { color: area.color }]}>{data?.energy || 'Steady'}</Text>
+                      </View>
                     </View>
-                    <View style={[styles.lifeAreaEnergyBadge, { backgroundColor: area.color + '18' }]}>
-                      <Text style={[styles.lifeAreaEnergyText, { color: area.color }]}>{data?.energy || 'Steady'}</Text>
-                    </View>
-                  </View>
-                  {data?.planetaryReason && (
-                    <Text style={styles.lifeAreaPlanetReason}>{data.planetaryReason}</Text>
-                  )}
-                  {data?.doItems && data.doItems.length > 0 && (
-                    <View style={styles.lifeAreaDoSection}>
-                      {data.doItems.slice(0, 2).map((item, i) => (
-                        <View key={i} style={styles.lifeAreaDoRow}>
-                          <Text style={[styles.lifeAreaDoIcon, { color: area.color }]}>→</Text>
-                          <Text style={styles.lifeAreaDoText}>{item}</Text>
-                        </View>
-                      ))}
-                    </View>
-                  )}
-                  {data?.avoidItems && data.avoidItems.length > 0 && !data.avoidItems[0]?.includes?.('Steady skies') && (
-                    <View style={styles.lifeAreaAvoidSection}>
-                      {data.avoidItems.slice(0, 1).map((item, i) => (
-                        <View key={i} style={styles.lifeAreaAvoidRow}>
-                          <Text style={styles.lifeAreaAvoidIcon}>⊘</Text>
-                          <Text style={styles.lifeAreaAvoidText}>{item}</Text>
-                        </View>
-                      ))}
-                    </View>
-                  )}
-                  {data?.navigatorNote && (
-                    <Text style={styles.lifeAreaNote}>"{data.navigatorNote}"</Text>
-                  )}
-                  <Text style={[styles.lifeAreaCta, { color: area.color }]}>Deep Dive →</Text>
-                </TouchableOpacity>
-              );
-            })}
-          </ScrollView>}
+                    {data?.planetaryReason && (
+                      <Text style={styles.lifeAreaPlanetReason}>{data.planetaryReason}</Text>
+                    )}
+                    {data?.doItems && data.doItems.length > 0 && (
+                      <View style={styles.lifeAreaDoSection}>
+                        {data.doItems.slice(0, 2).map((item, i) => (
+                          <View key={i} style={styles.lifeAreaDoRow}>
+                            <Text style={[styles.lifeAreaDoIcon, { color: area.color }]}>→</Text>
+                            <Text style={styles.lifeAreaDoText}>{item}</Text>
+                          </View>
+                        ))}
+                      </View>
+                    )}
+                    {data?.avoidItems && data.avoidItems.length > 0 && !data.avoidItems[0]?.includes?.('Steady skies') && (
+                      <View style={styles.lifeAreaAvoidSection}>
+                        {data.avoidItems.slice(0, 1).map((item, i) => (
+                          <View key={i} style={styles.lifeAreaAvoidRow}>
+                            <Text style={styles.lifeAreaAvoidIcon}>⊘</Text>
+                            <Text style={styles.lifeAreaAvoidText}>{item}</Text>
+                          </View>
+                        ))}
+                      </View>
+                    )}
+                    {data?.navigatorNote && (
+                      <Text style={styles.lifeAreaNote}>"{data.navigatorNote}"</Text>
+                    )}
+                    <Text style={[styles.lifeAreaCta, { color: area.color }]}>Deep Dive →</Text>
+                  </TouchableOpacity>
+                );
+              })}
+            </ScrollView>}
 
 
           {/* ── TODAY'S SKY — personalized card ── */}
@@ -1068,8 +1096,8 @@ export default function HomeScreen({ navigation, route }) {
                 haptic.light();
                 const sunSign = userProfile?.chart?.planets?.find(p => p.name === 'Sun')?.sign || '';
                 await shareRecap(`My cosmic recap for ${today.toLocaleString('default', { month: 'long' })} — ${sunSign} Sun`);
-                trackEvent('share').catch(() => {});
-                awardXP(userProfile?.id || 'default', 'share').catch(() => {});
+                trackEvent('share').catch(() => { });
+                awardXP(userProfile?.id || 'default', 'share').catch(() => { });
               }}>
                 <Text style={styles.recapShareText}>Share Your Recap ↗</Text>
               </TouchableOpacity>
@@ -1111,8 +1139,8 @@ export default function HomeScreen({ navigation, route }) {
               onPress={async () => {
                 haptic.medium();
                 await shareWhisperCard(`✧ ${cosmicWhisper}\n\n— A Cosmic Whisper from Celestia${whisperRarity ? ` (${whisperRarity})` : ''}`);
-                trackEvent('share').catch(() => {});
-                awardXP(userProfile?.id || 'default', 'share').catch(() => {});
+                trackEvent('share').catch(() => { });
+                awardXP(userProfile?.id || 'default', 'share').catch(() => { });
               }}>
               <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
                 <Text style={styles.whisperLabel}>COSMIC WHISPER</Text>
@@ -1145,7 +1173,7 @@ export default function HomeScreen({ navigation, route }) {
                       } else if (p.chart && userProfile?.chart) {
                         score = calculateSynastryScore(userProfile.chart, p.chart, role).harmonyScore;
                       }
-                    } catch (e) {}
+                    } catch (e) { }
                     return (
                       <View key={p.id} style={[styles.circleWidgetOrb, { marginLeft: i > 0 ? -8 : 0 }]}>
                         <LinearGradient colors={colors} style={styles.circleWidgetOrbInner}>
@@ -1231,39 +1259,39 @@ export default function HomeScreen({ navigation, route }) {
       <Modal visible={showBriefing} animationType="slide" presentationStyle="pageSheet">
         <View style={{ flex: 1, backgroundColor: T.cream }}>
           <ScrollView style={{ flex: 1 }} contentContainerStyle={{ paddingBottom: 50 }} showsVerticalScrollIndicator={false}>
-          {/* ── Hero: same headline as card for continuity ── */}
-          <LinearGradient colors={['#171428', '#14122A', '#0F1220']}
-            start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }}
-            style={styles.ddHero}>
-            <View style={styles.ddHeaderRow}>
-              <Text style={styles.ddDate}>{formatDateHeader().toUpperCase()}</Text>
-              <TouchableOpacity onPress={() => setShowBriefing(false)} hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}>
-                <Text style={styles.ddClose}>✕</Text>
-              </TouchableOpacity>
-            </View>
-            {/* Decorative compass icon */}
-            <View style={styles.ddCompassWrap}>
-              <View style={styles.ddCompassGlow} />
-              <View style={styles.ddCompassRing}>
-                <Text style={styles.ddCompassIcon}>✦</Text>
+            {/* ── Hero: same headline as card for continuity ── */}
+            <LinearGradient colors={['#171428', '#14122A', '#0F1220']}
+              start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }}
+              style={styles.ddHero}>
+              <View style={styles.ddHeaderRow}>
+                <Text style={styles.ddDate}>{formatDateHeader().toUpperCase()}</Text>
+                <TouchableOpacity onPress={() => setShowBriefing(false)} hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}>
+                  <Text style={styles.ddClose}>✕</Text>
+                </TouchableOpacity>
               </View>
-            </View>
-            <Text style={styles.ddLabel}>YOUR NAVIGATOR BRIEFING</Text>
-            <Text style={styles.ddHeadline}>{forecast?.navigatorHeadline}</Text>
-            {forecast?.navigatorSummary && (
-              <Text style={styles.ddSummary}>{forecast.navigatorSummary}</Text>
-            )}
-            {/* Glance chips in glass container */}
-            <View style={styles.ddChipsGlass}>
-              <View style={styles.ddChipItem}><Text style={styles.ddChipText}>{moonIcon} {moonPhase}</Text></View>
-              {forecast?.powerCosmic && (
-                <View style={styles.ddChipItem}><Text style={styles.ddChipText}>✦ {forecast.powerCosmic}</Text></View>
+              {/* Decorative compass icon */}
+              <View style={styles.ddCompassWrap}>
+                <View style={styles.ddCompassGlow} />
+                <View style={styles.ddCompassRing}>
+                  <Text style={styles.ddCompassIcon}>✦</Text>
+                </View>
+              </View>
+              <Text style={styles.ddLabel}>YOUR NAVIGATOR BRIEFING</Text>
+              <Text style={styles.ddHeadline}>{forecast?.navigatorHeadline}</Text>
+              {forecast?.navigatorSummary && (
+                <Text style={styles.ddSummary}>{forecast.navigatorSummary}</Text>
               )}
-              {forecast?.luckyStats && (
-                <View style={styles.ddChipItem}><Text style={styles.ddChipText}>#{forecast.luckyStats.number}</Text></View>
-              )}
-            </View>
-          </LinearGradient>
+              {/* Glance chips in glass container */}
+              <View style={styles.ddChipsGlass}>
+                <View style={styles.ddChipItem}><Text style={styles.ddChipText}>{moonIcon} {moonPhase}</Text></View>
+                {forecast?.powerCosmic && (
+                  <View style={styles.ddChipItem}><Text style={styles.ddChipText}>✦ {forecast.powerCosmic}</Text></View>
+                )}
+                {forecast?.luckyStats && (
+                  <View style={styles.ddChipItem}><Text style={styles.ddChipText}>#{forecast.luckyStats.number}</Text></View>
+                )}
+              </View>
+            </LinearGradient>
 
             {/* ── 1. THE READING — full horoscope paragraphs ── */}
             {paragraphs.length > 0 && (
@@ -1509,8 +1537,8 @@ export default function HomeScreen({ navigation, route }) {
                     haptic.medium();
                     const sunSign = userProfile?.chart?.planets?.find(p => p.name === 'Sun')?.sign || '';
                     Share.share({ message: `✦ ${forecast.viralInsight}\n\n— Celestia (${sunSign} Sun)` });
-                    trackEvent('share').catch(() => {});
-                    awardXP(userProfile?.id || 'default', 'share').catch(() => {});
+                    trackEvent('share').catch(() => { });
+                    awardXP(userProfile?.id || 'default', 'share').catch(() => { });
                   }}>
                   <Text style={styles.ddShareText}>✦ {forecast.viralInsight}</Text>
                   <Text style={styles.ddShareCta}>Share this insight ↗</Text>
@@ -1546,57 +1574,57 @@ export default function HomeScreen({ navigation, route }) {
           return (
             <View style={{ flex: 1, backgroundColor: T.cream }}>
               <ScrollView style={{ flex: 1 }} showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 50 }}>
-              {/* ── Hero ── */}
-              <LinearGradient colors={meta.gradient} style={styles.lamHero}>
-                {/* Top bar: date + close */}
-                <View style={styles.lamTopBar}>
-                  <Text style={styles.lamDateLabel}>{formatDateHeader().toUpperCase()}</Text>
-                  <TouchableOpacity onPress={() => setLifeAreaModal(null)} hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}>
-                    <Text style={styles.lamCloseBtn}>✕</Text>
-                  </TouchableOpacity>
-                </View>
-
-                {/* Icon with glow ring */}
-                <View style={styles.lamIconWrap}>
-                  <View style={[styles.lamIconGlow, { backgroundColor: meta.color + '18', shadowColor: meta.color }]} />
-                  <View style={[styles.lamIconRing, { borderColor: meta.color + '35' }]}>
-                    <Text style={[styles.lamHeroIcon, { color: meta.color }]}>{meta.icon}</Text>
+                {/* ── Hero ── */}
+                <LinearGradient colors={meta.gradient} style={styles.lamHero}>
+                  {/* Top bar: date + close */}
+                  <View style={styles.lamTopBar}>
+                    <Text style={styles.lamDateLabel}>{formatDateHeader().toUpperCase()}</Text>
+                    <TouchableOpacity onPress={() => setLifeAreaModal(null)} hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}>
+                      <Text style={styles.lamCloseBtn}>✕</Text>
+                    </TouchableOpacity>
                   </View>
-                </View>
 
-                {/* Title + Subtitle */}
-                <Text style={styles.lamHeroTitle}>{meta.title}</Text>
-                <Text style={styles.lamHeroSub}>{meta.sub}</Text>
-
-                {/* Energy badge + Intensity bar in a glass card */}
-                <View style={styles.lamGlassCard}>
-                  <View style={styles.lamGlassRow}>
-                    <View style={[styles.lamEnergyPill, { backgroundColor: meta.color + '25' }]}>
-                      <Text style={[styles.lamEnergyPillText, { color: meta.color }]}>{areaData?.energy || 'Steady'}</Text>
-                    </View>
-                    <View style={styles.lamIntensityWrap}>
-                      <Text style={styles.lamIntensityLabelLeft}>Intensity</Text>
-                      <View style={styles.lamIntensityTrack}>
-                        <View style={[styles.lamIntensityFill, { width: `${intensityVal * 10}%`, backgroundColor: meta.color }]} />
-                      </View>
-                      <Text style={[styles.lamIntensityNum, { color: meta.color }]}>{intensityVal}/10</Text>
+                  {/* Icon with glow ring */}
+                  <View style={styles.lamIconWrap}>
+                    <View style={[styles.lamIconGlow, { backgroundColor: meta.color + '18', shadowColor: meta.color }]} />
+                    <View style={[styles.lamIconRing, { borderColor: meta.color + '35' }]}>
+                      <Text style={[styles.lamHeroIcon, { color: meta.color }]}>{meta.icon}</Text>
                     </View>
                   </View>
-                  {/* Archetype + Driving Planet */}
-                  <View style={styles.lamGlassChips}>
-                    {(areaData?.archetype || relatedArchetype) ? (
-                      <View style={[styles.lamHeroChip, { borderColor: meta.color + '30' }]}>
-                        <Text style={[styles.lamHeroChipText, { color: meta.color }]}>{areaData?.archetype || relatedArchetype}</Text>
+
+                  {/* Title + Subtitle */}
+                  <Text style={styles.lamHeroTitle}>{meta.title}</Text>
+                  <Text style={styles.lamHeroSub}>{meta.sub}</Text>
+
+                  {/* Energy badge + Intensity bar in a glass card */}
+                  <View style={styles.lamGlassCard}>
+                    <View style={styles.lamGlassRow}>
+                      <View style={[styles.lamEnergyPill, { backgroundColor: meta.color + '25' }]}>
+                        <Text style={[styles.lamEnergyPillText, { color: meta.color }]}>{areaData?.energy || 'Steady'}</Text>
                       </View>
-                    ) : null}
-                    {areaData?.drivingPlanet ? (
-                      <View style={[styles.lamHeroChip, { borderColor: 'rgba(255,255,255,0.15)' }]}>
-                        <Text style={styles.lamHeroChipTextLight}>{areaData.drivingPlanet}</Text>
+                      <View style={styles.lamIntensityWrap}>
+                        <Text style={styles.lamIntensityLabelLeft}>Intensity</Text>
+                        <View style={styles.lamIntensityTrack}>
+                          <View style={[styles.lamIntensityFill, { width: `${intensityVal * 10}%`, backgroundColor: meta.color }]} />
+                        </View>
+                        <Text style={[styles.lamIntensityNum, { color: meta.color }]}>{intensityVal}/10</Text>
                       </View>
-                    ) : null}
+                    </View>
+                    {/* Archetype + Driving Planet */}
+                    <View style={styles.lamGlassChips}>
+                      {(areaData?.archetype || relatedArchetype) ? (
+                        <View style={[styles.lamHeroChip, { borderColor: meta.color + '30' }]}>
+                          <Text style={[styles.lamHeroChipText, { color: meta.color }]}>{areaData?.archetype || relatedArchetype}</Text>
+                        </View>
+                      ) : null}
+                      {areaData?.drivingPlanet ? (
+                        <View style={[styles.lamHeroChip, { borderColor: 'rgba(255,255,255,0.15)' }]}>
+                          <Text style={styles.lamHeroChipTextLight}>{areaData.drivingPlanet}</Text>
+                        </View>
+                      ) : null}
+                    </View>
                   </View>
-                </View>
-              </LinearGradient>
+                </LinearGradient>
 
                 <View style={{ padding: 20 }}>
 
@@ -1799,8 +1827,8 @@ export default function HomeScreen({ navigation, route }) {
         onDismiss={() => setPendingBadge(null)}
         levelName={xpData?.current?.name}
         onShare={() => {
-          trackEvent('share').catch(() => {});
-          awardXP(userProfile?.id || 'default', 'share').catch(() => {});
+          trackEvent('share').catch(() => { });
+          awardXP(userProfile?.id || 'default', 'share').catch(() => { });
         }}
       />
 
@@ -1812,8 +1840,8 @@ export default function HomeScreen({ navigation, route }) {
         message={streakMilestone?.message}
         onDismiss={() => setStreakMilestone(null)}
         onShare={() => {
-          trackEvent('share').catch(() => {});
-          awardXP(userProfile?.id || 'default', 'share').catch(() => {});
+          trackEvent('share').catch(() => { });
+          awardXP(userProfile?.id || 'default', 'share').catch(() => { });
         }}
       />
 
@@ -1824,8 +1852,8 @@ export default function HomeScreen({ navigation, route }) {
         totalXP={levelUpData?.totalXP}
         onDismiss={() => setLevelUpData(null)}
         onShare={() => {
-          trackEvent('share').catch(() => {});
-          awardXP(userProfile?.id || 'default', 'share').catch(() => {});
+          trackEvent('share').catch(() => { });
+          awardXP(userProfile?.id || 'default', 'share').catch(() => { });
         }}
       />
 
@@ -1880,7 +1908,7 @@ export default function HomeScreen({ navigation, route }) {
           await saveBoolean(StorageKeys.NOTIFICATION_ASKED, true);
           const granted = await requestNotificationPermission();
           if (granted) {
-            scheduleAllNotifications(userProfile, forecast, streakData, moonData, null, cosmicWindows).catch(() => {});
+            scheduleAllNotifications(userProfile, forecast, streakData, moonData, null, cosmicWindows).catch(() => { });
           }
         }}
         onDismiss={async () => {

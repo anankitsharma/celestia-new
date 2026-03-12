@@ -1,13 +1,23 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, TouchableOpacity, StyleSheet, Keyboard, Platform } from 'react-native';
+import { View, Text, TouchableOpacity, StyleSheet, Keyboard, Platform, Dimensions } from 'react-native';
+import { BlurView } from 'expo-blur';
+import {
+  Star,
+  Sparkles,
+  Compass,
+  Users,
+  ScrollText
+} from 'lucide-react-native';
 import { T, FONTS } from '../constants/theme';
 
+const { width } = Dimensions.get('window');
+
 const TABS = [
-  { icon: '◎', label: 'Today' },
-  { icon: '☽', label: 'Ask' },
-  { icon: '◉', label: 'Chart' },
-  { icon: '♡', label: 'Circle' },
-  { icon: '◑', label: 'Reports' },
+  { icon: Star, label: 'Today', name: 'Today' },
+  { icon: Sparkles, label: 'Ask', name: 'AskAI' },
+  { icon: Compass, label: 'Chart', name: 'Chart' },
+  { icon: Users, label: 'Circle', name: 'Circle' },
+  { icon: ScrollText, label: 'Reports', name: 'Reports' },
 ];
 
 export default function TabBar({ state, navigation }) {
@@ -24,66 +34,105 @@ export default function TabBar({ state, navigation }) {
   if (keyboardVisible) return null;
 
   return (
-    <View style={styles.container}>
-      {state.routes.map((route, i) => {
-        const active = state.index === i;
-        const tab = TABS[i];
-        return (
-          <TouchableOpacity
-            key={i}
-            style={styles.tab}
-            activeOpacity={0.7}
-            onPress={() => navigation.navigate(route.name)}
-          >
-            <View style={[styles.bubble, active && styles.bubbleActive]}>
-              <Text style={[styles.icon, { color: active ? T.gold : '#C0B8A4', fontSize: active ? 20 : 18 }]}>
-                {tab.icon}
-              </Text>
-              {active && <View style={styles.dot} />}
-            </View>
-            <Text style={[styles.label, { color: active ? T.navy : '#C0B8A4' }]}>
-              {tab.label}
-            </Text>
-          </TouchableOpacity>
-        );
-      })}
+    <View style={styles.outerContainer}>
+      <BlurView
+        intensity={Platform.OS === 'ios' ? 90 : 0}
+        tint="light"
+        style={styles.blurContainer}
+      >
+        <View style={styles.container}>
+          {state.routes.map((route, i) => {
+            const active = state.index === i;
+            const tab = TABS.find(t => t.name === route.name) || TABS[i];
+            const Icon = tab.icon;
+
+            return (
+              <TouchableOpacity
+                key={i}
+                style={styles.tab}
+                activeOpacity={0.7}
+                onPress={() => navigation.navigate(route.name)}
+              >
+                <View style={styles.iconContainer}>
+                  {active && <View style={styles.pill} />}
+                  <Icon
+                    size={24}
+                    color={active ? T.gold : '#A1A1AA'}
+                    strokeWidth={active ? 2.5 : 2}
+                  />
+                </View>
+                <Text style={[
+                  styles.label,
+                  {
+                    color: active ? T.navy : '#A1A1AA',
+                    fontWeight: active ? '700' : '500'
+                  }
+                ]}>
+                  {tab.label}
+                </Text>
+              </TouchableOpacity>
+            );
+          })}
+        </View>
+      </BlurView>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
+  outerContainer: {
+    position: 'absolute',
+    bottom: Platform.OS === 'ios' ? 34 : 24,
+    left: 16,
+    right: 16,
+    borderRadius: 34,
+    backgroundColor: Platform.OS === 'ios' ? 'transparent' : 'rgba(255,255,255,0.98)',
+    ...Platform.select({
+      ios: {
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 8 },
+        shadowOpacity: 0.12,
+        shadowRadius: 16,
+      },
+      android: {
+        elevation: 10,
+      },
+    }),
+    overflow: 'hidden',
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.2)',
+  },
+  blurContainer: {
+    flex: 1,
+  },
   container: {
     flexDirection: 'row',
-    height: 86,
-    backgroundColor: 'rgba(250,248,242,0.93)',
-    borderTopWidth: 1,
-    borderTopColor: 'rgba(0,0,0,0.07)',
-    paddingTop: 10,
-    paddingHorizontal: 4,
+    height: 72,
+    alignItems: 'center',
+    paddingHorizontal: 10,
+    backgroundColor: Platform.OS === 'ios' ? 'rgba(255,255,255,0.85)' : 'transparent',
   },
   tab: {
     flex: 1,
     alignItems: 'center',
-    gap: 3,
-  },
-  bubble: {
-    width: 48,
-    height: 30,
-    borderRadius: 15,
-    alignItems: 'center',
     justifyContent: 'center',
   },
-  bubbleActive: {
-    backgroundColor: 'rgba(200,168,75,0.13)',
+  iconContainer: {
+    width: 64,
+    height: 34,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 2,
   },
-  dot: {
+  pill: {
     position: 'absolute',
-    bottom: -5,
-    width: 4,
-    height: 4,
-    borderRadius: 2,
-    backgroundColor: T.gold,
+    width: 56,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: 'rgba(200,168,75,0.12)',
   },
-  icon: { fontSize: 19 },
-  label: { fontSize: 9.5, fontWeight: '500', letterSpacing: 0.2 },
+  label: {
+    fontSize: 10,
+    letterSpacing: 0.3,
+  },
 });
