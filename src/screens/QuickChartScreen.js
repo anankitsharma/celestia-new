@@ -135,7 +135,7 @@ export default function QuickChartScreen({ navigation }) {
         chart: chartResult,
       };
       await addPartner(partner);
-      navigation.navigate('Main', { screen: 'Match' });
+      navigation.navigate('Main', { screen: 'Circle' });
     } catch (e) {
       console.error('Save partner error:', e);
       Alert.alert('Error', 'Failed to save partner. Please try again.');

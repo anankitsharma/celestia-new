@@ -170,7 +170,7 @@ export async function getNextBadgeProgress() {
 
   // Define trackable badges with current/target
   const trackable = [
-    { id: 'transit_watcher', current: c.sky_tab_opens, target: 10, label: 'Sky tab visits' },
+    { id: 'transit_watcher', current: c.sky_tab_opens, target: 10, label: 'Sky explorations' },
     { id: 'report_reader', current: c.reports_generated, target: 3, label: 'Reports generated' },
     { id: 'cosmic_scholar', current: c.reports_generated, target: 10, label: 'Reports generated' },
     { id: 'deep_diver', current: c.deep_dives, target: 5, label: 'Deep dives' },

@@ -4,6 +4,7 @@ import { calculateDailyLoveScore } from "./astrologyService";
 import { ChatRepository } from "./database/rep_chats";
 import { ForecastRepository } from "./database/rep_forecasts";
 import { ReportRepository } from "./database/rep_reports";
+import { getNarrativeContext, buildNarrativePromptBlock } from './narrativeService';
 
 // API Key (Use ENV in production)
 const API_KEY = "AIzaSyDmaZykGA8m8suXCpCPy0vKPFCRLvrfhNo";
@@ -31,6 +32,26 @@ const SAFETY_SETTINGS = [
 ];
 
 // --- SCHEMAS ---
+
+// Life area navigator item schema (reused across 5 areas)
+const lifeAreaSchema = {
+    type: Type.OBJECT,
+    properties: {
+        energy: { type: Type.STRING },
+        intensity: { type: Type.INTEGER },
+        archetype: { type: Type.STRING },
+        planetaryReason: { type: Type.STRING },
+        drivingPlanet: { type: Type.STRING },
+        horoscope: { type: Type.STRING },
+        doItems: { type: Type.ARRAY, items: { type: Type.STRING } },
+        avoidItems: { type: Type.ARRAY, items: { type: Type.STRING } },
+        timing: { type: Type.STRING },
+        ritual: { type: Type.STRING },
+        affirmation: { type: Type.STRING },
+        navigatorNote: { type: Type.STRING },
+    },
+    required: ["energy", "intensity", "archetype", "planetaryReason", "drivingPlanet", "horoscope", "doItems", "avoidItems", "timing", "ritual", "affirmation", "navigatorNote"]
+};
 
 const periodSchema = {
     type: Type.OBJECT,
@@ -65,9 +86,29 @@ const periodSchema = {
         wealthFlow: { type: Type.STRING },
         marketTiming: { type: Type.STRING },
         planetInfluences: { type: Type.ARRAY, items: { type: Type.OBJECT, properties: { glyph: { type: Type.STRING }, tag: { type: Type.STRING }, effect: { type: Type.STRING } }, required: ["glyph", "tag", "effect"] } },
-        dailyRitual: { type: Type.STRING }
+        dailyRitual: { type: Type.STRING },
+
+        // Navigator Briefing — headline + do/avoid + 5 life areas
+        navigatorHeadline: { type: Type.STRING },
+        navigatorSummary: { type: Type.STRING },
+        navigateToward: { type: Type.ARRAY, items: { type: Type.OBJECT, properties: { action: { type: Type.STRING }, reason: { type: Type.STRING } }, required: ["action", "reason"] } },
+        navigateAround: { type: Type.ARRAY, items: { type: Type.OBJECT, properties: { action: { type: Type.STRING }, reason: { type: Type.STRING }, alternative: { type: Type.STRING } }, required: ["action", "reason", "alternative"] } },
+        notificationExcerpt: { type: Type.OBJECT, properties: { title: { type: Type.STRING }, body: { type: Type.STRING }, lifeArea: { type: Type.STRING } }, required: ["title", "body", "lifeArea"] },
+
+        // 5 Life Area Navigators
+        lifeAreas: {
+            type: Type.OBJECT,
+            properties: {
+                love: lifeAreaSchema,
+                career: lifeAreaSchema,
+                vitality: lifeAreaSchema,
+                growth: lifeAreaSchema,
+                social: lifeAreaSchema,
+            },
+            required: ["love", "career", "vitality", "growth", "social"]
+        },
     },
-    required: ["header", "powerCosmic", "luckyStats", "mantra", "detailedHoroscope", "loveVibe", "careerVibe", "actionItems", "viralInsight", "loveArchetype", "loveHoroscope", "loveActions", "careerArchetype", "careerHoroscope", "careerActions", "careerPowerSource", "wealthFlow", "marketTiming", "planetInfluences", "dailyRitual"]
+    required: ["header", "powerCosmic", "luckyStats", "mantra", "detailedHoroscope", "loveVibe", "careerVibe", "actionItems", "viralInsight", "loveArchetype", "loveHoroscope", "loveActions", "careerArchetype", "careerHoroscope", "careerActions", "careerPowerSource", "wealthFlow", "marketTiming", "planetInfluences", "dailyRitual", "navigatorHeadline", "navigatorSummary", "navigateToward", "navigateAround", "notificationExcerpt", "lifeAreas"]
 };
 
 const reportCoreSchema = {
@@ -432,11 +473,51 @@ const monthlyRecapSchema = {
     required: ["headline", "summary", "topInsight", "cosmicScore", "lookAhead"]
 };
 
-export const generateMonthlyRecap = async (astralSignature, stats) => {
+export const generateMonthlyRecap = async (chart, stats) => {
+    // Build rich chart context from full natal chart object
+    let chartContext = '';
+    if (chart) {
+        // Planet placements with houses
+        if (chart.planets && chart.planets.length > 0) {
+            const placements = chart.planets.map(p => {
+                let entry = `${p.name} in ${p.sign}`;
+                if (p.house != null) entry += ` (House ${p.house})`;
+                if (p.isRetrograde) entry += ' [Rx]';
+                return entry;
+            }).join(', ');
+            chartContext += `NATAL PLACEMENTS: ${placements}\n`;
+        }
+
+        // Key natal aspects
+        if (chart.aspects && chart.aspects.length > 0) {
+            const keyAspects = chart.aspects.slice(0, 10).map(a =>
+                `${a.planet1} ${a.type} ${a.planet2}${a.orb != null ? ` (orb ${a.orb.toFixed(1)}°)` : ''}`
+            ).join(', ');
+            chartContext += `KEY NATAL ASPECTS: ${keyAspects}\n`;
+        }
+
+        // Element distribution
+        if (chart.elements) {
+            const elems = Object.entries(chart.elements).map(([k, v]) => `${k}: ${v}`).join(', ');
+            chartContext += `ELEMENTS: ${elems}\n`;
+        }
+
+        // Modality distribution
+        if (chart.modalities) {
+            const mods = Object.entries(chart.modalities).map(([k, v]) => `${k}: ${v}`).join(', ');
+            chartContext += `MODALITIES: ${mods}\n`;
+        }
+    }
+
+    // Fallback if chart context is empty
+    if (!chartContext) {
+        chartContext = 'Chart data unavailable.\n';
+    }
+
     const prompt = `Generate a monthly cosmic recap for this user.
 
-USER'S CHART: ${astralSignature}
-
+USER'S NATAL CHART:
+${chartContext}
 STATS THIS MONTH:
 - Days active: ${stats.daysActive || 0}
 - Journal entries written: ${stats.journalEntries || 0}
@@ -445,12 +526,13 @@ STATS THIS MONTH:
 
 Generate:
 1. HEADLINE: A 4-6 word poetic summary of their cosmic month. Examples: "The month you chose clarity", "Quiet revolutions took root", "Your Venus woke up"
-2. SUMMARY: 2 sentences. What the cosmos brought them this month. Reference their chart. Max 40 words.
-3. TOP INSIGHT: The single most important thing they learned or experienced cosmically. 1 sentence, max 20 words.
+2. SUMMARY: 2 sentences. What the cosmos brought them this month. Reference specific placements from their chart (houses, aspects, planet signs). Max 40 words.
+3. TOP INSIGHT: The single most important thing they learned or experienced cosmically. Reference a specific natal placement or aspect. 1 sentence, max 20 words.
 4. COSMIC SCORE: 1-100. Based on transit activity for their chart this month.
-5. LOOK AHEAD: 1 sentence preview of next month's energy. Max 20 words.
+5. LOOK AHEAD: 1 sentence preview of next month's energy, referencing a house or placement. Max 20 words.
 
 TONE: Warm, personal, reflective. Like a wise friend reviewing the month together.
+Reference SPECIFIC placements (e.g. "your 7th house Venus in Libra", "that Mars-Saturn square") — not just Sun signs.
 NEVER: Generic platitudes, emoji, "the universe", "stars align".`;
 
     return withRetry(async () => {
@@ -754,10 +836,10 @@ export const generateAspectAnalysis = async (aspects) => {
     }, fallback);
 };
 
-export const generatePlacementDeepDive = async (planet, sign, house, profileId) => {
+export const generatePlacementDeepDive = async (planet, sign, house, profileId, transitContext = null) => {
     // If no profileId, we cannot use the DB cache because of Foreign Key constraints (profile_id must exist).
     // In that case, we skip the DB check and just return the AI generation (or use an in-memory cache if we added one).
-    const key = profileId ? `${profileId}_planet_v2_${planet}_${sign}_${house} ` : null;
+    const key = profileId ? `${profileId}_planet_v2_${planet}_${sign}_${house}${transitContext ? '_live' : ''} ` : null;
 
     // Check Cache (Type: 'planet_deep_dive')
     if (key) {
@@ -795,6 +877,11 @@ export const generatePlacementDeepDive = async (planet, sign, house, profileId) 
         3. traits: 3 distinct, punchy bullet points about their BEHAVIOR.
         4. share_quote: A short, aesthetic "I statement" they would post on Instagram. (e.g., "I don't chase, I attract.").
 
+        ${transitContext ? `
+CURRENT TRANSIT ACTIVATION:
+${transitContext}
+Include a "RIGHT NOW" opening paragraph (2-3 sentences) about how this transit is temporarily modifying this natal placement. What is the transit asking? How long will it last? Then continue with the permanent natal interpretation.
+` : ''}
         JSON Only.
     `;
 
@@ -804,9 +891,10 @@ export const generatePlacementDeepDive = async (planet, sign, house, profileId) 
             config: { responseMimeType: "application/json", responseSchema: journalReportSchema }
         });
         const data = cleanAndParseJson(response.text, fallback);
-        // Cache for 30 days if we have a valid profile
+        // Cache for 30 days if we have a valid profile (1 day if transit context)
         if (profileId && key) {
-            await ForecastRepository.saveForecast(key, profileId, 'planet_deep_dive', new Date().toISOString().split('T')[0], data, Date.now() + 30 * 24 * 60 * 60 * 1000);
+            const ttl = transitContext ? 24 * 60 * 60 * 1000 : 30 * 24 * 60 * 60 * 1000;
+            await ForecastRepository.saveForecast(key, profileId, 'planet_deep_dive', new Date().toISOString().split('T')[0], data, Date.now() + ttl);
         }
         return data;
     }, fallback);
@@ -968,6 +1056,8 @@ export const generateTransitInsight = async (transitPlanet, transitSign, natalPl
         5. ritual: A short micro-ritual or spiritual practice aligned with this transit energy. Examples: "Write 3 gratitudes under moonlight", "Carry citrine in your left pocket today", "Breathe deeply for 2 minutes visualizing gold light". Max 20 words.
         6. ritualDuration: How long it takes (e.g. "2 min", "5 min").
 
+TIMING CONTEXT: Include 1 sentence about where this transit is in its arc. Is it building toward exact (anticipation), exact right now (peak intensity), or separating (integrating lessons)? Give approximate dates if possible.
+
         JSON Only.
     `;
 
@@ -1046,7 +1136,8 @@ export const fetchExtendedForecast = async (
     profile,
     period: 'today' | 'yesterday' | 'tomorrow' | 'weekly' | 'monthly' | 'yearly',
     planetaryData,
-    transitSignificance = 0
+    transitSignificance = 0,
+    narrativeContext = null
 ) => {
     // Use the actual forecast date from planetaryData, not always "now"
     const forecastDate = planetaryData?.dateLabel || new Date().toISOString().split('T')[0];
@@ -1083,10 +1174,11 @@ export const fetchExtendedForecast = async (
     const cached = await ForecastRepository.getForecast(key);
     if (cached) return cached;
 
+    const lifeAreaFallback = { energy: "Steady", intensity: 3, archetype: "The Observer", planetaryReason: "Quiet skies — no major transits activating this area", drivingPlanet: "Moon ☽", horoscope: "The cosmic weather is calm in this area today. Use this time to maintain your rhythm and reflect on recent progress. No urgent action needed.", doItems: ["Maintain your current course", "Review recent progress", "Rest and recharge"], avoidItems: ["Steady skies — maintain your current course"], timing: "All day — steady background energy", ritual: "Take five minutes to sit quietly and check in with yourself", affirmation: "I trust the pace of my journey", navigatorNote: "Nothing demands your attention here today. That's a gift — use it." };
     const fallback = {
         header: "Cosmic Overview",
         powerCosmic: "Steady",
-        luckyStats: { number: 7, color: "#FFFFFF" },
+        luckyStats: { number: 7, color: "Gold", colorHex: "#C8A84B", crystal: "Clear Quartz" },
         mantra: "I am grounded.",
         detailedHoroscope: "The stars align.",
         loveVibe: "Harmony.",
@@ -1094,7 +1186,13 @@ export const fetchExtendedForecast = async (
         actionItems: ["Breathe", "Focus"],
         viralInsight: "The universe has your back.",
         loveNatal: { mandate: "", content: "", keywords: [] },
-        careerNatal: { mandate: "", content: "", keywords: [] }
+        careerNatal: { mandate: "", content: "", keywords: [] },
+        navigatorHeadline: "A steady day ahead",
+        navigatorSummary: "The cosmic weather is calm. A good day to maintain your rhythm.",
+        navigateToward: [{ action: "Stay consistent", reason: "Stable planetary energy" }],
+        navigateAround: [{ action: "Impulsive changes", reason: "No strong transit support", alternative: "Plan for next week" }],
+        notificationExcerpt: { title: "Your briefing is ready", body: "A steady day ahead. Your navigator has the details.", lifeArea: "vitality" },
+        lifeAreas: { love: lifeAreaFallback, career: lifeAreaFallback, vitality: lifeAreaFallback, growth: lifeAreaFallback, social: lifeAreaFallback },
     };
 
     // Calculate Love Context (Simplified for brevity but functionally present)
@@ -1169,10 +1267,10 @@ export const fetchExtendedForecast = async (
         ${JSON.stringify(planetaryData)}
 
     TASK:
-        Generate a premium, detailed forecast for this user.
+        Generate a premium, detailed forecast for this user. You are a NAVIGATOR — the user is the captain of their life, you read the celestial patterns and advise.
 
         STRICT FORMATTING RULES:
-    1. Header: Max 4 words(e.g. "Moon in Taurus").
+    1. Header: A punchy thematic title. Max 5 words (e.g. "Courage Meets Opportunity").
         2. PowerCosmic: Max 3 words(e.g. "Grounded Energy").
         3. Mantra: A simple affirmation(Max 10 words).
         ${deepDiveInstruction}
@@ -1180,14 +1278,63 @@ export const fetchExtendedForecast = async (
         6. CareerVibe: Max 3 words(Adjective + Noun).
         7. ActionItems: 3 simple tasks(Max 4 words each).
         8. ViralInsight: A sharp, relatable, slightly edgy or mystical one-liner about this energy. Something people would want to share on Instagram. (Max 15 words).
-        9. LuckyStats: number (1-99), color name, colorHex (hex code matching the color e.g. "#E8A0B0"), crystal (a crystal/stone aligned with today's energy e.g. "Rose Quartz", "Citrine", "Amethyst").
+        9. LuckyStats: number (1-99), color name, colorHex (hex code matching the color e.g. "#E8A0B0"), crystal (a crystal/stone aligned with today's energy e.g. "Rose Quartz", "Citrine", "Amethyst"). Derive the color from dominant planetary energy (Venus=greens/pinks, Mars=reds, Jupiter=blues/purples, Saturn=grays/blacks, Moon=silvers/whites, Sun=golds/yellows, Mercury=light blues/teals).
         10. PlanetInfluences: 2-3 items explaining WHY they feel this way today. Each has: glyph (planet symbol like ☿ ♀ ♂ ☽ ♃ ♄), tag (e.g. "Venus trine your Moon"), effect (one sentence explaining the impact, max 15 words).
         11. DailyRitual: A short micro-ritual or practice aligned with today's energy. Max 20 words. (e.g. "Light a white candle and write 3 things you're grateful for" or "Carry citrine today for confidence").
 
+        === NAVIGATOR BRIEFING (CRITICAL — NEW FIELDS) ===
+
+        12. NavigatorHeadline: A crisp, powerful hook that summarizes the ENTIRE day in one punchy line. This is the FIRST thing the user reads — it must be magnetic and make them want to read more. Must be specific to their chart, never generic. Write it like a headline that stops someone mid-scroll. E.g. "Courage pays off today", "Your words carry unusual weight", "A quiet day to recharge". Max 7 words. No filler words.
+
+        13. NavigatorSummary: 1-2 sentences expanding the headline with the planetary reason. E.g. "Venus trines your natal Moon in the 7th house — emotional honesty lands well today. Say what you've been holding back." Max 30 words.
+
+        14. NavigateToward: 4-5 items of things to DO today. Each has: action (what to do, max 8 words), reason (the planetary reason, max 10 words). E.g. { action: "Start important conversations", reason: "Mercury trine your 3rd house ruler" }.
+
+        15. NavigateAround: 3-4 items of things to NAVIGATE CAREFULLY around. Each has: action (what to avoid, max 8 words), reason (planetary reason, max 10 words), alternative (what to do instead, max 8 words). E.g. { action: "Big financial decisions", reason: "Mars squares your 2nd house", alternative: "Plan and research instead" }. NEVER be scary — frame as "navigate around" not "danger."
+
+        16. NotificationExcerpt: The morning notification content. Must be VALUABLE even if user never opens the app. title: max 5 words (no emoji), body: max 25 words — contains the actual core insight + planetary reason + what to do. lifeArea: which of the 5 areas is most activated (love/career/vitality/growth/social).
+
+        17. LifeAreas: 5 DEEP life area navigator objects. Each area is a mini-reading on its own. For EACH area provide:
+            - energy: 1-2 words (e.g. "Strong", "Mixed", "Flowing", "Quiet", "Excellent", "Challenging")
+            - intensity: 1-10 integer. How activated this area is today (1=dormant, 5=moderate, 8+=highly activated). Use actual transit strength to determine this.
+            - archetype: 2-4 word archetype label for today's energy in this area (e.g. "The Bold Lover", "The Patient Builder", "The Quiet Healer", "The Connector", "The Scholar"). Must be specific to today's planetary weather, not generic.
+            - planetaryReason: Max 15 words, the transit/aspect behind it (e.g. "Venus trine natal Moon in 7th — emotional honesty resonates deeply")
+            - drivingPlanet: The main planet driving this area today with its glyph (e.g. "Venus ♀", "Mars ♂", "Jupiter ♃", "Saturn ♄", "Mercury ☿", "Moon ☽", "Sun ☉", "Neptune ♆", "Pluto ♇", "Uranus ♅")
+            - horoscope: 3-4 sentence FULL paragraph reading for this specific area. This is the deep dive — explain what's happening, why, and what it means for the user's life. Reference their natal placements. This should feel like a professional astrologer wrote it specifically for them. Max 60 words.
+            - doItems: 3-4 specific things to do in this area (max 12 words each). Must be justified by actual transits. Be actionable and specific.
+            - avoidItems: 2-3 things to navigate around (max 12 words each). If the area is quiet, say "Steady skies — maintain your current course."
+            - timing: Best time of day for this area's energy (e.g. "Morning — Mars energy peaks before noon", "Evening — Venus comes alive after sunset", "All day — steady Saturn influence", "Late afternoon — Moon enters your 7th house around 4pm"). Max 15 words.
+            - ritual: A specific, doable ritual or practice for this area today (e.g. "Write 3 things you appreciate about your partner before bed", "Take a 10-minute walk at lunch to reset your Mars energy", "Journal one career fear and flip it into an intention"). Max 25 words. Must connect to the planetary energy.
+            - affirmation: A powerful, area-specific affirmation rooted in today's transits (e.g. "My heart knows what it wants, and today I let it lead", "My work speaks louder than my doubts"). Max 15 words. Must feel personal, not generic.
+            - navigatorNote: 1-2 sentence personal note from the navigator. Warm, wise, specific. Max 25 words.
+
+            The 5 areas:
+            a. LOVE (love): Relationships, emotional bonds, vulnerability, romance, intimacy, self-love. Governed by Venus, Moon, 5th/7th house. Consider natal Venus sign, 7th house ruler, any Venus/Moon transits.
+            b. CAREER (career): Work, ambition, finances, authority, reputation, wealth flow. Governed by Saturn, Sun, 10th/2nd/6th house. Consider natal Saturn, MC, 10th house ruler, any career-activating transits.
+            c. VITALITY (vitality): Physical energy, daily rhythm, rest needs, peak windows, health, body awareness. Governed by Mars, Sun, 1st/6th house. Consider natal Mars, ASC ruler, any Mars/Sun transits.
+            d. GROWTH (growth): Learning, wisdom, spiritual development, self-discovery, inner work, transformation. Governed by Jupiter, Mercury, Neptune, 9th/12th house. Consider natal Jupiter, 9th house, any Jupiter/Neptune transits.
+            e. SOCIAL (social): Communication, friendships, networking, influence, community, public presence. Governed by Mercury, 3rd/11th house. Consider natal Mercury, 11th house, any Mercury transits.
+
+            IMPORTANT: On quiet days when a life area has no active transits, set intensity to 2-3, energy to "Steady", and be honest about it. A navigator who says "nothing notable on this route" is more credible than inventing drama. Still provide the horoscope, timing, ritual, and affirmation — but frame them as maintenance rather than action.
+
         TONE:
-    - Mystical but VERY SIMPLE to read.
+    - You are a NAVIGATOR advising the captain. Never give orders — give recommendations.
+        - Frame avoids as "navigate around" not "don't do." Always provide an alternative.
+        - Never frighten. Challenges are navigable, not threatening.
+        - Mystical but VERY SIMPLE to read.
         - STRICT "Grade 6-7 English" level. (No complex words).
         - Warm, encouraging, expert voice.
+
+${narrativeContext ? `
+${buildNarrativePromptBlock(narrativeContext)}
+
+STORY INSTRUCTION: This reading is a chapter in an ongoing story, not a standalone horoscope.
+- OPENING: Begin with 1 sentence acknowledging yesterday ("Yesterday's [energy/theme] has passed..." or "Building on yesterday's [theme]..."). Never ignore the previous chapter.
+- COSMIC SEASON: Naturally reference the user's active cosmic season at least once. This is the overarching plot of their life right now.
+- JOURNAL ECHO: If they journaled, reflect their words back with cosmic context ("You felt [X] — that's [planet] working through your [house]").
+- FORWARD HOOK: End the guidance paragraph with a subtle hint about what's building.
+- ARCHETYPE: Occasionally address them through their archetype lens ("As a [archetype name], you naturally...")
+` : ''}
 
         Strictly follow schemas.Return JSON.
     `;
@@ -1308,7 +1455,7 @@ export const generateChatResponse = async (history, userProfile) => {
 
 // --- CHAT SESSION HELPERS ---
 
-export const createChatSession = async (userProfile, partnerProfile, sessionId) => {
+export const createChatSession = async (userProfile, partnerProfile, sessionId, narrativeContext = null) => {
     // Generate a persona-based system instruction
     // Serialize the full chart for the AI
     const chartData = userProfile.chart?.planets
@@ -1363,6 +1510,34 @@ export const createChatSession = async (userProfile, partnerProfile, sessionId) 
        - Use Bullet Points for lists.
     6. LENGTH: Keep responses CONCISE. Max 150 words per turn unless asked for a deep dive.
     7. ENGAGEMENT: Always end with ONE short, deep follow-up question to keep the user exploring.
+${narrativeContext?.season ? `
+=== THE USER'S ONGOING COSMIC STORY ===
+COSMIC SEASON: ${narrativeContext.season.planet} is transiting their natal ${narrativeContext.season.natalTarget}.
+Progress: ${narrativeContext.season.progress}% through (${narrativeContext.season.daysRemaining} days remaining).
+Theme: ${narrativeContext.season.description}
+${narrativeContext.season.isRetrograde ? 'Currently retrograde — they are revisiting earlier themes from this transit.' : ''}
+` : ''}
+${narrativeContext?.today ? `
+TODAY'S COSMIC WEATHER:
+- Moon: ${narrativeContext.today.moonData?.sign || 'unknown'} (${narrativeContext.today.moonData?.phaseName || ''})
+- Transit Significance: ${narrativeContext.today.significance}/100 ${narrativeContext.today.significance >= 70 ? '(COSMIC DOWNLOAD DAY)' : ''}
+- Active Windows: ${narrativeContext.today.cosmicWindows?.map(w => w.description).join('; ') || 'none'}
+${narrativeContext.mercuryRx ? '- Mercury is RETROGRADE' : ''}
+` : ''}
+${narrativeContext?.yesterday?.journalText ? `
+RECENT JOURNAL: User wrote: "${narrativeContext.yesterday.journalText}" (mood: ${narrativeContext.yesterday.journalMood || 'unspecified'})
+` : ''}
+${narrativeContext?.yesterday?.forecastHeader ? `
+YESTERDAY'S FORECAST: "${narrativeContext.yesterday.forecastHeader}"
+` : ''}
+${narrativeContext ? `
+STORY-AWARE GUIDANCE:
+- You are this user's cosmic mentor following their journey
+- Reference their cosmic season naturally when relevant
+- Connect their questions to active transits
+- Never list this context back to them — weave it naturally
+- You are warm, wise, and specific. Generic advice is your enemy.
+` : ''}
     `;
 
     // console.log("[Gemini] Generated System Instruction:", systemInstruction);
@@ -1695,36 +1870,45 @@ const getAstralSignature = (profile) => {
     `.trim();
 };
 
-export const generateMatchCore = async (p1, p2, synastry) => {
-    const key = `${p1.id}_${p2.id} _match_core`;
+export const generateMatchCore = async (p1, p2, synastry, transitContext = null, relationshipType = 'partner') => {
+    const key = `${p1.id}_${p2.id}_match_core_${relationshipType}`;
     const cached = await ReportRepository.getReport(key);
     if (cached) return cached;
 
     const p1Sig = getAstralSignature(p1);
     const p2Sig = getAstralSignature(p2);
+    const roleLabel = (ROLE_PROMPT_CONTEXT[relationshipType] || ROLE_PROMPT_CONTEXT.other).label;
 
     const prompt = `
-        RELATIONSHIP ANALYST: Compatibility Report.
-        
-        Partner A:
+        RELATIONSHIP ANALYST: ${roleLabel} Compatibility Report.
+
+        Person A:
         ${p1Sig}
 
-        Partner B:
+        Person B:
         ${p2Sig}
 
+        Relationship Type: ${roleLabel}
         Math Score: ${synastry.harmonyScore}/100.
 
     TASK:
-    1. Headline: A short, catchy title(Max 5 words).
-        2. Archetype: A mystical 2 - word title(e.g. "Cosmic Mirrors").
-        3. Snapshot: Exactly 2 simple sentences summarizing their vibe(Max 25 words total).
-        4. ViralVerdict: Max 2 words. A strong, emotional label. (e.g. "SOULMATES", "CHAOTIC", "HOT & COLD").
-        5. ViralHook: Max 15 words. A specific, identity-based roast or toast. START with "Your [Sign]...". (e.g. "Your Aries Sun overpowers their Libra Moon.").
+    1. Headline: A short, catchy title (Max 5 words) relevant to a ${roleLabel.toLowerCase()} bond.
+        2. Archetype: A mystical 2-word title (e.g. "Cosmic Mirrors", "Soul Teachers").
+        3. Snapshot: Exactly 2 simple sentences summarizing their ${roleLabel.toLowerCase()} vibe (Max 25 words total).
+        4. ViralVerdict: Max 2 words. A strong, emotional label. (e.g. ${relationshipType === 'partner' ? '"SOULMATES", "CHAOTIC", "HOT & COLD"' : relationshipType === 'friend' ? '"RIDE OR DIE", "SOUL SISTERS", "CHAOS TWINS"' : '"MIRROR SOULS", "GROWTH ENGINES", "STEADY ANCHORS"'}).
+        5. ViralHook: Max 15 words. A specific, identity-based insight. START with "Your [Sign]...".
+
+        ${transitContext ? `
+CURRENT COSMIC WEATHER AFFECTING THIS RELATIONSHIP:
+${transitContext}
+Weave 1-2 sentences about how RIGHT NOW is a specific moment for this relationship.
+` : ''}
 
         TONE:
-    - Mystical but very simple. 
-        - Grade 6 - 7 reading level(Easy English).
+    - Mystical but very simple.
+        - Grade 6-7 reading level (Easy English).
         - No complex jargon.
+        - Frame through the lens of a ${roleLabel.toLowerCase()} relationship.
 
         Output JSON Only.
     `;
@@ -1748,83 +1932,200 @@ export const generateMatchCore = async (p1, p2, synastry) => {
     }, fallback);
 };
 
-export const generateMatchDetails = async (p1, p2) => {
-    const key = `${p1.id}_${p2.id} _match_details`;
+// Role-specific prompt context for AI
+const ROLE_PROMPT_CONTEXT = {
+    partner: {
+        label: 'Romantic Partner', focus: 'love, passion, emotional intimacy, long-term compatibility',
+        areaKeys: ['emotional', 'attraction', 'communication', 'stability'],
+        uniquePrompt: `
+        Also generate these EXTRA fields:
+        - loveLanguages: { user (${'{'}person A's love language based on their Venus sign, max 30 words${'}'}, partner (person B's love language based on their Venus sign, max 30 words) }
+        - conflictStyle: { triggers (what Mars placements say about friction between them, max 40 words), resolution (how to resolve based on Mercury/Moon, max 40 words) }`,
+    },
+    friend: {
+        label: 'Best Friend', focus: 'trust, fun, loyalty, mutual growth, shared adventures',
+        areaKeys: ['trust', 'fun', 'communication', 'growth'],
+        uniquePrompt: `
+        Also generate these EXTRA fields:
+        - friendshipDynamic: { vibeDescription (what hanging out feels like based on Moon/Venus, max 35 words), bestActivity (ideal shared activity based on chart elements, max 20 words) }
+        - adventureCompat: { idealTrip (travel style match based on Jupiter/Sagittarius, max 25 words), sharedEnergy (fire/earth/air/water energy they share, max 20 words) }`,
+    },
+    parent: {
+        label: 'Parent', focus: 'understanding, guidance, emotional support, healthy boundaries',
+        areaKeys: ['understanding', 'support', 'communication', 'boundaries'],
+        uniquePrompt: `
+        Also generate these EXTRA fields:
+        - generationalPattern: { pattern (repeating dynamic between them based on Saturn/Moon, max 35 words), origin (where this pattern comes from astrologically, max 25 words), healing (one step toward healing this, max 25 words) }
+        - communicationGuide: { theirStyle (how the parent communicates based on Mercury, max 25 words), yourStyle (how the child communicates, max 25 words), bridgeTip (practical tip to bridge the gap, max 30 words) }
+        - healingPath: { wound (the core tension in this bond, max 25 words), approach (how to heal based on charts, max 30 words), affirmation (a healing affirmation, max 15 words) }`,
+    },
+    sibling: {
+        label: 'Sibling', focus: 'bond, rivalry, shared history, mutual support',
+        areaKeys: ['bond', 'communication', 'sharedGrowth', 'support'],
+        uniquePrompt: `
+        Also generate these EXTRA fields:
+        - siblingDynamic: { rivalryScore (0-100 how competitive based on Mars/Sun), allianceScore (0-100 how allied based on Moon/Venus), dynamicLabel (2-3 word label like "Competitive Allies"), insight (what makes this sibling bond unique, max 35 words) }`,
+    },
+    boss: {
+        label: 'Boss/Manager', focus: 'respect, professional alignment, mentorship, career growth',
+        areaKeys: ['respect', 'workSync', 'communication', 'growth'],
+        uniquePrompt: `
+        Also generate these EXTRA fields:
+        - communicationPlaybook: { theirStyle (how the boss communicates based on Mercury/Saturn, max 25 words), bestApproach (how to approach them effectively, max 30 words), avoid (what NOT to do with this boss, max 25 words) }
+        - careerStrategy: { leverage (how to use this dynamic for growth, max 30 words), timing (best times to pitch ideas based on aspects, max 25 words), growthTip (one career tip, max 20 words) }`,
+    },
+    colleague: {
+        label: 'Colleague', focus: 'teamwork, creative synergy, professional trust, problem-solving',
+        areaKeys: ['workSync', 'communication', 'innovation', 'trust'],
+        uniquePrompt: `
+        Also generate these EXTRA fields:
+        - teamworkProfile: { yourRole (your natural role in this pair based on chart, max 20 words), theirRole (their natural role, max 20 words), bestCollabStyle (how to work together best, max 30 words), watchFor (potential friction point, max 20 words) }`,
+    },
+    child: {
+        label: 'Child', focus: 'nurturing, patience, understanding, deep bond',
+        areaKeys: ['nurturing', 'understanding', 'communication', 'bond'],
+        uniquePrompt: `
+        Also generate these EXTRA fields:
+        - parentingGuide: { theirNeeds (what this child needs emotionally based on Moon/Venus, max 30 words), yourStrength (your natural parenting strength, max 25 words), growthEdge (where you can grow as their parent, max 25 words) }
+        - childNature: { coreTemperament (their Sun/Moon temperament in simple terms, max 25 words), emotionalNeed (their #1 emotional need, max 15 words), bestMotivator (what motivates them based on Mars/Jupiter, max 20 words) }`,
+    },
+    other: {
+        label: 'Connection', focus: 'emotional resonance, communication, growth potential, stability',
+        areaKeys: ['emotional', 'communication', 'growth', 'stability'],
+        uniquePrompt: '',
+    },
+};
+
+// Gemini schema extensions for role-specific unique sections
+const ROLE_EXTRA_SCHEMAS = {
+    partner: {
+        loveLanguages: { type: Type.OBJECT, properties: { user: { type: Type.STRING }, partner: { type: Type.STRING } }, required: ['user', 'partner'] },
+        conflictStyle: { type: Type.OBJECT, properties: { triggers: { type: Type.STRING }, resolution: { type: Type.STRING } }, required: ['triggers', 'resolution'] },
+    },
+    friend: {
+        friendshipDynamic: { type: Type.OBJECT, properties: { vibeDescription: { type: Type.STRING }, bestActivity: { type: Type.STRING } }, required: ['vibeDescription', 'bestActivity'] },
+        adventureCompat: { type: Type.OBJECT, properties: { idealTrip: { type: Type.STRING }, sharedEnergy: { type: Type.STRING } }, required: ['idealTrip', 'sharedEnergy'] },
+    },
+    parent: {
+        generationalPattern: { type: Type.OBJECT, properties: { pattern: { type: Type.STRING }, origin: { type: Type.STRING }, healing: { type: Type.STRING } }, required: ['pattern', 'origin', 'healing'] },
+        communicationGuide: { type: Type.OBJECT, properties: { theirStyle: { type: Type.STRING }, yourStyle: { type: Type.STRING }, bridgeTip: { type: Type.STRING } }, required: ['theirStyle', 'yourStyle', 'bridgeTip'] },
+        healingPath: { type: Type.OBJECT, properties: { wound: { type: Type.STRING }, approach: { type: Type.STRING }, affirmation: { type: Type.STRING } }, required: ['wound', 'approach', 'affirmation'] },
+    },
+    sibling: {
+        siblingDynamic: { type: Type.OBJECT, properties: { rivalryScore: { type: Type.INTEGER }, allianceScore: { type: Type.INTEGER }, dynamicLabel: { type: Type.STRING }, insight: { type: Type.STRING } }, required: ['rivalryScore', 'allianceScore', 'dynamicLabel', 'insight'] },
+    },
+    boss: {
+        communicationPlaybook: { type: Type.OBJECT, properties: { theirStyle: { type: Type.STRING }, bestApproach: { type: Type.STRING }, avoid: { type: Type.STRING } }, required: ['theirStyle', 'bestApproach', 'avoid'] },
+        careerStrategy: { type: Type.OBJECT, properties: { leverage: { type: Type.STRING }, timing: { type: Type.STRING }, growthTip: { type: Type.STRING } }, required: ['leverage', 'timing', 'growthTip'] },
+    },
+    colleague: {
+        teamworkProfile: { type: Type.OBJECT, properties: { yourRole: { type: Type.STRING }, theirRole: { type: Type.STRING }, bestCollabStyle: { type: Type.STRING }, watchFor: { type: Type.STRING } }, required: ['yourRole', 'theirRole', 'bestCollabStyle', 'watchFor'] },
+    },
+    child: {
+        parentingGuide: { type: Type.OBJECT, properties: { theirNeeds: { type: Type.STRING }, yourStrength: { type: Type.STRING }, growthEdge: { type: Type.STRING } }, required: ['theirNeeds', 'yourStrength', 'growthEdge'] },
+        childNature: { type: Type.OBJECT, properties: { coreTemperament: { type: Type.STRING }, emotionalNeed: { type: Type.STRING }, bestMotivator: { type: Type.STRING } }, required: ['coreTemperament', 'emotionalNeed', 'bestMotivator'] },
+    },
+};
+
+export const generateMatchDetails = async (p1, p2, transitContext = null, relationshipType = 'partner') => {
+    const key = `${p1.id}_${p2.id}_match_details_${relationshipType}`;
     const cached = await ReportRepository.getReport(key);
     if (cached) return cached;
 
     const p1Sig = getAstralSignature(p1);
     const p2Sig = getAstralSignature(p2);
+    const roleCtx = ROLE_PROMPT_CONTEXT[relationshipType] || ROLE_PROMPT_CONTEXT.other;
+    const areaKeys = roleCtx.areaKeys;
 
-    // Returns 'areas', 'sharedValues', 'growthTensions', 'support'
     const prompt = `
-        DEEP DIVE COMPATIBILITY ANALYSIS.
-        
-        Partner A:
-        ${p1Sig}
+        DEEP DIVE COMPATIBILITY ANALYSIS — ${roleCtx.label.toUpperCase()} RELATIONSHIP.
 
-        Partner B:
-        ${p2Sig}
+        Person A: ${p1Sig}
+        Person B: ${p2Sig}
+
+        RELATIONSHIP TYPE: ${roleCtx.label}
+        FOCUS AREAS: ${roleCtx.focus}
 
     TASK:
-        Analyze the specific dynamics in these areas based on their Moon(Emotion), Mercury(Comm), and Venus(Values).
-        
+        Analyze the specific dynamics between ${p1.name} and ${p2.name} as ${roleCtx.label.toLowerCase()}.
+        Focus on what matters most in a ${roleCtx.label.toLowerCase()} relationship.
+
         STRICT WRITING RULES:
-    1. NAMES: Use REAL NAMES(e.g. "${p1.name}" and "${p2.name}") explicitly.NEVER use "Partner A/B" or "The User".
-        2. TONE: Expert Astrologer but simple(Grade 6 - 7).Warm, wise, and specific.
-        
+    1. NAMES: Use REAL NAMES ("${p1.name}" and "${p2.name}") explicitly. NEVER use "Partner A/B" or "The User".
+        2. TONE: Expert Astrologer but simple (Grade 6-7). Warm, wise, and specific.
+        3. RELATIONSHIP CONTEXT: Frame ALL analysis through the lens of a ${roleCtx.label.toLowerCase()} dynamic.
+           ${relationshipType === 'partner' ? 'Focus on romantic chemistry, emotional intimacy, and long-term love.' : ''}
+           ${relationshipType === 'friend' ? 'Focus on loyalty, fun together, shared adventures, and growing alongside each other.' : ''}
+           ${relationshipType === 'parent' ? 'Focus on the parent-child dynamic, guidance, emotional safety, and generational patterns.' : ''}
+           ${relationshipType === 'sibling' ? 'Focus on the sibling bond, rivalry, shared upbringing, and lifelong connection.' : ''}
+           ${['boss', 'colleague'].includes(relationshipType) ? 'Focus on professional dynamics, work styles, mentorship, and career collaboration.' : ''}
+           ${relationshipType === 'child' ? 'Focus on nurturing, patience, teaching, and the unique parent-child bond.' : ''}
+
+        ${transitContext ? `
+CURRENT COSMIC WEATHER BETWEEN THEM:
+${transitContext}
+Weave 2-3 sentences about how RIGHT NOW is a specific moment for this relationship. End with a 1-sentence forward hook.
+` : ''}
+
         Generate JSON with:
-    - areas: { emotional, physical, communication, stability, growth } 
-          * strength(Max 40 words.Describe the positive flow vividly.)
-        * tension(Max 40 words.Describe the friction point clearly.)
-        * analysis: EXACTLY 2 paragraphs separated by "\\n\\n". 
-             - Para 1(The Why): Explain the ASTROLOGY mechanics(e.g. "Because ${p1.name}'s Moon is Water and ${p2.name}'s is Fire..."). (Max 60 words).
-             - Para 2(The How / Advice): Practical advice for harmony. (Max 50 words).
-          * reflection(Max 15 words, deep question)
-        * score(0 - 100)
-        - sharedValues(3 items, Max 2 words each)
-            - growthTensions: { title, insight } [](2 items, Insight max 15 words)
+    - areas: { ${areaKeys.join(', ')} }
+          * strength (Max 40 words. Describe the positive flow vividly.)
+        * tension (Max 40 words. Describe the friction point clearly.)
+        * analysis: EXACTLY 2 paragraphs separated by "\\n\\n".
+             - Para 1 (The Why): Explain the ASTROLOGY mechanics. (Max 60 words).
+             - Para 2 (The How / Advice): Practical advice for harmony. (Max 50 words).
+          * reflection (Max 15 words, deep question)
+        * score (0-100)
+        - sharedValues (3 items, Max 2 words each)
+            - growthTensions: { title, insight } [] (2 items, Insight max 15 words)
                 - support: { emotional, practical } (Max 10 words each)
+        ${roleCtx.uniquePrompt || ''}
 
         JSON Only.
     `;
 
+    // Build dynamic fallback based on area keys
+    const defaultArea = { score: 75, strength: "A natural resonance between you.", tension: "Different approaches can create friction.", analysis: "Your charts show interesting dynamics.", reflection: "How can you grow?" };
+    const fallbackAreas = {};
+    areaKeys.forEach(k => { fallbackAreas[k] = { ...defaultArea }; });
+
     const fallback = {
-        areas: {
-            emotional: { score: 80, strength: "You confirm each other's feelings deeply.", tension: "Sometimes you drown in each other's moods.", analysis: "Because...", reflection: "How to ground?" },
-            physical: { score: 75, strength: "A magnetic pull that feels fated.", tension: "Different energy levels can clash.", analysis: "Energies align...", reflection: "Sync up." },
-            communication: { score: 85, strength: "You understand without speaking.", tension: "Assumptions cause silence.", analysis: "Mercury helps...", reflection: "Ask more." },
-            stability: { score: 70, strength: "Building a shared safe space.", tension: "Spending habits might differ.", analysis: "Saturn guides...", reflection: "Plan together." },
-            growth: { score: 90, strength: "You push each other to evolve.", tension: "Change can feel too fast.", analysis: "Jupiter expands...", reflection: "Support change." }
-        },
-        sharedValues: ["Authenticity", "Adventure", "Loyalty"],
+        areas: fallbackAreas,
+        sharedValues: ["Authenticity", "Growth", "Loyalty"],
         growthTensions: [
-            { title: "Freedom vs Closeness", insight: "Balance is key." },
-            { title: "Speed of Life", insight: "Patience required." }
+            { title: "Balance", insight: "Finding middle ground is key." },
+            { title: "Patience", insight: "Growth takes time." }
         ],
         support: { emotional: "Always there.", practical: "Problem solver." }
     };
 
     return withRetry(async () => {
+        // Build schema dynamically from area keys
+        const areaProps = {};
+        const areaSchema = { type: Type.OBJECT, properties: { score: { type: Type.INTEGER }, strength: { type: Type.STRING }, tension: { type: Type.STRING }, analysis: { type: Type.STRING }, reflection: { type: Type.STRING } }, required: ["score", "strength", "tension", "analysis", "reflection"] };
+        areaKeys.forEach(k => { areaProps[k] = areaSchema; });
+
+        const detailSchemaProps = {
+            areas: { type: Type.OBJECT, properties: areaProps, required: areaKeys },
+            sharedValues: { type: Type.ARRAY, items: { type: Type.STRING } },
+            growthTensions: { type: Type.ARRAY, items: { type: Type.OBJECT, properties: { title: { type: Type.STRING }, insight: { type: Type.STRING } }, required: ["title", "insight"] } },
+            support: { type: Type.OBJECT, properties: { emotional: { type: Type.STRING }, practical: { type: Type.STRING } }, required: ["emotional", "practical"] }
+        };
+        const detailRequired = ["areas", "sharedValues", "growthTensions", "support"];
+
+        // Add role-specific schema extensions
+        const roleExtras = ROLE_EXTRA_SCHEMAS[relationshipType];
+        if (roleExtras) {
+            Object.entries(roleExtras).forEach(([key, schema]) => {
+                detailSchemaProps[key] = schema;
+                detailRequired.push(key);
+            });
+        }
+
         const detailSchema = {
             type: Type.OBJECT,
-            properties: {
-                areas: {
-                    type: Type.OBJECT,
-                    properties: {
-                        emotional: { type: Type.OBJECT, properties: { score: { type: Type.INTEGER }, strength: { type: Type.STRING }, tension: { type: Type.STRING }, analysis: { type: Type.STRING }, reflection: { type: Type.STRING } }, required: ["score", "strength", "tension", "analysis", "reflection"] },
-                        physical: { type: Type.OBJECT, properties: { score: { type: Type.INTEGER }, strength: { type: Type.STRING }, tension: { type: Type.STRING }, analysis: { type: Type.STRING }, reflection: { type: Type.STRING } }, required: ["score", "strength", "tension", "analysis", "reflection"] },
-                        communication: { type: Type.OBJECT, properties: { score: { type: Type.INTEGER }, strength: { type: Type.STRING }, tension: { type: Type.STRING }, analysis: { type: Type.STRING }, reflection: { type: Type.STRING } }, required: ["score", "strength", "tension", "analysis", "reflection"] },
-                        stability: { type: Type.OBJECT, properties: { score: { type: Type.INTEGER }, strength: { type: Type.STRING }, tension: { type: Type.STRING }, analysis: { type: Type.STRING }, reflection: { type: Type.STRING } }, required: ["score", "strength", "tension", "analysis", "reflection"] },
-                        growth: { type: Type.OBJECT, properties: { score: { type: Type.INTEGER }, strength: { type: Type.STRING }, tension: { type: Type.STRING }, analysis: { type: Type.STRING }, reflection: { type: Type.STRING } }, required: ["score", "strength", "tension", "analysis", "reflection"] }
-                    },
-                    required: ["emotional", "physical", "communication", "stability", "growth"]
-                },
-                sharedValues: { type: Type.ARRAY, items: { type: Type.STRING } },
-                growthTensions: { type: Type.ARRAY, items: { type: Type.OBJECT, properties: { title: { type: Type.STRING }, insight: { type: Type.STRING } }, required: ["title", "insight"] } },
-                support: { type: Type.OBJECT, properties: { emotional: { type: Type.STRING }, practical: { type: Type.STRING } }, required: ["emotional", "practical"] }
-            },
-            required: ["areas", "sharedValues", "growthTensions", "support"]
+            properties: detailSchemaProps,
+            required: detailRequired
         };
 
         const response = await generateWithFallback({
@@ -1977,15 +2278,127 @@ JSON only.
     }, fallback);
 };
 
-export const generateDeepMatchReport = async (p1, p2, synastry) => {
+const DEEP_REPORT_CONFIGS = {
+    partner: {
+        label: 'Love Compatibility',
+        scoreLabels: ['Emotional', 'Communication', 'Attraction', 'Stability'],
+        scoreKeys: ['emotional', 'communication', 'attraction', 'stability'],
+        sections: `
+    4. soulConnection: { title (3 words), description (2 paragraphs, max 150 words). What draws them together on a soul level. Reference North Node, Moon, or 7th house. }
+    5. emotionalDynamic: { title, section1Label ("HOW ${'{p1}'} LOVES"), section1 (paragraph about ${'{p1}'}'s emotional style based on Moon/Venus, max 80 words), section2Label ("HOW ${'{p2}'} LOVES"), section2 (paragraph about ${'{p2}'}'s emotional style, max 80 words), together (paragraph about their emotional chemistry together, max 80 words) }
+    6. communicationStyle: { title, dynamic (2 paragraphs about Mercury interplay, max 150 words), tip (one practical sentence) }
+    7. uniqueSection: { title, spark (what creates the magnetic pull - reference Mars/Venus, max 100 words), tension (what creates friction, max 80 words) }
+    8. growthAreas: [{ title (2-3 words), insight (2 sentences, max 40 words) }] — exactly 3 items
+    9. longTerm: { forecast (2 paragraphs about long-term potential, reference Saturn aspects, max 150 words), verdict (one bold sentence) }
+    10. advice: [string] — exactly 5 specific, actionable relationship tips (max 15 words each)`,
+        uniqueSectionTitle: 'Attraction & Chemistry',
+        tone: 'romantic, warm, like a wise best friend who reads charts',
+    },
+    friend: {
+        label: 'Friendship Compatibility',
+        scoreLabels: ['Trust', 'Fun & Energy', 'Communication', 'Growth'],
+        scoreKeys: ['trust', 'fun', 'communication', 'growth'],
+        sections: `
+    4. soulConnection: { title (3 words), description (2 paragraphs, max 150 words). What makes this friendship feel cosmic. Reference Moon connections and shared elements. }
+    5. emotionalDynamic: { title, section1Label ("${'{p1}'}'S VIBE"), section1 (paragraph about ${'{p1}'}'s friendship energy based on Moon/Venus, max 80 words), section2Label ("${'{p2}'}'S VIBE"), section2 (paragraph about ${'{p2}'}'s friendship energy, max 80 words), together (paragraph about their dynamic together, max 80 words) }
+    6. communicationStyle: { title, dynamic (2 paragraphs about Mercury interplay and how they talk, max 150 words), tip (one practical sentence for deeper conversations) }
+    7. uniqueSection: { title, spark (what makes this friendship energizing - reference Jupiter/Venus, max 100 words), tension (what could cause friction or drifting apart, max 80 words) }
+    8. growthAreas: [{ title (2-3 words), insight (2 sentences, max 40 words) }] — exactly 3 items
+    9. longTerm: { forecast (2 paragraphs about the friendship's longevity and evolution, max 150 words), verdict (one bold sentence) }
+    10. advice: [string] — exactly 5 specific friendship tips (max 15 words each)`,
+        uniqueSectionTitle: 'Friendship Energy',
+        tone: 'fun, warm, like your coolest mutual friend who also reads charts',
+    },
+    parent: {
+        label: 'Parent-Child Bond',
+        scoreLabels: ['Understanding', 'Support', 'Communication', 'Boundaries'],
+        scoreKeys: ['understanding', 'support', 'communication', 'boundaries'],
+        sections: `
+    4. soulConnection: { title (3 words), description (2 paragraphs, max 150 words). The karmic or ancestral bond between parent and child. Reference Moon, Saturn, or 4th house. }
+    5. emotionalDynamic: { title, section1Label ("YOUR EMOTIONAL STYLE"), section1 (paragraph about ${'{p1}'}'s emotional patterns from their parent based on Moon, max 80 words), section2Label ("THEIR EMOTIONAL STYLE"), section2 (paragraph about ${'{p2}'}'s parenting emotional style, max 80 words), together (how their emotional patterns interact, max 80 words) }
+    6. communicationStyle: { title, dynamic (2 paragraphs about how they communicate and where miscommunication happens, max 150 words), tip (one practical bridge-building sentence) }
+    7. uniqueSection: { title, spark (what this parent gives you that no one else can, max 100 words), tension (the generational pattern or wound that surfaces, max 80 words) }
+    8. growthAreas: [{ title (2-3 words), insight (2 sentences, max 40 words) }] — exactly 3 items about healing & growth
+    9. longTerm: { forecast (2 paragraphs about how this relationship evolves as both age, max 150 words), verdict (one warm sentence) }
+    10. advice: [string] — exactly 5 specific tips for nurturing this bond (max 15 words each)`,
+        uniqueSectionTitle: 'Generational Patterns',
+        tone: 'compassionate, thoughtful, validating — like a gentle therapist who also reads charts',
+    },
+    sibling: {
+        label: 'Sibling Bond',
+        scoreLabels: ['Bond', 'Communication', 'Shared Growth', 'Support'],
+        scoreKeys: ['bond', 'communication', 'sharedGrowth', 'support'],
+        sections: `
+    4. soulConnection: { title (3 words), description (2 paragraphs, max 150 words). The cosmic reason these two share a family. Reference Moon, Mars, or 3rd house. }
+    5. emotionalDynamic: { title, section1Label ("${'{p1}'}'S ROLE"), section1 (paragraph about ${'{p1}'}'s role in the sibling dynamic based on Moon/Mars, max 80 words), section2Label ("${'{p2}'}'S ROLE"), section2 (paragraph about ${'{p2}'}'s role, max 80 words), together (how they balance each other, max 80 words) }
+    6. communicationStyle: { title, dynamic (2 paragraphs about their shorthand language and communication patterns, max 150 words), tip (one practical sentence) }
+    7. uniqueSection: { title, spark (the alliance — what makes them a team, max 100 words), tension (the rivalry — what triggers competition or friction, max 80 words) }
+    8. growthAreas: [{ title (2-3 words), insight (2 sentences, max 40 words) }] — exactly 3 items
+    9. longTerm: { forecast (2 paragraphs about how this sibling bond evolves into adulthood, max 150 words), verdict (one bold sentence) }
+    10. advice: [string] — exactly 5 tips for strengthening the sibling bond (max 15 words each)`,
+        uniqueSectionTitle: 'Rivalry & Alliance',
+        tone: 'real, honest, slightly playful — like an older cousin who reads charts',
+    },
+    boss: {
+        label: 'Professional Dynamic',
+        scoreLabels: ['Respect', 'Work Sync', 'Communication', 'Growth'],
+        scoreKeys: ['respect', 'workSync', 'communication', 'growth'],
+        sections: `
+    4. soulConnection: { title (3 words), description (2 paragraphs, max 150 words). The cosmic reason this professional relationship matters for ${'{p1}'}'s career path. Reference Saturn, MC, or 10th house. }
+    5. emotionalDynamic: { title, section1Label ("YOUR WORK STYLE"), section1 (paragraph about ${'{p1}'}'s professional energy based on Mars/Saturn, max 80 words), section2Label ("THEIR LEADERSHIP STYLE"), section2 (paragraph about ${'{p2}'}'s management style, max 80 words), together (how their work energies interact, max 80 words) }
+    6. communicationStyle: { title, dynamic (2 paragraphs about Mercury interplay in a professional context — emails, meetings, feedback, max 150 words), tip (one tactical communication tip) }
+    7. uniqueSection: { title, spark (where this dynamic accelerates ${'{p1}'}'s career, max 100 words), tension (where friction or power struggles arise, max 80 words) }
+    8. growthAreas: [{ title (2-3 words), insight (2 sentences, max 40 words) }] — exactly 3 career growth items
+    9. longTerm: { forecast (2 paragraphs about long-term career implications of this dynamic, max 150 words), verdict (one bold sentence) }
+    10. advice: [string] — exactly 5 specific strategies for navigating this boss relationship (max 15 words each)`,
+        uniqueSectionTitle: 'Power & Growth Dynamic',
+        tone: 'strategic, professional but warm — like a career coach who reads charts',
+    },
+    colleague: {
+        label: 'Teamwork Compatibility',
+        scoreLabels: ['Work Sync', 'Communication', 'Innovation', 'Trust'],
+        scoreKeys: ['workSync', 'communication', 'innovation', 'trust'],
+        sections: `
+    4. soulConnection: { title (3 words), description (2 paragraphs, max 150 words). Why these two were meant to collaborate. Reference Mercury, Mars, or 6th/10th house. }
+    5. emotionalDynamic: { title, section1Label ("${'{p1}'}'S WORK STYLE"), section1 (paragraph about ${'{p1}'}'s collaboration energy, max 80 words), section2Label ("${'{p2}'}'S WORK STYLE"), section2 (paragraph about ${'{p2}'}'s work approach, max 80 words), together (how their work energies combine on projects, max 80 words) }
+    6. communicationStyle: { title, dynamic (2 paragraphs about how they brainstorm, give feedback, and handle deadlines, max 150 words), tip (one practical collaboration tip) }
+    7. uniqueSection: { title, spark (where they innovate and create magic together, max 100 words), tension (where work styles clash or create friction, max 80 words) }
+    8. growthAreas: [{ title (2-3 words), insight (2 sentences, max 40 words) }] — exactly 3 items
+    9. longTerm: { forecast (2 paragraphs about this professional partnership's potential, max 150 words), verdict (one bold sentence) }
+    10. advice: [string] — exactly 5 collaboration tips (max 15 words each)`,
+        uniqueSectionTitle: 'Collaboration Spark',
+        tone: 'energetic, collaborative — like a team lead who reads charts',
+    },
+    child: {
+        label: 'Parenting Bond',
+        scoreLabels: ['Nurturing', 'Communication', 'Understanding', 'Guidance'],
+        scoreKeys: ['nurturing', 'communication', 'understanding', 'guidance'],
+        sections: `
+    4. soulConnection: { title (3 words), description (2 paragraphs, max 150 words). The soul contract between ${'{p1}'} and their child ${'{p2}'}. Reference Moon, 4th/5th house, or North Node. }
+    5. emotionalDynamic: { title, section1Label ("YOUR PARENTING HEART"), section1 (paragraph about ${'{p1}'}'s nurturing style based on Moon/Venus, max 80 words), section2Label ("THEIR INNER WORLD"), section2 (paragraph about ${'{p2}'}'s emotional needs as a child, max 80 words), together (how their emotional languages meet, max 80 words) }
+    6. communicationStyle: { title, dynamic (2 paragraphs about how ${'{p1}'} can best communicate with ${'{p2}'} based on Mercury placements, max 150 words), tip (one practical parenting communication tip) }
+    7. uniqueSection: { title, spark (${'{p1}'}'s greatest parenting gift to ${'{p2}'}, max 100 words), tension (where their natures may clash, max 80 words) }
+    8. growthAreas: [{ title (2-3 words), insight (2 sentences, max 40 words) }] — exactly 3 parenting growth items
+    9. longTerm: { forecast (2 paragraphs about how this parent-child bond evolves, max 150 words), verdict (one warm sentence) }
+    10. advice: [string] — exactly 5 specific parenting tips based on charts (max 15 words each)`,
+        uniqueSectionTitle: 'Nurturing & Growth',
+        tone: 'warm, nurturing, emotionally intelligent — like a gentle parenting guide who reads charts',
+    },
+};
+
+export const generateDeepMatchReport = async (p1, p2, synastry, role = 'partner') => {
     const p1Sig = getAstralSignature(p1);
     const p2Sig = getAstralSignature(p2);
-    const p1Name = p1.name?.split(' ')[0] || 'Partner A';
-    const p2Name = p2.name?.split(' ')[0] || 'Partner B';
+    const p1Name = p1.name?.split(' ')[0] || 'Person A';
+    const p2Name = p2.name?.split(' ')[0] || 'Person B';
     const score = synastry?.harmonyScore || 75;
+    const cfg = DEEP_REPORT_CONFIGS[role] || DEEP_REPORT_CONFIGS.partner;
+
+    const scoreLines = cfg.scoreKeys.map((k, i) => `        ${cfg.scoreLabels[i]}: ${synastry?.scores?.[k] || 70}/100`).join('\n');
+    const sectionPrompt = cfg.sections.replace(/\{p1\}/g, p1Name).replace(/\{p2\}/g, p2Name);
 
     const prompt = `
-        PREMIUM IN-DEPTH COMPATIBILITY REPORT — for a premium astrology app PDF.
+        PREMIUM IN-DEPTH ${cfg.label.toUpperCase()} REPORT — for a premium astrology app PDF.
 
         ${p1Name}'s Chart:
         ${p1Sig}
@@ -1994,35 +2407,26 @@ export const generateDeepMatchReport = async (p1, p2, synastry) => {
         ${p2Sig}
 
         Overall Compatibility Score: ${score}/100
-        Emotional: ${synastry?.scores?.emotional || 70}/100
-        Communication: ${synastry?.scores?.communication || 70}/100
-        Attraction: ${synastry?.scores?.attraction || 70}/100
-        Stability: ${synastry?.scores?.stability || 70}/100
+${scoreLines}
 
-    TASK: Generate a deeply personal, astrology-rich compatibility report. Use ${p1Name} and ${p2Name} by name throughout. This is for a young woman who loves astrology — make it feel like her best friend who's also an expert astrologer wrote it.
+    RELATIONSHIP TYPE: ${role} (${cfg.label})
+
+    TASK: Generate a deeply personal, astrology-rich ${cfg.label.toLowerCase()} report. Use ${p1Name} and ${p2Name} by name throughout. This is for a young woman who loves astrology — make it feel like her best friend who's also an expert astrologer wrote it.
 
     GENERATE THESE SECTIONS:
 
-    1. headline: Catchy 3-5 word title for the match (e.g. "Fire Meets Water")
+    1. headline: Catchy 3-5 word title for this ${role} connection (e.g. for partner: "Fire Meets Water", for friend: "Cosmic Best Friends", for boss: "Strategic Alliance")
     2. tagline: One poetic sentence about this pairing (max 15 words)
-    3. overview: 2 rich paragraphs about their overall dynamic. Reference specific placements. Separate with \\n\\n. (max 200 words total)
-    4. soulConnection: { title (3 words), description (2 paragraphs, max 150 words). What draws them together on a soul level. Reference North Node, Moon, or 7th house. }
-    5. emotionalDynamic: { title, howYouLove (paragraph about ${p1Name}'s emotional style based on Moon/Venus, max 80 words), howTheyLove (paragraph about ${p2Name}'s emotional style, max 80 words), together (paragraph about their emotional chemistry together, max 80 words) }
-    6. communicationStyle: { title, dynamic (2 paragraphs about Mercury interplay, max 150 words), tip (one practical sentence) }
-    7. attraction: { title, spark (what creates the magnetic pull - reference Mars/Venus, max 100 words), tension (what creates friction, max 80 words) }
-    8. growthAreas: [{ title (2-3 words), insight (2 sentences, max 40 words) }] — exactly 3 items
-    9. loveLanguages: { user (${p1Name}'s love language based on Venus sign, max 30 words), partner (${p2Name}'s love language, max 30 words) }
-    10. conflictStyle: { triggers (what causes fights based on Mars placements, max 60 words), resolution (how to resolve based on their charts, max 60 words) }
-    11. longTerm: { forecast (2 paragraphs about long-term potential, reference Saturn aspects, max 150 words), verdict (one bold sentence) }
-    12. advice: [string] — exactly 5 specific, actionable relationship tips (max 15 words each)
-    13. cosmicVerdict: 2-3 powerful words (e.g. "Destined Soulmates", "Beautiful Chaos")
-    14. closingMessage: A warm, personal closing paragraph addressed to ${p1Name} about this relationship (max 80 words)
+    3. overview: 2 rich paragraphs about their overall dynamic as ${role}. Reference specific placements. Separate with \\n\\n. (max 200 words total)
+${sectionPrompt}
+    11. cosmicVerdict: 2-3 powerful words summarizing this ${role} bond
+    12. closingMessage: A warm, personal closing paragraph addressed to ${p1Name} about this ${role} relationship (max 80 words)
 
     TONE:
-    - Like a wise best friend who reads charts. Warm, specific, never generic.
-    - Reference REAL placements (e.g. "Your Scorpio Moon craves depth, while his Gemini Moon needs space")
+    - ${cfg.tone}
+    - Reference REAL placements (e.g. "Your Scorpio Moon craves depth, while their Gemini Moon needs space")
     - Grade 7-8 reading level. Mystical but accessible.
-    - Never say "Partner A/B". Always use names.
+    - Never say "Person A/B". Always use names.
 
     JSON Only.
     `;
@@ -2030,20 +2434,18 @@ export const generateDeepMatchReport = async (p1, p2, synastry) => {
     const fallback = {
         headline: "A Cosmic Connection",
         tagline: "Two souls drawn together by the stars.",
-        overview: "Your charts reveal a meaningful connection.\n\nThere is real potential here for growth and love.",
-        soulConnection: { title: "Karmic Bond", description: "A deep pull exists between you two.\n\nThis connection feels fated." },
-        emotionalDynamic: { title: "Heart Languages", howYouLove: "You love deeply and intensely.", howTheyLove: "They show love through actions.", together: "Together you create emotional safety." },
+        overview: "Your charts reveal a meaningful connection.\n\nThere is real potential here for growth together.",
+        soulConnection: { title: "Cosmic Bond", description: "A deep pull exists between you two.\n\nThis connection feels significant." },
+        emotionalDynamic: { title: "Emotional Styles", section1Label: p1Name.toUpperCase(), section1: "You bring depth and intuition to this bond.", section2Label: p2Name.toUpperCase(), section2: "They bring their own unique emotional energy.", together: "Together you create something meaningful." },
         communicationStyle: { title: "Mind Meld", dynamic: "Your communication has a natural flow.\n\nYou understand each other's wavelength.", tip: "Listen before reacting." },
-        attraction: { title: "Magnetic Pull", spark: "There is undeniable chemistry between you.", tension: "Different paces can create friction." },
+        uniqueSection: { title: cfg.uniqueSectionTitle, spark: "There is a natural pull in this connection.", tension: "Different approaches can create friction." },
         growthAreas: [
-            { title: "Trust Building", insight: "Opening up takes time. Be patient with each other." },
-            { title: "Space & Closeness", insight: "Finding the right balance is key for long-term harmony." },
-            { title: "Shared Dreams", insight: "Aligning your visions will strengthen this bond." }
+            { title: "Understanding", insight: "Opening up takes time. Be patient with each other." },
+            { title: "Balance", insight: "Finding the right rhythm is key for long-term harmony." },
+            { title: "Shared Vision", insight: "Aligning your goals will strengthen this bond." }
         ],
-        loveLanguages: { user: "Words of affirmation and quality time.", partner: "Acts of service and physical touch." },
-        conflictStyle: { triggers: "Miscommunication and unspoken expectations.", resolution: "Honest conversations and giving each other space to process." },
-        longTerm: { forecast: "This relationship has genuine long-term potential.\n\nWith effort from both sides, this can deepen beautifully.", verdict: "Worth fighting for." },
-        advice: ["Communicate your needs clearly", "Give space when emotions run high", "Celebrate small moments together", "Be honest about your fears", "Never stop being curious about each other"],
+        longTerm: { forecast: "This connection has genuine long-term potential.\n\nWith effort from both sides, this can deepen beautifully.", verdict: "Worth investing in." },
+        advice: ["Communicate openly and honestly", "Give space when emotions run high", "Celebrate small moments together", "Be honest about expectations", "Stay curious about each other"],
         cosmicVerdict: "Cosmic Potential",
         closingMessage: "This connection has something special. Trust the journey and trust each other."
     };
@@ -2055,18 +2457,16 @@ export const generateDeepMatchReport = async (p1, p2, synastry) => {
             tagline: { type: Type.STRING },
             overview: { type: Type.STRING },
             soulConnection: { type: Type.OBJECT, properties: { title: { type: Type.STRING }, description: { type: Type.STRING } }, required: ["title", "description"] },
-            emotionalDynamic: { type: Type.OBJECT, properties: { title: { type: Type.STRING }, howYouLove: { type: Type.STRING }, howTheyLove: { type: Type.STRING }, together: { type: Type.STRING } }, required: ["title", "howYouLove", "howTheyLove", "together"] },
+            emotionalDynamic: { type: Type.OBJECT, properties: { title: { type: Type.STRING }, section1Label: { type: Type.STRING }, section1: { type: Type.STRING }, section2Label: { type: Type.STRING }, section2: { type: Type.STRING }, together: { type: Type.STRING } }, required: ["title", "section1", "section2", "together"] },
             communicationStyle: { type: Type.OBJECT, properties: { title: { type: Type.STRING }, dynamic: { type: Type.STRING }, tip: { type: Type.STRING } }, required: ["title", "dynamic", "tip"] },
-            attraction: { type: Type.OBJECT, properties: { title: { type: Type.STRING }, spark: { type: Type.STRING }, tension: { type: Type.STRING } }, required: ["title", "spark", "tension"] },
+            uniqueSection: { type: Type.OBJECT, properties: { title: { type: Type.STRING }, spark: { type: Type.STRING }, tension: { type: Type.STRING } }, required: ["title", "spark", "tension"] },
             growthAreas: { type: Type.ARRAY, items: { type: Type.OBJECT, properties: { title: { type: Type.STRING }, insight: { type: Type.STRING } }, required: ["title", "insight"] } },
-            loveLanguages: { type: Type.OBJECT, properties: { user: { type: Type.STRING }, partner: { type: Type.STRING } }, required: ["user", "partner"] },
-            conflictStyle: { type: Type.OBJECT, properties: { triggers: { type: Type.STRING }, resolution: { type: Type.STRING } }, required: ["triggers", "resolution"] },
             longTerm: { type: Type.OBJECT, properties: { forecast: { type: Type.STRING }, verdict: { type: Type.STRING } }, required: ["forecast", "verdict"] },
             advice: { type: Type.ARRAY, items: { type: Type.STRING } },
             cosmicVerdict: { type: Type.STRING },
             closingMessage: { type: Type.STRING }
         },
-        required: ["headline", "tagline", "overview", "soulConnection", "emotionalDynamic", "communicationStyle", "attraction", "growthAreas", "loveLanguages", "conflictStyle", "longTerm", "advice", "cosmicVerdict", "closingMessage"]
+        required: ["headline", "tagline", "overview", "soulConnection", "emotionalDynamic", "communicationStyle", "uniqueSection", "growthAreas", "longTerm", "advice", "cosmicVerdict", "closingMessage"]
     };
 
     return withRetry(async () => {
@@ -2204,7 +2604,7 @@ const REPORT_PROMPTS = {
     }
 };
 
-export const generateFullReport = async (profile, reportType) => {
+export const generateFullReport = async (profile, reportType, narrativeContext = null) => {
     const cacheKey = `${profile.id}_report_${reportType}`;
     const cached = await ReportRepository.getReport(cacheKey);
     if (cached) return cached;
@@ -2262,6 +2662,11 @@ export const generateFullReport = async (profile, reportType) => {
         - Warm, validating, empowering.
 
         JSON Only.
+${narrativeContext ? `
+CURRENT COSMIC MOMENT (weave into opening and closing — make this report feel TIMELY):
+${buildNarrativePromptBlock(narrativeContext)}
+Open by acknowledging why NOW is a meaningful time to explore this topic. Close with specific timing recommendations. The reader should feel this report was written FOR this exact moment.
+` : ''}
     `;
 
     return withRetry(async () => {
@@ -2276,7 +2681,7 @@ export const generateFullReport = async (profile, reportType) => {
     }, fallback);
 };
 
-export const generateDeepPdfReport = async (profile, reportType) => {
+export const generateDeepPdfReport = async (profile, reportType, narrativeContext = null) => {
     const cacheKey = `${profile.id}_deepreport_${reportType}`;
     const cached = await ReportRepository.getReport(cacheKey);
     if (cached) return cached;
@@ -2383,6 +2788,11 @@ export const generateDeepPdfReport = async (profile, reportType) => {
         - NO generic filler. Every paragraph must be uniquely theirs.
 
         JSON Only.
+${narrativeContext ? `
+CURRENT COSMIC MOMENT (weave into opening and closing — make this report feel TIMELY):
+${buildNarrativePromptBlock(narrativeContext)}
+Open by acknowledging why NOW is a meaningful time to explore this topic. Close with specific timing recommendations. The reader should feel this report was written FOR this exact moment.
+` : ''}
     `;
 
     return withRetry(async () => {

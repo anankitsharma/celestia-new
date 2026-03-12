@@ -3,7 +3,7 @@ import { View, Text, ScrollView, TouchableOpacity, StyleSheet, ActivityIndicator
 import { LinearGradient } from 'expo-linear-gradient';
 import { T, FONTS } from '../constants/theme';
 import { useUserProfile } from '../contexts/UserProfileContext';
-import { getTransitPlanets, getUpcomingEvents, isMercuryRetrograde } from '../services/astrologyService';
+import { getTransitPlanets, getUpcomingEvents, isMercuryRetrograde, getActiveCosmicWindows, getCosmicSeason } from '../services/astrologyService';
 import { generateTransitInsight, generateMercuryRxInsight } from '../services/geminiService';
 import { trackEvent } from '../services/achievementService';
 import { awardXP } from '../services/xpService';
@@ -46,6 +46,8 @@ export default function TransitsScreen({ navigation, route }) {
   const [upcomingEvents, setUpcomingEvents] = useState([]);
   const [shareTransitData, setShareTransitData] = useState(null);
   const [mercuryRxData, setMercuryRxData] = useState(null); // { sign, degree, isRetrograde }
+  const [upcomingTransit, setUpcomingTransit] = useState(null);
+  const [cosmicSeason, setCosmicSeason] = useState(null);
   const [rxInsight, setRxInsight] = useState(null);
   const [rxInsightLoading, setRxInsightLoading] = useState(false);
   const { cardRef: transitCardRef, captureAndShare: shareTransit } = useShareCard();
@@ -76,6 +78,30 @@ export default function TransitsScreen({ navigation, route }) {
         }
       }
     } catch {}
+
+    // Load cosmic season for narrative thread
+    try {
+      const season = getCosmicSeason(userProfile.chart, new Date());
+      setCosmicSeason(season);
+    } catch (e) {}
+
+    // Find upcoming significant transit (next 7-14 days)
+    try {
+      const currentWindows = getActiveCosmicWindows(userProfile.chart, new Date());
+      for (let d = 1; d <= 14; d++) {
+        const futureDate = new Date();
+        futureDate.setDate(futureDate.getDate() + d);
+        const futureWindows = getActiveCosmicWindows(userProfile.chart, futureDate);
+        const newWindow = futureWindows.find(fw =>
+          !currentWindows.some(cw => cw.planet === fw.planet && cw.natalPlanet === fw.natalPlanet)
+        );
+        if (newWindow) {
+          const arrivalDate = futureDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+          setUpcomingTransit({ ...newWindow, arrivalDate, daysAway: d });
+          break;
+        }
+      }
+    } catch (e) {}
 
     trackEvent('sky_tab_open').catch(() => {});
     completeQuestAction('transits_checked').catch(() => {});
@@ -229,16 +255,20 @@ export default function TransitsScreen({ navigation, route }) {
       <ScrollView showsVerticalScrollIndicator={false}>
         <LinearGradient colors={['#0E0E22', '#161230', '#101420']} locations={[0, 0.5, 1]} style={styles.hero}>
           <View style={styles.heroGlow} />
+          {navigation.canGoBack() && (
+            <TouchableOpacity onPress={() => navigation.goBack()} style={{ flexDirection: 'row', alignItems: 'center', gap: 4, marginBottom: 10 }}>
+              <Text style={{ fontSize: 16, color: 'rgba(250,248,242,0.5)' }}>‹</Text>
+              <Text style={{ fontSize: 13, color: 'rgba(250,248,242,0.5)', fontFamily: FONTS.sans }}>Back</Text>
+            </TouchableOpacity>
+          )}
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
             <Text style={styles.title}>Today's Sky</Text>
             <CosmicTooltip id="transit" size={16} color="rgba(250,248,242,0.4)" />
           </View>
           <Text style={styles.sub}>
             {loading
-              ? 'Calculating transits…'
-              : mercuryRxData
-                ? `☿ Mercury Retrograde · ${transits.length} transit${transits.length !== 1 ? 's' : ''} active`
-                : `${transits.length} active transit${transits.length !== 1 ? 's' : ''} affecting your chart`
+              ? 'Reading the sky…'
+              : `${transits.length} cosmic chapter${transits.length !== 1 ? 's' : ''} unfolding in your sky`
             }
           </Text>
           {!loading && transits.length > 0 && (
@@ -256,83 +286,37 @@ export default function TransitsScreen({ navigation, route }) {
               </View>
             </View>
           )}
+          {cosmicSeason && (
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 10, backgroundColor: 'rgba(200,168,75,0.1)', borderRadius: 8, paddingHorizontal: 10, paddingVertical: 6 }}>
+              <Text style={{ fontSize: 10, color: 'rgba(250,248,242,0.5)', fontFamily: FONTS.sansSemiBold, letterSpacing: 1 }}>YOUR SEASON</Text>
+              <Text style={{ fontSize: 11, color: 'rgba(250,248,242,0.7)', fontFamily: FONTS.sans }}>{cosmicSeason.planet} in {cosmicSeason.natalTarget} · {cosmicSeason.progress}%</Text>
+            </View>
+          )}
         </LinearGradient>
 
-        {/* ── MERCURY RETROGRADE SECTION ── */}
+        {/* ── MERCURY RETROGRADE — compact notice ── */}
         {mercuryRxData && (
-          <View ref={rxScrollRef} style={styles.rxSection}>
-            <LinearGradient colors={['#2A1408', '#1A0A04', '#0E0E22']} style={styles.rxGradient}>
-              <View style={styles.rxHeader}>
-                <Text style={styles.rxGlyph}>☿</Text>
-                <View style={{ flex: 1 }}>
-                  <Text style={styles.rxTitle}>Mercury Retrograde</Text>
-                  <Text style={styles.rxPos}>
-                    Mercury {mercuryRxData.sign} {mercuryRxData.degree.toFixed(0)}° ℞
-                  </Text>
+          <TouchableOpacity
+            ref={rxScrollRef}
+            style={styles.rxCompact}
+            activeOpacity={0.8}
+            onPress={() => navigation.navigate('Main', { screen: 'AskAI', params: { initialMessage: `Mercury is retrograde in ${mercuryRxData.sign} right now. How does this affect my specific birth chart? What should I watch out for?` } })}>
+            <View style={styles.rxCompactLeft}>
+              <Text style={styles.rxCompactGlyph}>☿</Text>
+              <View style={{ flex: 1 }}>
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                  <Text style={styles.rxCompactTitle}>Mercury Retrograde</Text>
+                  <View style={styles.rxCompactBadge}>
+                    <Text style={styles.rxCompactBadgeText}>℞</Text>
+                  </View>
                 </View>
-                <View style={styles.rxActiveBadge}>
-                  <Text style={styles.rxActiveBadgeText}>ACTIVE</Text>
-                </View>
+                <Text style={styles.rxCompactSub}>
+                  {rxInsight?.headline || `Mercury in ${mercuryRxData.sign} ${mercuryRxData.degree.toFixed(0)}° — review & reflect period`}
+                </Text>
               </View>
-
-              {rxInsightLoading ? (
-                <View style={styles.rxLoadingRow}>
-                  <ActivityIndicator size="small" color="#E8A040" />
-                  <Text style={styles.rxLoadingText}>Reading your chart...</Text>
-                </View>
-              ) : rxInsight ? (
-                <>
-                  <Text style={styles.rxHeadline}>{rxInsight.headline}</Text>
-                  <Text style={styles.rxExplainer}>{rxInsight.explanation}</Text>
-
-                  <View style={styles.rxTipsGrid}>
-                    {(rxInsight.tips || []).map((tip, idx) => (
-                      <View key={idx} style={styles.rxTip}>
-                        <Text style={styles.rxTipIcon}>{tip.icon || '✦'}</Text>
-                        <Text style={styles.rxTipText}>{tip.text}</Text>
-                      </View>
-                    ))}
-                  </View>
-
-                  <View style={styles.rxAffect}>
-                    <Text style={styles.rxAffectLabel}>HOW IT AFFECTS YOUR CHART</Text>
-                    <Text style={styles.rxAffectText}>{rxInsight.chartImpact}</Text>
-                  </View>
-
-                  {rxInsight.hiddenGift && (
-                    <View style={styles.rxGiftBox}>
-                      <Text style={styles.rxGiftLabel}>THE HIDDEN GIFT</Text>
-                      <Text style={styles.rxGiftText}>✧ {rxInsight.hiddenGift}</Text>
-                    </View>
-                  )}
-
-                  {rxInsight.ritual && (
-                    <View style={styles.rxRitualBox}>
-                      <Text style={styles.rxRitualLabel}>RITUAL</Text>
-                      <Text style={styles.rxRitualText}>✧ {rxInsight.ritual}</Text>
-                    </View>
-                  )}
-                </>
-              ) : (
-                <>
-                  <Text style={styles.rxExplainer}>
-                    Mercury appears to move backward through {mercuryRxData.sign}, disrupting communication, technology, and travel. This is a natural cycle for review and reflection — not a time to panic.
-                  </Text>
-                  <View style={styles.rxAffect}>
-                    <Text style={styles.rxAffectLabel}>HOW IT AFFECTS YOUR CHART</Text>
-                    <Text style={styles.rxAffectText}>
-                      Mercury retrograde in {mercuryRxData.sign} activates the areas of your chart ruled by {mercuryRxData.sign}. Look at your Mercury transits below — any Mercury aspects are amplified during this period.
-                    </Text>
-                  </View>
-                </>
-              )}
-
-              <TouchableOpacity style={styles.rxAskBtn} activeOpacity={0.7}
-                onPress={() => navigation.navigate('AskAI', { initialMessage: `Mercury is retrograde in ${mercuryRxData.sign} right now. How does this affect my specific birth chart? What should I watch out for?` })}>
-                <Text style={styles.rxAskBtnText}>Ask Celestia About Your Mercury ☽</Text>
-              </TouchableOpacity>
-            </LinearGradient>
-          </View>
+              <Text style={{ fontSize: 12, color: T.gold }}>→</Text>
+            </View>
+          </TouchableOpacity>
         )}
 
         {loading ? (
@@ -364,8 +348,13 @@ export default function TransitsScreen({ navigation, route }) {
                     <Text style={styles.taspect}>{t.aspect}</Text>
                     <Text style={styles.tplanets}>{t.planets}</Text>
                   </View>
-                  <View style={[styles.torb, { borderColor: t.color + '60' }]}>
-                    <Text style={[styles.torbText, { color: t.color }]}>{t.orb}</Text>
+                  <View style={{ alignItems: 'center' }}>
+                    <View style={[styles.torb, { borderColor: t.color + '60' }]}>
+                      <Text style={[styles.torbText, { color: t.color }]}>{t.orb}</Text>
+                    </View>
+                    <Text style={{ fontSize: 10, color: '#97907F', fontFamily: FONTS.sans, marginTop: 2 }}>
+                      {parseFloat(t.orb) < 0.5 ? 'Exact now' : parseFloat(t.orb) < 2 ? 'Building \u00B7 peaks soon' : 'Separating \u00B7 integrating'}
+                    </Text>
                   </View>
                   <CosmicTooltip id={t.aspectType?.toLowerCase()} size={14} />
                   <Text style={[styles.tchev, expanded === i && { transform: [{ rotate: '180deg' }] }]}>▾</Text>
@@ -455,7 +444,7 @@ export default function TransitsScreen({ navigation, route }) {
                           <Text style={styles.tbodyShareText}>Share ↗</Text>
                         </TouchableOpacity>
                         <TouchableOpacity style={styles.tbodyAi}
-                          onPress={() => navigation.navigate('AskAI', { initialMessage: `Tell me about the transit ${t.aspect} happening right now. What does it mean for me?` })}>
+                          onPress={() => navigation.navigate('Main', { screen: 'AskAI', params: { initialMessage: `Tell me about the transit ${t.aspect} happening right now. What does it mean for me?` } })}>
                           <Text style={styles.tbodyAiText}>Ask Celestia ☽</Text>
                         </TouchableOpacity>
                       </View>
@@ -464,6 +453,19 @@ export default function TransitsScreen({ navigation, route }) {
                 )}
               </View>
             ))}
+          </View>
+        )}
+
+        {/* ── BUILDING TOWARD ── */}
+        {upcomingTransit && (
+          <View style={{ backgroundColor: '#F3EDE2', borderRadius: 14, padding: 16, marginTop: 12, marginHorizontal: 20, marginBottom: 14 }}>
+            <Text style={{ fontSize: 9, letterSpacing: 2, color: '#C8A84B', fontFamily: FONTS.sansSemiBold, marginBottom: 8 }}>{'\u2605'} BUILDING TOWARD</Text>
+            <Text style={{ fontSize: 15, color: '#2A2418', fontFamily: FONTS.serif, marginBottom: 4 }}>
+              {upcomingTransit.description}
+            </Text>
+            <Text style={{ fontSize: 12, color: '#97907F', fontFamily: FONTS.sans }}>
+              Arriving ~{upcomingTransit.arrivalDate} {'\u00B7'} {upcomingTransit.daysAway} days away
+            </Text>
           </View>
         )}
 
@@ -584,31 +586,14 @@ const styles = StyleSheet.create({
   tlCardDesc: { fontSize: 12, color: T.stone, lineHeight: 18 },
 
   // Mercury Retrograde section
-  rxSection: { marginHorizontal: 16, marginTop: 16, borderRadius: 20, overflow: 'hidden' },
-  rxGradient: { padding: 22 },
-  rxHeader: { flexDirection: 'row', alignItems: 'center', gap: 12, marginBottom: 16 },
-  rxGlyph: { fontSize: 32, color: '#E8A040' },
-  rxTitle: { fontFamily: FONTS.serifMedium, fontSize: 20, color: '#E8A040' },
-  rxPos: { fontSize: 12, color: 'rgba(250,248,242,0.5)', marginTop: 2 },
-  rxActiveBadge: { backgroundColor: 'rgba(232,120,40,0.15)', borderWidth: 1, borderColor: 'rgba(232,120,40,0.3)', borderRadius: 100, paddingVertical: 4, paddingHorizontal: 10 },
-  rxActiveBadgeText: { fontSize: 9, fontFamily: FONTS.sansSemiBold, color: '#E8A040', letterSpacing: 1 },
-  rxExplainer: { fontSize: 13, color: 'rgba(250,248,242,0.7)', lineHeight: 20, marginBottom: 18 },
-  rxTipsGrid: { gap: 10, marginBottom: 18 },
-  rxTip: { flexDirection: 'row', alignItems: 'flex-start', gap: 10 },
-  rxTipIcon: { fontSize: 14, marginTop: 1 },
-  rxTipText: { flex: 1, fontSize: 12, color: 'rgba(250,248,242,0.6)', lineHeight: 18 },
-  rxAffect: { backgroundColor: 'rgba(232,160,64,0.08)', borderWidth: 1, borderColor: 'rgba(232,160,64,0.15)', borderRadius: 14, padding: 14, marginBottom: 16 },
-  rxAffectLabel: { fontSize: 9, fontFamily: FONTS.sansSemiBold, letterSpacing: 2, color: 'rgba(232,160,64,0.6)', marginBottom: 8 },
-  rxAffectText: { fontSize: 12, color: 'rgba(250,248,242,0.6)', lineHeight: 18 },
-  rxAskBtn: { alignSelf: 'center', backgroundColor: 'rgba(232,160,64,0.15)', borderWidth: 1, borderColor: 'rgba(232,160,64,0.3)', borderRadius: 100, paddingVertical: 10, paddingHorizontal: 20 },
-  rxAskBtnText: { fontSize: 13, fontFamily: FONTS.sansSemiBold, color: '#E8A040' },
-  rxLoadingRow: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingVertical: 16 },
-  rxLoadingText: { fontSize: 12, color: 'rgba(250,248,242,0.5)' },
-  rxHeadline: { fontFamily: FONTS.serifMedium, fontSize: 16, color: T.cream, marginBottom: 10, lineHeight: 22 },
-  rxGiftBox: { backgroundColor: 'rgba(160,200,224,0.08)', borderWidth: 1, borderColor: 'rgba(160,200,224,0.15)', borderRadius: 14, padding: 14, marginBottom: 16 },
-  rxGiftLabel: { fontSize: 9, fontFamily: FONTS.sansSemiBold, letterSpacing: 2, color: 'rgba(160,200,224,0.6)', marginBottom: 8 },
-  rxGiftText: { fontSize: 12, color: 'rgba(250,248,242,0.65)', lineHeight: 18 },
-  rxRitualBox: { backgroundColor: 'rgba(176,136,240,0.08)', borderWidth: 1, borderColor: 'rgba(176,136,240,0.15)', borderRadius: 14, padding: 14, marginBottom: 16 },
+  // ── Mercury Rx compact card ──
+  rxCompact: { marginHorizontal: 16, marginTop: 16, backgroundColor: '#FFF8EE', borderWidth: 1, borderColor: 'rgba(232,160,64,0.2)', borderRadius: 14, overflow: 'hidden' },
+  rxCompactLeft: { flexDirection: 'row', alignItems: 'center', gap: 10, padding: 14 },
+  rxCompactGlyph: { fontSize: 22, color: '#D08020' },
+  rxCompactTitle: { fontFamily: FONTS.sansSemiBold, fontSize: 14, color: '#8B6A28' },
+  rxCompactBadge: { backgroundColor: 'rgba(232,120,40,0.12)', borderRadius: 6, paddingVertical: 2, paddingHorizontal: 6 },
+  rxCompactBadgeText: { fontSize: 10, fontFamily: FONTS.sansSemiBold, color: '#D08020' },
+  rxCompactSub: { fontSize: 12, color: T.stone, lineHeight: 17, marginTop: 2 },
   rxRitualLabel: { fontSize: 9, fontFamily: FONTS.sansSemiBold, letterSpacing: 2, color: 'rgba(176,136,240,0.6)', marginBottom: 8 },
   rxRitualText: { fontSize: 12, color: 'rgba(250,248,242,0.65)', lineHeight: 18 },
 });

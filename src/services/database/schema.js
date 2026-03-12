@@ -144,6 +144,8 @@ export const initSchema = async () => {
         `);
 
         // ── Migrations for existing databases ───────
+        await addColumnIfMissing(db, 'journal_entries', 'cosmic_snapshot', 'TEXT');
+        await addColumnIfMissing(db, 'journal_entries', 'tags', 'TEXT');
         await addColumnIfMissing(db, 'profiles', 'is_time_unknown', 'INTEGER DEFAULT 0');
         await addColumnIfMissing(db, 'charts', 'elements', 'JSON');
         await addColumnIfMissing(db, 'charts', 'modalities', 'JSON');

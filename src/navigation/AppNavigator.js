@@ -15,6 +15,7 @@ import JournalHistoryScreen from '../screens/JournalHistoryScreen';
 import NotificationSettingsScreen from '../screens/NotificationSettingsScreen';
 import AuthScreen from '../screens/AuthScreen';
 import QuickChartScreen from '../screens/QuickChartScreen';
+import JournalScreen from '../screens/JournalScreen';
 import TabBar from '../components/TabBar';
 
 const Stack = createNativeStackNavigator();
@@ -29,8 +30,7 @@ function MainTabs() {
       <Tab.Screen name="Today" component={HomeScreen} />
       <Tab.Screen name="AskAI" component={ChatScreen} />
       <Tab.Screen name="Chart" component={ChartScreen} />
-      <Tab.Screen name="Match" component={CompatibilityScreen} />
-      <Tab.Screen name="Sky" component={TransitsScreen} />
+      <Tab.Screen name="Circle" component={CompatibilityScreen} />
       <Tab.Screen name="Reports" component={ReportsScreen} />
     </Tab.Navigator>
   );
@@ -47,6 +47,8 @@ export default function AppNavigator() {
       <Stack.Screen name="NotificationSettings" component={NotificationSettingsScreen} />
       <Stack.Screen name="Auth" component={AuthScreen} />
       <Stack.Screen name="QuickChart" component={QuickChartScreen} />
+      <Stack.Screen name="TodaysSky" component={TransitsScreen} />
+      <Stack.Screen name="Journal" component={JournalScreen} />
     </Stack.Navigator>
   );
 }

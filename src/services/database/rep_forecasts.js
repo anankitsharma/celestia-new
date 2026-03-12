@@ -44,5 +44,13 @@ export const ForecastRepository = {
     clearAll: async () => {
         const db = await getDB();
         await db.runAsync(`DELETE FROM forecasts;`);
-    }
+    },
+
+    getRecentForecasts: async (profileId, limit = 3) => {
+        const db = await getDB();
+        return await db.getAllAsync(
+            'SELECT * FROM forecasts WHERE id LIKE ? ORDER BY created_at DESC LIMIT ?',
+            [`${profileId}_%`, limit]
+        );
+    },
 };

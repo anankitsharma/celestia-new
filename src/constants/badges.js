@@ -26,7 +26,7 @@ export const BADGE_CATALOG = {
     icon: '🗺️', category: 'exploration',
   },
   transit_watcher: {
-    id: 'transit_watcher', name: 'Transit Watcher', description: 'Opened Sky tab 10 times',
+    id: 'transit_watcher', name: 'Transit Watcher', description: 'Explored the sky 10 times',
     icon: '🔭', category: 'exploration',
   },
   report_reader: {

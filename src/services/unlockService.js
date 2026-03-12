@@ -30,6 +30,21 @@ const UNLOCK_ORDER = [
 // Always unlocked from day 0
 const FREE_PLACEMENTS = ['Sun', 'Moon', 'Ascendant'];
 
+// Narrative unlock labels — story-driven teasers for upcoming planets
+export const UNLOCK_NARRATIVES = {
+  'Venus': 'Your love language is about to be revealed',
+  'Mars': 'Discover what fuels your ambition and desire',
+  'Mercury': 'How your mind truly works — revealed',
+  'Jupiter': 'Where fortune and expansion find you',
+  'Saturn': 'The lesson you came here to learn',
+  'North Node': 'Your soul\'s direction — the path forward',
+  'Midheaven': 'Your calling and public legacy — revealed',
+  'Neptune': 'What you dream about when no one is watching',
+  'Uranus': 'Where you break every rule',
+  'Pluto': 'Your deepest transformation — handle with power',
+  'Chiron': 'The wound that becomes your greatest gift',
+};
+
 /**
  * Get the number of days since first app use.
  */

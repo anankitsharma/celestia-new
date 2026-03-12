@@ -10,7 +10,8 @@ import { haptic } from '../services/hapticService';
 import { trackEvent } from '../services/achievementService';
 import { awardXP } from '../services/xpService';
 import { completeQuestAction } from '../services/questService';
-import { getUnlockedPlanets, getUnlockProgress, getUnlockDayForPlanet } from '../services/unlockService';
+import { getUnlockedPlanets, getUnlockProgress, getUnlockDayForPlanet, UNLOCK_NARRATIVES } from '../services/unlockService';
+import { getActiveCosmicWindows } from '../services/astrologyService';
 import CosmicTooltip from '../components/CosmicTooltip';
 import AstroText from '../components/AstroText';
 import { useShareCard } from '../components/ShareCard';
@@ -49,6 +50,7 @@ export default function ChartScreen() {
   // Drip-feed unlock state
   const [unlockedPlanets, setUnlockedPlanets] = useState([]);
   const [unlockProgress, setUnlockProgress] = useState(null);
+  const [activeWindows, setActiveWindows] = useState([]);
 
   // Share cards
   const { cardRef: bigThreeRef, captureAndShare: shareBigThree } = useShareCard();
@@ -58,6 +60,15 @@ export default function ChartScreen() {
   const archetype = useMemo(() => chart ? getCosmicArchetype(chart) : null, [chart]);
   const comboRarity = useMemo(() => chart ? getComboRarity(chart) : null, [chart]);
 
+  // Check if a natal planet is currently activated by a transit
+  const getTransitForPlanet = (planetName) => {
+    return activeWindows.find(w =>
+      w.natalPlanet === planetName ||
+      (w.type === 'sign_transit' && w.targetSign &&
+        userProfile?.chart?.planets?.find(p => p.name === planetName)?.sign === w.targetSign)
+    );
+  };
+
   // Load unlock state
   useEffect(() => {
     (async () => {
@@ -66,6 +77,11 @@ export default function ChartScreen() {
       const progress = await getUnlockProgress();
       setUnlockProgress(progress);
     })();
+    // Load active transit windows
+    try {
+      const windows = getActiveCosmicWindows(userProfile?.chart, new Date());
+      setActiveWindows(windows);
+    } catch (e) {}
   }, []);
 
   const handlePlanetTap = async (planet) => {
@@ -92,8 +108,10 @@ export default function ChartScreen() {
     setDeepDive(null);
     try {
       const p = chart?.planets?.find(pp => pp.name === planet.name);
+      const transit = getTransitForPlanet(planet.name);
+      const transitCtx = transit ? `${transit.planet} ${transit.aspect || 'transiting'} your natal ${planet.name} in ${p?.sign || planet.sign} (orb: ${transit.orb || '?'}°). ${transit.description || ''}` : null;
       const result = await generatePlacementDeepDive(
-        planet.name, p?.sign || planet.sign, p?.house || 1, userProfile?.id
+        planet.name, p?.sign || planet.sign, p?.house || 1, userProfile?.id, transitCtx
       );
       setDeepDive({ ...result, planetName: planet.name, sign: p?.sign, house: p?.house });
       haptic.light();
@@ -296,8 +314,8 @@ export default function ChartScreen() {
                 <View style={[styles.unlockBarFill, { width: `${unlockProgress.percentage}%` }]} />
               </View>
               <Text style={styles.unlockBarText}>
-                {unlockProgress.unlocked}/{unlockProgress.total} placements revealed
-                {unlockProgress.nextPlanet ? ` · ${unlockProgress.nextPlanet} unlocks tomorrow` : ''}
+                {unlockProgress.unlocked}/{unlockProgress.total} chapters revealed
+                {unlockProgress.nextPlanet ? ` · ${unlockProgress.nextPlanet}: ${UNLOCK_NARRATIVES[unlockProgress.nextPlanet] || 'tomorrow'}` : ''}
               </Text>
             </View>
           </View>
@@ -315,7 +333,7 @@ export default function ChartScreen() {
                 <View style={{ flex: 1 }}>
                   <Text style={[styles.plrowPlanet, isLocked && { opacity: 0.5 }]}>{p.planet}{p.isRetrograde ? ' ℞' : ''}</Text>
                   {isLocked ? (
-                    <Text style={styles.plrowLockedHint}>Unlocks day {getUnlockDayForPlanet(p.name)}</Text>
+                    <Text style={styles.plrowLockedHint}>Day {getUnlockDayForPlanet(p.name)} — {UNLOCK_NARRATIVES[p.name] || 'Tap to reveal'}</Text>
                   ) : (
                     <Text style={styles.plrowSign}>{p.sign}</Text>
                   )}
@@ -324,6 +342,12 @@ export default function ChartScreen() {
                   <View style={{ alignItems: 'flex-end' }}>
                     <Text style={styles.plrowDeg}>{p.deg}</Text>
                     <Text style={styles.plrowHouse}>{p.house}</Text>
+                    {getTransitForPlanet(p.name) && (
+                      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 3, marginTop: 2 }}>
+                        <View style={{ width: 6, height: 6, borderRadius: 3, backgroundColor: T.gold }} />
+                        <Text style={{ fontSize: 7, fontFamily: FONTS.sansSemiBold, color: T.gold, letterSpacing: 1 }}>LIVE</Text>
+                      </View>
+                    )}
                   </View>
                 )}
                 {!isLocked && <CosmicTooltip id={p.name === 'Ascendant' ? 'rising_sign' : p.name === 'North Node' ? 'north_node' : p.name === 'South Node' ? 'south_node' : p.name.toLowerCase()} size={14} />}
