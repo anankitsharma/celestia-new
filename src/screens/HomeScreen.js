@@ -8,6 +8,7 @@ import { T, FONTS } from '../constants/theme';
 import { useUserProfile } from '../contexts/UserProfileContext';
 import { getMoonDataForDate, getTransitPlanets, getActiveCosmicWindows, isMercuryRetrograde, getCosmicChangeToday, calculateTransitSignificance, getCosmicSeason } from '../services/astrologyService';
 import { fetchExtendedForecast, generateMoonRitual, generateMonthlyRecap } from '../services/geminiService';
+import { useAnalytics, EVENTS } from '../services/analytics';
 import { ForecastRepository } from '../services/database/rep_forecasts';
 import { loadObject, saveObject, loadString, saveString, loadBoolean, saveBoolean, StorageKeys } from '../services/storage';
 import { haptic } from '../services/hapticService';
@@ -77,6 +78,7 @@ const formatDateHeader = (date = new Date()) => {
 
 export default function HomeScreen({ navigation, route }) {
   const { isPro } = useRevenueCat();
+  const { capture } = useAnalytics();
   const { userProfile, partnerProfiles, isLoading: profileLoading } = useUserProfile();
 
   const [activeTab, setActiveTab] = useState('today');
@@ -397,6 +399,9 @@ export default function HomeScreen({ navigation, route }) {
       };
       const data = await fetchExtendedForecast(userProfile, tab, planetaryData, transitSignificance, narrativeCtx);
       setForecast(data);
+      if (tab === 'today') {
+        capture(EVENTS.DAILY_BRIEFING_VIEWED, { has_navigator: !!data?.navigatorHeadline });
+      }
       // Schedule notifications with latest forecast (only on today tab)
       if (tab === 'today') {
         scheduleAllNotifications(userProfile, data, streakData, moonData, null, cosmicWindows).catch(() => { });

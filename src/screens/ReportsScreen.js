@@ -17,6 +17,7 @@ import { awardXP } from '../services/xpService';
 import GenerationOverlay from '../components/GenerationOverlay';
 import { useRevenueCat } from '../contexts/RevenueCatContext';
 import { useNavigation } from '@react-navigation/native';
+import { useAnalytics, EVENTS } from '../services/analytics';
 
 
 const { width: SCREEN_W, height: SCREEN_H } = Dimensions.get('window');
@@ -1099,6 +1100,7 @@ const buildPdfFilename = (name, type) => {
 export default function ReportsScreen() {
   const navigation = useNavigation();
   const { isPro } = useRevenueCat();
+  const { capture } = useAnalytics();
   const { userProfile } = useUserProfile();
 
   const sunSign = userProfile?.chart?.planets?.find(p => p.name === 'Sun')?.sign;
@@ -1182,7 +1184,7 @@ export default function ReportsScreen() {
       const data = await generateFullReport(userProfile, r.type, narrativeCtx);
       setReportData(data);
       haptic.success();
-      // Track report generation
+      capture(EVENTS.REPORT_GENERATED, { report_type: r.type });
       const profileId = userProfile?.id || 'default';
       trackEvent('report_generated').catch(() => { });
       awardXP(profileId, 'report_read').catch(() => { });

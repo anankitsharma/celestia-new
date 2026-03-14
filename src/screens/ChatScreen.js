@@ -16,6 +16,7 @@ import { getActiveCosmicWindows, getMoonDataForDate } from '../services/astrolog
 import { getNarrativeContext } from '../services/narrativeService';
 import { useRevenueCat } from '../contexts/RevenueCatContext';
 import { useNavigation } from '@react-navigation/native';
+import { useAnalytics, EVENTS } from '../services/analytics';
 
 
 // ── DYNAMIC SUGGESTION QUESTIONS ─────────────────────────────
@@ -199,6 +200,7 @@ const formatTime = (ts) => {
 
 export default function ChatScreen({ navigation, route }) {
   const { isPro } = useRevenueCat();
+  const { capture } = useAnalytics();
 
   const { userProfile } = useUserProfile();
   const [messages, setMessages] = useState([]);
@@ -259,19 +261,23 @@ export default function ChatScreen({ navigation, route }) {
     const hideEvent = Platform.OS === 'ios' ? 'keyboardWillHide' : 'keyboardDidHide';
     const subShow = Keyboard.addListener(showEvent, (e) => {
       setKbVisible(true);
-      Animated.timing(kbHeight, {
-        toValue: e.endCoordinates.height,
-        duration: Platform.OS === 'ios' ? e.duration || 250 : 200,
-        useNativeDriver: false,
-      }).start();
+      if (Platform.OS === 'ios') {
+        Animated.timing(kbHeight, {
+          toValue: e.endCoordinates.height,
+          duration: e.duration || 250,
+          useNativeDriver: false,
+        }).start();
+      }
     });
     const subHide = Keyboard.addListener(hideEvent, (e) => {
       setKbVisible(false);
-      Animated.timing(kbHeight, {
-        toValue: 0,
-        duration: Platform.OS === 'ios' ? e.duration || 250 : 200,
-        useNativeDriver: false,
-      }).start();
+      if (Platform.OS === 'ios') {
+        Animated.timing(kbHeight, {
+          toValue: 0,
+          duration: e.duration || 250,
+          useNativeDriver: false,
+        }).start();
+      }
     });
     return () => { subShow.remove(); subHide.remove(); };
   }, []);
@@ -428,6 +434,7 @@ export default function ChatScreen({ navigation, route }) {
       // 4. Saving AI response to DB
       // 5. Updating session.history in-memory
       const responseText = await sendChatMessage(currentSession, text);
+      capture(EVENTS.AI_CHAT_MESSAGE_SENT, { is_pro: isPro, message_number: messages.length + 1 });
 
       // Update session ref if ID was assigned (transient → persisted)
       if (currentSession.id && currentSession !== session) {
@@ -558,7 +565,7 @@ export default function ChatScreen({ navigation, route }) {
       )}
 
       {/* Input */}
-      <View style={[styles.inputBar, !kbVisible && { paddingBottom: 110 }]}>
+      <View style={[styles.inputBar, { paddingBottom: kbVisible ? (Platform.OS === 'android' ? 8 : 28) : 110 }]}>
         <View style={styles.inputField}>
           <TextInput
             style={styles.inputText}

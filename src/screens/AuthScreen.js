@@ -5,9 +5,10 @@ import { T, FONTS } from '../constants/theme';
 import { signUpWithEmail, signInWithEmail, resetPassword } from '../services/supabase/authService';
 import { useAuth } from '../contexts/AuthContext';
 
-export default function AuthScreen({ navigation }) {
+export default function AuthScreen({ navigation, route }) {
   const { onSignIn } = useAuth();
-  const [mode, setMode] = useState('signin'); // 'signin' | 'signup'
+  const isOnboarding = route.params?.mode === 'onboarding';
+  const [mode, setMode] = useState(isOnboarding ? 'signup' : 'signin'); // 'signin' | 'signup'
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
@@ -39,7 +40,11 @@ export default function AuthScreen({ navigation }) {
 
       if (data?.session) {
         await onSignIn(data.session);
-        navigation.goBack();
+        if (isOnboarding) {
+          navigation.replace('Main');
+        } else {
+          navigation.goBack();
+        }
       }
     } catch (e) {
       const msg = e?.message || 'Something went wrong. Please try again.';
@@ -53,15 +58,25 @@ export default function AuthScreen({ navigation }) {
     <View style={{ flex: 1, backgroundColor: T.cream }}>
       {/* Header */}
       <LinearGradient colors={['#0E0E22', '#1A1060', '#0C2040']} style={s.hero}>
-        <TouchableOpacity onPress={() => navigation.goBack()} style={s.backBtn}>
-          <Text style={s.backText}>‹</Text>
-        </TouchableOpacity>
+        {isOnboarding ? (
+          <TouchableOpacity onPress={() => navigation.replace('Main')} style={s.skipBtn}>
+            <Text style={s.skipText}>Skip for now</Text>
+          </TouchableOpacity>
+        ) : (
+          <TouchableOpacity onPress={() => navigation.goBack()} style={s.backBtn}>
+            <Text style={s.backText}>‹</Text>
+          </TouchableOpacity>
+        )}
         <Text style={s.heroIcon}>☽</Text>
-        <Text style={s.heroTitle}>{mode === 'signup' ? 'Join the Cosmos' : 'Welcome Back'}</Text>
+        <Text style={s.heroTitle}>
+          {isOnboarding ? 'Save Your Chart' : (mode === 'signup' ? 'Join the Cosmos' : 'Welcome Back')}
+        </Text>
         <Text style={s.heroSub}>
-          {mode === 'signup'
-            ? 'Create an account to sync your chart across devices'
-            : 'Sign in to access your cosmic data'}
+          {isOnboarding
+            ? "Don't lose your cosmic blueprint.\nCreate a free account to keep your chart safe."
+            : mode === 'signup'
+              ? 'Create an account to sync your chart across devices'
+              : 'Sign in to access your cosmic data'}
         </Text>
       </LinearGradient>
 
@@ -97,6 +112,41 @@ export default function AuthScreen({ navigation }) {
             )}
           </TouchableOpacity>
 
+          <View style={s.dividerRow}>
+            <View style={s.divider} />
+            <Text style={s.dividerText}>OR</Text>
+            <View style={s.divider} />
+          </View>
+
+          <TouchableOpacity
+            style={s.googleBtn}
+            activeOpacity={0.85}
+            onPress={async () => {
+              setLoading(true);
+              try {
+                const { signInWithGoogle } = require('../services/supabase/authService');
+                const data = await signInWithGoogle();
+                if (data?.session) {
+                  await onSignIn(data.session);
+                  if (isOnboarding) {
+                    navigation.replace('Main');
+                  } else {
+                    navigation.goBack();
+                  }
+                }
+              } catch (e) {
+                if (e.code !== 'ASYNC_STORAGE_SET_ITEM_ERROR' && e.code !== 'SIGN_IN_CANCELLED') {
+                  Alert.alert('Google Sign-in failed', e.message || 'Something went wrong.');
+                }
+              } finally {
+                setLoading(false);
+              }
+            }}
+            disabled={loading}
+          >
+            <Text style={s.googleText}>Continue with Google</Text>
+          </TouchableOpacity>
+
           {mode === 'signin' && (
             <TouchableOpacity style={s.forgotRow} onPress={async () => {
               if (!email.trim()) {
@@ -130,6 +180,8 @@ const s = StyleSheet.create({
   hero: { paddingTop: Platform.OS === 'ios' ? 60 : (StatusBar.currentHeight || 44) + 12, paddingHorizontal: 24, paddingBottom: 32, position: 'relative' },
   backBtn: { width: 40, height: 40, borderRadius: 20, backgroundColor: 'rgba(255,255,255,0.08)', borderWidth: 1, borderColor: 'rgba(255,255,255,0.12)', alignItems: 'center', justifyContent: 'center', marginBottom: 20 },
   backText: { fontSize: 22, color: 'white', marginTop: -2 },
+  skipBtn: { alignSelf: 'flex-end', paddingVertical: 6, paddingHorizontal: 4, marginBottom: 20 },
+  skipText: { fontSize: 13, color: 'rgba(250,248,242,0.4)', fontFamily: FONTS.sansMedium },
   heroIcon: { fontSize: 36, color: T.gold, marginBottom: 12 },
   heroTitle: { fontFamily: FONTS.serif, fontSize: 28, color: T.cream, marginBottom: 8 },
   heroSub: { fontSize: 14, color: 'rgba(250,248,242,0.5)', lineHeight: 20 },
@@ -144,4 +196,10 @@ const s = StyleSheet.create({
   switchRow: { alignItems: 'center', marginTop: 20, padding: 8 },
   switchText: { fontSize: 14, color: T.stone },
   switchLink: { color: T.gold, fontFamily: FONTS.sansSemiBold },
+  dividerRow: { flexDirection: 'row', alignItems: 'center', marginVertical: 20 },
+  divider: { flex: 1, height: 1, backgroundColor: T.border },
+  dividerText: { marginHorizontal: 12, fontSize: 12, color: T.stone, fontFamily: FONTS.sansMedium },
+  googleBtn: { flexDirection: 'row', backgroundColor: 'white', borderRadius: 14, padding: 16, alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: T.border },
+  googleText: { fontSize: 15, fontFamily: FONTS.sansSemiBold, color: T.navy },
 });
+

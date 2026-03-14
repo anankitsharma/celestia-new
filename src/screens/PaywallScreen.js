@@ -19,9 +19,11 @@ import Animated, {
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { PACKAGE_TYPE } from 'react-native-purchases';
 import { useRevenueCat } from '../contexts/RevenueCatContext';
+import { useAuth } from '../contexts/AuthContext';
 import { T, FONTS } from '../constants/theme';
 import { haptic } from '../services/hapticService';
 import CelestialSigil from '../components/CelestialSigil';
+import { useAnalytics, EVENTS } from '../services/analytics';
 
 const { width, height } = Dimensions.get('window');
 const isSmallScreen = height < 800;
@@ -103,6 +105,8 @@ const PAYWALL_VARIANTS = {
 
 export default function PaywallScreen({ navigation, route }) {
     const { offerings, purchasePackage, restorePurchases, isLoading: isOfferingsLoading } = useRevenueCat();
+    const { user } = useAuth();
+    const { capture } = useAnalytics();
     const [selectedPlan, setSelectedPlan] = useState('annual');
     const [showClose, setShowClose] = useState(false);
     const [isLoading, setIsLoading] = useState(false);
@@ -144,6 +148,7 @@ export default function PaywallScreen({ navigation, route }) {
     const monthlyPriceStr = monthlyPackage?.product.priceString || "$9.99";
 
     useEffect(() => {
+        capture(EVENTS.PAYWALL_VIEWED, { source, variant: variantKey });
         const timer = setTimeout(() => setShowClose(true), 2500);
         return () => clearTimeout(timer);
     }, []);
@@ -166,6 +171,7 @@ export default function PaywallScreen({ navigation, route }) {
     const handlePurchase = async () => {
         setIsLoading(true);
         haptic.medium();
+        capture(EVENTS.PURCHASE_TAPPED, { plan: selectedPlan, source, variant: variantKey });
         try {
             const pkgToPurchase = selectedPlan === 'annual' ? annualPackage : monthlyPackage;
             if (!pkgToPurchase) {
@@ -173,11 +179,26 @@ export default function PaywallScreen({ navigation, route }) {
                 return;
             }
             await purchasePackage(pkgToPurchase);
-            Alert.alert('Welcome!', 'Your Celestia Pro subscription is now active.', [
-                { text: 'Let’s Go', onPress: () => navigation.goBack() }
-            ]);
+            capture(EVENTS.PURCHASE_COMPLETED, { plan: selectedPlan, source, variant: variantKey });
+            if (!user) {
+                Alert.alert(
+                    'Subscription Active! ✦',
+                    'Create a free account to protect your subscription and access Celestia on any device.',
+                    [
+                        { text: 'Create Account', onPress: () => navigation.replace('Auth') },
+                        { text: 'Maybe Later', style: 'cancel', onPress: () => navigation.goBack() },
+                    ]
+                );
+            } else {
+                Alert.alert('Welcome!', 'Your Celestia Pro subscription is now active.', [
+                    { text: "Let's Go", onPress: () => navigation.goBack() }
+                ]);
+            }
         } catch (e) {
-            if (!e.userCancelled) {
+            if (e.userCancelled) {
+                capture(EVENTS.PURCHASE_CANCELLED, { plan: selectedPlan, source });
+            } else {
+                capture(EVENTS.PURCHASE_FAILED, { plan: selectedPlan, source, error: e.message });
                 Alert.alert("Purchase Failed", e.message || "Something went wrong.");
             }
         } finally {
@@ -187,13 +208,16 @@ export default function PaywallScreen({ navigation, route }) {
 
     const handleRestore = async () => {
         setIsLoading(true);
+        capture(EVENTS.RESTORE_TAPPED);
         try {
             const customerInfo = await restorePurchases();
             if (customerInfo?.entitlements.active['Celestia Pro']) {
+                capture(EVENTS.RESTORE_COMPLETED, { success: true });
                 Alert.alert("Success", "Restored successfully!", [
                     { text: 'OK', onPress: () => navigation.goBack() }
                 ]);
             } else {
+                capture(EVENTS.RESTORE_COMPLETED, { success: false });
                 Alert.alert("Notice", "No active subscriptions found.");
             }
         } catch (e) {
@@ -245,7 +269,7 @@ export default function PaywallScreen({ navigation, route }) {
                         {/* Annual */}
                         <TouchableOpacity
                             activeOpacity={0.9}
-                            onPress={() => { haptic.light(); setSelectedPlan('annual'); }}
+                            onPress={() => { haptic.light(); setSelectedPlan('annual'); capture(EVENTS.PAYWALL_PLAN_SWITCHED, { plan: 'annual', source }); }}
                             style={[styles.planCard, selectedPlan === 'annual' && styles.planCardActive]}
                         >
                             {selectedPlan === 'annual' && <View style={styles.bestValueTag}><Text style={styles.bestValueText}>SAVE 50%</Text></View>}
@@ -264,7 +288,7 @@ export default function PaywallScreen({ navigation, route }) {
                         {/* Monthly */}
                         <TouchableOpacity
                             activeOpacity={0.9}
-                            onPress={() => { haptic.light(); setSelectedPlan('monthly'); }}
+                            onPress={() => { haptic.light(); setSelectedPlan('monthly'); capture(EVENTS.PAYWALL_PLAN_SWITCHED, { plan: 'monthly', source }); }}
                             style={[styles.planCard, selectedPlan === 'monthly' && styles.planCardActive, { marginTop: 10 }]}
                         >
                             <View style={styles.planInner}>

@@ -12,6 +12,7 @@ import { haptic } from '../services/hapticService';
 import { trackEvent } from '../services/achievementService';
 import { awardXP } from '../services/xpService';
 import { completeQuestAction } from '../services/questService';
+import { useAnalytics, EVENTS } from '../services/analytics';
 import { getUnlockedPlanets, getUnlockProgress, getUnlockDayForPlanet, UNLOCK_NARRATIVES } from '../services/unlockService';
 import { getActiveCosmicWindows } from '../services/astrologyService';
 import CosmicTooltip from '../components/CosmicTooltip';
@@ -43,6 +44,7 @@ const ASPECT_NATURE = {
 export default function ChartScreen() {
   const { isPro } = useRevenueCat();
   const { userProfile, isLoading } = useUserProfile();
+  const { capture } = useAnalytics();
 
   const [tab, setTab] = useState(0);
   const tabs = ['Planets', 'Aspects', 'Houses'];
@@ -120,6 +122,7 @@ export default function ChartScreen() {
       );
       setDeepDive({ ...result, planetName: planet.name, sign: p?.sign, house: p?.house });
       haptic.light();
+      capture(EVENTS.CHART_DEEP_DIVE, { type: 'planet', planet: planet.name, sign: p?.sign });
       trackEvent('deep_dive', { planet: planet.name }).catch(() => { });
       awardXP(userProfile?.id || 'default', 'deep_dive').catch(() => { });
       completeQuestAction('deep_dive_done').catch(() => { });
@@ -142,6 +145,7 @@ export default function ChartScreen() {
       );
       setDeepDive({ ...result, planet1: aspect.planet1, planet2: aspect.planet2, aspectType: aspect.type, orb: aspect.orb, color: aspect.color });
       haptic.light();
+      capture(EVENTS.CHART_DEEP_DIVE, { type: 'aspect', planet: aspect.planet1, planet2: aspect.planet2, aspect_type: aspect.type });
       trackEvent('deep_dive', { planet: aspect.planet1 }).catch(() => { });
       awardXP(userProfile?.id || 'default', 'deep_dive').catch(() => { });
       completeQuestAction('deep_dive_done').catch(() => { });
@@ -167,6 +171,7 @@ export default function ChartScreen() {
       );
       setDeepDive({ ...result, houseNumber: house.number, sign: house.sign, theme: house.theme, planetsInHouse });
       haptic.light();
+      capture(EVENTS.CHART_DEEP_DIVE, { type: 'house', house: house.number, sign: house.sign });
       trackEvent('deep_dive', { planet: `House_${house.number}` }).catch(() => { });
       awardXP(userProfile?.id || 'default', 'deep_dive').catch(() => { });
       completeQuestAction('deep_dive_done').catch(() => { });
