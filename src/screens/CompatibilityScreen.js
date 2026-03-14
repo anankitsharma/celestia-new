@@ -32,6 +32,7 @@ import AstroText from '../components/AstroText';
 import { createAndShareInvite } from '../services/inviteService';
 import { useRevenueCat } from '../contexts/RevenueCatContext';
 import LockedFeatureOverlay from '../components/LockedFeatureOverlay';
+import { useAnalytics, EVENTS } from '../services/analytics';
 
 import { ROLE_DETAIL_CONFIG } from '../constants/roleDetailConfig';
 
@@ -218,6 +219,7 @@ const getQuickScore = (userChart, partner) => {
 export default function CompatibilityScreen() {
   const navigation = useNavigation();
   const { isPro } = useRevenueCat();
+  const { capture } = useAnalytics();
 
   const { userProfile, partnerProfiles, addPartner, removePartner } = useUserProfile();
   const [selectedPartner, setSelectedPartner] = useState(null);
@@ -332,6 +334,11 @@ export default function CompatibilityScreen() {
 
   useEffect(() => {
     if (!synastry || !userProfile?.chart || !partnerProfile) return;
+    capture(EVENTS.COMPATIBILITY_CHECKED, {
+      relationship_type: partnerProfile.relationshipType || 'partner',
+      mode: partnerProfile.isZodiacOnly ? 'zodiac_only' : 'full_chart',
+      score: synastry.harmonyScore,
+    });
     loadAiAnalysis();
     setViralInsights(null);
     setMatchDetails(null);

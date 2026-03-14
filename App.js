@@ -26,6 +26,13 @@ import { initDeepLinks, registerDeepLinkHandler } from './src/services/deepLinkS
 import { lookupInvite } from './src/services/inviteService';
 import { recordReferral } from './src/services/referralService';
 import { RevenueCatProvider } from './src/contexts/RevenueCatContext';
+import { PostHogProvider, usePostHog } from 'posthog-react-native';
+
+function AppOpenTracker() {
+  const posthog = usePostHog();
+  useEffect(() => { posthog?.capture('app_opened'); }, []);
+  return null;
+}
 
 export default function App() {
   const navigationRef = useNavigationContainerRef();
@@ -103,15 +110,21 @@ export default function App() {
   }
 
   return (
-    <AuthProvider>
-      <UserProfileProvider>
-        <RevenueCatProvider>
-          <NavigationContainer ref={navigationRef}>
-            <StatusBar style="light" />
-            <AppNavigator />
-          </NavigationContainer>
-        </RevenueCatProvider>
-      </UserProfileProvider>
-    </AuthProvider>
+    <PostHogProvider
+      apiKey="phc_bPp0sgaFIhPbZaqU6613cEiy0sJbJd5C20Vk8TgN3Zd"
+      options={{ host: 'https://us.i.posthog.com' }}
+    >
+      <AppOpenTracker />
+      <AuthProvider>
+        <UserProfileProvider>
+          <RevenueCatProvider>
+            <NavigationContainer ref={navigationRef}>
+              <StatusBar style="light" />
+              <AppNavigator />
+            </NavigationContainer>
+          </RevenueCatProvider>
+        </UserProfileProvider>
+      </AuthProvider>
+    </PostHogProvider>
   );
 }

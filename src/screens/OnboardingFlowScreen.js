@@ -8,8 +8,10 @@ import DateTimePicker from '@react-native-community/datetimepicker';
 import { T, FONTS } from '../constants/theme';
 import ChartWheel from '../components/ChartWheel';
 import { useUserProfile } from '../contexts/UserProfileContext';
+import { useAuth } from '../contexts/AuthContext';
 import { calculateChart, getTransitPlanets, getMoonDataForDate } from '../services/astrologyService';
 import * as Crypto from 'expo-crypto';
+import { useAnalytics, EVENTS } from '../services/analytics';
 
 const { width, height } = Dimensions.get('window');
 const NOMINATIM_URL = 'https://nominatim.openstreetmap.org/search';
@@ -108,6 +110,8 @@ const GoldButton = ({ text, onPress, disabled, loading, sub }) => (
 // ══════════════════════════════════════════════════════════
 export default function OnboardingFlowScreen({ navigation }) {
   const { setUserProfile } = useUserProfile();
+  const { user } = useAuth();
+  const { capture, identify } = useAnalytics();
   const [step, setStep] = useState(1);
   const slideAnim = useRef(new Animated.Value(0)).current;
 
@@ -136,6 +140,9 @@ export default function OnboardingFlowScreen({ navigation }) {
 
   // Paywall
   const [selectedPlan, setSelectedPlan] = useState('annual');
+
+  // Fire onboarding_started once on mount
+  useEffect(() => { capture(EVENTS.ONBOARDING_STARTED); }, []);
 
   // ── Transition animation ─────────────────────────
   const advance = (nextStep) => {
@@ -229,7 +236,13 @@ export default function OnboardingFlowScreen({ navigation }) {
         painPoint,
       };
       await setUserProfile(profile);
-      navigation.replace('Main');
+      identify(profile.id, { sun_sign: chart?.sun?.sign, motivation, pain_point: painPoint });
+      capture(EVENTS.ONBOARDING_COMPLETED, { sun_sign: chart?.sun?.sign, motivation, pain_point: painPoint });
+      if (user) {
+        navigation.replace('Main');
+      } else {
+        navigation.replace('Auth', { mode: 'onboarding' });
+      }
     } catch (e) {
       console.error('Save error:', e);
     }

@@ -215,6 +215,21 @@ export default function ProfileScreen({ navigation }) {
           </View>
         </LinearGradient>
 
+        {/* Connect Account nudge */}
+        {!user && (
+          <TouchableOpacity
+            style={styles.connectBanner}
+            activeOpacity={0.85}
+            onPress={() => navigation.navigate('Auth')}
+          >
+            <View style={{ flex: 1 }}>
+              <Text style={styles.connectTitle}>Connect your account</Text>
+              <Text style={styles.connectSub}>Back up your chart · access on any device</Text>
+            </View>
+            <Text style={styles.connectArrow}>→</Text>
+          </TouchableOpacity>
+        )}
+
         <View style={styles.body}>
           {/* Stats */}
           <View style={styles.pstats}>
@@ -823,6 +838,10 @@ export default function ProfileScreen({ navigation }) {
 }
 
 const styles = StyleSheet.create({
+  connectBanner: { flexDirection: 'row', alignItems: 'center', backgroundColor: T.navy, marginHorizontal: 18, marginTop: 14, marginBottom: 2, borderRadius: 14, paddingVertical: 14, paddingHorizontal: 16, borderWidth: 1, borderColor: 'rgba(200,168,75,0.25)' },
+  connectTitle: { fontSize: 13, fontFamily: FONTS.sansSemiBold, color: T.cream, marginBottom: 2 },
+  connectSub: { fontSize: 11, color: 'rgba(250,248,242,0.5)', fontFamily: FONTS.sansLight },
+  connectArrow: { fontSize: 18, color: T.gold, marginLeft: 8 },
   hero: { paddingTop: 64, paddingHorizontal: 22, paddingBottom: 25, position: 'relative', overflow: 'hidden' },
   heroGlyph: { position: 'absolute', right: 8, bottom: -22 },
   avatar: { width: 72, height: 72, borderRadius: 36, alignItems: 'center', justifyContent: 'center', shadowColor: '#000', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.3, shadowRadius: 18, marginBottom: 13, borderWidth: 3, borderColor: 'rgba(255,255,255,0.14)' },

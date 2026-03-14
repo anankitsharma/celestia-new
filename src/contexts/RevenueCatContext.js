@@ -1,5 +1,6 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import Purchases from 'react-native-purchases';
+import { usePostHog } from 'posthog-react-native';
 
 import { RevenueCatService } from '../services/revenueCatService';
 import { useUserProfile } from './UserProfileContext';
@@ -8,6 +9,7 @@ const RevenueCatContext = createContext(null);
 
 export const RevenueCatProvider = ({ children }) => {
     const { userProfile } = useUserProfile();
+    const posthog = usePostHog();
     const [customerInfo, setCustomerInfo] = useState(null);
     const [offerings, setOfferings] = useState(null);
     const [isPro, setIsPro] = useState(false);
@@ -24,6 +26,7 @@ export const RevenueCatProvider = ({ children }) => {
             const info = await RevenueCatService.getCustomerInfo();
             setCustomerInfo(info);
             setIsPro(RevenueCatService.isPro(info));
+            posthog?.identify(userProfile.id, { is_pro: RevenueCatService.isPro(info) });
 
             const currentOfferings = await RevenueCatService.getOfferings();
             setOfferings(currentOfferings);

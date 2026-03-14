@@ -10,6 +10,43 @@ export async function signUpWithEmail(email, password) {
   return data;
 }
 
+import { GoogleSignin } from '@react-native-google-signin/google-signin';
+
+/**
+ * Configure Google Sign-In with Web Client ID.
+ */
+GoogleSignin.configure({
+  webClientId: 'YOUR_WEB_CLIENT_ID.apps.googleusercontent.com', // Replace with your actual Web Client ID from Google Cloud Console
+});
+
+/**
+ * Sign in with Google.
+ */
+export async function signInWithGoogle() {
+  try {
+    await GoogleSignin.hasPlayServices();
+    const userInfo = await GoogleSignin.signIn();
+
+    // In newer versions of the library, the idToken might be inside data object
+    const idToken = userInfo.data?.idToken || userInfo.idToken;
+
+    if (!idToken) {
+      throw new Error('No ID token present!');
+    }
+
+    const { data, error } = await supabase.auth.signInWithIdToken({
+      provider: 'google',
+      token: idToken,
+    });
+
+    if (error) throw error;
+    return data;
+  } catch (error) {
+    console.error('[Auth] Google sign-in error:', error);
+    throw error;
+  }
+}
+
 /**
  * Sign in with email + password.
  */
