@@ -846,14 +846,36 @@ export default function CompatibilityScreen() {
             case 'areas':
               if (detailsLoading) return <View key={idx} style={{ alignItems: 'center', paddingVertical: 16 }}><ActivityIndicator size="small" color={T.gold} /><Text style={{ fontSize: 12, color: T.stone, marginTop: 6 }}>Analyzing your connection...</Text></View>;
               if (!isPro) {
+                // Show teaser section titles with blur to build curiosity
+                const teaserSections = partnerRole === 'partner'
+                  ? [{ icon: '🔥', title: 'The Spark', sub: 'Why you\'re drawn to each other' }, { icon: '💕', title: 'Emotional Dynamic', sub: 'How you connect at the deepest level' }, { icon: '⚡', title: 'Where You\'ll Fight', sub: 'Friction points & how to navigate them' }, { icon: '🌙', title: 'The Long Game', sub: 'Is this built to last?' }]
+                  : partnerRole === 'friend'
+                  ? [{ icon: '★', title: 'Friendship Energy', sub: 'What makes your bond unique' }, { icon: '💬', title: 'Communication', sub: 'How you really talk to each other' }, { icon: '🌱', title: 'Growth Together', sub: 'How you push each other forward' }]
+                  : [{ icon: '✦', title: 'Deep Analysis', sub: 'How you truly connect' }, { icon: '💬', title: 'Communication', sub: 'How you understand each other' }, { icon: '🔮', title: 'The Pattern', sub: 'What keeps repeating between you' }];
                 return (
                   <View key={idx} style={{ marginTop: 10 }}>
                     <Text style={styles.ddSectionLbl}>{lbl.areas}</Text>
-                    <LockedFeatureOverlay
-                      title="Deep Analysis Locked"
-                      description="Unlock Celestia Pro to see detailed scores and AI analysis for every aspect of your connection."
-                      source="match"
-                    />
+                    {teaserSections.map((ts, ti) => (
+                      <View key={ti} style={styles.blurredSection}>
+                        <View style={styles.blurredHeader}>
+                          <Text style={{ fontSize: 16 }}>{ts.icon}</Text>
+                          <View style={{ flex: 1 }}>
+                            <Text style={styles.blurredTitle}>{ts.title}</Text>
+                            <Text style={styles.blurredSub}>{ts.sub}</Text>
+                          </View>
+                          <Text style={{ fontSize: 12, color: T.gold }}>🔒</Text>
+                        </View>
+                        <View style={styles.blurredContent}>
+                          <Text style={styles.blurredText}>████ ██ ████████ ███ ██████ ████ ██ ████████ ████ ██ ██████ ███ ██ ████████ ██ ████████</Text>
+                        </View>
+                      </View>
+                    ))}
+                    <TouchableOpacity style={styles.unlockDeepBtn} activeOpacity={0.8}
+                      onPress={() => { haptic.medium(); navigation.navigate('Paywall', { source: 'match_curiosity' }); }}>
+                      <LinearGradient colors={['#C8A84B', '#A07820']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={styles.unlockDeepGrad}>
+                        <Text style={styles.unlockDeepText}>Unlock Deep Analysis</Text>
+                      </LinearGradient>
+                    </TouchableOpacity>
                   </View>
                 );
               }
@@ -891,13 +913,43 @@ export default function CompatibilityScreen() {
 
             case 'actionRow':
               return (
-                <View key={idx} style={styles.ddActionRow}>
-                  <TouchableOpacity style={styles.ddActionBtn} activeOpacity={0.7} onPress={handleShareStory}><Text style={styles.ddActionBtnText}>Share ↗</Text></TouchableOpacity>
-                  <TouchableOpacity style={styles.ddActionBtn} activeOpacity={0.7} onPress={async () => {
-                    haptic('medium');
-                    await createAndShareInvite({ inviterName: userProfile?.name || 'Someone', inviterId: userProfile?.id, partnerName: partnerProfile?.name || 'Partner', score: synastry.harmonyScore, verdict: rc.getScoreLabel(synastry.harmonyScore) });
-                    trackEvent('share'); awardXP(userProfile?.id, 'share');
-                  }}><Text style={styles.ddActionBtnText}>Invite ✉️</Text></TouchableOpacity>
+                <View key={idx}>
+                  {/* Zodiac-only upgrade CTA */}
+                  {partnerProfile?.isZodiacOnly && (
+                    <TouchableOpacity style={styles.upgradeDepthCard} activeOpacity={0.7}
+                      onPress={() => {
+                        Alert.alert('Add Their Birthday', `Adding ${p2Name}'s full birth details will unlock a much deeper compatibility reading — including emotional dynamics, communication patterns, and long-term potential.`, [
+                          { text: 'Maybe Later', style: 'cancel' },
+                          { text: 'Add Birthday', onPress: () => { setShowAddModal(true); } },
+                        ]);
+                      }}>
+                      <Text style={styles.upgradeDepthIcon}>↑</Text>
+                      <View style={{ flex: 1 }}>
+                        <Text style={styles.upgradeDepthTitle}>Go Deeper</Text>
+                        <Text style={styles.upgradeDepthSub}>Add {p2Name}'s birthday for a full chart reading</Text>
+                      </View>
+                      <Text style={styles.upgradeDepthArrow}>→</Text>
+                    </TouchableOpacity>
+                  )}
+
+                  {/* Ask Celestia bridge */}
+                  <TouchableOpacity style={styles.askCelestiaBtn} activeOpacity={0.7}
+                    onPress={() => {
+                      const question = `Tell me about my compatibility with ${p2Name}. We got ${synastry.harmonyScore}% overall. What should I know about this connection?`;
+                      navigation.navigate('AskAI', { initialMessage: question });
+                    }}>
+                    <Text style={styles.askCelestiaBtnIcon}>☽</Text>
+                    <Text style={styles.askCelestiaBtnText}>Ask Celestia about {p2Name}</Text>
+                  </TouchableOpacity>
+
+                  <View style={styles.ddActionRow}>
+                    <TouchableOpacity style={styles.ddActionBtn} activeOpacity={0.7} onPress={handleShareStory}><Text style={styles.ddActionBtnText}>Share ↗</Text></TouchableOpacity>
+                    <TouchableOpacity style={styles.ddActionBtn} activeOpacity={0.7} onPress={async () => {
+                      haptic.medium();
+                      await createAndShareInvite({ inviterName: userProfile?.name || 'Someone', inviterId: userProfile?.id, partnerName: partnerProfile?.name || 'Partner', score: synastry.harmonyScore, verdict: rc.getScoreLabel(synastry.harmonyScore) });
+                      trackEvent('share'); awardXP(userProfile?.id, 'share');
+                    }}><Text style={styles.ddActionBtnText}>Check Our Compatibility ✉️</Text></TouchableOpacity>
+                  </View>
                 </View>
               );
 
@@ -1502,4 +1554,24 @@ const styles = StyleSheet.create({
   uniqueBodyText: { fontSize: 12.5, color: T.ink, lineHeight: 19, marginBottom: 6 },
   ddDeleteBtn: { alignSelf: 'center', marginTop: 16, marginBottom: 8, paddingVertical: 12, paddingHorizontal: 24, borderRadius: 12, borderWidth: 1.5, borderColor: 'rgba(220,80,80,0.25)', backgroundColor: 'rgba(220,80,80,0.06)' },
   ddDeleteBtnText: { fontSize: 13, fontFamily: FONTS.sansMedium, color: '#DC5050' },
+  // Blurred premium sections
+  blurredSection: { backgroundColor: 'white', borderRadius: 14, padding: 14, marginBottom: 8, borderWidth: 1, borderColor: '#F0E8DA', overflow: 'hidden' },
+  blurredHeader: { flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 8 },
+  blurredTitle: { fontSize: 14, fontFamily: FONTS.sansSemiBold, color: T.navy },
+  blurredSub: { fontSize: 11, color: T.stone, marginTop: 1 },
+  blurredContent: { opacity: 0.15 },
+  blurredText: { fontSize: 12, color: T.stone, lineHeight: 18 },
+  unlockDeepBtn: { marginTop: 8, marginBottom: 8, borderRadius: 14, overflow: 'hidden' },
+  unlockDeepGrad: { paddingVertical: 14, alignItems: 'center' },
+  unlockDeepText: { fontSize: 14, fontFamily: FONTS.sansSemiBold, color: 'white' },
+  // Zodiac-only upgrade
+  upgradeDepthCard: { flexDirection: 'row', alignItems: 'center', gap: 12, backgroundColor: 'rgba(200,168,75,0.06)', borderWidth: 1, borderColor: 'rgba(200,168,75,0.15)', borderRadius: 14, padding: 14, marginBottom: 10 },
+  upgradeDepthIcon: { fontSize: 18, color: T.gold, width: 28, textAlign: 'center' },
+  upgradeDepthTitle: { fontSize: 13, fontFamily: FONTS.sansSemiBold, color: T.navy },
+  upgradeDepthSub: { fontSize: 11, color: T.stone, marginTop: 1 },
+  upgradeDepthArrow: { fontSize: 16, color: T.gold },
+  // Ask Celestia bridge
+  askCelestiaBtn: { flexDirection: 'row', alignItems: 'center', gap: 10, backgroundColor: T.navy, borderRadius: 14, padding: 14, marginBottom: 10 },
+  askCelestiaBtnIcon: { fontSize: 18, color: T.gold },
+  askCelestiaBtnText: { fontSize: 13, fontFamily: FONTS.sansMedium, color: T.cream },
 });

@@ -115,8 +115,8 @@ export default function PaywallScreen({ navigation, route }) {
     const source = route.params?.source || 'default';
     const reportName = route.params?.reportName;
 
-    const variantKey = source.includes('chat') || source === 'oracle' ? 'oracle' :
-        source.includes('match') || source.includes('compatibility') || source === 'match' ? 'match' :
+    const variantKey = source.includes('chat') || source === 'oracle' || source === 'chat_limit' || source === 'chat_soft' ? 'oracle' :
+        source.includes('match') || source.includes('compatibility') || source === 'match' || source === 'match_curiosity' ? 'match' :
             source.includes('circle') || source === 'partners' ? 'match' :
                 source.includes('forecast') || source.includes('ritual') || source.includes('home') || source === 'strategy' ? 'strategy' :
                     source.includes('chart') || source === 'natal' || source === 'drip' ? 'natal' :

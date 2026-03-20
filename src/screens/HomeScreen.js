@@ -70,6 +70,15 @@ const getTimeOfDay = () => {
   return 'GOOD EVENING';
 };
 
+// Time modes for adaptive content ordering + tone
+const getTimeMode = () => {
+  const h = new Date().getHours();
+  if (h >= 7 && h < 10) return 'morning';   // Action-focused, Navigate Toward first
+  if (h >= 10 && h < 17) return 'afternoon'; // Lighter, quick prompts
+  if (h >= 17 && h < 23) return 'evening';   // Reflective, journal, Navigate Around emphasis
+  return 'latenight';                          // Comfort mode, no upsells, soft tone
+};
+
 const formatDateHeader = (date = new Date()) => {
   const days = ['SUNDAY', 'MONDAY', 'TUESDAY', 'WEDNESDAY', 'THURSDAY', 'FRIDAY', 'SATURDAY'];
   const months = ['JANUARY', 'FEBRUARY', 'MARCH', 'APRIL', 'MAY', 'JUNE', 'JULY', 'AUGUST', 'SEPTEMBER', 'OCTOBER', 'NOVEMBER', 'DECEMBER'];
@@ -143,6 +152,9 @@ export default function HomeScreen({ navigation, route }) {
   const [questData, setQuestData] = useState(null);
   const [nextBadge, setNextBadge] = useState(null);
   const [whisperRarity, setWhisperRarity] = useState(null);
+
+  // Evening mood rating
+  const [eveningMood, setEveningMood] = useState(null);
 
   // Celebration modals
   const [streakMilestone, setStreakMilestone] = useState(null);
@@ -376,10 +388,18 @@ export default function HomeScreen({ navigation, route }) {
       navigation.setParams({ openJournal: undefined });
     }
     if (route?.params?.scrollToSection === 'transits') {
-      setTimeout(() => navigation.navigate('TodaysSky'), 500);
+      setTimeout(() => scrollToTransits(), 500);
       navigation.setParams({ scrollToSection: undefined });
     }
-  }, [route?.params]);
+    if (route?.params?.highlightLifeArea && forecast?.lifeAreas) {
+      const area = route.params.highlightLifeArea;
+      const validAreas = ['love', 'career', 'vitality', 'growth', 'social'];
+      if (validAreas.includes(area)) {
+        setTimeout(() => setLifeAreaModal(area), 600);
+      }
+      navigation.setParams({ highlightLifeArea: undefined });
+    }
+  }, [route?.params, forecast]);
 
   // Load forecast when tab changes
   useEffect(() => {
@@ -446,6 +466,23 @@ export default function HomeScreen({ navigation, route }) {
       const entries = await loadObject(JOURNAL_KEY) || {};
       const dateStr = today.toISOString().split('T')[0];
       if (entries[dateStr]) { setJournalText(entries[dateStr]); setJournalSaved(true); }
+    } catch (e) { }
+    // Load evening mood for today
+    try {
+      const moods = await loadObject('celestia_evening_moods') || {};
+      const dateStr = today.toISOString().split('T')[0];
+      if (moods[dateStr]) setEveningMood(moods[dateStr]);
+    } catch (e) { }
+  };
+
+  const saveEveningMood = async (mood) => {
+    setEveningMood(mood);
+    haptic.light?.() || haptic.selection?.();
+    try {
+      const dateStr = today.toISOString().split('T')[0];
+      const moods = await loadObject('celestia_evening_moods') || {};
+      moods[dateStr] = mood;
+      await saveObject('celestia_evening_moods', moods);
     } catch (e) { }
   };
 
@@ -575,6 +612,8 @@ export default function HomeScreen({ navigation, route }) {
   const moonSign = moonData?.sign || '—';
   const moonIcon = MOON_PHASE_ICONS[moonPhase] || '🌘';
   const isEvening = new Date().getHours() >= 18;
+  const timeMode = getTimeMode();
+  const isLateNight = timeMode === 'latenight';
 
   // Planet strip
   const planetStrip = transitPlanets.slice(0, 6).map(p => ({
@@ -1037,6 +1076,27 @@ export default function HomeScreen({ navigation, route }) {
             <View style={styles.eveningCard}>
               <Text style={styles.eveningLabel}>EVENING REFLECTION</Text>
               <Text style={styles.eveningPrompt}>How did your day match the navigator's reading?</Text>
+              <View style={styles.eveningMoodRow}>
+                {[
+                  { emoji: '😔', label: 'Off', value: 1 },
+                  { emoji: '😐', label: 'Meh', value: 2 },
+                  { emoji: '🙂', label: 'Okay', value: 3 },
+                  { emoji: '😊', label: 'Good', value: 4 },
+                  { emoji: '✨', label: 'Spot on', value: 5 },
+                ].map(m => (
+                  <TouchableOpacity key={m.value} activeOpacity={0.7}
+                    style={[styles.eveningMoodBtn, eveningMood === m.value && styles.eveningMoodBtnActive]}
+                    onPress={() => saveEveningMood(m.value)}>
+                    <Text style={styles.eveningMoodEmoji}>{m.emoji}</Text>
+                    <Text style={[styles.eveningMoodLabel, eveningMood === m.value && styles.eveningMoodLabelActive]}>{m.label}</Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
+              {eveningMood && (
+                <Text style={styles.eveningMoodSaved}>
+                  {eveningMood >= 4 ? 'The cosmos aligned today.' : eveningMood >= 3 ? 'Noted. Tomorrow brings fresh energy.' : 'Some days are like that. Tomorrow shifts.'}
+                </Text>
+              )}
               <TouchableOpacity style={styles.eveningBtn} activeOpacity={0.7}
                 onPress={() => navigation.navigate('Journal', { mantra: forecast?.mantra })}>
                 <Text style={styles.eveningBtnText}>Reflect in Journal →</Text>
@@ -1217,6 +1277,38 @@ export default function HomeScreen({ navigation, route }) {
                 </Text>
               </View>
               <Text style={{ fontSize: 16, color: T.stone }}>›</Text>
+            </TouchableOpacity>
+          )}
+
+          {/* ── TIME-ADAPTIVE PROMPT ── */}
+          {activeTab === 'today' && timeMode === 'morning' && (
+            <TouchableOpacity style={styles.timePromptCard} activeOpacity={0.7}
+              onPress={() => navigation.navigate('AskAI', { initialMessage: "What should I focus on today?" })}>
+              <Text style={styles.timePromptIcon}>☉</Text>
+              <View style={{ flex: 1 }}>
+                <Text style={styles.timePromptTitle}>Start your day with intention</Text>
+                <Text style={styles.timePromptSub}>Ask Celestia what to focus on today →</Text>
+              </View>
+            </TouchableOpacity>
+          )}
+          {activeTab === 'today' && timeMode === 'afternoon' && (
+            <TouchableOpacity style={styles.timePromptCard} activeOpacity={0.7}
+              onPress={() => navigation.navigate('AskAI')}>
+              <Text style={styles.timePromptIcon}>☿</Text>
+              <View style={{ flex: 1 }}>
+                <Text style={styles.timePromptTitle}>Quick cosmic check-in</Text>
+                <Text style={styles.timePromptSub}>Anything on your mind? →</Text>
+              </View>
+            </TouchableOpacity>
+          )}
+          {activeTab === 'today' && isLateNight && (
+            <TouchableOpacity style={[styles.timePromptCard, { backgroundColor: '#F5F0E8', borderColor: '#E8E0D0' }]} activeOpacity={0.7}
+              onPress={() => navigation.navigate('AskAI', { initialMessage: "I can't sleep and I'm feeling a lot right now. Can you help me make sense of it?" })}>
+              <Text style={styles.timePromptIcon}>☽</Text>
+              <View style={{ flex: 1 }}>
+                <Text style={styles.timePromptTitle}>Can't sleep?</Text>
+                <Text style={styles.timePromptSub}>Talk it through with Celestia →</Text>
+              </View>
             </TouchableOpacity>
           )}
 
@@ -2135,6 +2227,13 @@ const styles = StyleSheet.create({
   eveningCard: { backgroundColor: '#F8F4EE', borderWidth: 1, borderColor: '#EDE6D8', borderRadius: 16, padding: 16, marginBottom: 15 },
   eveningLabel: { fontSize: 9, fontFamily: FONTS.sansSemiBold, letterSpacing: 2, color: T.gold, marginBottom: 8 },
   eveningPrompt: { fontFamily: FONTS.serifItalic || FONTS.serif, fontSize: 15, color: T.navy, fontStyle: 'italic', lineHeight: 22, marginBottom: 12 },
+  eveningMoodRow: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 12, gap: 6 },
+  eveningMoodBtn: { flex: 1, alignItems: 'center', paddingVertical: 8, borderRadius: 12, backgroundColor: 'rgba(200,168,75,0.06)', borderWidth: 1, borderColor: 'transparent' },
+  eveningMoodBtnActive: { backgroundColor: 'rgba(200,168,75,0.14)', borderColor: T.gold },
+  eveningMoodEmoji: { fontSize: 20, marginBottom: 2 },
+  eveningMoodLabel: { fontSize: 9, fontFamily: FONTS.sansMedium, color: T.stone },
+  eveningMoodLabelActive: { color: T.gold },
+  eveningMoodSaved: { fontSize: 12, fontFamily: FONTS.serifItalic || FONTS.serif, fontStyle: 'italic', color: T.stone, textAlign: 'center', marginBottom: 10 },
   eveningBtn: { backgroundColor: T.warm, borderRadius: 10, paddingVertical: 10, alignItems: 'center' },
   eveningBtnText: { fontSize: 12, fontFamily: FONTS.sansMedium, color: T.ink },
 
@@ -2528,4 +2627,9 @@ const styles = StyleSheet.create({
   circleWidgetOrbText: { fontSize: 12, fontFamily: FONTS.sansSemiBold, color: '#FFFFFF' },
   circleWidgetOrbScore: { position: 'absolute', bottom: -4, right: -2, backgroundColor: T.navy, borderRadius: 6, paddingHorizontal: 3, paddingVertical: 1, minWidth: 16, alignItems: 'center' },
   circleWidgetSub: { fontSize: 11, color: T.stone, fontFamily: FONTS.sans },
+  // Time-adaptive prompt
+  timePromptCard: { flexDirection: 'row', alignItems: 'center', gap: 12, backgroundColor: 'rgba(200,168,75,0.06)', borderWidth: 1, borderColor: 'rgba(200,168,75,0.12)', borderRadius: 14, padding: 14, marginBottom: 14 },
+  timePromptIcon: { fontSize: 20, width: 28, textAlign: 'center' },
+  timePromptTitle: { fontSize: 13, fontFamily: FONTS.sansSemiBold, color: T.navy, marginBottom: 1 },
+  timePromptSub: { fontSize: 11, color: T.stone },
 });

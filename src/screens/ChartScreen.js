@@ -5,6 +5,7 @@ import { T, FONTS } from '../constants/theme';
 import ChartWheel from '../components/ChartWheel';
 import { useUserProfile } from '../contexts/UserProfileContext';
 import { useRevenueCat } from '../contexts/RevenueCatContext';
+import { useNavigation } from '@react-navigation/native';
 
 import { HOUSE_THEMES } from '../constants/AstrologyCore';
 import { generatePlacementDeepDive, generateAspectDeepDive, generateHouseDeepDive } from '../services/geminiService';
@@ -42,11 +43,13 @@ const ASPECT_NATURE = {
 };
 
 export default function ChartScreen() {
+  const navigation = useNavigation();
   const { isPro } = useRevenueCat();
   const { userProfile, isLoading } = useUserProfile();
   const { capture } = useAnalytics();
 
   const [tab, setTab] = useState(0);
+  const [showFullList, setShowFullList] = useState(false);
   const tabs = ['Planets', 'Aspects', 'Houses'];
   const [deepDive, setDeepDive] = useState(null);
   const [deepDiveLoading, setDeepDiveLoading] = useState(false);
@@ -222,6 +225,54 @@ export default function ChartScreen() {
     }));
   }, [chart]);
 
+  // At-a-glance: Top 3 defining patterns from aspects
+  const topPatterns = useMemo(() => {
+    if (!chart?.aspects || !chart?.planets) return [];
+    const PATTERN_LABELS = {
+      'Sun-Moon': { Square: 'Your mind and heart are in constant tension — that\'s where your growth lives.', Opposition: 'You\'re pulled between who you are and what you feel. That\'s not a flaw — it\'s your depth.', Conjunction: 'Your identity and emotions are fused. You feel everything as deeply personal.', Trine: 'Your head and heart agree more than most. You trust yourself naturally.' },
+      'Venus-Mars': { Conjunction: 'You love intensely and can\'t do halfway. Passion is your default.', Square: 'What you want and what you attract don\'t always match — and that tension is magnetic.', Opposition: 'You\'re drawn to people who challenge you. Easy love bores you.', Trine: 'Desire and affection flow together naturally. You know what you want in love.' },
+      'Moon-Saturn': { Square: 'You never feel like enough, even when you are. That\'s Saturn testing your Moon.', Conjunction: 'Emotions meet discipline. You carry a heaviness others don\'t see.', Opposition: 'You oscillate between needing comfort and pushing it away.' },
+      'Sun-Saturn': { Square: 'You hold yourself to impossible standards. The world respects you for it — but it costs you.', Conjunction: 'Discipline is woven into your identity. You were born old.', Opposition: 'Authority figures trigger something deep. You\'re learning to be your own.' },
+      'Venus-Saturn': { Square: 'Love feels hard-won for you. You don\'t trust easily — and that\'s protective, not broken.', Conjunction: 'You take love seriously. Casual doesn\'t exist in your vocabulary.' },
+      'Moon-Pluto': { Square: 'Your emotions are volcanic. You feel everything at maximum intensity.', Conjunction: 'You transform through emotional crisis. Every ending makes you stronger.', Opposition: 'Power dynamics in relationships are your core lesson.' },
+      'Sun-Pluto': { Square: 'You\'re compelled to dig beneath surfaces. Superficial living isn\'t an option for you.', Conjunction: 'You radiate intensity. People are drawn to you and intimidated by you simultaneously.' },
+    };
+    const patterns = [];
+    for (const a of chart.aspects) {
+      const key1 = `${a.planet1}-${a.planet2}`;
+      const key2 = `${a.planet2}-${a.planet1}`;
+      const match = PATTERN_LABELS[key1]?.[a.type] || PATTERN_LABELS[key2]?.[a.type];
+      if (match) {
+        patterns.push({
+          label: `${a.planet1} ${ASPECT_GLYPHS[a.type] || ''} ${a.planet2}`,
+          type: a.type,
+          text: match,
+          color: ASPECT_COLORS[a.type] || T.stone,
+        });
+      }
+      if (patterns.length >= 3) break;
+    }
+    return patterns;
+  }, [chart]);
+
+  // Element & modality balance
+  const chartBalance = useMemo(() => {
+    if (!chart?.planets) return null;
+    const elements = { Fire: 0, Earth: 0, Air: 0, Water: 0 };
+    const modalities = { Cardinal: 0, Fixed: 0, Mutable: 0 };
+    const ELEMENT_MAP = { Aries: 'Fire', Leo: 'Fire', Sagittarius: 'Fire', Taurus: 'Earth', Virgo: 'Earth', Capricorn: 'Earth', Gemini: 'Air', Libra: 'Air', Aquarius: 'Air', Cancer: 'Water', Scorpio: 'Water', Pisces: 'Water' };
+    const MODALITY_MAP = { Aries: 'Cardinal', Cancer: 'Cardinal', Libra: 'Cardinal', Capricorn: 'Cardinal', Taurus: 'Fixed', Leo: 'Fixed', Scorpio: 'Fixed', Aquarius: 'Fixed', Gemini: 'Mutable', Virgo: 'Mutable', Sagittarius: 'Mutable', Pisces: 'Mutable' };
+    const personal = chart.planets.filter(p => ['Sun', 'Moon', 'Ascendant', 'Mercury', 'Venus', 'Mars'].includes(p.name));
+    for (const p of personal) {
+      if (p.sign && ELEMENT_MAP[p.sign]) elements[ELEMENT_MAP[p.sign]]++;
+      if (p.sign && MODALITY_MAP[p.sign]) modalities[MODALITY_MAP[p.sign]]++;
+    }
+    const total = personal.length || 1;
+    const topEl = Object.entries(elements).sort((a, b) => b[1] - a[1])[0];
+    const topMod = Object.entries(modalities).sort((a, b) => b[1] - a[1])[0];
+    return { elements, modalities, total, topElement: topEl, topModality: topMod };
+  }, [chart]);
+
   if (isLoading) {
     return (
       <View style={{ flex: 1, backgroundColor: T.cream, alignItems: 'center', justifyContent: 'center' }}>
@@ -316,6 +367,70 @@ export default function ChartScreen() {
           ))}
         </View>
 
+        {/* Guide header */}
+        {tab === 0 && (
+          <Text style={styles.guideHeader}>Your birth chart reveals patterns, not fate.</Text>
+        )}
+
+        {/* At-a-Glance: Top Patterns + Element Balance (default collapsed) */}
+        {tab === 0 && !showFullList && (
+          <View style={styles.atGlanceSection}>
+            {/* Top Patterns */}
+            {topPatterns.length > 0 && (
+              <View style={styles.atGlanceBlock}>
+                <Text style={styles.atGlanceTitle}>WHY YOU DO THAT THING</Text>
+                {topPatterns.map((p, i) => (
+                  <View key={i} style={styles.patternCard}>
+                    <View style={styles.patternHeader}>
+                      <View style={[styles.patternDot, { backgroundColor: p.color }]} />
+                      <Text style={styles.patternLabel}>{p.label}</Text>
+                      <Text style={[styles.patternType, { color: p.color }]}>{p.type}</Text>
+                    </View>
+                    <Text style={styles.patternText}>{p.text}</Text>
+                  </View>
+                ))}
+              </View>
+            )}
+
+            {/* Element & Modality Balance */}
+            {chartBalance && (
+              <View style={styles.atGlanceBlock}>
+                <Text style={styles.atGlanceTitle}>YOUR ELEMENTAL BALANCE</Text>
+                <View style={styles.balanceRow}>
+                  {Object.entries(chartBalance.elements).map(([el, count]) => {
+                    const icons = { Fire: '🔥', Earth: '🌿', Air: '💨', Water: '🌊' };
+                    const pct = Math.round((count / chartBalance.total) * 100);
+                    return (
+                      <View key={el} style={styles.balanceItem}>
+                        <Text style={styles.balanceIcon}>{icons[el]}</Text>
+                        <View style={styles.balanceBarTrack}>
+                          <View style={[styles.balanceBarFill, { height: `${pct}%` }]} />
+                        </View>
+                        <Text style={styles.balanceLabel}>{el}</Text>
+                        <Text style={styles.balancePct}>{pct}%</Text>
+                      </View>
+                    );
+                  })}
+                </View>
+                <Text style={styles.balanceSummary}>
+                  {chartBalance.topElement[0]} dominant · {chartBalance.topModality[0]} energy
+                </Text>
+              </View>
+            )}
+
+            <TouchableOpacity style={styles.showFullBtn} activeOpacity={0.7} onPress={() => setShowFullList(true)}>
+              <Text style={styles.showFullBtnText}>See All Placements →</Text>
+            </TouchableOpacity>
+          </View>
+        )}
+
+        {/* Toggle back to at-a-glance */}
+        {tab === 0 && showFullList && (
+          <TouchableOpacity style={styles.atGlanceToggle} activeOpacity={0.7} onPress={() => setShowFullList(false)}>
+            <Text style={styles.atGlanceToggleText}>← Back to At-a-Glance</Text>
+          </TouchableOpacity>
+        )}
+
         {/* Unlock progress bar */}
         {/* Unlock Bar — hidden for Pro users */}
         {!isPro && unlockProgress && !unlockProgress.isComplete && tab === 0 && (
@@ -334,7 +449,7 @@ export default function ChartScreen() {
         )}
 
         <View style={styles.list}>
-          {tab === 0 && planetPlacements.map((p, i) => {
+          {tab === 0 && showFullList && planetPlacements.map((p, i) => {
             const isLocked = !isPro && !unlockedPlanets.includes(p.name);
 
             return (
@@ -583,6 +698,23 @@ export default function ChartScreen() {
               )}
 
               {/* Shared: Quote card — tap to share */}
+              {/* Bridge to Chat */}
+              {deepDive && !deepDive.locked && (
+                <TouchableOpacity style={styles.ddAskBtn} activeOpacity={0.7}
+                  onPress={() => {
+                    const q = deepDiveType === 'planet'
+                      ? `Tell me more about my ${deepDive.planetName} in ${deepDive.sign}. What does it mean for my daily life?`
+                      : deepDiveType === 'aspect'
+                      ? `What does ${deepDive.planet1} ${deepDive.aspectType} ${deepDive.planet2} mean in my chart?`
+                      : `Tell me about my ${deepDive.houseNumber ? 'House ' + deepDive.houseNumber : 'chart'} and what it means for me.`;
+                    setShowDeepDive(false);
+                    setTimeout(() => navigation.navigate('AskAI', { initialMessage: q }), 300);
+                  }}>
+                  <Text style={styles.ddAskBtnIcon}>☽</Text>
+                  <Text style={styles.ddAskBtnText}>Ask Celestia about this</Text>
+                </TouchableOpacity>
+              )}
+
               {deepDive.share_quote && (
                 <TouchableOpacity activeOpacity={0.8} onPress={async () => {
                   haptic.light();
@@ -692,4 +824,33 @@ const styles = StyleSheet.create({
   shareChartBtn: { backgroundColor: 'rgba(200,168,75,0.15)', borderWidth: 1, borderColor: 'rgba(200,168,75,0.3)', borderRadius: 100, paddingVertical: 8, paddingHorizontal: 20, marginTop: 8 },
   shareChartText: { fontSize: 12, fontFamily: FONTS.sansMedium, color: T.gold },
   ddShareHint: { fontSize: 10, color: 'rgba(200,168,75,0.5)', marginTop: 8 },
+  // Guide header
+  guideHeader: { fontSize: 12, fontFamily: FONTS.serifItalic || FONTS.serif, fontStyle: 'italic', color: T.stone, textAlign: 'center', paddingHorizontal: 40, marginTop: 14, marginBottom: 2 },
+  // At-a-Glance
+  atGlanceSection: { paddingHorizontal: 20, paddingTop: 12 },
+  atGlanceBlock: { marginBottom: 16 },
+  atGlanceTitle: { fontSize: 9, fontFamily: FONTS.sansSemiBold, letterSpacing: 2, color: T.gold, marginBottom: 10 },
+  patternCard: { backgroundColor: 'white', borderRadius: 14, padding: 14, marginBottom: 8, borderWidth: 1, borderColor: '#F0E8DA' },
+  patternHeader: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 6 },
+  patternDot: { width: 8, height: 8, borderRadius: 4 },
+  patternLabel: { fontSize: 11, fontFamily: FONTS.sansSemiBold, color: T.navy, letterSpacing: 0.5 },
+  patternType: { fontSize: 9, fontFamily: FONTS.sansSemiBold, letterSpacing: 1, textTransform: 'uppercase' },
+  patternText: { fontSize: 13, fontFamily: FONTS.serifItalic || FONTS.serif, fontStyle: 'italic', color: T.ink, lineHeight: 20 },
+  // Balance
+  balanceRow: { flexDirection: 'row', justifyContent: 'space-around', marginBottom: 10 },
+  balanceItem: { alignItems: 'center', width: 60 },
+  balanceIcon: { fontSize: 16, marginBottom: 4 },
+  balanceBarTrack: { width: 20, height: 48, backgroundColor: '#F0E8DA', borderRadius: 10, overflow: 'hidden', justifyContent: 'flex-end', marginBottom: 4 },
+  balanceBarFill: { width: '100%', backgroundColor: T.gold, borderRadius: 10 },
+  balanceLabel: { fontSize: 9, fontFamily: FONTS.sansSemiBold, color: T.stone, letterSpacing: 0.5 },
+  balancePct: { fontSize: 10, fontFamily: FONTS.sansMedium, color: T.navy },
+  balanceSummary: { fontSize: 11, fontFamily: FONTS.sansMedium, color: T.stone, textAlign: 'center' },
+  showFullBtn: { backgroundColor: T.warm, borderRadius: 12, paddingVertical: 12, alignItems: 'center', marginTop: 4, marginBottom: 8 },
+  showFullBtnText: { fontSize: 13, fontFamily: FONTS.sansMedium, color: T.navy },
+  atGlanceToggle: { paddingHorizontal: 20, paddingVertical: 10 },
+  atGlanceToggleText: { fontSize: 12, fontFamily: FONTS.sansMedium, color: T.gold },
+  // Deep dive ask bridge
+  ddAskBtn: { flexDirection: 'row', alignItems: 'center', gap: 8, backgroundColor: T.navy, borderRadius: 12, padding: 12, marginTop: 12 },
+  ddAskBtnIcon: { fontSize: 16, color: T.gold },
+  ddAskBtnText: { fontSize: 13, fontFamily: FONTS.sansMedium, color: T.cream },
 });

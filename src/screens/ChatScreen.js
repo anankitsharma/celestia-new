@@ -1,7 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import {
   View, Text, ScrollView, TouchableOpacity, StyleSheet,
-  TextInput, Platform, ActivityIndicator, Keyboard, Animated
+  TextInput, Platform, ActivityIndicator, Keyboard, Animated, Share, Alert
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { T, FONTS } from '../constants/theme';
@@ -89,7 +89,7 @@ const Q_GENERIC_FOLLOWUP = [
 
 const RANDOM_SIGNS = ['Aries', 'Taurus', 'Gemini', 'Cancer', 'Leo', 'Virgo', 'Libra', 'Scorpio', 'Sagittarius', 'Capricorn', 'Aquarius', 'Pisces'];
 
-function pickSuggestions(messages, userProfile) {
+function pickSuggestions(messages, userProfile, theme = 'open') {
   const msgCount = messages.filter(m => m.role === 'user').length;
   const lastAiText = [...messages].reverse().find(m => m.role === 'model')?.text?.toLowerCase() || '';
   const lastUserText = [...messages].reverse().find(m => m.role === 'user')?.text?.toLowerCase() || '';
@@ -98,8 +98,12 @@ function pickSuggestions(messages, userProfile) {
   let pool;
 
   if (msgCount === 0) {
-    // First message — show initial natural questions
-    pool = Q_INITIAL;
+    // Theme-specific initial questions
+    if (theme === 'love') pool = Q_AFTER_LOVE;
+    else if (theme === 'career') pool = Q_AFTER_CAREER;
+    else if (theme === 'growth') pool = Q_AFTER_SELF;
+    else if (theme === 'today') pool = Q_AFTER_TRANSIT;
+    else pool = Q_INITIAL;
   } else {
     // Detect topic from recent messages
     const isLove = /love|relationship|partner|dating|compatibility|crush|ex |breakup|attract|attachment|situationship|venus|commit/.test(combined);
@@ -198,6 +202,14 @@ const formatTime = (ts) => {
   return `${h}:${m} ${ap}`;
 };
 
+const CHAT_THEMES = [
+  { key: 'open', label: 'Open', icon: '✦' },
+  { key: 'love', label: 'Love', icon: '♡' },
+  { key: 'career', label: 'Career', icon: '◆' },
+  { key: 'growth', label: 'Growth', icon: '🌱' },
+  { key: 'today', label: "Today's Energy", icon: '☉' },
+];
+
 export default function ChatScreen({ navigation, route }) {
   const { isPro } = useRevenueCat();
   const { capture } = useAnalytics();
@@ -209,6 +221,18 @@ export default function ChatScreen({ navigation, route }) {
   const [session, setSession] = useState(null); // full session object from createChatSession
   const [suggestions, setSuggestions] = useState([]);
   const [kbVisible, setKbVisible] = useState(false);
+  const [chatTheme, setChatTheme] = useState('open');
+  const [remainingMsgs, setRemainingMsgs] = useState(null); // null = pro or unchecked
+
+  // Share an AI response
+  const shareResponse = async (text) => {
+    try {
+      const clean = text.replace(/\*\*/g, '').replace(/\*/g, '');
+      await Share.share({
+        message: `${clean}\n\n— Celestia ✦ Your cosmic guide\ncelestia.app`,
+      });
+    } catch (e) { }
+  };
   const kbHeight = useRef(new Animated.Value(0)).current;
   const scrollRef = useRef(null);
   const initialMessageSent = useRef(false);
@@ -285,7 +309,7 @@ export default function ChatScreen({ navigation, route }) {
   // Initialize: load latest session history OR start fresh, then create AI session
   useEffect(() => {
     if (!userProfile) return;
-    setSuggestions(pickSuggestions([], userProfile));
+    setSuggestions(pickSuggestions([], userProfile, chatTheme));
 
     // Load narrative context, then init chat with it
     getNarrativeContext(userProfile?.id || 'default', userProfile.chart)
@@ -370,17 +394,29 @@ export default function ChatScreen({ navigation, route }) {
     if (messages.length > 1) {
       setTimeout(() => scrollRef.current?.scrollToEnd({ animated: true }), 100);
     }
-    setSuggestions(pickSuggestions(messages, userProfile));
+    setSuggestions(pickSuggestions(messages, userProfile, chatTheme));
   }, [messages]);
 
   // Start a brand new chat session
-  const startNewSession = async () => {
+  const startNewSession = async (theme = null) => {
+    const activeTheme = theme || chatTheme;
+    if (theme) setChatTheme(theme);
     const greeting = makeGreeting('greeting_new', narrativeCtx);
     setMessages([greeting]);
     initialMessageSent.current = false;
 
     try {
       const chatSession = await createChatSession(userProfile, null, null, narrativeCtx);
+      // Inject theme context into session
+      if (activeTheme !== 'open' && chatSession?.systemInstruction) {
+        const themePrompts = {
+          love: '\nSESSION THEME: Love & Relationships. Focus all responses on love, relationships, emotional bonds, Venus/Moon dynamics. The user wants to explore their love life.',
+          career: '\nSESSION THEME: Career & Purpose. Focus all responses on career, ambition, 10th house, Saturn, professional path. The user wants career guidance.',
+          growth: '\nSESSION THEME: Growth & Self-Discovery. Focus on inner work, North Node, Jupiter, 12th house, spiritual growth. The user wants to understand themselves deeper.',
+          today: '\nSESSION THEME: Today\'s Energy. Focus on current transits, today\'s Moon, active cosmic windows. The user wants to understand what\'s happening right now.',
+        };
+        chatSession.systemInstruction += themePrompts[activeTheme] || '';
+      }
       setSession(chatSession);
     } catch (e) {
       console.error('Failed to create new session:', e);
@@ -392,13 +428,23 @@ export default function ChatScreen({ navigation, route }) {
     const text = (textOverride || inputText || '').trim();
     if (!text || sending) return;
 
-    // Check message limit for free users
+    // Check message limit for free users — soft counter with gentle upgrade
+    const FREE_DAILY_LIMIT = 5;
     if (!isPro) {
       try {
         const count = await ChatRepository.getUserMessageCountForDay(Date.now());
-        if (count >= 2) {
+        const remaining = Math.max(0, FREE_DAILY_LIMIT - count);
+        setRemainingMsgs(remaining);
+        if (count >= FREE_DAILY_LIMIT) {
           haptic.medium();
-          navigation.navigate('Paywall', { source: 'oracle' });
+          Alert.alert(
+            'Daily limit reached',
+            'You\'ve used your 5 free messages today. They reset at midnight.\n\nUnlock unlimited conversations with Celestia Pro.',
+            [
+              { text: 'Maybe Tomorrow', style: 'cancel' },
+              { text: 'Unlock Unlimited', onPress: () => navigation.navigate('Paywall', { source: 'chat_limit' }) },
+            ]
+          );
           return;
         }
       } catch (e) {
@@ -427,13 +473,15 @@ export default function ChatScreen({ navigation, route }) {
         throw new Error('No session available');
       }
 
-      // Use the reference pattern: sendChatMessage handles:
-      // 1. Persisting transient session if needed
-      // 2. Saving user message to DB
-      // 3. Calling Gemini with full chart-aware system instruction + history
-      // 4. Saving AI response to DB
-      // 5. Updating session.history in-memory
-      const responseText = await sendChatMessage(currentSession, text);
+      // Reflective mode: after 3+ user messages, hint AI to ask reflective questions
+      const userMsgCount = messages.filter(m => m.role === 'user').length;
+      let reflectiveText = text;
+      if (userMsgCount >= 3 && userMsgCount % 2 === 1) {
+        // Every other message after 3rd, nudge AI to reflect
+        reflectiveText = text + '\n\n[SYSTEM HINT: This is message ' + (userMsgCount + 1) + '. End your response with ONE short, reflective question that connects what they said to their chart. E.g. "When you read that about your Venus, what came up for you?" or "You\'ve mentioned this pattern before — what does your gut tell you?"]';
+      }
+
+      const responseText = await sendChatMessage(currentSession, reflectiveText);
       capture(EVENTS.AI_CHAT_MESSAGE_SENT, { is_pro: isPro, message_number: messages.length + 1 });
 
       // Update session ref if ID was assigned (transient → persisted)
@@ -496,6 +544,25 @@ export default function ChatScreen({ navigation, route }) {
         )}
       </View>
 
+      {/* Theme selector — only shown at start of conversation */}
+      {messages.filter(m => m.role === 'user').length === 0 && (
+        <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.themeStrip} contentContainerStyle={{ paddingHorizontal: 17, gap: 7 }}>
+          {CHAT_THEMES.map(t => (
+            <TouchableOpacity
+              key={t.key}
+              style={[styles.themePill, chatTheme === t.key && styles.themePillActive]}
+              activeOpacity={0.7}
+              onPress={() => {
+                if (t.key !== chatTheme) startNewSession(t.key);
+              }}
+            >
+              <Text style={styles.themePillIcon}>{t.icon}</Text>
+              <Text style={[styles.themePillText, chatTheme === t.key && styles.themePillTextActive]}>{t.label}</Text>
+            </TouchableOpacity>
+          ))}
+        </ScrollView>
+      )}
+
       {/* Messages */}
       <ScrollView
         ref={scrollRef}
@@ -537,7 +604,14 @@ export default function ChatScreen({ navigation, route }) {
                 </Text>
               </View>
             </View>
-            <Text style={[styles.mtime, m.role === 'user' && { textAlign: 'right' }]}>{formatTime(m.timestamp)}</Text>
+            <View style={[styles.mtimeRow, m.role === 'user' && { flexDirection: 'row-reverse' }]}>
+              <Text style={styles.mtime}>{formatTime(m.timestamp)}</Text>
+              {m.role === 'model' && m.id !== 'greeting' && m.id !== 'greeting_new' && (
+                <TouchableOpacity style={styles.shareBtn} activeOpacity={0.7} onPress={() => shareResponse(m.text)}>
+                  <Text style={styles.shareBtnText}>Share ↗</Text>
+                </TouchableOpacity>
+              )}
+            </View>
           </View>
         ))}
 
@@ -562,6 +636,16 @@ export default function ChatScreen({ navigation, route }) {
             </TouchableOpacity>
           ))}
         </ScrollView>
+      )}
+
+      {/* Remaining messages counter (free users only) */}
+      {!isPro && remainingMsgs !== null && remainingMsgs <= 3 && remainingMsgs > 0 && (
+        <View style={styles.limitBanner}>
+          <Text style={styles.limitText}>{remainingMsgs} {remainingMsgs === 1 ? 'message' : 'messages'} left today</Text>
+          <TouchableOpacity onPress={() => navigation.navigate('Paywall', { source: 'chat_soft' })}>
+            <Text style={styles.limitLink}>Go unlimited →</Text>
+          </TouchableOpacity>
+        </View>
       )}
 
       {/* Input */}
@@ -612,7 +696,7 @@ const styles = StyleSheet.create({
   mbubAi: { backgroundColor: 'white', borderBottomLeftRadius: 5, shadowColor: '#000', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.07, shadowRadius: 7 },
   mbubUser: { backgroundColor: T.navy, borderBottomRightRadius: 5 },
   mbubText: { fontSize: 13.5, lineHeight: 22, color: T.ink },
-  mtime: { fontSize: 10, color: '#C0B8A4', marginTop: 4, paddingHorizontal: 4 },
+  mtime: { fontSize: 10, color: '#C0B8A4' },
   typingWrap: { backgroundColor: 'white', borderRadius: 18, borderBottomLeftRadius: 5, padding: 12, paddingHorizontal: 16, shadowColor: '#000', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.07, shadowRadius: 7 },
   suggestStrip: { flexGrow: 0, paddingVertical: 7 },
   schip: { backgroundColor: 'white', borderWidth: 1, borderColor: T.border, borderRadius: 100, paddingVertical: 7, paddingHorizontal: 14 },
@@ -627,4 +711,19 @@ const styles = StyleSheet.create({
   proactiveTitle: { fontFamily: FONTS.serif, fontSize: 16, color: '#2A2060', marginBottom: 4 },
   proactiveBody: { fontSize: 13, color: '#5A5090', lineHeight: 19, marginBottom: 8 },
   proactiveCTA: { fontSize: 11, fontFamily: FONTS.sansSemiBold, color: '#6B5CA5' },
+  // Message time + share row
+  mtimeRow: { flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 4, paddingHorizontal: 4 },
+  shareBtn: { paddingVertical: 2, paddingHorizontal: 6 },
+  shareBtnText: { fontSize: 10, color: T.gold, fontFamily: FONTS.sansMedium },
+  // Limit banner
+  limitBanner: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, paddingVertical: 6, backgroundColor: 'rgba(200,168,75,0.08)', borderTopWidth: 1, borderTopColor: 'rgba(200,168,75,0.12)' },
+  limitText: { fontSize: 11, color: T.stone },
+  limitLink: { fontSize: 11, fontFamily: FONTS.sansMedium, color: T.gold },
+  // Theme selector
+  themeStrip: { flexGrow: 0, paddingVertical: 8, borderBottomWidth: 1, borderBottomColor: T.border, backgroundColor: T.cream },
+  themePill: { flexDirection: 'row', alignItems: 'center', gap: 5, backgroundColor: 'white', borderWidth: 1, borderColor: T.border, borderRadius: 100, paddingVertical: 7, paddingHorizontal: 14 },
+  themePillActive: { backgroundColor: T.navy, borderColor: T.navy },
+  themePillIcon: { fontSize: 12 },
+  themePillText: { fontSize: 12, fontFamily: FONTS.sansMedium, color: T.ink },
+  themePillTextActive: { color: T.cream },
 });
