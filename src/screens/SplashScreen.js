@@ -88,9 +88,11 @@ export default function SplashScreen({ navigation }) {
             <Text style={styles.ctaText}>Begin Your Journey ✦</Text>
           </LinearGradient>
         </TouchableOpacity>
-        <Text style={styles.loginText}>
-          Already exploring? <Text style={styles.loginLink}>Sign in</Text>
-        </Text>
+        <TouchableOpacity activeOpacity={0.7} onPress={() => navigation.navigate('Auth')}>
+          <Text style={styles.loginText}>
+            Already exploring? <Text style={styles.loginLink}>Sign in</Text>
+          </Text>
+        </TouchableOpacity>
       </Animated.View>
     </LinearGradient>
   );

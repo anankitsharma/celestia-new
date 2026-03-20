@@ -2,7 +2,7 @@
   "expo": {
     "name": "Celestia",
     "slug": "celestia",
-    "version": "1.0.0",
+    "version": "1.0.6",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "dark",
@@ -20,6 +20,7 @@
     },
     "android": {
       "package": "com.celestia.app",
+      "versionCode": 11,
       "adaptiveIcon": {
         "foregroundImage": "./assets/android-icon-foreground.png",
         "backgroundColor": "#0E0E22"
@@ -44,7 +45,7 @@
           "color": "#C8A84B"
         }
       ],
-      "@react-native-google-signin/google-signin"
+      ["@react-native-google-signin/google-signin", { "iosUrlScheme": "com.googleusercontent.apps.1023276075175-2fl8mckt0hufupll39a2cod3tgmkr936" }]
     ],
     "extra": {
       "eas": {

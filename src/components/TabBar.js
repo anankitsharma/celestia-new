@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet, Keyboard, Platform, Dimensions } from 'react-native';
 import { BlurView } from 'expo-blur';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import {
   Star,
   Sparkles,
@@ -21,6 +22,7 @@ const TABS = [
 ];
 
 export default function TabBar({ state, navigation }) {
+  const insets = useSafeAreaInsets();
   const [keyboardVisible, setKeyboardVisible] = useState(false);
 
   useEffect(() => {
@@ -34,7 +36,7 @@ export default function TabBar({ state, navigation }) {
   if (keyboardVisible) return null;
 
   return (
-    <View style={styles.outerContainer}>
+    <View style={[styles.outerContainer, { bottom: Math.max(insets.bottom, 10) + 14 }]}>
       <BlurView
         intensity={Platform.OS === 'ios' ? 90 : 0}
         tint="light"
@@ -82,7 +84,6 @@ export default function TabBar({ state, navigation }) {
 const styles = StyleSheet.create({
   outerContainer: {
     position: 'absolute',
-    bottom: Platform.OS === 'ios' ? 34 : 24,
     left: 16,
     right: 16,
     borderRadius: 34,

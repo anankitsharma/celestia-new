@@ -10,25 +10,50 @@ export async function signUpWithEmail(email, password) {
   return data;
 }
 
-import { GoogleSignin } from '@react-native-google-signin/google-signin';
+const WEB_CLIENT_ID = '1023276075175-2fl8mckt0hufupll39a2cod3tgmkr936.apps.googleusercontent.com';
 
 /**
- * Configure Google Sign-In with Web Client ID.
+ * Lazy-load Google Sign-In so the app doesn't crash in Expo Go
+ * (native module not available there).
  */
-GoogleSignin.configure({
-  webClientId: 'YOUR_WEB_CLIENT_ID.apps.googleusercontent.com', // Replace with your actual Web Client ID from Google Cloud Console
-});
+function getGoogleSignIn() {
+  try {
+    const mod = require('@react-native-google-signin/google-signin');
+    return { GoogleSignin: mod.GoogleSignin, statusCodes: mod.statusCodes };
+  } catch {
+    return null;
+  }
+}
 
 /**
  * Sign in with Google.
  */
 export async function signInWithGoogle() {
-  try {
-    await GoogleSignin.hasPlayServices();
-    const userInfo = await GoogleSignin.signIn();
+  const gsi = getGoogleSignIn();
+  if (!gsi) {
+    throw new Error('Google Sign-In is not available in Expo Go. Please use a development build.');
+  }
+  const { GoogleSignin, statusCodes } = gsi;
 
-    // In newer versions of the library, the idToken might be inside data object
-    const idToken = userInfo.data?.idToken || userInfo.idToken;
+  try {
+    // Configure right before sign-in (matching reference project pattern)
+    GoogleSignin.configure({
+      webClientId: WEB_CLIENT_ID,
+      offlineAccess: true,
+      forceCodeForRefreshToken: true,
+    });
+
+    await GoogleSignin.hasPlayServices();
+    const response = await GoogleSignin.signIn();
+
+    // User cancelled the sign-in flow
+    if (response?.type === 'cancelled' || response?.data === null) {
+      const cancelError = new Error('Sign in cancelled');
+      cancelError.code = 'SIGN_IN_CANCELLED';
+      throw cancelError;
+    }
+
+    const idToken = response.data?.idToken || response.idToken;
 
     if (!idToken) {
       throw new Error('No ID token present!');
@@ -42,7 +67,11 @@ export async function signInWithGoogle() {
     if (error) throw error;
     return data;
   } catch (error) {
-    console.error('[Auth] Google sign-in error:', error);
+    // Silently handle user cancellation
+    if (error.code === 'SIGN_IN_CANCELLED' || error.code === statusCodes?.SIGN_IN_CANCELLED) {
+      throw error;
+    }
+    console.error('[Auth] Google sign-in error:', error.message);
     throw error;
   }
 }
