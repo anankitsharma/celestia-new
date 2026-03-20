@@ -14,11 +14,13 @@ import CosmicIDCard from '../components/CosmicIDCard';
 import CosmicRarityCard from '../components/CosmicRarityCard';
 import { getCosmicArchetype, getComboRarity } from '../services/cosmicIdentityService';
 import { getNotificationSettings, scheduleAllNotifications, cancelAllNotifications, requestNotificationPermission, hasNotificationPermission } from '../services/notificationService';
+import { generateNotificationContent, buildNotificationData } from '../services/notificationContentEngine';
 import { ForecastRepository } from '../services/database/rep_forecasts';
 import * as Notifications from 'expo-notifications';
-import { getCosmicSeason } from '../services/astrologyService';
+import { getCosmicSeason, getMoonDataForDate, getActiveCosmicWindows, calculateCosmicEnergy } from '../services/astrologyService';
 import { shareReferralLink, getReferralStats, getOrCreateReferralCode } from '../services/referralService';
 import { useAuth } from '../contexts/AuthContext';
+import { useRevenueCat } from '../contexts/RevenueCatContext';
 
 const ZODIAC_SYMBOLS = {
   Aries: '♈', Taurus: '♉', Gemini: '♊', Cancer: '♋', Leo: '♌', Virgo: '♍',
@@ -37,6 +39,7 @@ const DEPTH_OPTIONS = ['Beginner', 'Intermediate', 'Advanced'];
 export default function ProfileScreen({ navigation }) {
   const { userProfile, setUserProfile } = useUserProfile();
   const { user, signOut: authSignOut, deleteAccount } = useAuth();
+  const { customerInfo, isPro } = useRevenueCat();
   const [settings, setSettings] = useState({ voice: 'Poetic', depth: 'Intermediate' });
   const [showVoicePicker, setShowVoicePicker] = useState(false);
   const [showDepthPicker, setShowDepthPicker] = useState(false);
@@ -455,6 +458,58 @@ export default function ProfileScreen({ navigation }) {
             ))}
           </View>
 
+          {/* Subscription */}
+          <Text style={styles.secLbl}>SUBSCRIPTION</Text>
+          <View style={styles.settingsCard}>
+            {(() => {
+              const entitlement = customerInfo?.entitlements?.active?.['Celestia Pro'];
+              if (isPro && entitlement) {
+                const purchaseDate = entitlement.latestPurchaseDate ? new Date(entitlement.latestPurchaseDate) : null;
+                // Check activeSubscriptions from RevenueCat customerInfo for the actual active product
+                const activeSubs = customerInfo?.activeSubscriptions || [];
+                const activeProduct = activeSubs.length > 0 ? activeSubs[activeSubs.length - 1].toLowerCase() : '';
+                const productId = (entitlement.productIdentifier || '').toLowerCase();
+                const subId = activeProduct || productId;
+                const expirationDate = entitlement.expirationDate ? new Date(entitlement.expirationDate) : null;
+                // Determine plan from subscription period: if expiration is >35 days from purchase, it's yearly
+                let planLabel = '';
+                if (subId.includes('year') || subId.includes('annual')) {
+                  planLabel = 'Yearly';
+                } else if (subId.includes('month')) {
+                  planLabel = 'Monthly';
+                } else if (subId.includes('life') || subId.includes('forever')) {
+                  planLabel = 'Lifetime';
+                } else if (purchaseDate && expirationDate) {
+                  const diffDays = (expirationDate - purchaseDate) / (1000 * 60 * 60 * 24);
+                  planLabel = diffDays > 35 ? 'Yearly' : 'Monthly';
+                }
+                return (
+                  <View style={[styles.prow, { borderBottomWidth: 0 }]}>
+                    <View style={[styles.prowIcon, { backgroundColor: '#FFF8E1' }]}><Text style={{ fontSize: 16 }}>{'⭐'}</Text></View>
+                    <View style={{ flex: 1 }}>
+                      <Text style={styles.prowLabel}>Celestia Pro{planLabel ? ` (${planLabel})` : ''}</Text>
+                      {purchaseDate && (
+                        <Text style={{ fontSize: 11, color: T.stone, marginTop: 1 }}>Purchased {purchaseDate.toLocaleDateString()}</Text>
+                      )}
+                    </View>
+                    <Text style={{ fontSize: 11, color: '#4CAF50', fontWeight: '700' }}>Active</Text>
+                  </View>
+                );
+              }
+              return (
+                <TouchableOpacity style={[styles.prow, { borderBottomWidth: 0 }]} activeOpacity={0.7}
+                  onPress={() => navigation.navigate('Paywall')}>
+                  <View style={[styles.prowIcon, { backgroundColor: '#FFF8E1' }]}><Text style={{ fontSize: 16 }}>{'🔒'}</Text></View>
+                  <View style={{ flex: 1 }}>
+                    <Text style={styles.prowLabel}>Free Plan</Text>
+                    <Text style={{ fontSize: 11, color: T.stone, marginTop: 1 }}>Upgrade to Celestia Pro</Text>
+                  </View>
+                  <Text style={styles.prowArr}>›</Text>
+                </TouchableOpacity>
+              );
+            })()}
+          </View>
+
           {/* Account */}
           <Text style={styles.secLbl}>ACCOUNT</Text>
           <View style={styles.settingsCard}>
@@ -549,19 +604,41 @@ export default function ProfileScreen({ navigation }) {
                       if (!perm) {
                         await requestNotificationPermission();
                       }
-                      await Notifications.scheduleNotificationAsync({
-                        content: {
-                          title: 'Navigator Update',
-                          body: 'This is a test notification from Celestia debug panel.',
-                          data: { type: 'debug_test' },
-                        },
-                        trigger: { seconds: 2 },
-                      });
-                      Alert.alert('Sent', 'Test notification in 2 seconds');
+                      const now = new Date();
+                      const profileId = userProfile?.id || 'default';
+                      const today = now.toISOString().split('T')[0];
+                      const key = `${profileId}_today_${today}`;
+                      const forecast = await ForecastRepository.getForecast(key);
+                      const streak = await getStreakData(profileId);
+                      const moonData = getMoonDataForDate(now);
+                      const cosmicWindows = userProfile?.chart ? getActiveCosmicWindows(userProfile.chart, now) : [];
+                      const energyData = userProfile?.chart ? calculateCosmicEnergy(userProfile.chart, now, 'today', userProfile?.birthDate ? new Date(userProfile.birthDate) : undefined) : null;
+                      const data = buildNotificationData(userProfile, forecast, moonData, energyData, cosmicWindows, streak);
+                      const categories = ['COSMIC_MORNING', 'EVENING_REFLECTION', 'TRANSIT_ALERT', 'STREAK_GUARDIAN', 'WEEKLY_DIGEST'];
+                      let sent = false;
+                      for (const cat of categories) {
+                        const content = generateNotificationContent(cat, data, []);
+                        if (content) {
+                          await Notifications.scheduleNotificationAsync({
+                            content: {
+                              title: content.title,
+                              body: content.body,
+                              data: { category: cat },
+                            },
+                            trigger: { type: 'timeInterval', seconds: 2, repeats: false },
+                          });
+                          Alert.alert('Sent', `[${cat}] "${content.title}" in 2 seconds`);
+                          sent = true;
+                          break;
+                        }
+                      }
+                      if (!sent) {
+                        Alert.alert('No Data', 'No notification content available. Open Today tab first to generate forecast data.');
+                      }
                     } catch (e) { Alert.alert('Error', e.message); }
                   }}>
                   <View style={styles.devIcon}><Text style={{ fontSize: 14, color: T.gold }}>🔔</Text></View>
-                  <Text style={styles.devLabel}>Send Test Notification (2s)</Text>
+                  <Text style={styles.devLabel}>Send Real Notification (2s)</Text>
                 </TouchableOpacity>
 
                 {/* Schedule All Notifications */}
@@ -571,10 +648,15 @@ export default function ProfileScreen({ navigation }) {
                       const profileId = userProfile?.id || 'default';
                       const today = new Date().toISOString().split('T')[0];
                       const key = `${profileId}_today_${today}`;
+                      const now = new Date();
                       const forecast = await ForecastRepository.getForecast(key);
                       const streak = await getStreakData(profileId);
-                      await scheduleAllNotifications(userProfile, forecast, streak, null, null, null);
-                      Alert.alert('Done', 'All notifications scheduled with current forecast data');
+                      const moonData = getMoonDataForDate(now);
+                      const cosmicWindows = userProfile?.chart ? getActiveCosmicWindows(userProfile.chart, now) : [];
+                      const energyData = userProfile?.chart ? calculateCosmicEnergy(userProfile.chart, now, 'today', userProfile?.birthDate ? new Date(userProfile.birthDate) : undefined) : null;
+                      await scheduleAllNotifications(userProfile, forecast, streak, moonData, energyData, cosmicWindows);
+                      const scheduled = await Notifications.getAllScheduledNotificationsAsync();
+                      Alert.alert('Done', `${scheduled.length} notifications scheduled with full cosmic data`);
                     } catch (e) { Alert.alert('Error', e.message); }
                   }}>
                   <View style={styles.devIcon}><Text style={{ fontSize: 14, color: T.gold }}>📬</Text></View>
@@ -595,11 +677,31 @@ export default function ProfileScreen({ navigation }) {
                 <TouchableOpacity style={styles.devRow} activeOpacity={0.7}
                   onPress={async () => {
                     const scheduled = await Notifications.getAllScheduledNotificationsAsync();
+                    if (scheduled.length === 0) {
+                      Alert.alert('No Notifications', 'No notifications are currently scheduled.');
+                      return;
+                    }
+                    const lines = scheduled.map((n, i) => {
+                      const t = n.trigger;
+                      let when = '';
+                      if (t?.type === 'date' && t?.date) {
+                        when = new Date(t.date).toLocaleString();
+                      } else if (t?.type === 'daily') {
+                        when = `Daily at ${String(t.hour || 0).padStart(2, '0')}:${String(t.minute || 0).padStart(2, '0')}`;
+                      } else if (t?.dateComponents) {
+                        const dc = t.dateComponents;
+                        when = `${dc.hour || 0}:${String(dc.minute || 0).padStart(2, '0')}`;
+                      } else if (t?.value) {
+                        when = new Date(t.value).toLocaleString();
+                      } else {
+                        when = JSON.stringify(t);
+                      }
+                      const cat = n.content.data?.category || '';
+                      return `${i + 1}. [${cat}] ${n.content.title || 'No title'}\n   ${when}\n   ${(n.content.body || '').slice(0, 80)}`;
+                    });
                     Alert.alert(
-                      `${scheduled.length} Scheduled`,
-                      scheduled.slice(0, 5).map(n =>
-                        `${n.content.title || 'No title'}\n${n.content.body?.slice(0, 60) || ''}`
-                      ).join('\n\n') + (scheduled.length > 5 ? `\n\n...and ${scheduled.length - 5} more` : '')
+                      `${scheduled.length} Scheduled Notifications`,
+                      lines.join('\n\n')
                     );
                   }}>
                   <View style={styles.devIcon}><Text style={{ fontSize: 14, color: T.gold }}>📋</Text></View>
@@ -671,7 +773,7 @@ export default function ProfileScreen({ navigation }) {
                           body: forecast.notificationExcerpt.body || forecast.navigatorHeadline || 'Your cosmic briefing is ready.',
                           data: { type: 'cosmic_morning', screen: 'Today' },
                         },
-                        trigger: { seconds: 2 },
+                        trigger: { type: 'timeInterval', seconds: 2, repeats: false },
                       });
                       Alert.alert('Sent', `Excerpt notification in 2s:\n\n${forecast.notificationExcerpt.title}\n${forecast.notificationExcerpt.body}`);
                     } catch (e) { Alert.alert('Error', e.message); }

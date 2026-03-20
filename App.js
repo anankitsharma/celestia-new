@@ -113,6 +113,7 @@ export default function App() {
     <PostHogProvider
       apiKey="phc_bPp0sgaFIhPbZaqU6613cEiy0sJbJd5C20Vk8TgN3Zd"
       options={{ host: 'https://us.i.posthog.com' }}
+      autocapture={{ captureScreens: false }}
     >
       <AppOpenTracker />
       <AuthProvider>
