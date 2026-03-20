@@ -12,6 +12,7 @@ const TEMPLATES = {
       generate: (d) => ({
         title: d.forecast.navigatorHeadline,
         body: d.forecast.notificationExcerpt?.body || d.forecast.navigatorSummary || 'Your daily navigator briefing is ready.',
+        lifeArea: d.forecast.notificationExcerpt?.lifeArea || null,
       }),
     },
     {

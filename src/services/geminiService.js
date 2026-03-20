@@ -268,6 +268,7 @@ const fullReportSchema = {
                 properties: {
                     heading: { type: Type.STRING },
                     body: { type: Type.STRING },
+                    highlight: { type: Type.STRING, description: "One key screenshottable insight from this section — the single most resonant takeaway. Max 25 words." },
                     remedy: { type: Type.STRING },
                     affirmation: { type: Type.STRING },
                 },
@@ -1324,6 +1325,7 @@ export const fetchExtendedForecast = async (
         - Mystical but VERY SIMPLE to read.
         - STRICT "Grade 6-7 English" level. (No complex words).
         - Warm, encouraging, expert voice.
+${profile.motivation === 'love' ? '        - Lean into relationship and emotional themes — love is their primary lens.' : ''}${profile.motivation === 'change' ? '        - Lean into transformation and growth themes — they are seeking change.' : ''}${profile.motivation === 'career' ? '        - Lean into career and purpose themes — professional growth matters most.' : ''}${profile.painPoint === 'love' ? '        - Be sensitive to relationship wounds — they have been hurt in love.' : ''}${profile.painPoint === 'career' ? '        - Acknowledge career frustration gently — they feel stuck professionally.' : ''}${profile.depth === 'always' || profile.depth === 'often' ? '        - This user feels deeply misunderstood — be extra specific and personally validating.' : ''}
 
 ${narrativeContext ? `
 ${buildNarrativePromptBlock(narrativeContext)}
@@ -1504,6 +1506,7 @@ export const createChatSession = async (userProfile, partnerProfile, sessionId, 
     2. THE "CHART-FIRST" RULE: specific placements > generic advice.
     3. THE "PSYCHOLOGIST" TONE: Validate feelings, then offer astral solutions.
     4. LANGUAGE: STRICT Grade 6-7 English. Simple, warm, direct.
+    ${userProfile.motivation === 'love' ? '8. USER FOCUS: Love and relationships are their primary concern — lean into this.' : ''}${userProfile.motivation === 'change' ? '8. USER FOCUS: They are seeking transformation and change in their life.' : ''}${userProfile.painPoint === 'love' ? '9. SENSITIVITY: They have relationship wounds — validate before advising.' : ''}${userProfile.painPoint === 'career' ? '9. SENSITIVITY: They feel stuck in their career — be encouraging about purpose.' : ''}${userProfile.depth === 'always' || userProfile.depth === 'often' ? '10. DEPTH: This user feels deeply misunderstood. Be extra specific and personally validating.' : ''}
     5. FORMATTING: 
        - Use **Bold** for Planet Names and Signs (e.g. **Mars**, **Aries**).
        - Keep paragraphs SHORT (Max 3 sentences).
@@ -2590,6 +2593,28 @@ const REPORT_PROMPTS = {
         5. Inner Planet Highlights (Mars, Venus current transits of note)
         6. Key Dates (3-5 pivotal upcoming dates with themes)
         Focus on how transits affect love, career, and growth. Include "do this" advice and "watch for" warnings.`
+    },
+    venus: {
+        focus: 'Venus sign, Venus house, Venus aspects, 7th house, Mars-Venus, Moon-Venus, Saturn-Venus, attachment patterns',
+        instruction: `Write a "Why You Love Like This" Venus Report. Cover:
+        1. Your Venus Sign (love language, what you need to feel loved, how you express affection — deep dive)
+        2. Your 7th House (what you look for in a partner, the type you're drawn to, unconscious attraction patterns)
+        3. Your Attachment Style (anxious/avoidant/secure based on Moon-Venus-Saturn aspects — chart explains the wiring)
+        4. The Pattern (the relationship cycle you keep repeating — name it specifically, don't judge it)
+        5. What You Actually Need (not what you think you want — what your chart says you need to feel safe, loved, seen)
+        6. Breaking the Pattern (practical guidance on what to look for next time, based on chart)
+        Write with deep empathy. This is the report that makes someone cry because it's so accurate.`
+    },
+    saturn_return_guide: {
+        focus: 'Natal Saturn sign, Saturn house, Saturn aspects, Saturn return dates, Saturn-Moon, Saturn-Sun, Saturn-Venus',
+        instruction: `Write a Saturn Return Survival Guide for ages 27-30. Cover:
+        1. What Is Saturn Return (plain language, no jargon — why everything gets stress-tested in late 20s)
+        2. YOUR Saturn Return (when it starts, peaks, and ends based on natal Saturn — be specific about the sign and house)
+        3. Relationships During Saturn Return (what stays, what breaks, why — based on Saturn aspects to Venus/Moon)
+        4. Career During Saturn Return (job crisis, identity questioning, how to navigate — based on Saturn and 10th house)
+        5. Identity During Saturn Return (who you were vs who you're becoming, the shedding process)
+        6. What's On the Other Side (life waiting after the destruction — always end hopeful)
+        Write like a wise older friend who went through it. Direct, warm, specific. Never scary.`
     },
     monthly: {
         focus: 'Current month lunar phases, inner planet transits, Mercury/Venus/Mars sign changes, New Moon & Full Moon, eclipse if applicable',

@@ -27,5 +27,14 @@ export const ReportRepository = {
     deleteByType: async (type) => {
         const db = await getDB();
         await db.runAsync(`DELETE FROM reports WHERE type = ?;`, [type]);
+    },
+
+    getReportsForProfile: async (profileId) => {
+        const db = await getDB();
+        const rows = await db.getAllAsync(
+            `SELECT id, type, subtype, created_at FROM reports WHERE profile_id = ? ORDER BY created_at DESC;`,
+            [profileId]
+        );
+        return rows || [];
     }
 };

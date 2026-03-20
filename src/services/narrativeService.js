@@ -45,12 +45,21 @@ export async function getNarrativeContext(profileId, chart) {
     } catch (e) {}
   }
 
+  // Load yesterday's evening mood rating (1-5 accuracy scale)
+  let eveningMoodRating = null;
+  try {
+    const { loadObject } = require('./storage');
+    const moods = await loadObject('celestia_evening_moods') || {};
+    eveningMoodRating = moods[yesterdayStr] || null;
+  } catch (e) {}
+
   return {
     yesterday: {
       forecastHeader: yesterdayForecast?.header || null,
       forecastMantra: yesterdayForecast?.mantra || null,
       journalText,
       journalMood,
+      eveningMoodRating,
       moonSign: (() => { try { return getMoonDataForDate(yesterday)?.sign || null; } catch { return null; } })(),
     },
     today: { moonData, cosmicChange, significance, cosmicWindows },
@@ -67,6 +76,10 @@ export function buildNarrativePromptBlock(ctx) {
     lines.push(`- Yesterday's reading was: "${ctx.yesterday.forecastHeader}"`);
   if (ctx.yesterday?.journalText)
     lines.push(`- User journaled yesterday: "${ctx.yesterday.journalText}" (mood: ${ctx.yesterday.journalMood || 'unspecified'})`);
+  if (ctx.yesterday?.eveningMoodRating) {
+    const accuracy = ['', 'off — reading didn\'t land', 'meh — partially resonated', 'okay — somewhat accurate', 'good — reading was helpful', 'spot on — eerily accurate'][ctx.yesterday.eveningMoodRating];
+    lines.push(`- Yesterday's reading accuracy feedback: ${accuracy}. ${ctx.yesterday.eveningMoodRating <= 2 ? 'Be more specific and personal today.' : 'Keep this calibration.'}`);
+  }
   if (ctx.season)
     lines.push(`- Cosmic Season: ${ctx.season.planet} is transiting their natal ${ctx.season.natalTarget} — ${ctx.season.progress}% through, ${ctx.season.daysRemaining} days remaining. ${ctx.season.isRetrograde ? 'Currently retrograde — revisiting themes.' : ''}`);
   if (ctx.archetype)

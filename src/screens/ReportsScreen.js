@@ -10,6 +10,7 @@ import * as Sharing from 'expo-sharing';
 import { T, FONTS } from '../constants/theme';
 import { useUserProfile } from '../contexts/UserProfileContext';
 import { generateFullReport, generateDeepPdfReport } from '../services/geminiService';
+import { ReportRepository } from '../services/database/rep_reports';
 import { getNarrativeContext } from '../services/narrativeService';
 import { haptic } from '../services/hapticService';
 import { trackEvent } from '../services/achievementService';
@@ -229,6 +230,52 @@ const REPORT_THEMES = {
       '"The sky right now is having a conversation with your birth chart."',
     ],
   },
+  venus: {
+    gradient: ['#2D0A1E', '#1A0520', '#0D0310'],
+    accent: '#E8A0B0',
+    accentSoft: 'rgba(232,160,176,0.12)',
+    accentGlow: 'rgba(232,160,176,0.35)',
+    particleColor: 'rgba(232,160,176,0.08)',
+    title: 'Venus Report',
+    steps: [
+      { icon: '♀', label: 'Reading your Venus sign', sub: 'How you love & what you need...' },
+      { icon: '♡', label: 'Scanning your 7th house', sub: 'What you look for in a partner...' },
+      { icon: '☽', label: 'Analyzing Moon-Venus dynamics', sub: 'Emotional needs vs love needs...' },
+      { icon: '♂', label: 'Mapping Venus-Mars interplay', sub: 'Desire vs affection...' },
+      { icon: '♄', label: 'Finding your attachment style', sub: 'Saturn\'s role in your love life...' },
+      { icon: '✦', label: 'Identifying the pattern', sub: 'Why you keep repeating it...' },
+      { icon: '◇', label: 'Designing your PDF', sub: 'Making it beautiful...' },
+      { icon: '♡', label: 'Almost ready', sub: 'Your Venus report awaits...' },
+    ],
+    quotes: [
+      '"Venus doesn\'t just show who you love — it shows why you love the way you do."',
+      '"Your 7th house cusp is the mirror where your soul sees its partner."',
+      '"The pattern isn\'t a flaw. It\'s a map showing you what still needs healing."',
+    ],
+  },
+  saturn_return_guide: {
+    gradient: ['#1A1510', '#14100E', '#0D0515'],
+    accent: '#A0A0B0',
+    accentSoft: 'rgba(160,160,176,0.12)',
+    accentGlow: 'rgba(160,160,176,0.35)',
+    particleColor: 'rgba(160,160,176,0.08)',
+    title: 'Saturn Return Guide',
+    steps: [
+      { icon: '♄', label: 'Locating your natal Saturn', sub: 'Where discipline lives in your chart...' },
+      { icon: '◎', label: 'Calculating your return dates', sub: 'When it starts, peaks & ends...' },
+      { icon: '♡', label: 'Analyzing love impact', sub: 'Relationships during your return...' },
+      { icon: '◆', label: 'Mapping career impact', sub: 'Job crisis & identity shifts...' },
+      { icon: '☽', label: 'Reading emotional impact', sub: 'Who you were vs who you\'re becoming...' },
+      { icon: '✦', label: 'Building survival guide', sub: 'Month-by-month navigation...' },
+      { icon: '◇', label: 'Designing your PDF', sub: 'Formatting your guide...' },
+      { icon: '♄', label: 'Almost ready', sub: 'Your Saturn Return guide awaits...' },
+    ],
+    quotes: [
+      '"Saturn Return doesn\'t break you — it breaks what was never truly yours."',
+      '"Ages 27-30 is when the universe audits your life and demands authenticity."',
+      '"What survives your Saturn Return is real. Everything else was practice."',
+    ],
+  },
 };
 
 const DEFAULT_THEME = REPORT_THEMES.solar_return;
@@ -262,6 +309,8 @@ const REPORTS = [
   { icon: '♃', bg: ['#0A1A2A', '#0E0E22'], accent: '#4ECDC4', name: 'Yearly Forecast', desc: `Your ${CURRENT_YEAR} roadmap — profections, transits & quarterly outlook`, type: 'yearly' },
   { icon: '☿', bg: ['#1A0A1A', '#2A0A2A'], accent: '#FF6B6B', name: 'Transit Report', desc: 'Current planetary weather hitting your natal chart right now', type: 'transit' },
   { icon: '☉', bg: ['#0E0E22', '#2A1A6E'], accent: '#C8A84B', name: `${CURRENT_YEAR} Solar Return`, desc: `Your complete ${CURRENT_YEAR} year ahead — every transit, season & lunar cycle`, type: 'solar_return' },
+  { icon: '♀', bg: ['#2D0A1E', '#1A0520'], accent: '#E8A0B0', name: 'Venus Report', desc: 'Why you love like this — attachment style, patterns & what you actually need', type: 'venus' },
+  { icon: '♄', bg: ['#1A1510', '#14100E'], accent: '#A0A0B0', name: 'Saturn Return Guide', desc: 'Ages 27-30 survival guide — what changes, what stays & how to navigate', type: 'saturn_return_guide' },
 ];
 
 // ── Deep PDF HTML Generator ─────────────────────────────────────────────────
@@ -1110,6 +1159,7 @@ export default function ReportsScreen() {
   const [reportLoading, setReportLoading] = useState(false);
   const [reportTitle, setReportTitle] = useState('');
   const [reportType, setReportType] = useState('');
+  const [savedReports, setSavedReports] = useState([]);
   const [pdfLoading, setPdfLoading] = useState(false);
   const [genStep, setGenStep] = useState(0);
   const pdfCancelledRef = useRef(false);
@@ -1133,7 +1183,16 @@ export default function ReportsScreen() {
     return () => { if (toastTimeout.current) clearTimeout(toastTimeout.current); };
   }, []);
 
+  // Load saved reports for "My Reports" section
+  const loadSavedReports = async () => {
+    try {
+      const reports = await ReportRepository.getReportsForProfile(userProfile?.id || 'default');
+      setSavedReports(reports.filter(r => r.type === 'full_report'));
+    } catch (e) { }
+  };
+
   useEffect(() => {
+    loadSavedReports();
     getNarrativeContext(userProfile?.id || 'default', userProfile?.chart)
       .then(ctx => setNarrativeCtx(ctx))
       .catch(() => { });
@@ -1184,6 +1243,7 @@ export default function ReportsScreen() {
       const data = await generateFullReport(userProfile, r.type, narrativeCtx);
       setReportData(data);
       haptic.success();
+      loadSavedReports();
       capture(EVENTS.REPORT_GENERATED, { report_type: r.type });
       const profileId = userProfile?.id || 'default';
       trackEvent('report_generated').catch(() => { });
@@ -1336,6 +1396,28 @@ export default function ReportsScreen() {
           </View>
         </TouchableOpacity>
 
+        {/* My Reports — previously generated */}
+        {savedReports.length > 0 && (
+          <View style={{ paddingHorizontal: 22, marginBottom: 16 }}>
+            <Text style={styles.sectionLabel}>MY REPORTS</Text>
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 10 }}>
+              {savedReports.slice(0, 8).map((r, i) => {
+                const typeLabels = { love: 'Love', career: 'Career', lunar: 'Lunar', purpose: 'Purpose', solar_return: 'Solar Return', yearly: 'Yearly', transit: 'Transit', monthly: 'Monthly', venus: 'Venus', saturn_return_guide: 'Saturn Return' };
+                const typeIcons = { love: '♀', career: '♄', lunar: '☽', purpose: '☊', solar_return: '☉', yearly: '♃', transit: '☿', monthly: '☽', venus: '♀', saturn_return_guide: '♄' };
+                const subtype = r.id?.split('_report_')[1] || r.subtype || '';
+                return (
+                  <TouchableOpacity key={i} style={styles.savedChip} activeOpacity={0.7}
+                    onPress={() => handleReport({ name: typeLabels[subtype] || subtype, type: subtype })}>
+                    <Text style={styles.savedChipIcon}>{typeIcons[subtype] || '✦'}</Text>
+                    <Text style={styles.savedChipText}>{typeLabels[subtype] || 'Report'}</Text>
+                    <Text style={styles.savedChipDate}>{r.created_at ? new Date(r.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) : ''}</Text>
+                  </TouchableOpacity>
+                );
+              })}
+            </ScrollView>
+          </View>
+        )}
+
         {/* Report Grid */}
         <View style={styles.grid}>
           {REPORTS.map((r, i) => (
@@ -1394,6 +1476,13 @@ export default function ReportsScreen() {
                       <Text style={styles.sectionHeading}>{section.heading}</Text>
                     </View>
                     <Text style={styles.sectionBody}>{section.body}</Text>
+                    {/* Highlight box — the screenshottable key insight */}
+                    {section.highlight && (
+                      <View style={styles.highlightBox}>
+                        <Text style={styles.highlightLabel}>KEY INSIGHT</Text>
+                        <Text style={styles.highlightText}>{section.highlight}</Text>
+                      </View>
+                    )}
                     {section.remedy && (
                       <View style={styles.remedyBox}>
                         <Text style={styles.remedyLabel}>REMEDY</Text>
@@ -1405,6 +1494,16 @@ export default function ReportsScreen() {
                         <Text style={styles.affirmText}>"{section.affirmation}"</Text>
                       </View>
                     )}
+                    {/* Bridge to chat */}
+                    <TouchableOpacity style={styles.askAboutBtn} activeOpacity={0.7}
+                      onPress={() => {
+                        setReportModal(false);
+                        setTimeout(() => {
+                          navigation.navigate('AskAI', { initialMessage: `Tell me more about "${section.heading}" from my ${reportTitle}. The report said: "${(section.body || '').slice(0, 100)}..."` });
+                        }, 300);
+                      }}>
+                      <Text style={styles.askAboutBtnText}>Ask Celestia about this →</Text>
+                    </TouchableOpacity>
                   </View>
                 ))}
 
@@ -1519,4 +1618,17 @@ const styles = StyleSheet.create({
   toastIcon: { width: 32, height: 32, borderRadius: 16, backgroundColor: 'rgba(80,200,120,0.15)', alignItems: 'center', justifyContent: 'center' },
   toastTitle: { fontSize: 14, fontFamily: FONTS.sansSemiBold, color: '#FAF8F3', marginBottom: 2 },
   toastFile: { fontSize: 11, color: 'rgba(250,248,242,0.5)' },
+  // My Reports
+  sectionLabel: { fontSize: 9, fontFamily: FONTS.sansSemiBold, letterSpacing: 2, color: T.gold, marginBottom: 10 },
+  savedChip: { backgroundColor: 'white', borderWidth: 1, borderColor: T.border, borderRadius: 14, padding: 12, paddingHorizontal: 16, alignItems: 'center', minWidth: 90 },
+  savedChipIcon: { fontSize: 20, marginBottom: 4 },
+  savedChipText: { fontSize: 11, fontFamily: FONTS.sansSemiBold, color: T.navy, marginBottom: 2 },
+  savedChipDate: { fontSize: 9, color: T.stone },
+  // Highlight box
+  highlightBox: { backgroundColor: 'rgba(200,168,75,0.06)', borderWidth: 1, borderColor: 'rgba(200,168,75,0.15)', borderRadius: 12, padding: 14, marginTop: 12 },
+  highlightLabel: { fontSize: 8, fontFamily: FONTS.sansSemiBold, letterSpacing: 2, color: T.gold, marginBottom: 6 },
+  highlightText: { fontSize: 13, fontFamily: FONTS.serifItalic || FONTS.serif, fontStyle: 'italic', color: T.ink, lineHeight: 20 },
+  // Ask about bridge
+  askAboutBtn: { marginTop: 10, paddingVertical: 8 },
+  askAboutBtnText: { fontSize: 12, fontFamily: FONTS.sansMedium, color: T.gold },
 });

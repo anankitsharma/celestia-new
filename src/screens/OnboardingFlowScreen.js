@@ -234,8 +234,14 @@ export default function OnboardingFlowScreen({ navigation }) {
         type: 'self',
         motivation,
         painPoint,
+        depth,
       };
       await setUserProfile(profile);
+      // Persist persona preferences for AI tone across the app
+      try {
+        const { saveObject } = require('../services/storage');
+        await saveObject('celestia_persona_prefs', { motivation, painPoint, depth });
+      } catch (e) {}
       identify(profile.id, { sun_sign: chart?.sun?.sign, motivation, pain_point: painPoint });
       capture(EVENTS.ONBOARDING_COMPLETED, { sun_sign: chart?.sun?.sign, motivation, pain_point: painPoint });
       if (user) {

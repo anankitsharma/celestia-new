@@ -139,7 +139,7 @@ export async function scheduleAllNotifications(userProfile, forecast, streakData
             hour: 7, minute: 30,
             trigger: 'daily',
             content,
-            params: { tab: 'today' },
+            params: { tab: 'today', highlightLifeArea: content.lifeArea || null },
             priority: 1,
           });
         }
@@ -316,6 +316,8 @@ export function handleNotificationNavigation(navigationRef, data) {
 
   switch (category) {
     case 'COSMIC_MORNING':
+      navigationRef.navigate('Main', { screen: 'Today', params: { highlightLifeArea: params?.highlightLifeArea || null, ...(params || {}) } });
+      break;
     case 'STREAK_GUARDIAN':
     case 'LAPSED':
       navigationRef.navigate('Main', { screen: 'Today', params: params || {} });
