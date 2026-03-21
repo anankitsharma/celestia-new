@@ -846,7 +846,7 @@ const toRoman = (n) => {
 };
 
 const styles = StyleSheet.create({
-  hero: { paddingTop: Platform.OS === 'ios' ? 70 : (StatusBar.currentHeight || 48) + 16, paddingBottom: 26, alignItems: 'center', overflow: 'hidden', position: 'relative', borderBottomLeftRadius: 24, borderBottomRightRadius: 24 },
+  hero: { paddingTop: Platform.OS === 'ios' ? 70 : (StatusBar.currentHeight || 48) + 16, paddingBottom: 26, alignItems: 'center', overflow: 'hidden', position: 'relative',  },
   heroGlow: { position: 'absolute', width: 260, height: 260, borderRadius: 130, backgroundColor: 'rgba(200,168,75,0.08)', right: -60, top: -40 },
   topRow: { width: '100%', paddingHorizontal: 22, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14 },
   title: { fontFamily: FONTS.serif, fontSize: 30, color: T.cream },

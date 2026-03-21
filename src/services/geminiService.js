@@ -426,6 +426,15 @@ const deepPdfReportSchema = {
     required: ["headline", "coreMotif", "overview", "bigThree", "planets", "lifeAreas", "soulPath", "elementalBalance", "closing"]
 };
 
+const getISOWeekLabel = (date) => {
+    const d = new Date(date);
+    d.setHours(0, 0, 0, 0);
+    d.setDate(d.getDate() + 4 - (d.getDay() || 7));
+    const year = d.getFullYear();
+    const week = Math.ceil((((d.getTime() - new Date(year, 0, 1).getTime()) / 86400000) + 1) / 7);
+    return `${year}-W${week.toString().padStart(2, '0')}`;
+};
+
 const cleanAndParseJson = (text, fallback) => {
     if (!text) return fallback;
     try {

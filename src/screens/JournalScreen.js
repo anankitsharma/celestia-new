@@ -334,8 +334,8 @@ const styles = StyleSheet.create({
     paddingTop: Platform.OS === 'ios' ? 60 : (StatusBar.currentHeight || 48) + 12,
     paddingHorizontal: 22,
     paddingBottom: 24,
-    borderBottomLeftRadius: 28,
-    borderBottomRightRadius: 28,
+    
+    
   },
   topBar: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 },
   backBtn: { fontSize: 15, color: 'rgba(250,248,242,0.5)', fontFamily: FONTS.sans },
