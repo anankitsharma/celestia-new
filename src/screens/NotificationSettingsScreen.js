@@ -1,9 +1,11 @@
 import React, { useState, useEffect } from 'react';
 import { View, Text, ScrollView, TouchableOpacity, Switch, StyleSheet, Platform, StatusBar } from 'react-native';
+import DateTimePicker from '@react-native-community/datetimepicker';
 import { T, FONTS } from '../constants/theme';
 import { getNotificationSettings, saveNotificationSettings, scheduleAllNotifications, hasNotificationPermission, requestNotificationPermission } from '../services/notificationService';
 import { useUserProfile } from '../contexts/UserProfileContext';
 import { haptic } from '../services/hapticService';
+import { useTheme } from '../contexts/ThemeContext';
 
 const CATEGORIES = [
   {
@@ -30,9 +32,11 @@ const CATEGORIES = [
 ];
 
 export default function NotificationSettingsScreen({ navigation }) {
+  const { colors, isDark } = useTheme();
   const { userProfile } = useUserProfile();
   const [settings, setSettings] = useState(null);
   const [hasPermission, setHasPermission] = useState(false);
+  const [showMorningPicker, setShowMorningPicker] = useState(false);
 
   useEffect(() => {
     loadSettings();
@@ -65,19 +69,50 @@ export default function NotificationSettingsScreen({ navigation }) {
     }
   };
 
-  if (!settings) return <View style={{ flex: 1, backgroundColor: T.cream }} />;
+  const getMorningDate = () => {
+    const d = new Date();
+    d.setHours(settings?.morningTime ?? 7, settings?.morningMinute ?? 30, 0, 0);
+    return d;
+  };
+
+  const formatMorningTime = () => {
+    const h = settings?.morningTime ?? 7;
+    const m = settings?.morningMinute ?? 30;
+    const suffix = h >= 12 ? 'PM' : 'AM';
+    const hr = h > 12 ? h - 12 : h === 0 ? 12 : h;
+    return `${hr}:${m.toString().padStart(2, '0')} ${suffix}`;
+  };
+
+  const handleMorningTimeChange = async (event, selectedDate) => {
+    if (Platform.OS === 'android') {
+      setShowMorningPicker(false);
+    }
+    if (event.type === 'dismissed') return;
+    if (!selectedDate) return;
+    haptic.selection();
+    const updated = {
+      ...settings,
+      morningTime: selectedDate.getHours(),
+      morningMinute: selectedDate.getMinutes(),
+    };
+    setSettings(updated);
+    await saveNotificationSettings(updated);
+    scheduleAllNotifications(userProfile, null, null, null, null, null).catch(() => {});
+  };
+
+  if (!settings) return <View style={{ flex: 1, backgroundColor: colors.bg }} />;
 
   const enabledCount = CATEGORIES.flatMap(c => c.items).filter(i => settings[i.key]).length;
   const totalCount = CATEGORIES.flatMap(c => c.items).length;
 
   return (
-    <View style={{ flex: 1, backgroundColor: T.cream }}>
+    <View style={{ flex: 1, backgroundColor: colors.bg }}>
       {/* Header */}
-      <View style={s.header}>
-        <TouchableOpacity onPress={() => navigation.goBack()} style={s.backBtn}>
-          <Text style={s.backText}>‹</Text>
+      <View style={[s.header, { borderBottomColor: colors.border }]}>
+        <TouchableOpacity onPress={() => navigation.goBack()} style={[s.backBtn, { backgroundColor: colors.card, borderColor: colors.border }]}>
+          <Text style={[s.backText, { color: colors.heading }]}>‹</Text>
         </TouchableOpacity>
-        <Text style={s.headerTitle}>Cosmic Alerts</Text>
+        <Text style={[s.headerTitle, { color: colors.heading }]}>Cosmic Alerts</Text>
         <View style={{ width: 40 }} />
       </View>
 
@@ -86,63 +121,98 @@ export default function NotificationSettingsScreen({ navigation }) {
         {!hasPermission && (
           <TouchableOpacity style={s.permBanner} activeOpacity={0.8} onPress={handleEnablePermission}>
             <Text style={s.permTitle}>Notifications are disabled</Text>
-            <Text style={s.permSub}>Tap to enable cosmic alerts</Text>
+            <Text style={[s.permSub, { color: colors.textSecondary }]}>Tap to enable cosmic alerts</Text>
           </TouchableOpacity>
         )}
 
         {/* Summary */}
-        <Text style={s.summary}>{enabledCount} of {totalCount} alerts active</Text>
+        <Text style={[s.summary, { color: colors.textSecondary }]}>{enabledCount} of {totalCount} alerts active</Text>
 
         {/* Category sections */}
         {CATEGORIES.map((cat) => (
           <View key={cat.section}>
-            <Text style={s.sectionLabel}>{cat.section}</Text>
-            <View style={s.sectionCard}>
+            <Text style={[s.sectionLabel, { color: colors.textSecondary }]}>{cat.section}</Text>
+            <View style={[s.sectionCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
               {cat.items.map((item, i) => (
-                <View key={item.key} style={[s.row, i < cat.items.length - 1 && s.rowBorder]}>
-                  <View style={s.rowIcon}>
-                    <Text style={{ fontSize: 16 }}>{item.icon}</Text>
-                  </View>
-                  <View style={s.rowContent}>
-                    <View style={s.rowTop}>
-                      <Text style={s.rowLabel}>{item.label}</Text>
-                      <Switch
-                        value={settings[item.key]}
-                        onValueChange={(v) => handleToggle(item.key, v)}
-                        trackColor={{ false: '#E0D8CC', true: 'rgba(200,168,75,0.4)' }}
-                        thumbColor={settings[item.key] ? T.gold : '#F0ECE4'}
-                        ios_backgroundColor="#E0D8CC"
-                      />
+                <React.Fragment key={item.key}>
+                  <View style={[s.row, (i < cat.items.length - 1 || (item.key === 'cosmic_morning' && settings.cosmic_morning)) && [s.rowBorder, { borderBottomColor: colors.divider }]]}>
+                    <View style={[s.rowIcon, { backgroundColor: colors.cardAlt }]}>
+                      <Text style={{ fontSize: 16 }}>{item.icon}</Text>
                     </View>
-                    <Text style={s.rowTime}>{item.time}</Text>
-                    <Text style={s.rowPreview}>{item.preview}</Text>
+                    <View style={s.rowContent}>
+                      <View style={s.rowTop}>
+                        <Text style={[s.rowLabel, { color: colors.heading }]}>{item.label}</Text>
+                        <Switch
+                          value={settings[item.key]}
+                          onValueChange={(v) => handleToggle(item.key, v)}
+                          trackColor={{ false: isDark ? '#3A3550' : '#E0D8CC', true: 'rgba(200,168,75,0.4)' }}
+                          thumbColor={settings[item.key] ? T.gold : isDark ? '#5E587A' : '#F0ECE4'}
+                          ios_backgroundColor={isDark ? '#3A3550' : '#E0D8CC'}
+                        />
+                      </View>
+                      <Text style={s.rowTime}>{item.key === 'cosmic_morning' && settings.cosmic_morning ? formatMorningTime() : item.time}</Text>
+                      <Text style={[s.rowPreview, { color: colors.textSecondary }]}>{item.preview}</Text>
+                    </View>
                   </View>
-                </View>
+                  {/* Morning Briefing Time picker row */}
+                  {item.key === 'cosmic_morning' && settings.cosmic_morning && (
+                    <View style={[s.row, i < cat.items.length - 1 && [s.rowBorder, { borderBottomColor: colors.divider }]]}>
+                      <View style={{ width: 36, marginRight: 12 }} />
+                      <View style={s.rowContent}>
+                        <TouchableOpacity
+                          style={s.timePickerRow}
+                          activeOpacity={0.7}
+                          onPress={() => {
+                            haptic.selection();
+                            setShowMorningPicker(!showMorningPicker);
+                          }}
+                        >
+                          <Text style={[s.timePickerLabel, { color: colors.heading }]}>Morning Briefing Time</Text>
+                          <View style={[s.timePickerBadge, { backgroundColor: colors.cardAlt, borderColor: colors.border }]}>
+                            <Text style={[s.timePickerValue, { color: T.gold }]}>{formatMorningTime()}</Text>
+                          </View>
+                        </TouchableOpacity>
+                        {showMorningPicker && (
+                          <DateTimePicker
+                            value={getMorningDate()}
+                            mode="time"
+                            display={Platform.OS === 'ios' ? 'spinner' : 'default'}
+                            minuteInterval={5}
+                            onChange={handleMorningTimeChange}
+                            textColor={isDark ? '#FFFFFF' : '#000000'}
+                            themeVariant={isDark ? 'dark' : 'light'}
+                            style={s.timePicker}
+                          />
+                        )}
+                      </View>
+                    </View>
+                  )}
+                </React.Fragment>
               ))}
             </View>
           </View>
         ))}
 
         {/* Quiet Hours */}
-        <Text style={s.sectionLabel}>QUIET HOURS</Text>
-        <View style={s.sectionCard}>
+        <Text style={[s.sectionLabel, { color: colors.textSecondary }]}>QUIET HOURS</Text>
+        <View style={[s.sectionCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
           <View style={s.row}>
-            <View style={s.rowIcon}>
+            <View style={[s.rowIcon, { backgroundColor: colors.cardAlt }]}>
               <Text style={{ fontSize: 16 }}>🌙</Text>
             </View>
             <View style={s.rowContent}>
               <View style={s.rowTop}>
-                <Text style={s.rowLabel}>Enable quiet hours</Text>
+                <Text style={[s.rowLabel, { color: colors.heading }]}>Enable quiet hours</Text>
                 <Switch
                   value={settings.quietHoursEnabled}
                   onValueChange={(v) => handleToggle('quietHoursEnabled', v)}
-                  trackColor={{ false: '#E0D8CC', true: 'rgba(200,168,75,0.4)' }}
-                  thumbColor={settings.quietHoursEnabled ? T.gold : '#F0ECE4'}
-                  ios_backgroundColor="#E0D8CC"
+                  trackColor={{ false: isDark ? '#3A3550' : '#E0D8CC', true: 'rgba(200,168,75,0.4)' }}
+                  thumbColor={settings.quietHoursEnabled ? T.gold : isDark ? '#5E587A' : '#F0ECE4'}
+                  ios_backgroundColor={isDark ? '#3A3550' : '#E0D8CC'}
                 />
               </View>
               {settings.quietHoursEnabled && (
-                <Text style={s.quietRange}>
+                <Text style={[s.quietRange, { color: colors.heading }]}>
                   {formatHour(settings.quietHoursStart)} — {formatHour(settings.quietHoursEnd)}
                 </Text>
               )}
@@ -150,7 +220,7 @@ export default function NotificationSettingsScreen({ navigation }) {
           </View>
         </View>
 
-        <Text style={s.footer}>
+        <Text style={[s.footer, { color: colors.textSecondary }]}>
           Celestia uses local notifications only. No data is sent to external servers.
         </Text>
 
@@ -191,6 +261,12 @@ const s = StyleSheet.create({
   rowPreview: { fontSize: 11.5, color: T.stone, fontStyle: 'italic', lineHeight: 16 },
 
   quietRange: { fontSize: 13, color: T.navy, marginTop: 6, fontFamily: FONTS.sansMedium },
+
+  timePickerRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
+  timePickerLabel: { fontSize: 13, fontFamily: FONTS.sansMedium, color: T.navy },
+  timePickerBadge: { paddingHorizontal: 12, paddingVertical: 5, borderRadius: 8, borderWidth: 1, borderColor: T.border, backgroundColor: T.warm },
+  timePickerValue: { fontSize: 13, fontFamily: FONTS.sansSemiBold, color: T.gold },
+  timePicker: { marginTop: 8 },
 
   footer: { fontSize: 11, color: T.stone, textAlign: 'center', paddingHorizontal: 40, marginTop: 24, lineHeight: 17 },
 });

@@ -1,5 +1,5 @@
 import React, { useState, useMemo, useEffect } from 'react';
-import { View, Text, ScrollView, TouchableOpacity, StyleSheet, ActivityIndicator, Modal, Platform, StatusBar } from 'react-native';
+import { View, Text, ScrollView, TouchableOpacity, StyleSheet, ActivityIndicator, Modal, Platform, StatusBar, Share } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { T, FONTS } from '../constants/theme';
 import ChartWheel from '../components/ChartWheel';
@@ -7,7 +7,7 @@ import { useUserProfile } from '../contexts/UserProfileContext';
 import { useRevenueCat } from '../contexts/RevenueCatContext';
 import { useNavigation } from '@react-navigation/native';
 
-import { HOUSE_THEMES } from '../constants/AstrologyCore';
+import { HOUSE_THEMES, HOUSE_FRIENDLY } from '../constants/AstrologyCore';
 import { generatePlacementDeepDive, generateAspectDeepDive, generateHouseDeepDive } from '../services/geminiService';
 import { haptic } from '../services/hapticService';
 import { trackEvent } from '../services/achievementService';
@@ -21,6 +21,7 @@ import AstroText from '../components/AstroText';
 import { useShareCard } from '../components/ShareCard';
 import BigThreeShareCard from '../components/BigThreeShareCard';
 import { getCosmicArchetype, getComboRarity } from '../services/cosmicIdentityService';
+import { useTheme } from '../contexts/ThemeContext';
 
 const PLANET_GLYPHS = {
   Sun: '☉', Moon: '☽', Mercury: '☿', Venus: '♀', Mars: '♂',
@@ -38,8 +39,8 @@ const ASPECT_GLYPHS = {
 };
 
 const ASPECT_NATURE = {
-  Conjunction: 'Fusion', Trine: 'Harmony', Sextile: 'Opportunity',
-  Square: 'Tension', Opposition: 'Polarity'
+  Conjunction: 'Fusion', Trine: 'Flow', Sextile: 'Boost',
+  Square: 'Tension', Opposition: 'Tug of War'
 };
 
 export default function ChartScreen() {
@@ -47,17 +48,19 @@ export default function ChartScreen() {
   const { isPro } = useRevenueCat();
   const { userProfile, isLoading } = useUserProfile();
   const { capture } = useAnalytics();
+  const { colors, isDark } = useTheme();
 
   const [tab, setTab] = useState(0);
   const [showFullList, setShowFullList] = useState(false);
+  const [detailedMode, setDetailedMode] = useState(false);
   const tabs = ['Planets', 'Aspects', 'Houses'];
   const [deepDive, setDeepDive] = useState(null);
   const [deepDiveLoading, setDeepDiveLoading] = useState(false);
   const [showDeepDive, setShowDeepDive] = useState(false);
   const [deepDiveType, setDeepDiveType] = useState('planet'); // 'planet' | 'aspect' | 'house'
 
-  // Drip-feed unlock state
-  const [unlockedPlanets, setUnlockedPlanets] = useState([]);
+  // Drip-feed unlock state — initialize with free planets to prevent flash-lock on first render
+  const [unlockedPlanets, setUnlockedPlanets] = useState(['Sun', 'Moon', 'Ascendant']);
   const [unlockProgress, setUnlockProgress] = useState(null);
   const [activeWindows, setActiveWindows] = useState([]);
 
@@ -95,10 +98,10 @@ export default function ChartScreen() {
 
   const handlePlanetTap = async (planet) => {
     if (!planet.name || planet.name === 'South Node') return;
-    // Check if locked (drip-feed)
+    // Check if deep dive is locked (drip-feed) — planet is VISIBLE, deep analysis is gated
     if (!isPro && !unlockedPlanets.includes(planet.name)) {
-
       const unlockDay = getUnlockDayForPlanet(planet.name);
+      const narrative = UNLOCK_NARRATIVES[planet.name] || 'A new chapter of your story awaits';
       haptic.light();
       setDeepDiveType('planet');
       setShowDeepDive(true);
@@ -107,8 +110,10 @@ export default function ChartScreen() {
         locked: true,
         planetName: planet.name,
         sign: planet.sign,
+        house: planet.house ? `House ${planet.house}` : '',
         unlockDay,
-        hook: `${planet.name} in ${planet.sign} — your chart holds a secret here.`,
+        hook: `Your ${planet.name} is in ${planet.sign}${planet.house ? ` (${planet.house}${planet.house === 1 ? 'st' : planet.house === 2 ? 'nd' : planet.house === 3 ? 'rd' : 'th'} house)` : ''}. ${narrative}.`,
+        teaser: `The full deep dive into what ${planet.name} in ${planet.sign} means for your life — your patterns, your blind spots, and the insight that will make you say "how does it know?" — unlocks ${unlockDay === 1 ? 'tomorrow' : `in ${unlockDay} days`}.`,
       });
       return;
     }
@@ -275,17 +280,17 @@ export default function ChartScreen() {
 
   if (isLoading) {
     return (
-      <View style={{ flex: 1, backgroundColor: T.cream, alignItems: 'center', justifyContent: 'center' }}>
-        <ActivityIndicator size="large" color={T.gold} />
+      <View style={{ flex: 1, backgroundColor: colors.bg, alignItems: 'center', justifyContent: 'center' }}>
+        <ActivityIndicator size="large" color={colors.gold} />
       </View>
     );
   }
 
   if (!chart) {
     return (
-      <View style={{ flex: 1, backgroundColor: T.cream, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 40 }}>
-        <Text style={{ fontFamily: FONTS.serif, fontSize: 22, color: T.navy, textAlign: 'center', marginBottom: 10 }}>No Chart Yet</Text>
-        <Text style={{ fontFamily: FONTS.sansLight, fontSize: 14, color: T.stone, textAlign: 'center' }}>Complete onboarding to generate your birth chart.</Text>
+      <View style={{ flex: 1, backgroundColor: colors.bg, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 40 }}>
+        <Text style={{ fontFamily: FONTS.serif, fontSize: 22, color: colors.heading, textAlign: 'center', marginBottom: 10 }}>No Chart Yet</Text>
+        <Text style={{ fontFamily: FONTS.sansLight, fontSize: 14, color: colors.textSecondary, textAlign: 'center' }}>Complete onboarding to generate your birth chart.</Text>
       </View>
     );
   }
@@ -295,9 +300,9 @@ export default function ChartScreen() {
   const rising = chart.planets?.find(p => p.name === 'Ascendant');
 
   return (
-    <View style={{ flex: 1, backgroundColor: T.cream }}>
+    <View style={{ flex: 1, backgroundColor: colors.bg }}>
       <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 110 }}>
-        <LinearGradient colors={['#0E0E22', '#17132E', '#111524']} locations={[0, 0.5, 1]} style={styles.hero}>
+        <LinearGradient colors={colors.heroGradient} locations={[0, 0.5, 1]} style={styles.hero}>
           <View style={styles.heroGlow} />
           <View style={styles.topRow}>
             <View>
@@ -308,7 +313,16 @@ export default function ChartScreen() {
                 {rising ? ` · ${rising.sign} Rising` : ''}
               </Text>
             </View>
-            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+              <TouchableOpacity
+                style={[styles.depthToggle, detailedMode && styles.depthToggleActive]}
+                activeOpacity={0.7}
+                onPress={() => { haptic.light(); setDetailedMode(prev => !prev); }}
+              >
+                <Text style={[styles.depthToggleText, detailedMode && styles.depthToggleTextActive]}>
+                  {detailedMode ? '\u2699\uFE0F Detailed' : '\u2726 Simple'}
+                </Text>
+              </TouchableOpacity>
               <View style={styles.housePill}><Text style={styles.housePillText}>Whole Sign</Text></View>
               <CosmicTooltip id="whole_sign" size={14} light />
             </View>
@@ -359,17 +373,17 @@ export default function ChartScreen() {
           </View>
         </LinearGradient>
 
-        <View style={styles.tabsBar}>
+        <View style={[styles.tabsBar, { backgroundColor: isDark ? colors.cardAlt : '#EDE6D8' }]}>
           {tabs.map((t, i) => (
-            <TouchableOpacity key={i} style={[styles.ctab, tab === i && styles.ctabOn]} onPress={() => setTab(i)}>
-              <Text style={[styles.ctabText, tab === i && styles.ctabTextOn]}>{t}</Text>
+            <TouchableOpacity key={i} style={[styles.ctab, tab === i && [styles.ctabOn, { backgroundColor: colors.card }]]} onPress={() => setTab(i)}>
+              <Text style={[styles.ctabText, { color: colors.textSecondary }, tab === i && [styles.ctabTextOn, { color: colors.heading }]]}>{t}</Text>
             </TouchableOpacity>
           ))}
         </View>
 
         {/* Guide header */}
         {tab === 0 && (
-          <Text style={styles.guideHeader}>Your birth chart reveals patterns, not fate.</Text>
+          <Text style={[styles.guideHeader, { color: colors.textSecondary }]}>Your birth chart reveals patterns, not fate.</Text>
         )}
 
         {/* At-a-Glance: Top Patterns + Element Balance (default collapsed) */}
@@ -380,13 +394,20 @@ export default function ChartScreen() {
               <View style={styles.atGlanceBlock}>
                 <Text style={styles.atGlanceTitle}>WHY YOU DO THAT THING</Text>
                 {topPatterns.map((p, i) => (
-                  <View key={i} style={styles.patternCard}>
+                  <View key={i} style={[styles.patternCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
                     <View style={styles.patternHeader}>
                       <View style={[styles.patternDot, { backgroundColor: p.color }]} />
-                      <Text style={styles.patternLabel}>{p.label}</Text>
+                      <Text style={[styles.patternLabel, { color: colors.heading }]}>{p.label}</Text>
                       <Text style={[styles.patternType, { color: p.color }]}>{p.type}</Text>
                     </View>
-                    <Text style={styles.patternText}>{p.text}</Text>
+                    <Text style={[styles.patternText, { color: colors.text }]}>{p.text}</Text>
+                    {/* Bridge: pattern → Chat */}
+                    <TouchableOpacity
+                      style={{ marginTop: 8, alignSelf: 'flex-start' }}
+                      activeOpacity={0.7}
+                      onPress={() => navigation.navigate('AskAI', { initialMessage: `Tell me more about my ${p.label} aspect. ${p.text} How does this play out in my daily life and relationships?` })}>
+                      <Text style={{ fontSize: 11, fontFamily: FONTS.sansMedium, color: T.gold }}>Ask Celestia about this →</Text>
+                    </TouchableOpacity>
                   </View>
                 ))}
               </View>
@@ -403,11 +424,11 @@ export default function ChartScreen() {
                     return (
                       <View key={el} style={styles.balanceItem}>
                         <Text style={styles.balanceIcon}>{icons[el]}</Text>
-                        <View style={styles.balanceBarTrack}>
+                        <View style={[styles.balanceBarTrack, { backgroundColor: isDark ? colors.cardAlt : '#F0E8DA' }]}>
                           <View style={[styles.balanceBarFill, { height: `${pct}%` }]} />
                         </View>
-                        <Text style={styles.balanceLabel}>{el}</Text>
-                        <Text style={styles.balancePct}>{pct}%</Text>
+                        <Text style={[styles.balanceLabel, { color: colors.textSecondary }]}>{el}</Text>
+                        <Text style={[styles.balancePct, { color: colors.heading }]}>{pct}%</Text>
                       </View>
                     );
                   })}
@@ -418,8 +439,8 @@ export default function ChartScreen() {
               </View>
             )}
 
-            <TouchableOpacity style={styles.showFullBtn} activeOpacity={0.7} onPress={() => setShowFullList(true)}>
-              <Text style={styles.showFullBtnText}>See All Placements →</Text>
+            <TouchableOpacity style={[styles.showFullBtn, { backgroundColor: colors.cardAlt }]} activeOpacity={0.7} onPress={() => setShowFullList(true)}>
+              <Text style={[styles.showFullBtnText, { color: colors.heading }]}>See All Placements →</Text>
             </TouchableOpacity>
           </View>
         )}
@@ -436,11 +457,11 @@ export default function ChartScreen() {
         {!isPro && unlockProgress && !unlockProgress.isComplete && tab === 0 && (
 
           <View style={styles.unlockBar}>
-            <View style={styles.unlockBarInner}>
-              <View style={styles.unlockBarTrack}>
+            <View style={[styles.unlockBarInner, { backgroundColor: colors.cardAlt }]}>
+              <View style={[styles.unlockBarTrack, { backgroundColor: isDark ? colors.card : '#E8E2D8' }]}>
                 <View style={[styles.unlockBarFill, { width: `${unlockProgress.percentage}%` }]} />
               </View>
-              <Text style={styles.unlockBarText}>
+              <Text style={[styles.unlockBarText, { color: colors.textSecondary }]}>
                 {unlockProgress.unlocked}/{unlockProgress.total} chapters revealed
                 {unlockProgress.nextPlanet ? ` · ${unlockProgress.nextPlanet}: ${UNLOCK_NARRATIVES[unlockProgress.nextPlanet] || 'tomorrow'}` : ''}
               </Text>
@@ -449,84 +470,101 @@ export default function ChartScreen() {
         )}
 
         <View style={styles.list}>
+          {/* ALL planets visible — Mia sees her entire chart. Deep dive is what's gated, not the list. */}
           {tab === 0 && showFullList && planetPlacements.map((p, i) => {
-            const isLocked = !isPro && !unlockedPlanets.includes(p.name);
+            const deepDiveLocked = !isPro && !unlockedPlanets.includes(p.name);
 
             return (
-              <TouchableOpacity key={i} style={[styles.plrow, isLocked && styles.plrowLocked]} activeOpacity={0.7}
+              <TouchableOpacity key={i} style={[styles.plrow, { borderBottomColor: colors.divider }]} activeOpacity={0.7}
                 onPress={() => handlePlanetTap(p)}>
-                <View style={[styles.plrowIcon, isLocked && { backgroundColor: '#E8E2D8' }]}>
-                  <Text style={{ fontSize: 18, opacity: isLocked ? 0.35 : 1 }}>{isLocked ? '🔒' : p.icon}</Text>
+                <View style={[styles.plrowIcon, { backgroundColor: isDark ? colors.cardAlt : T.warm }]}>
+                  <Text style={{ fontSize: 18 }}>{p.icon}</Text>
                 </View>
                 <View style={{ flex: 1 }}>
-                  <Text style={[styles.plrowPlanet, isLocked && { opacity: 0.5 }]}>{p.planet}{p.isRetrograde ? ' ℞' : ''}</Text>
-                  {isLocked ? (
-                    <Text style={styles.plrowLockedHint}>Day {getUnlockDayForPlanet(p.name)} — {UNLOCK_NARRATIVES[p.name] || 'Tap to reveal'}</Text>
-                  ) : (
-                    <Text style={styles.plrowSign}>{p.sign}</Text>
+                  <Text style={[styles.plrowPlanet, { color: colors.textSecondary }]}>
+                    {p.planet}{p.isRetrograde ? ' ℞' : ''}
+                  </Text>
+                  <Text style={[styles.plrowSign, { color: colors.heading }]}>{p.sign}</Text>
+                  {detailedMode && p.isRetrograde && (
+                    <View style={styles.retroBadge}>
+                      <Text style={styles.retroBadgeText}>RETROGRADE</Text>
+                    </View>
                   )}
                 </View>
-                {!isLocked && (
-                  <View style={{ alignItems: 'flex-end' }}>
-                    <Text style={styles.plrowDeg}>{p.deg}</Text>
-                    <Text style={styles.plrowHouse}>{p.house}</Text>
-                    {getTransitForPlanet(p.name) && (
-                      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 3, marginTop: 2 }}>
-                        <View style={{ width: 6, height: 6, borderRadius: 3, backgroundColor: T.gold }} />
-                        <Text style={{ fontSize: 7, fontFamily: FONTS.sansSemiBold, color: T.gold, letterSpacing: 1 }}>LIVE</Text>
-                      </View>
-                    )}
-                  </View>
-                )}
-                {!isLocked && <CosmicTooltip id={p.name === 'Ascendant' ? 'rising_sign' : p.name === 'North Node' ? 'north_node' : p.name === 'South Node' ? 'south_node' : p.name.toLowerCase()} size={14} />}
-                <Text style={[styles.plrowArrow, isLocked && { opacity: 0.3 }]}>{isLocked ? '🔒' : '›'}</Text>
+                <View style={{ alignItems: 'flex-end' }}>
+                  {detailedMode && <Text style={[styles.plrowDeg, { color: colors.textSecondary }]}>{p.deg}</Text>}
+                  <Text style={[styles.plrowHouse, { color: colors.textMuted }]}>{p.house}</Text>
+                  {getTransitForPlanet(p.name) && (
+                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 3, marginTop: 2 }}>
+                      <View style={{ width: 6, height: 6, borderRadius: 3, backgroundColor: T.gold }} />
+                      <Text style={{ fontSize: 7, fontFamily: FONTS.sansSemiBold, color: T.gold, letterSpacing: 1 }}>LIVE</Text>
+                    </View>
+                  )}
+                </View>
+                <CosmicTooltip id={p.name === 'Ascendant' ? 'rising_sign' : p.name === 'North Node' ? 'north_node' : p.name === 'South Node' ? 'south_node' : p.name.toLowerCase()} size={14} />
+                <Text style={styles.plrowArrow}>›</Text>
               </TouchableOpacity>
             );
           })}
 
           {tab === 1 && aspectList.map((a, i) => (
-            <TouchableOpacity key={i} style={styles.plrow} activeOpacity={0.7}
+            <TouchableOpacity key={i} style={[styles.plrow, { borderBottomColor: colors.divider }]} activeOpacity={0.7}
               onPress={() => handleAspectTap(a)}>
               <View style={[styles.plrowIcon, { backgroundColor: a.color + '20' }]}>
                 <Text style={{ fontSize: 16, color: a.color }}>{ASPECT_GLYPHS[a.type] || '⬡'}</Text>
               </View>
               <View style={{ flex: 1 }}>
-                <Text style={styles.plrowPlanet}>{a.planet1} — {a.planet2}</Text>
-                <Text style={[styles.plrowSign, { fontSize: 14 }]}>{a.type}</Text>
+                <Text style={[styles.plrowPlanet, { color: colors.textSecondary }]}>{a.planet1} — {a.planet2}</Text>
+                {detailedMode ? (
+                  <Text style={[styles.plrowSign, { fontSize: 14 }]}>{a.type} · {ASPECT_NATURE[a.type]}</Text>
+                ) : (
+                  <Text style={[styles.plrowSign, { fontSize: 14 }]}>{ASPECT_NATURE[a.type] || a.type}</Text>
+                )}
               </View>
               <View style={{ alignItems: 'flex-end' }}>
-                <Text style={{ fontSize: 11, color: T.stone }}>orb {a.orb}°</Text>
-                <Text style={{ fontSize: 9, color: a.color, marginTop: 2 }}>{ASPECT_NATURE[a.type]}</Text>
+                {detailedMode && <Text style={{ fontSize: 11, color: colors.textSecondary }}>orb {a.orb}°</Text>}
+                {detailedMode && <Text style={{ fontSize: 9, color: a.color, marginTop: 2 }}>{a.type}</Text>}
               </View>
               <CosmicTooltip id={a.type.toLowerCase()} size={14} />
               <Text style={styles.plrowArrow}>›</Text>
             </TouchableOpacity>
           ))}
 
-          {tab === 2 && houseList.map((h, i) => (
-            <TouchableOpacity key={i} style={styles.plrow} activeOpacity={0.7}
-              onPress={() => handleHouseTap(h)}>
-              <View style={[styles.plrowIcon, { backgroundColor: T.navy }]}>
-                <Text style={{ fontSize: 14, fontFamily: FONTS.serif, color: T.cream }}>{toRoman(parseInt(h.number))}</Text>
-              </View>
-              <View style={{ flex: 1 }}>
-                <Text style={styles.plrowPlanet}>HOUSE {h.number}</Text>
-                <Text style={[styles.plrowSign, { fontSize: 14 }]}>{h.sign} {h.degree}°</Text>
-              </View>
-              <Text style={{ fontSize: 11, color: T.stone, maxWidth: 100, textAlign: 'right' }}>{h.theme}</Text>
-              <CosmicTooltip id={`house_${h.number}`} size={14} />
-              <Text style={styles.plrowArrow}>›</Text>
-            </TouchableOpacity>
-          ))}
+          {tab === 2 && houseList.map((h, i) => {
+            const friendly = HOUSE_FRIENDLY[parseInt(h.number)];
+            const planetsHere = (chart?.planets || []).filter(p => p.house === parseInt(h.number));
+            return (
+              <TouchableOpacity key={i} style={[styles.plrow, { borderBottomColor: colors.divider }]} activeOpacity={0.7}
+                onPress={() => handleHouseTap(h)}>
+                <View style={[styles.plrowIcon, { backgroundColor: planetsHere.length > 0 ? colors.navy : (isDark ? colors.cardAlt : T.warm) }]}>
+                  <Text style={{ fontSize: 16 }}>{friendly?.emoji || toRoman(parseInt(h.number))}</Text>
+                </View>
+                <View style={{ flex: 1 }}>
+                  <Text style={[styles.plrowPlanet, { color: colors.textSecondary }]}>{friendly?.name?.toUpperCase() || `HOUSE ${h.number}`}</Text>
+                  <Text style={[styles.plrowSign, { fontSize: 13, color: colors.heading }]}>{h.sign} · {h.theme}</Text>
+                  {detailedMode && h.degree && (
+                    <Text style={{ fontSize: 10, color: colors.textSecondary, marginTop: 1 }}>Cusp: {h.degree}° {h.sign}</Text>
+                  )}
+                  {planetsHere.length > 0 && (
+                    <Text style={{ fontSize: 10, color: T.gold, marginTop: 2 }}>
+                      {planetsHere.map(p => `${PLANET_GLYPHS[p.name] || '★'} ${p.name}`).join(' · ')}
+                    </Text>
+                  )}
+                </View>
+                <CosmicTooltip id={`house_${h.number}`} size={14} />
+                <Text style={styles.plrowArrow}>›</Text>
+              </TouchableOpacity>
+            );
+          })}
         </View>
         <View style={{ height: 20 }} />
       </ScrollView>
 
       {/* Deep Dive Modal — Planet / Aspect / House */}
       <Modal visible={showDeepDive} animationType="slide" presentationStyle="pageSheet">
-        <View style={{ flex: 1, backgroundColor: T.cream }}>
-          <View style={styles.ddHeader}>
-            <Text style={styles.ddTitle}>
+        <View style={{ flex: 1, backgroundColor: colors.modalBg }}>
+          <View style={[styles.ddHeader, { borderBottomColor: colors.divider }]}>
+            <Text style={[styles.ddTitle, { color: colors.heading }]}>
               {deepDiveType === 'planet' && (
                 `${deepDive?.planetName || 'Planet'} ${deepDive?.sign ? `in ${deepDive.sign}` : ''}`
               )}
@@ -538,7 +576,7 @@ export default function ChartScreen() {
               )}
             </Text>
             <TouchableOpacity onPress={() => setShowDeepDive(false)}>
-              <Text style={{ fontSize: 18, color: T.stone, padding: 4 }}>✕</Text>
+              <Text style={{ fontSize: 18, color: colors.textSecondary, padding: 4 }}>✕</Text>
             </TouchableOpacity>
           </View>
 
@@ -546,31 +584,44 @@ export default function ChartScreen() {
           {deepDive?.locked ? (
             <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 40 }}>
               <Text style={{ fontSize: 48, marginBottom: 16 }}>🔒</Text>
-              <Text style={{ fontFamily: FONTS.serif, fontSize: 22, color: T.navy, textAlign: 'center', marginBottom: 8 }}>
+              <Text style={{ fontFamily: FONTS.serif, fontSize: 22, color: colors.heading, textAlign: 'center', marginBottom: 4 }}>
                 {deepDive.planetName} in {deepDive.sign}
               </Text>
-              <Text style={{ fontFamily: FONTS.serif, fontSize: 15, color: T.stone, textAlign: 'center', lineHeight: 22, marginBottom: 20 }}>
+              {deepDive.house ? (
+                <Text style={{ fontSize: 12, color: colors.gold, textAlign: 'center', marginBottom: 14 }}>{deepDive.house}</Text>
+              ) : null}
+              <Text style={{ fontSize: 14, color: colors.text, textAlign: 'center', lineHeight: 22, marginBottom: 16, paddingHorizontal: 10 }}>
                 {deepDive.hook}
               </Text>
-              <View style={{ backgroundColor: T.warm, borderRadius: 14, padding: 16, width: '100%' }}>
-                <Text style={{ fontSize: 12, fontFamily: FONTS.sansSemiBold, color: T.gold, letterSpacing: 1, marginBottom: 6 }}>UNLOCKS ON DAY {deepDive.unlockDay}</Text>
-                <Text style={{ fontSize: 13, color: T.stone, lineHeight: 20 }}>
-                  Come back daily to unlock new chart insights. Each placement reveals a deeper layer of your cosmic identity.
+              {/* Teaser — what they'll get when unlocked */}
+              <View style={{ backgroundColor: 'rgba(193,127,89,0.06)', borderLeftWidth: 3, borderLeftColor: '#C17F59', borderRadius: 12, padding: 14, width: '100%', marginBottom: 16 }}>
+                <Text style={{ fontSize: 12.5, color: T.stone, lineHeight: 20, fontStyle: 'italic' }}>
+                  {deepDive.teaser || `The full deep dive reveals patterns, blind spots, and the insight that makes you say "how does it know?"` }
                 </Text>
               </View>
+              {/* Unlock options */}
+              <TouchableOpacity
+                style={{ backgroundColor: colors.navy, borderRadius: 100, paddingVertical: 12, paddingHorizontal: 28, marginBottom: 10, width: '100%', alignItems: 'center' }}
+                activeOpacity={0.8}
+                onPress={() => { setShowDeepDive(false); navigation.navigate('Paywall', { source: 'drip' }); }}>
+                <Text style={{ fontFamily: FONTS.sansMedium, fontSize: 13, color: T.cream }}>See All Your Placements Now →</Text>
+              </TouchableOpacity>
+              <Text style={{ fontSize: 11, color: colors.textSecondary, textAlign: 'center' }}>
+                or come back {deepDive.unlockDay === 1 ? 'tomorrow' : `in ${deepDive.unlockDay} days`} to unlock for free
+              </Text>
               {unlockProgress && (
-                <View style={{ marginTop: 20, alignItems: 'center' }}>
+                <View style={{ marginTop: 16, alignItems: 'center' }}>
                   <View style={[styles.unlockBarTrack, { width: 200 }]}>
                     <View style={[styles.unlockBarFill, { width: `${unlockProgress.percentage}%` }]} />
                   </View>
-                  <Text style={{ fontSize: 11, color: T.stone, marginTop: 6 }}>{unlockProgress.unlocked}/{unlockProgress.total} placements revealed</Text>
+                  <Text style={{ fontSize: 10, color: colors.textSecondary, marginTop: 4 }}>{unlockProgress.unlocked}/{unlockProgress.total} deep dives unlocked</Text>
                 </View>
               )}
             </View>
           ) : deepDiveLoading ? (
             <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>
-              <ActivityIndicator size="large" color={T.gold} />
-              <Text style={{ fontSize: 14, color: T.stone, marginTop: 12 }}>
+              <ActivityIndicator size="large" color={colors.gold} />
+              <Text style={{ fontSize: 14, color: colors.textSecondary, marginTop: 12 }}>
                 {deepDiveType === 'planet' ? 'Reading your placement...' :
                   deepDiveType === 'aspect' ? 'Interpreting the aspect...' :
                     'Exploring this house...'}
@@ -585,17 +636,17 @@ export default function ChartScreen() {
                   {deepDive.house && (
                     <Text style={styles.ddHouseLabel}>HOUSE {toRoman(deepDive.house)}</Text>
                   )}
-                  <AstroText text={deepDive.hook} style={styles.ddHook} />
+                  <AstroText text={deepDive.hook} style={[styles.ddHook, { color: colors.heading }]} />
                   {deepDive.definition && (
-                    <View style={styles.ddDefBox}>
-                      <AstroText text={deepDive.definition} style={styles.ddDefText} />
+                    <View style={[styles.ddDefBox, { backgroundColor: colors.card, borderColor: colors.border }]}>
+                      <AstroText text={deepDive.definition} style={[styles.ddDefText, { color: colors.text }]} />
                     </View>
                   )}
                   {deepDive.traits && deepDive.traits.length > 0 && (
                     <View style={styles.ddTraits}>
-                      <Text style={styles.ddTraitsLabel}>KEY TRAITS</Text>
+                      <Text style={[styles.ddTraitsLabel, { color: colors.textSecondary }]}>KEY TRAITS</Text>
                       {deepDive.traits.map((t, i) => (
-                        <Text key={i} style={styles.ddTrait}>• {t}</Text>
+                        <Text key={i} style={[styles.ddTrait, { color: colors.text }]}>• {t}</Text>
                       ))}
                     </View>
                   )}
@@ -611,34 +662,34 @@ export default function ChartScreen() {
                       {ASPECT_GLYPHS[deepDive.aspectType] || '⬡'} {ASPECT_NATURE[deepDive.aspectType] || deepDive.aspectType} · orb {deepDive.orb}°
                     </Text>
                   </View>
-                  <AstroText text={deepDive.hook} style={styles.ddHook} />
+                  <AstroText text={deepDive.hook} style={[styles.ddHook, { color: colors.heading }]} />
 
                   {deepDive.dynamic && (
-                    <View style={styles.ddDefBox}>
+                    <View style={[styles.ddDefBox, { backgroundColor: colors.card, borderColor: colors.border }]}>
                       <Text style={styles.ddSectionLabel}>THE DYNAMIC</Text>
-                      <AstroText text={deepDive.dynamic} style={styles.ddDefText} />
+                      <AstroText text={deepDive.dynamic} style={[styles.ddDefText, { color: colors.text }]} />
                     </View>
                   )}
 
                   <View style={styles.ddAspectGrid}>
                     {deepDive.strength && (
-                      <View style={[styles.ddAspectCard, { borderLeftColor: '#7EC8A0' }]}>
+                      <View style={[styles.ddAspectCard, { borderLeftColor: '#7EC8A0', backgroundColor: colors.card, borderColor: colors.border }]}>
                         <Text style={[styles.ddSectionLabel, { color: '#7EC8A0' }]}>STRENGTH</Text>
-                        <AstroText text={deepDive.strength} style={styles.ddDefText} />
+                        <AstroText text={deepDive.strength} style={[styles.ddDefText, { color: colors.text }]} />
                       </View>
                     )}
                     {deepDive.challenge && (
-                      <View style={[styles.ddAspectCard, { borderLeftColor: '#E87878' }]}>
+                      <View style={[styles.ddAspectCard, { borderLeftColor: '#E87878', backgroundColor: colors.card, borderColor: colors.border }]}>
                         <Text style={[styles.ddSectionLabel, { color: '#E87878' }]}>CHALLENGE</Text>
-                        <AstroText text={deepDive.challenge} style={styles.ddDefText} />
+                        <AstroText text={deepDive.challenge} style={[styles.ddDefText, { color: colors.text }]} />
                       </View>
                     )}
                   </View>
 
                   {deepDive.advice && (
-                    <View style={styles.ddAdviceBox}>
+                    <View style={[styles.ddAdviceBox, { backgroundColor: colors.cardAlt }]}>
                       <Text style={styles.ddSectionLabel}>YOUR MOVE</Text>
-                      <AstroText text={deepDive.advice} style={styles.ddAdviceText} />
+                      <AstroText text={deepDive.advice} style={[styles.ddAdviceText, { color: colors.text }]} />
                     </View>
                   )}
                 </>
@@ -650,19 +701,19 @@ export default function ChartScreen() {
                   {deepDive.theme && (
                     <Text style={styles.ddHouseLabel}>{deepDive.theme.toUpperCase()}</Text>
                   )}
-                  <Text style={styles.ddHook}>{deepDive.hook}</Text>
+                  <Text style={[styles.ddHook, { color: colors.heading }]}>{deepDive.hook}</Text>
 
                   {deepDive.meaning && (
-                    <View style={styles.ddDefBox}>
+                    <View style={[styles.ddDefBox, { backgroundColor: colors.card, borderColor: colors.border }]}>
                       <Text style={styles.ddSectionLabel}>WHAT THIS HOUSE GOVERNS</Text>
-                      <Text style={styles.ddDefText}>{deepDive.meaning}</Text>
+                      <Text style={[styles.ddDefText, { color: colors.text }]}>{deepDive.meaning}</Text>
                     </View>
                   )}
 
                   {deepDive.signInfluence && (
-                    <View style={styles.ddDefBox}>
+                    <View style={[styles.ddDefBox, { backgroundColor: colors.card, borderColor: colors.border }]}>
                       <Text style={styles.ddSectionLabel}>{deepDive.sign?.toUpperCase()} INFLUENCE</Text>
-                      <Text style={styles.ddDefText}>{deepDive.signInfluence}</Text>
+                      <Text style={[styles.ddDefText, { color: colors.text }]}>{deepDive.signInfluence}</Text>
                     </View>
                   )}
 
@@ -672,9 +723,9 @@ export default function ChartScreen() {
                       <Text style={styles.ddSectionLabel}>PLANETS HERE</Text>
                       <View style={styles.ddHousePlanetChips}>
                         {deepDive.planetsInHouse.map((p, i) => (
-                          <View key={i} style={styles.ddHousePlanetChip}>
+                          <View key={i} style={[styles.ddHousePlanetChip, { backgroundColor: colors.card, borderColor: colors.border }]}>
                             <Text style={styles.ddHousePlanetGlyph}>{PLANET_GLYPHS[p.name] || '★'}</Text>
-                            <Text style={styles.ddHousePlanetName}>{p.name} in {p.sign}</Text>
+                            <Text style={[styles.ddHousePlanetName, { color: colors.heading }]}>{p.name} in {p.sign}</Text>
                           </View>
                         ))}
                       </View>
@@ -682,16 +733,16 @@ export default function ChartScreen() {
                   )}
 
                   {deepDive.planetsInfluence && (
-                    <View style={styles.ddDefBox}>
+                    <View style={[styles.ddDefBox, { backgroundColor: colors.card, borderColor: colors.border }]}>
                       <Text style={styles.ddSectionLabel}>PLANETARY INFLUENCE</Text>
-                      <Text style={styles.ddDefText}>{deepDive.planetsInfluence}</Text>
+                      <Text style={[styles.ddDefText, { color: colors.text }]}>{deepDive.planetsInfluence}</Text>
                     </View>
                   )}
 
                   {deepDive.lifeLesson && (
-                    <View style={styles.ddAdviceBox}>
+                    <View style={[styles.ddAdviceBox, { backgroundColor: colors.cardAlt }]}>
                       <Text style={styles.ddSectionLabel}>LIFE LESSON</Text>
-                      <Text style={styles.ddAdviceText}>{deepDive.lifeLesson}</Text>
+                      <Text style={[styles.ddAdviceText, { color: colors.text }]}>{deepDive.lifeLesson}</Text>
                     </View>
                   )}
                 </>
@@ -700,18 +751,67 @@ export default function ChartScreen() {
               {/* Shared: Quote card — tap to share */}
               {/* Bridge to Chat */}
               {deepDive && !deepDive.locked && (
-                <TouchableOpacity style={styles.ddAskBtn} activeOpacity={0.7}
-                  onPress={() => {
-                    const q = deepDiveType === 'planet'
-                      ? `Tell me more about my ${deepDive.planetName} in ${deepDive.sign}. What does it mean for my daily life?`
-                      : deepDiveType === 'aspect'
-                      ? `What does ${deepDive.planet1} ${deepDive.aspectType} ${deepDive.planet2} mean in my chart?`
-                      : `Tell me about my ${deepDive.houseNumber ? 'House ' + deepDive.houseNumber : 'chart'} and what it means for me.`;
-                    setShowDeepDive(false);
-                    setTimeout(() => navigation.navigate('AskAI', { initialMessage: q }), 300);
-                  }}>
-                  <Text style={styles.ddAskBtnIcon}>☽</Text>
-                  <Text style={styles.ddAskBtnText}>Ask Celestia about this</Text>
+                <View style={styles.ddBridgeStack}>
+                  <TouchableOpacity style={styles.ddAskBtn} activeOpacity={0.7}
+                    onPress={() => {
+                      const q = deepDiveType === 'planet'
+                        ? `Tell me more about my ${deepDive.planetName} in ${deepDive.sign}. What does it mean for my daily life?`
+                        : deepDiveType === 'aspect'
+                        ? `What does ${deepDive.planet1} ${deepDive.aspectType} ${deepDive.planet2} mean in my chart?`
+                        : `Tell me about my ${deepDive.houseNumber ? 'House ' + deepDive.houseNumber : 'chart'} and what it means for me.`;
+                      setShowDeepDive(false);
+                      setTimeout(() => navigation.navigate('AskAI', { initialMessage: q }), 300);
+                    }}>
+                    <Text style={styles.ddAskBtnIcon}>☽</Text>
+                    <Text style={styles.ddAskBtnText}>Ask Celestia about this</Text>
+                    <Text style={styles.ddBridgeArrow}>{'\u2192'}</Text>
+                  </TouchableOpacity>
+
+                  {/* Bridge to Circle/Compatibility */}
+                  <TouchableOpacity style={[styles.ddBridgeBtn, { backgroundColor: colors.cardAlt, borderColor: colors.border }]} activeOpacity={0.7}
+                    onPress={() => {
+                      setShowDeepDive(false);
+                      setTimeout(() => navigation.navigate('MainTabs', { screen: 'Circle' }), 300);
+                    }}>
+                    <Text style={styles.ddBridgeBtnIcon}>{'\u2661'}</Text>
+                    <Text style={[styles.ddBridgeBtnText, { color: colors.heading }]}>See how this affects your relationships</Text>
+                    <Text style={styles.ddBridgeArrow}>{'\u2192'}</Text>
+                  </TouchableOpacity>
+
+                  {/* Bridge to Reports */}
+                  <TouchableOpacity style={[styles.ddBridgeBtn, { backgroundColor: colors.cardAlt, borderColor: colors.border }]} activeOpacity={0.7}
+                    onPress={() => {
+                      setShowDeepDive(false);
+                      setTimeout(() => navigation.navigate('MainTabs', { screen: 'Reports' }), 300);
+                    }}>
+                    <Text style={styles.ddBridgeBtnIcon}>{'\u2727'}</Text>
+                    <Text style={[styles.ddBridgeBtnText, { color: colors.heading }]}>Get your full {deepDive.planetName || (deepDive.planet1 ? deepDive.planet1 + '-' + deepDive.planet2 : 'house')} deep-dive report</Text>
+                    <Text style={styles.ddBridgeArrow}>{'\u2192'}</Text>
+                  </TouchableOpacity>
+                </View>
+              )}
+
+              {/* Share This — planet placement text share */}
+              {deepDiveType === 'planet' && deepDive && !deepDive.locked && (deepDive.share_quote || deepDive.hook) && (
+                <TouchableOpacity
+                  style={styles.ddShareThisBtn}
+                  activeOpacity={0.7}
+                  onPress={async () => {
+                    haptic.light();
+                    const quote = deepDive.share_quote || deepDive.hook;
+                    const message = `My ${deepDive.planetName} is in ${deepDive.sign} \u2014 ${quote}\n\n\u2014 Celestia \u2726 celestia.app`;
+                    try {
+                      await Share.share({ message });
+                      trackEvent('share').catch(() => {});
+                      awardXP(userProfile?.id || 'default', 'share').catch(() => {});
+                      capture(EVENTS.CHART_DEEP_DIVE, { action: 'share_placement', planet: deepDive.planetName, sign: deepDive.sign });
+                    } catch (e) {
+                      // User cancelled or share failed
+                    }
+                  }}
+                >
+                  <Text style={styles.ddShareThisIcon}>{'\u2197'}</Text>
+                  <Text style={styles.ddShareThisText}>Share This</Text>
                 </TouchableOpacity>
               )}
 
@@ -768,6 +868,12 @@ const styles = StyleSheet.create({
   heroSub: { fontSize: 12, color: 'rgba(250,248,242,0.4)', marginTop: 3 },
   housePill: { backgroundColor: 'rgba(255,255,255,0.08)', borderWidth: 1, borderColor: 'rgba(255,255,255,0.1)', borderRadius: 100, paddingVertical: 5, paddingHorizontal: 14 },
   housePillText: { fontSize: 11, color: 'rgba(250,248,242,0.48)' },
+  depthToggle: { backgroundColor: 'rgba(255,255,255,0.06)', borderWidth: 1, borderColor: 'rgba(255,255,255,0.1)', borderRadius: 100, paddingVertical: 5, paddingHorizontal: 12 },
+  depthToggleActive: { backgroundColor: 'rgba(200,168,75,0.15)', borderColor: 'rgba(200,168,75,0.3)' },
+  depthToggleText: { fontSize: 10, fontFamily: FONTS.sansMedium, color: 'rgba(250,248,242,0.48)' },
+  depthToggleTextActive: { color: T.gold },
+  retroBadge: { backgroundColor: 'rgba(232,120,120,0.12)', borderRadius: 4, paddingHorizontal: 6, paddingVertical: 2, alignSelf: 'flex-start', marginTop: 3 },
+  retroBadgeText: { fontSize: 8, fontFamily: FONTS.sansSemiBold, letterSpacing: 1, color: '#E87878' },
   big3Row: { flexDirection: 'row', width: '100%', paddingHorizontal: 22, marginBottom: 12 },
   big3Item: { flex: 1, alignItems: 'center', paddingVertical: 10 },
   big3Glyph: { fontSize: 20, color: T.gold, marginBottom: 2 },
@@ -849,8 +955,17 @@ const styles = StyleSheet.create({
   showFullBtnText: { fontSize: 13, fontFamily: FONTS.sansMedium, color: T.navy },
   atGlanceToggle: { paddingHorizontal: 20, paddingVertical: 10 },
   atGlanceToggleText: { fontSize: 12, fontFamily: FONTS.sansMedium, color: T.gold },
-  // Deep dive ask bridge
-  ddAskBtn: { flexDirection: 'row', alignItems: 'center', gap: 8, backgroundColor: T.navy, borderRadius: 12, padding: 12, marginTop: 12 },
+  // Deep dive bridge stack
+  ddBridgeStack: { gap: 8, marginTop: 12 },
+  ddAskBtn: { flexDirection: 'row', alignItems: 'center', gap: 8, backgroundColor: T.navy, borderRadius: 12, padding: 12 },
   ddAskBtnIcon: { fontSize: 16, color: T.gold },
-  ddAskBtnText: { fontSize: 13, fontFamily: FONTS.sansMedium, color: T.cream },
+  ddAskBtnText: { flex: 1, fontSize: 13, fontFamily: FONTS.sansMedium, color: T.cream },
+  ddBridgeBtn: { flexDirection: 'row', alignItems: 'center', gap: 8, backgroundColor: T.warm, borderRadius: 12, padding: 12, borderWidth: 1, borderColor: '#E8E2D8' },
+  ddBridgeBtnIcon: { fontSize: 16, color: T.gold },
+  ddBridgeBtnText: { flex: 1, fontSize: 13, fontFamily: FONTS.sansMedium, color: T.navy },
+  ddBridgeArrow: { fontSize: 16, color: T.stone },
+  // Share This button
+  ddShareThisBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, backgroundColor: 'rgba(200,168,75,0.12)', borderWidth: 1, borderColor: 'rgba(200,168,75,0.3)', borderRadius: 12, paddingVertical: 12, paddingHorizontal: 20, marginTop: 16 },
+  ddShareThisIcon: { fontSize: 15, color: T.gold },
+  ddShareThisText: { fontSize: 14, fontFamily: FONTS.sansMedium, color: T.gold },
 });

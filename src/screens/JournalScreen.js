@@ -6,6 +6,7 @@ import {
 import { LinearGradient } from 'expo-linear-gradient';
 import { T, FONTS } from '../constants/theme';
 import { useUserProfile } from '../contexts/UserProfileContext';
+import { useTheme } from '../contexts/ThemeContext';
 import { getMoonDataForDate, getTransitPlanets, captureCosmicSnapshot } from '../services/astrologyService';
 import { JournalRepository } from '../services/database/rep_journal';
 import { loadObject, saveObject } from '../services/storage';
@@ -59,6 +60,7 @@ const PROMPTS = [
 ];
 
 export default function JournalScreen({ navigation, route }) {
+  const { colors, isDark } = useTheme();
   const { userProfile } = useUserProfile();
   const [journalText, setJournalText] = useState('');
   const [mood, setMood] = useState(null);
@@ -177,7 +179,7 @@ export default function JournalScreen({ navigation, route }) {
   const monthName = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'][today.getMonth()];
 
   return (
-    <KeyboardAvoidingView style={{ flex: 1, backgroundColor: T.cream }}
+    <KeyboardAvoidingView style={{ flex: 1, backgroundColor: colors.bg }}
       behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
 
       <ScrollView style={{ flex: 1 }} showsVerticalScrollIndicator={false}
@@ -225,62 +227,62 @@ export default function JournalScreen({ navigation, route }) {
         <View style={styles.body}>
 
           {/* ── Prompt ── */}
-          <View style={styles.promptCard}>
-            <Text style={styles.promptLabel}>TODAY'S PROMPT</Text>
-            <Text style={styles.promptText}>"{allPrompts[promptIndex]}"</Text>
+          <View style={[styles.promptCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
+            <Text style={[styles.promptLabel, { color: colors.textSecondary }]}>TODAY'S PROMPT</Text>
+            <Text style={[styles.promptText, { color: colors.heading }]}>"{allPrompts[promptIndex]}"</Text>
             <TouchableOpacity onPress={() => setPromptIndex((promptIndex + 1) % allPrompts.length)}>
               <Text style={styles.promptShuffle}>Try another prompt</Text>
             </TouchableOpacity>
           </View>
 
           {/* ── Mood ── */}
-          <Text style={styles.sectionLabel}>HOW DO YOU FEEL?</Text>
+          <Text style={[styles.sectionLabel, { color: colors.textSecondary }]}>HOW DO YOU FEEL?</Text>
           <View style={styles.moodRow}>
             {MOODS.map(m => (
               <TouchableOpacity
                 key={m.key}
-                style={[styles.moodChip, mood === m.key && styles.moodChipOn]}
+                style={[styles.moodChip, { backgroundColor: colors.card, borderColor: colors.border }, mood === m.key && styles.moodChipOn]}
                 activeOpacity={0.7}
                 onPress={() => { haptic.selection(); setMood(m.key); }}>
                 <Text style={styles.moodEmoji}>{m.emoji}</Text>
-                <Text style={[styles.moodLabel, mood === m.key && styles.moodLabelOn]}>{m.label}</Text>
+                <Text style={[styles.moodLabel, { color: colors.textSecondary }, mood === m.key && styles.moodLabelOn]}>{m.label}</Text>
               </TouchableOpacity>
             ))}
           </View>
 
           {/* ── Energy ── */}
-          <Text style={styles.sectionLabel}>ENERGY LEVEL</Text>
+          <Text style={[styles.sectionLabel, { color: colors.textSecondary }]}>ENERGY LEVEL</Text>
           <View style={styles.energyRow}>
             {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map(n => (
               <TouchableOpacity key={n} onPress={() => { haptic.light(); setEnergy(n); }}>
-                <View style={[styles.energyDot, n <= energy && styles.energyDotOn]} />
+                <View style={[styles.energyDot, { backgroundColor: colors.cardAlt, borderColor: colors.border }, n <= energy && styles.energyDotOn]} />
               </TouchableOpacity>
             ))}
             <Text style={styles.energyNum}>{energy}</Text>
           </View>
 
           {/* ── Tags ── */}
-          <Text style={styles.sectionLabel}>WHAT'S THIS ABOUT?</Text>
+          <Text style={[styles.sectionLabel, { color: colors.textSecondary }]}>WHAT'S THIS ABOUT?</Text>
           <View style={styles.tagsRow}>
             {TAGS.map(t => (
               <TouchableOpacity
                 key={t.key}
-                style={[styles.tagChip, selectedTags.includes(t.key) && { backgroundColor: t.color + '18', borderColor: t.color + '40' }]}
+                style={[styles.tagChip, { backgroundColor: colors.card, borderColor: colors.border }, selectedTags.includes(t.key) && { backgroundColor: t.color + '18', borderColor: t.color + '40' }]}
                 activeOpacity={0.7}
                 onPress={() => { haptic.light(); toggleTag(t.key); }}>
-                <Text style={[styles.tagIcon, selectedTags.includes(t.key) && { color: t.color }]}>{t.icon}</Text>
-                <Text style={[styles.tagLabel, selectedTags.includes(t.key) && { color: t.color }]}>{t.label}</Text>
+                <Text style={[styles.tagIcon, { color: colors.textSecondary }, selectedTags.includes(t.key) && { color: t.color }]}>{t.icon}</Text>
+                <Text style={[styles.tagLabel, { color: colors.textSecondary }, selectedTags.includes(t.key) && { color: t.color }]}>{t.label}</Text>
               </TouchableOpacity>
             ))}
           </View>
 
           {/* ── Writing area ── */}
-          <View style={styles.writeCard}>
+          <View style={[styles.writeCard, { backgroundColor: colors.inputBg, borderColor: colors.border }]}>
             <TextInput
               ref={textRef}
-              style={styles.writeInput}
+              style={[styles.writeInput, { color: colors.text }]}
               placeholder="Let your thoughts flow..."
-              placeholderTextColor="rgba(42,36,24,0.3)"
+              placeholderTextColor={colors.inputPlaceholder}
               multiline
               textAlignVertical="top"
               value={journalText}
@@ -291,22 +293,22 @@ export default function JournalScreen({ navigation, route }) {
           </View>
 
           {/* ── Cosmic context while writing ── */}
-          <View style={styles.cosmicContext}>
-            <Text style={styles.cosmicContextLabel}>THE SKY RIGHT NOW</Text>
-            <Text style={styles.cosmicContextText}>
+          <View style={[styles.cosmicContext, { backgroundColor: colors.cardAlt, borderColor: colors.border }]}>
+            <Text style={[styles.cosmicContextLabel, { color: colors.textSecondary }]}>THE SKY RIGHT NOW</Text>
+            <Text style={[styles.cosmicContextText, { color: colors.text }]}>
               {moonIcon} {moonData?.phaseName} in {moonData?.sign}
               {moonData?.illumination != null ? ` · ${moonData.illumination.toFixed(0)}% illuminated` : ''}
             </Text>
             <View style={styles.cosmicPlanetsRow}>
               {planets.map((p, i) => (
                 <View key={i} style={styles.cosmicPlanetItem}>
-                  <Text style={styles.cosmicPlanetGlyph}>{PLANET_GLYPHS[p.name]}</Text>
-                  <Text style={styles.cosmicPlanetName}>{p.name}</Text>
-                  <Text style={styles.cosmicPlanetSign}>{p.sign} {Math.round(p.degree)}°{p.isRetrograde ? ' ℞' : ''}</Text>
+                  <Text style={[styles.cosmicPlanetGlyph, { color: colors.textSecondary }]}>{PLANET_GLYPHS[p.name]}</Text>
+                  <Text style={[styles.cosmicPlanetName, { color: colors.textSecondary }]}>{p.name}</Text>
+                  <Text style={[styles.cosmicPlanetSign, { color: colors.textSecondary }]}>{p.sign} {Math.round(p.degree)}°{p.isRetrograde ? ' ℞' : ''}</Text>
                 </View>
               ))}
             </View>
-            <Text style={styles.cosmicContextNote}>This snapshot will be saved with your entry</Text>
+            <Text style={[styles.cosmicContextNote, { color: colors.textSecondary }]}>This snapshot will be saved with your entry</Text>
           </View>
 
           {/* ── Save button ── */}

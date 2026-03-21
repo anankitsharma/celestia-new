@@ -75,6 +75,8 @@ const DEFAULT_SETTINGS = {
   quietHoursEnabled: false,
   quietHoursStart: 22,
   quietHoursEnd: 7,
+  morningTime: 7,
+  morningMinute: 30,
 };
 
 export async function getNotificationSettings() {
@@ -106,12 +108,15 @@ export async function scheduleAllNotifications(userProfile, forecast, streakData
 
     // 1. COSMIC MORNING — AI-generated lines on specific dates, fallback to template
     if (settings.cosmic_morning) {
+      const mHour = settings.morningTime ?? 7;
+      const mMinute = settings.morningMinute ?? 30;
       let morningScheduled = false;
       try {
         const aiLines = await getAllFutureCosmicLines();
         const linesToSchedule = aiLines.slice(0, 5);
         for (const line of linesToSchedule) {
-          const trigDate = new Date(line.date + 'T07:30:00');
+          const trigDate = new Date(line.date + 'T00:00:00');
+          trigDate.setHours(mHour, mMinute, 0, 0);
           if (trigDate > now) {
             queue.push({
               category: 'COSMIC_MORNING',
@@ -136,7 +141,7 @@ export async function scheduleAllNotifications(userProfile, forecast, streakData
           queue.push({
             category: 'COSMIC_MORNING',
             channel: 'cosmic_morning',
-            hour: 7, minute: 30,
+            hour: mHour, minute: mMinute,
             trigger: 'daily',
             content,
             params: { tab: 'today', highlightLifeArea: content.lifeArea || null },
@@ -146,8 +151,8 @@ export async function scheduleAllNotifications(userProfile, forecast, streakData
       }
     }
 
-    // 2. EVENING REFLECTION — skip Fri/Sat, 8:30 PM
-    if (settings.evening_reflection && dayOfWeek !== 5 && dayOfWeek !== 6) {
+    // 2. EVENING REFLECTION — every day, 8:30 PM (Mia's peak is Sunday 10:30pm — weekends matter most)
+    if (settings.evening_reflection) {
       if (currentHour < 20) {
         const content = generateNotificationContent('EVENING_REFLECTION', data, recentTemplates);
         if (content) {

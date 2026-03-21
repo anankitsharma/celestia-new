@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { View, Text, TouchableOpacity, Modal, StyleSheet } from 'react-native';
 import { T, FONTS } from '../constants/theme';
+import { useTheme } from '../contexts/ThemeContext';
 
 // Tooltip content database
 const TOOLTIP_DATA = {
@@ -197,6 +198,7 @@ const TOOLTIP_DATA = {
  */
 export default function CosmicTooltip({ id, size = 16, color = T.stone, light = false }) {
   const [visible, setVisible] = useState(false);
+  const { colors, isDark } = useTheme();
   const data = TOOLTIP_DATA[id];
 
   if (!data) return null;
@@ -204,22 +206,29 @@ export default function CosmicTooltip({ id, size = 16, color = T.stone, light = 
   return (
     <>
       <TouchableOpacity
-        style={[styles.trigger, { width: size + 4, height: size + 4 }, light && styles.triggerLight]}
+        style={[
+          styles.trigger,
+          { width: size + 4, height: size + 4 },
+          light ? styles.triggerLight : { backgroundColor: isDark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.05)' },
+        ]}
         onPress={() => setVisible(true)}
         hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
-        <Text style={[styles.triggerText, { fontSize: size - 4, color: light ? 'rgba(250,248,242,0.4)' : color }]}>?</Text>
+        <Text style={[styles.triggerText, { fontSize: size - 4, color: light ? 'rgba(250,248,242,0.4)' : (isDark ? colors.textMuted : color) }]}>?</Text>
       </TouchableOpacity>
 
       <Modal visible={visible} transparent animationType="fade">
-        <TouchableOpacity style={styles.overlay} activeOpacity={1} onPress={() => setVisible(false)}>
-          <View style={styles.card}>
+        <TouchableOpacity style={[styles.overlay, { backgroundColor: colors.modalOverlay }]} activeOpacity={1} onPress={() => setVisible(false)}>
+          <View style={[styles.card, { backgroundColor: colors.modalBg }]}>
+            {/* Gold accent bar */}
+            <View style={{ height: 3, backgroundColor: colors.gold, borderRadius: 2, marginBottom: 14, width: 40 }} />
             <View style={styles.header}>
-              <Text style={styles.title}>{data.title}</Text>
-              <TouchableOpacity onPress={() => setVisible(false)}>
-                <Text style={{ fontSize: 16, color: T.stone, padding: 4 }}>✕</Text>
+              <Text style={[styles.title, { color: colors.heading }]}>{data.title}</Text>
+              <TouchableOpacity onPress={() => setVisible(false)} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
+                <Text style={{ fontSize: 16, color: colors.textMuted, padding: 4 }}>✕</Text>
               </TouchableOpacity>
             </View>
-            <Text style={styles.body}>{data.body}</Text>
+            <Text style={[styles.body, { color: colors.text }]}>{data.body}</Text>
+            <Text style={{ fontSize: 10, color: colors.textMuted, marginTop: 12, fontStyle: 'italic' }}>Tap anywhere to close</Text>
           </View>
         </TouchableOpacity>
       </Modal>

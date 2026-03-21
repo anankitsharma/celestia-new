@@ -5,6 +5,7 @@ import { T, FONTS } from '../constants/theme';
 import Stars from '../components/Stars';
 import ChartWheel from '../components/ChartWheel';
 import { useUserProfile } from '../contexts/UserProfileContext';
+import { useTheme } from '../contexts/ThemeContext';
 
 // Deeply specific placement statements — these feel personal, not generic
 const MOON_HOUSE_INSIGHTS = {
@@ -67,6 +68,7 @@ function getElement(sign) {
 }
 
 export default function WelcomeScreen({ navigation }) {
+  const { colors, isDark } = useTheme();
   const { userProfile } = useUserProfile();
   const chart = userProfile?.chart;
   const firstName = userProfile?.name?.split(' ')[0] || 'Stargazer';

@@ -1,18 +1,20 @@
 import React from 'react';
 import { View, Text, StyleSheet } from 'react-native';
 import { T, FONTS } from '../constants/theme';
+import { useTheme } from '../contexts/ThemeContext';
 
 export default function QuestCard({ quests, allComplete, weeklyCount }) {
+  const { colors, isDark } = useTheme();
   if (!quests || quests.length === 0) return null;
 
   const completedCount = quests.filter(q => q.completed).length;
 
   return (
-    <View style={s.card}>
+    <View style={[s.card, { backgroundColor: colors.card, borderColor: isDark ? 'rgba(200,168,75,0.1)' : 'rgba(200,168,75,0.15)' }]}>
       <View style={s.header}>
         <View style={{ flex: 1 }}>
-          <Text style={s.label}>TODAY THE COSMOS ASKS</Text>
-          <Text style={s.sub}>{allComplete ? 'Chapter complete! +30 bonus Stardust' : `${completedCount}/3 answered`}</Text>
+          <Text style={[s.label, { color: colors.textSecondary }]}>TODAY THE COSMOS ASKS</Text>
+          <Text style={[s.sub, { color: colors.text }]}>{allComplete ? 'Chapter complete! +30 bonus Stardust' : `${completedCount}/3 answered`}</Text>
         </View>
         {weeklyCount > 0 && (
           <View style={s.weekBadge}>
@@ -22,12 +24,12 @@ export default function QuestCard({ quests, allComplete, weeklyCount }) {
       </View>
 
       {quests.map((q, i) => (
-        <View key={q.id || i} style={[s.questRow, q.completed && s.questComplete]}>
-          <View style={[s.check, q.completed && s.checkDone]}>
+        <View key={q.id || i} style={[s.questRow, q.completed && s.questComplete, { borderBottomColor: isDark ? 'rgba(255,255,255,0.04)' : 'rgba(0,0,0,0.04)' }]}>
+          <View style={[s.check, { borderColor: isDark ? 'rgba(255,255,255,0.15)' : 'rgba(0,0,0,0.12)' }, q.completed && s.checkDone]}>
             {q.completed && <Text style={s.checkMark}>✓</Text>}
           </View>
-          <Text style={s.questIcon}>{q.icon}</Text>
-          <Text style={[s.questText, q.completed && s.questTextDone]}>{q.label}</Text>
+          <Text style={[s.questIcon, { color: colors.textSecondary }]}>{q.icon}</Text>
+          <Text style={[s.questText, { color: colors.text }, q.completed && { textDecorationLine: 'line-through', color: colors.textMuted }]}>{q.label}</Text>
           {q.completed && <Text style={s.xpChip}>+15 XP</Text>}
         </View>
       ))}

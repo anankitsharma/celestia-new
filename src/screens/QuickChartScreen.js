@@ -4,6 +4,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { T, FONTS } from '../constants/theme';
 import { useUserProfile } from '../contexts/UserProfileContext';
+import { useTheme } from '../contexts/ThemeContext';
 import { calculateChart } from '../services/astrologyService';
 import { haptic } from '../services/hapticService';
 import * as Crypto from 'expo-crypto';
@@ -29,6 +30,7 @@ const ELEMENT_COLORS = {
 const BIG_THREE = ['Sun', 'Moon', 'Ascendant'];
 
 export default function QuickChartScreen({ navigation }) {
+  const { colors, isDark } = useTheme();
   const { addPartner } = useUserProfile();
 
   // Form state
@@ -188,7 +190,7 @@ export default function QuickChartScreen({ navigation }) {
   // ── RENDER ──────────────────────────────────────────────────────────────────
 
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, { backgroundColor: colors.bg }]}>
       <StatusBar barStyle="light-content" />
       <ScrollView style={styles.scroll} contentContainerStyle={styles.scrollContent} keyboardShouldPersistTaps="handled">
 
@@ -213,19 +215,19 @@ export default function QuickChartScreen({ navigation }) {
         {/* ── FORM ── */}
         {!chartResult && (
           <View style={styles.formSection}>
-            <Text style={styles.fieldLabel}>NAME</Text>
+            <Text style={[styles.fieldLabel, { color: colors.textSecondary }]}>NAME</Text>
             <TextInput
-              style={styles.input}
+              style={[styles.input, { backgroundColor: colors.inputBg, borderColor: colors.inputBorder, color: colors.heading }]}
               placeholder="Enter name..."
-              placeholderTextColor={T.stone}
+              placeholderTextColor={colors.inputPlaceholder}
               value={name}
               onChangeText={setName}
               autoCapitalize="words"
             />
 
-            <Text style={styles.fieldLabel}>BIRTH DATE</Text>
-            <TouchableOpacity style={styles.input} onPress={() => setShowDatePicker(true)}>
-              <Text style={{ color: birthDate ? T.navy : T.stone, fontFamily: FONTS.sansMedium }}>
+            <Text style={[styles.fieldLabel, { color: colors.textSecondary }]}>BIRTH DATE</Text>
+            <TouchableOpacity style={[styles.input, { backgroundColor: colors.inputBg, borderColor: colors.inputBorder }]} onPress={() => setShowDatePicker(true)}>
+              <Text style={{ color: birthDate ? colors.heading : colors.inputPlaceholder, fontFamily: FONTS.sansMedium }}>
                 {birthDate
                   ? birthDate.toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })
                   : 'Select date'}
@@ -241,12 +243,12 @@ export default function QuickChartScreen({ navigation }) {
               />
             )}
 
-            <Text style={styles.fieldLabel}>BIRTH TIME</Text>
+            <Text style={[styles.fieldLabel, { color: colors.textSecondary }]}>BIRTH TIME</Text>
             <TouchableOpacity
-              style={[styles.input, isTimeUnknown && { opacity: 0.4 }]}
+              style={[styles.input, { backgroundColor: colors.inputBg, borderColor: colors.inputBorder }, isTimeUnknown && { opacity: 0.4 }]}
               onPress={() => !isTimeUnknown && setShowTimePicker(true)}
             >
-              <Text style={{ color: (isTimeUnknown || birthTime) ? T.navy : T.stone, fontFamily: FONTS.sansMedium }}>
+              <Text style={{ color: (isTimeUnknown || birthTime) ? colors.heading : colors.inputPlaceholder, fontFamily: FONTS.sansMedium }}>
                 {isTimeUnknown ? 'Unknown' : (birthTime
                   ? birthTime.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })
                   : 'Select time')}
@@ -261,31 +263,31 @@ export default function QuickChartScreen({ navigation }) {
               />
             )}
             <TouchableOpacity style={styles.checkRow} onPress={() => setIsTimeUnknown(!isTimeUnknown)}>
-              <View style={[styles.check, isTimeUnknown && styles.checkOn]}>
+              <View style={[styles.check, { borderColor: colors.border }, isTimeUnknown && styles.checkOn]}>
                 {isTimeUnknown && <Text style={{ color: 'white', fontSize: 10 }}>✓</Text>}
               </View>
-              <Text style={styles.checkLabel}>I don't know the exact birth time</Text>
+              <Text style={[styles.checkLabel, { color: colors.textSecondary }]}>I don't know the exact birth time</Text>
             </TouchableOpacity>
 
-            <Text style={styles.fieldLabel}>BIRTH CITY</Text>
+            <Text style={[styles.fieldLabel, { color: colors.textSecondary }]}>BIRTH CITY</Text>
             <TextInput
-              style={styles.input}
+              style={[styles.input, { backgroundColor: colors.inputBg, borderColor: colors.inputBorder, color: colors.heading }]}
               placeholder="Search city..."
-              placeholderTextColor={T.stone}
+              placeholderTextColor={colors.inputPlaceholder}
               value={selectedCity ? selectedCity.name : citySearch}
               onChangeText={(t) => { setSelectedCity(null); handleCitySearch(t); }}
             />
             {citySearching && (
-              <View style={[styles.suggestions, { padding: 12, alignItems: 'center' }]}>
+              <View style={[styles.suggestions, { backgroundColor: colors.card, borderColor: colors.inputBorder, padding: 12, alignItems: 'center' }]}>
                 <ActivityIndicator size="small" color={T.gold} />
               </View>
             )}
             {!citySearching && citySuggestions.length > 0 && (
-              <View style={styles.suggestions}>
+              <View style={[styles.suggestions, { backgroundColor: colors.card, borderColor: colors.inputBorder }]}>
                 {citySuggestions.map((c, i) => (
-                  <TouchableOpacity key={i} style={styles.suggestion}
+                  <TouchableOpacity key={i} style={[styles.suggestion, { borderBottomColor: colors.divider }]}
                     onPress={() => { setSelectedCity(c); setCitySearch(c.name); setCitySuggestions([]); }}>
-                    <Text style={{ color: T.navy, fontSize: 14 }} numberOfLines={2}>{c.name}</Text>
+                    <Text style={{ color: colors.heading, fontSize: 14 }} numberOfLines={2}>{c.name}</Text>
                   </TouchableOpacity>
                 ))}
               </View>
@@ -310,18 +312,18 @@ export default function QuickChartScreen({ navigation }) {
 
             {/* Name + Birth Details */}
             <View style={styles.resultHeader}>
-              <Text style={styles.resultName}>{birthDetails.name}</Text>
-              <Text style={styles.resultDetails}>
+              <Text style={[styles.resultName, { color: colors.heading }]}>{birthDetails.name}</Text>
+              <Text style={[styles.resultDetails, { color: colors.textSecondary }]}>
                 {birthDate?.toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })}
                 {birthDetails.isTimeUnknown ? '' : ` at ${birthDetails.timeStr}`}
               </Text>
-              <Text style={styles.resultLocation} numberOfLines={1}>
+              <Text style={[styles.resultLocation, { color: colors.textSecondary }]} numberOfLines={1}>
                 {birthDetails.cityName?.split(',').slice(0, 2).join(',')}
               </Text>
             </View>
 
             {/* Big Three Cards */}
-            <Text style={styles.sectionTitle}>The Big Three</Text>
+            <Text style={[styles.sectionTitle, { color: colors.textSecondary }]}>The Big Three</Text>
             <View style={styles.bigThreeRow}>
               {BIG_THREE.map(planetName => {
                 const planet = chartResult.planets?.find(p => p.name === planetName);
@@ -329,33 +331,33 @@ export default function QuickChartScreen({ navigation }) {
                 const label = planetName === 'Ascendant' ? 'Rising' : planetName;
                 const elementColor = getElementColor(planet.sign);
                 return (
-                  <View key={planetName} style={[styles.bigThreeCard, { borderColor: elementColor }]}>
+                  <View key={planetName} style={[styles.bigThreeCard, { backgroundColor: colors.card, borderColor: elementColor }]}>
                     <Text style={styles.bigThreeGlyph}>{PLANET_GLYPHS[planetName]}</Text>
-                    <Text style={styles.bigThreeLabel}>{label}</Text>
-                    <Text style={styles.bigThreeSign}>{ZODIAC_GLYPHS[planet.sign]} {planet.sign}</Text>
-                    <Text style={styles.bigThreeDegree}>{getPlanetDegreeText(planet)}</Text>
+                    <Text style={[styles.bigThreeLabel, { color: colors.textSecondary }]}>{label}</Text>
+                    <Text style={[styles.bigThreeSign, { color: colors.heading }]}>{ZODIAC_GLYPHS[planet.sign]} {planet.sign}</Text>
+                    <Text style={[styles.bigThreeDegree, { color: colors.textSecondary }]}>{getPlanetDegreeText(planet)}</Text>
                   </View>
                 );
               })}
             </View>
 
             {/* All Placements */}
-            <Text style={styles.sectionTitle}>All Placements</Text>
-            <View style={styles.placementsCard}>
+            <Text style={[styles.sectionTitle, { color: colors.textSecondary }]}>All Placements</Text>
+            <View style={[styles.placementsCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
               {(chartResult.planets || [])
                 .filter(p => !BIG_THREE.includes(p.name))
                 .map((planet, idx) => {
                   const elementColor = getElementColor(planet.sign);
                   return (
-                    <View key={planet.name} style={[styles.placementRow, idx > 0 && styles.placementBorder]}>
+                    <View key={planet.name} style={[styles.placementRow, idx > 0 && [styles.placementBorder, { borderTopColor: colors.divider }]]}>
                       <View style={styles.placementLeft}>
                         <Text style={styles.placementGlyph}>{PLANET_GLYPHS[planet.name] || ''}</Text>
-                        <Text style={styles.placementName}>{planet.name}</Text>
+                        <Text style={[styles.placementName, { color: colors.heading }]}>{planet.name}</Text>
                       </View>
                       <View style={styles.placementRight}>
                         <View style={[styles.elementDot, { backgroundColor: elementColor }]} />
-                        <Text style={styles.placementSign}>{ZODIAC_GLYPHS[planet.sign]} {planet.sign}</Text>
-                        <Text style={styles.placementDegree}>{getPlanetDegreeText(planet)}</Text>
+                        <Text style={[styles.placementSign, { color: colors.text }]}>{ZODIAC_GLYPHS[planet.sign]} {planet.sign}</Text>
+                        <Text style={[styles.placementDegree, { color: colors.textSecondary }]}>{getPlanetDegreeText(planet)}</Text>
                         {planet.isRetrograde && <Text style={styles.retroBadge}>R</Text>}
                       </View>
                     </View>
@@ -368,8 +370,8 @@ export default function QuickChartScreen({ navigation }) {
               <TouchableOpacity style={styles.compatibilityBtn} onPress={handleCheckCompatibility}>
                 <Text style={styles.compatibilityBtnText}>Check Compatibility</Text>
               </TouchableOpacity>
-              <TouchableOpacity style={styles.shareBtn} onPress={handleShare}>
-                <Text style={styles.shareBtnText}>Share</Text>
+              <TouchableOpacity style={[styles.shareBtn, { backgroundColor: colors.card, borderColor: colors.border }]} onPress={handleShare}>
+                <Text style={[styles.shareBtnText, { color: colors.heading }]}>Share</Text>
               </TouchableOpacity>
             </View>
 

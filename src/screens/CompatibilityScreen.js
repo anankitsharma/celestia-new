@@ -2,7 +2,7 @@ import React, { useState, useEffect, useMemo, useRef, useCallback } from 'react'
 import {
   View, Text, ScrollView, TouchableOpacity, StyleSheet,
   ActivityIndicator, Modal, TextInput, Alert, Platform, StatusBar,
-  Dimensions, Animated, Easing, BackHandler
+  Dimensions, Animated, Easing, BackHandler, Share
 } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -33,6 +33,7 @@ import { createAndShareInvite } from '../services/inviteService';
 import { useRevenueCat } from '../contexts/RevenueCatContext';
 import LockedFeatureOverlay from '../components/LockedFeatureOverlay';
 import { useAnalytics, EVENTS } from '../services/analytics';
+import { useTheme } from '../contexts/ThemeContext';
 
 import { ROLE_DETAIL_CONFIG } from '../constants/roleDetailConfig';
 
@@ -44,6 +45,21 @@ const ZODIAC_GLYPHS = {
   Leo: '♌', Virgo: '♍', Libra: '♎', Scorpio: '♏',
   Sagittarius: '♐', Capricorn: '♑', Aquarius: '♒', Pisces: '♓',
 };
+
+const CELEBRITY_DATA = [
+  { name: 'Timothée Chalamet', sign: 'Capricorn', birthday: '1995-12-27', icon: '🎬' },
+  { name: 'Harry Styles', sign: 'Aquarius', birthday: '1994-02-01', icon: '🎵' },
+  { name: 'Zendaya', sign: 'Virgo', birthday: '1996-09-01', icon: '🌟' },
+  { name: 'Taylor Swift', sign: 'Sagittarius', birthday: '1989-12-13', icon: '🎤' },
+  { name: 'Bad Bunny', sign: 'Pisces', birthday: '1994-03-10', icon: '🐰' },
+  { name: 'Pedro Pascal', sign: 'Aries', birthday: '1975-04-02', icon: '🔥' },
+  { name: 'Sydney Sweeney', sign: 'Virgo', birthday: '1997-09-12', icon: '✨' },
+  { name: 'Jacob Elordi', sign: 'Cancer', birthday: '1997-06-26', icon: '🎭' },
+  { name: 'Sabrina Carpenter', sign: 'Taurus', birthday: '1999-05-11', icon: '🎶' },
+  { name: 'Doja Cat', sign: 'Libra', birthday: '1995-10-21', icon: '🐱' },
+  { name: 'Tom Holland', sign: 'Gemini', birthday: '1996-06-01', icon: '🕷' },
+  { name: 'Billie Eilish', sign: 'Sagittarius', birthday: '2001-12-18', icon: '💚' },
+];
 
 const ROLE_REPORT_THEMES = {
   partner: {
@@ -164,6 +180,7 @@ const getReportTheme = (role) => ROLE_REPORT_THEMES[role] || ROLE_REPORT_THEMES.
 
 const RELATIONSHIP_TYPES = [
   { key: 'partner', label: 'Partner', icon: '♡' },
+  { key: 'ex', label: 'Ex', icon: '💔' },
   { key: 'friend', label: 'Best Friend', icon: '★' },
   { key: 'parent', label: 'Parent', icon: '◎' },
   { key: 'sibling', label: 'Sibling', icon: '◇' },
@@ -178,7 +195,7 @@ RELATIONSHIP_TYPES.forEach(r => { ROLE_LABELS[r.key] = r; });
 
 // Category groups for orbit sections
 const CATEGORY_GROUPS = [
-  { key: 'love', label: 'LOVE', roles: ['partner'], gradient: ['#2D0A1E', '#1A0828'], icon: '♡' },
+  { key: 'love', label: 'LOVE', roles: ['partner', 'ex'], gradient: ['#2D0A1E', '#1A0828'], icon: '♡' },
   { key: 'family', label: 'FAMILY', roles: ['parent', 'sibling', 'child'], gradient: ['#1A1A08', '#14120A'], icon: '◎' },
   { key: 'friends', label: 'FRIENDS', roles: ['friend'], gradient: ['#0E0A28', '#14101E'], icon: '★' },
   { key: 'work', label: 'WORK', roles: ['boss', 'colleague'], gradient: ['#081A28', '#0A1420'], icon: '◆' },
@@ -220,8 +237,9 @@ export default function CompatibilityScreen() {
   const navigation = useNavigation();
   const { isPro } = useRevenueCat();
   const { capture } = useAnalytics();
+  const { colors, isDark } = useTheme();
 
-  const { userProfile, partnerProfiles, addPartner, removePartner } = useUserProfile();
+  const { userProfile, partnerProfiles, addPartner, updatePartner, removePartner } = useUserProfile();
   const [selectedPartner, setSelectedPartner] = useState(null);
   const [showAddModal, setShowAddModal] = useState(false);
   const [aiAnalysis, setAiAnalysis] = useState('');
@@ -247,6 +265,23 @@ export default function CompatibilityScreen() {
   const [viralInsights, setViralInsights] = useState(null);
   const [viralLoading, setViralLoading] = useState(false);
 
+  // Deepen reading modal state
+  const [showDeepenModal, setShowDeepenModal] = useState(false);
+  const [deepenPartner, setDeepenPartner] = useState(null);
+  const [deepenMode, setDeepenMode] = useState('full'); // 'full' = zodiac-only upgrade, 'time' = add birth time/city
+  const [deepenDate, setDeepenDate] = useState(null);
+  const [deepenTime, setDeepenTime] = useState(null);
+  const [deepenTimeUnknown, setDeepenTimeUnknown] = useState(false);
+  const [deepenCitySearch, setDeepenCitySearch] = useState('');
+  const [deepenSelectedCity, setDeepenSelectedCity] = useState(null);
+  const [deepenCitySuggestions, setDeepenCitySuggestions] = useState([]);
+  const [deepenCitySearching, setDeepenCitySearching] = useState(false);
+  const [deepenShowDatePicker, setDeepenShowDatePicker] = useState(false);
+  const [deepenShowTimePicker, setDeepenShowTimePicker] = useState(false);
+  const [deepenSaving, setDeepenSaving] = useState(false);
+  const [successToast, setSuccessToast] = useState(null);
+  const toastAnim = useRef(new Animated.Value(0)).current;
+
   // Add partner form
   const [partnerName, setPartnerName] = useState('');
   const [partnerDate, setPartnerDate] = useState(null);
@@ -264,6 +299,10 @@ export default function CompatibilityScreen() {
   const [selectedZodiacSign, setSelectedZodiacSign] = useState(null);
   const [activeRelationshipWindows, setActiveRelationshipWindows] = useState([]);
   const [cosmicSeason, setCosmicSeason] = useState(null);
+
+  // Celebrity match state
+  const [celebResult, setCelebResult] = useState(null);
+  const [selectedCeleb, setSelectedCeleb] = useState(null);
 
   // Start/restart all animations whenever we return to orbit view
   const startAnimations = useCallback(() => {
@@ -400,12 +439,144 @@ export default function CompatibilityScreen() {
 
   const resetForm = () => { setPartnerName(''); setPartnerDate(null); setPartnerTime(null); setIsTimeUnknown(false); setCitySearch(''); setSelectedCity(null); setCitySuggestions([]); setRelationshipType('partner'); setZodiacOnlyMode(false); setSelectedZodiacSign(null); };
 
+  // ── Deepen Reading helpers ──
+
+  useEffect(() => {
+    if (deepenSelectedCity || deepenCitySearch.length < 2) { setDeepenCitySuggestions([]); return; }
+    const timer = setTimeout(async () => {
+      setDeepenCitySearching(true);
+      try {
+        const res = await fetch(`${NOMINATIM_URL}?format=json&q=${encodeURIComponent(deepenCitySearch)}&limit=5&addressdetails=1`, { headers: { 'User-Agent': 'CelestiaMobile/1.0' } });
+        const data = await res.json();
+        setDeepenCitySuggestions(data.map(item => ({ name: item.display_name, lat: parseFloat(item.lat), lng: parseFloat(item.lon) })));
+      } catch (e) { console.warn('Deepen city search error:', e); }
+      finally { setDeepenCitySearching(false); }
+    }, 600);
+    return () => clearTimeout(timer);
+  }, [deepenCitySearch, deepenSelectedCity]);
+
+  const showToast = useCallback((message) => {
+    setSuccessToast(message);
+    toastAnim.setValue(0);
+    Animated.sequence([
+      Animated.timing(toastAnim, { toValue: 1, duration: 300, useNativeDriver: true }),
+      Animated.delay(2500),
+      Animated.timing(toastAnim, { toValue: 0, duration: 300, useNativeDriver: true }),
+    ]).start(() => setSuccessToast(null));
+  }, [toastAnim]);
+
+  const openDeepenModal = useCallback((partner, mode) => {
+    setDeepenPartner(partner);
+    setDeepenMode(mode);
+    setDeepenDate(mode === 'full' ? null : (partner.birthDate ? new Date(partner.birthDate + 'T12:00:00') : null));
+    setDeepenTime(null);
+    setDeepenTimeUnknown(false);
+    setDeepenCitySearch(mode === 'time' && partner.birthLocation && partner.birthLocation !== 'Unknown' ? partner.birthLocation : '');
+    setDeepenSelectedCity(mode === 'time' && partner.birthLocation && partner.birthLocation !== 'Unknown' ? { name: partner.birthLocation, lat: partner.lat || 0, lng: partner.lng || 0 } : null);
+    setDeepenCitySuggestions([]);
+    setDeepenShowDatePicker(false);
+    setDeepenShowTimePicker(false);
+    setShowDeepenModal(true);
+    haptic.light();
+  }, []);
+
+  const resetDeepenForm = () => {
+    setDeepenPartner(null);
+    setDeepenDate(null);
+    setDeepenTime(null);
+    setDeepenTimeUnknown(false);
+    setDeepenCitySearch('');
+    setDeepenSelectedCity(null);
+    setDeepenCitySuggestions([]);
+    setDeepenShowDatePicker(false);
+    setDeepenShowTimePicker(false);
+  };
+
+  const handleSaveDeepenedPartner = async () => {
+    if (!deepenPartner) return;
+    if (deepenMode === 'full') {
+      if (!deepenDate) { Alert.alert('Missing info', 'Please select a birth date.'); return; }
+      if (!deepenSelectedCity) { Alert.alert('Missing info', 'Please select a birth city.'); return; }
+    }
+    if (deepenMode === 'time') {
+      if (!deepenTime && !deepenTimeUnknown) { Alert.alert('Missing info', 'Please select a birth time or mark as unknown.'); return; }
+    }
+    setDeepenSaving(true);
+    try {
+      const dateStr = deepenMode === 'full'
+        ? deepenDate.toISOString().split('T')[0]
+        : deepenPartner.birthDate;
+      const timeStr = (deepenTimeUnknown || !deepenTime)
+        ? '12:00'
+        : `${deepenTime.getHours().toString().padStart(2, '0')}:${deepenTime.getMinutes().toString().padStart(2, '0')}`;
+      const city = deepenMode === 'full'
+        ? deepenSelectedCity
+        : (deepenSelectedCity || { lat: deepenPartner.lat || 0, lng: deepenPartner.lng || 0, name: deepenPartner.birthLocation || 'Unknown' });
+      const isTimeStillUnknown = deepenTimeUnknown || !deepenTime;
+      const chart = await calculateChart(dateStr, timeStr, { lat: city.lat, lng: city.lng, name: city.name }, isTimeStillUnknown, 'whole');
+      const updated = {
+        ...deepenPartner,
+        isZodiacOnly: false,
+        birthDate: dateStr,
+        birthTime: timeStr,
+        birthLocation: city.name,
+        lat: city.lat,
+        lng: city.lng,
+        isTimeUnknown: isTimeStillUnknown,
+        chart,
+      };
+      await updatePartner(updated);
+      if (selectedPartner && selectedPartner.id === updated.id) {
+        setSelectedPartner(updated);
+      }
+      setShowDeepenModal(false);
+      resetDeepenForm();
+      const pName = updated.name?.split(' ')[0] || 'them';
+      showToast(`Your reading with ${pName} just got deeper!`);
+      haptic.success();
+    } catch (e) {
+      console.warn('Deepen partner error:', e);
+      Alert.alert('Error', 'Failed to recalculate chart. Please try again.');
+    } finally {
+      setDeepenSaving(false);
+    }
+  };
+
   const handleRemovePartner = (partner) => {
     Alert.alert('Remove Person', `Remove ${partner.name} from your circle?`, [
       { text: 'Cancel', style: 'cancel' },
       { text: 'Remove', style: 'destructive', onPress: () => { removePartner(partner.id); setSelectedPartner(null); } },
     ]);
   };
+
+  const handleCelebMatch = useCallback((celeb) => {
+    haptic.light();
+    const userSunSign = userProfile?.chart?.planets?.find(p => p.name === 'Sun')?.sign;
+    if (!userSunSign) return;
+    const result = calculateZodiacOnlyScore(userSunSign, celeb.sign);
+    setSelectedCeleb(celeb);
+    setCelebResult(result);
+    capture(EVENTS.COMPATIBILITY_CHECKED, {
+      relationship_type: 'celebrity',
+      mode: 'zodiac_only',
+      score: result.harmonyScore,
+      celebrity: celeb.name,
+    });
+  }, [userProfile?.chart, capture]);
+
+  const handleShareCelebResult = useCallback(async () => {
+    if (!celebResult || !selectedCeleb) return;
+    haptic.medium();
+    const userName = userProfile?.name?.split(' ')[0] || 'I';
+    const msg = `${userName} & ${selectedCeleb.name} — ${celebResult.harmonyScore}% compatible ${ZODIAC_GLYPHS[selectedCeleb.sign] || ''}\n\nAre YOU compatible with your celebrity crush? Find out on Celestia`;
+    try {
+      await Share.share({ message: msg });
+    } catch (e) {
+      // Silently handle share dismissal
+    }
+    trackEvent('share_celebrity_match').catch(() => { });
+    awardXP(userProfile?.id || 'default', 'share').catch(() => { });
+  }, [celebResult, selectedCeleb, userProfile]);
 
   const advanceStep = useCallback((step) => { if (!pdfCancelledRef.current) setGenStep(step); }, []);
 
@@ -474,9 +645,9 @@ export default function CompatibilityScreen() {
 
   if (!userProfile?.chart) {
     return (
-      <View style={{ flex: 1, backgroundColor: T.cream, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 40 }}>
-        <Text style={{ fontFamily: FONTS.serif, fontSize: 22, color: T.navy, textAlign: 'center', marginBottom: 10 }}>Complete your profile first</Text>
-        <Text style={{ fontFamily: FONTS.sansLight, fontSize: 14, color: T.stone, textAlign: 'center' }}>Finish onboarding to unlock cosmic compatibility.</Text>
+      <View style={{ flex: 1, backgroundColor: colors.bg, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 40 }}>
+        <Text style={{ fontFamily: FONTS.serif, fontSize: 22, color: colors.heading, textAlign: 'center', marginBottom: 10 }}>Complete your profile first</Text>
+        <Text style={{ fontFamily: FONTS.sansLight, fontSize: 14, color: colors.textSecondary, textAlign: 'center' }}>Finish onboarding to unlock cosmic compatibility.</Text>
       </View>
     );
   }
@@ -574,7 +745,7 @@ export default function CompatibilityScreen() {
   }, [groupedPartners]);
 
   return (
-    <View style={{ flex: 1, backgroundColor: T.cream }}>
+    <View style={{ flex: 1, backgroundColor: colors.bg }}>
       {/* ─── MAIN CIRCLE VIEW ─── */}
       {!showDetailScreen && (
         <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 110 }}>
@@ -583,16 +754,16 @@ export default function CompatibilityScreen() {
             <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
               <View>
                 <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-                  <Text style={styles.title}>Your Circle</Text>
+                  <Text style={styles.title}>Compatibility</Text>
                   <CosmicTooltip id="synastry" size={16} light />
                 </View>
                 <Text style={styles.sub}>
-                  {partnerProfiles.length === 0 ? 'Add people to your cosmic orbit' : `${partnerProfiles.length} ${partnerProfiles.length === 1 ? 'soul' : 'souls'} in your orbit`}
+                  {partnerProfiles.length === 0 ? 'See how your chart aligns with anyone — a crush, a friend, or a celebrity' : `${partnerProfiles.length} ${partnerProfiles.length === 1 ? 'person' : 'people'} in your circle`}
                 </Text>
               </View>
               <TouchableOpacity style={styles.heroAddBtn} activeOpacity={0.7}
                 onPress={() => {
-                  if (!isPro && partnerProfiles.length >= 1) {
+                  if (!isPro && partnerProfiles.length >= 3) {
                     haptic.medium();
                     navigation.navigate('Paywall', { source: 'match' });
                     return;
@@ -673,7 +844,7 @@ export default function CompatibilityScreen() {
                                 <Text style={styles.orbitOrbScoreText}>{score}%</Text>
                               </View>
                             )}
-                            <Text style={styles.orbitOrbName} numberOfLines={1}>{p.name?.split(' ')[0]}</Text>
+                            <Text style={[styles.orbitOrbName, { color: colors.heading }]} numberOfLines={1}>{p.name?.split(' ')[0]}</Text>
                           </Animated.View>
                         </TouchableOpacity>
                       );
@@ -694,7 +865,7 @@ export default function CompatibilityScreen() {
                     key={ring.key + '_add'}
                     activeOpacity={0.7}
                     onPress={() => {
-                      if (!isPro && partnerProfiles.length >= 1) {
+                      if (!isPro && partnerProfiles.length >= 3) {
                         haptic.medium();
                         navigation.navigate('Paywall', { source: 'match' });
                         return;
@@ -720,9 +891,9 @@ export default function CompatibilityScreen() {
           {/* ─── ORBIT LEGEND ─── */}
           <View style={styles.legendWrap}>
             {legendItems.map(item => (
-              <TouchableOpacity key={item.key} style={styles.legendItem} activeOpacity={0.7}
+              <TouchableOpacity key={item.key} style={[styles.legendItem, { backgroundColor: colors.card, borderColor: colors.border }]} activeOpacity={0.7}
                 onPress={() => {
-                  if (!isPro && partnerProfiles.length >= 1) {
+                  if (!isPro && partnerProfiles.length >= 3) {
                     haptic.medium();
                     navigation.navigate('Paywall', { source: 'match' });
                     return;
@@ -730,8 +901,8 @@ export default function CompatibilityScreen() {
                   haptic.light(); setRelationshipType(item.roles[0]); setShowAddModal(true);
                 }}>
                 <View style={[styles.legendDot, { backgroundColor: ORBIT_RINGS.find(r => r.key === item.key)?.borderColor || 'rgba(200,168,75,0.3)' }]} />
-                <Text style={styles.legendLabel}>{item.icon} {item.label}</Text>
-                <Text style={styles.legendCount}>{item.count}</Text>
+                <Text style={[styles.legendLabel, { color: colors.textSecondary }]}>{item.icon} {item.label}</Text>
+                <Text style={[styles.legendCount, { color: colors.heading }]}>{item.count}</Text>
                 <Text style={styles.legendAdd}>+</Text>
               </TouchableOpacity>
             ))}
@@ -747,31 +918,116 @@ export default function CompatibilityScreen() {
                 const score = getQuickScore(userProfile.chart, p);
                 const pSun = p.chart?.planets?.find(pl => pl.name === 'Sun');
                 const roleInfo = ROLE_LABELS[role];
+                const canDeepen = p.isZodiacOnly;
+                const canAddTime = !p.isZodiacOnly && p.isTimeUnknown;
                 return (
-                  <TouchableOpacity key={p.id} style={styles.personRow} activeOpacity={0.7}
-                    onPress={() => { haptic.light(); setSelectedPartner(p); }}>
-                    <LinearGradient colors={roleColor.bg} style={styles.personRowOrb}>
-                      <Text style={styles.personRowOrbText}>{getInitial(p.name)}</Text>
-                    </LinearGradient>
-                    <View style={{ flex: 1 }}>
-                      <Text style={styles.personRowName}>{p.name}</Text>
-                      <Text style={styles.personRowSub}>{roleInfo?.icon} {roleInfo?.label} · {ZODIAC_GLYPHS[pSun?.sign] || '✦'} {pSun?.sign || 'Unknown'}</Text>
-                    </View>
-                    {score != null && (
-                      <View style={styles.personRowScoreBadge}>
-                        <Text style={styles.personRowScoreText}>{score}%</Text>
+                  <View key={p.id}>
+                    <TouchableOpacity style={[styles.personRow, { backgroundColor: colors.card, borderColor: colors.border }]} activeOpacity={0.7}
+                      onPress={() => { haptic.light(); setSelectedPartner(p); }}>
+                      <LinearGradient colors={roleColor.bg} style={styles.personRowOrb}>
+                        <Text style={styles.personRowOrbText}>{getInitial(p.name)}</Text>
+                      </LinearGradient>
+                      <View style={{ flex: 1 }}>
+                        <Text style={[styles.personRowName, { color: colors.heading }]}>{p.name}</Text>
+                        <Text style={[styles.personRowSub, { color: colors.textSecondary }]}>{roleInfo?.icon} {roleInfo?.label} · {ZODIAC_GLYPHS[pSun?.sign] || '✦'} {pSun?.sign || 'Unknown'}{canDeepen ? ' · Sign only' : ''}</Text>
                       </View>
+                      {score != null && (
+                        <View style={styles.personRowScoreBadge}>
+                          <Text style={styles.personRowScoreText}>{score}%</Text>
+                        </View>
+                      )}
+                      <Text style={{ fontSize: 14, color: colors.textSecondary }}>›</Text>
+                    </TouchableOpacity>
+                    {canDeepen && (
+                      <TouchableOpacity style={styles.deepenBtn} activeOpacity={0.7}
+                        onPress={() => openDeepenModal(p, 'full')}>
+                        <Text style={styles.deepenBtnIcon}>↑</Text>
+                        <Text style={styles.deepenBtnText}>Deepen Reading</Text>
+                        <Text style={styles.deepenBtnArrow}>↗</Text>
+                      </TouchableOpacity>
                     )}
-                    <Text style={{ fontSize: 14, color: T.stone }}>›</Text>
-                  </TouchableOpacity>
+                    {canAddTime && (
+                      <TouchableOpacity style={styles.addTimeBtn} activeOpacity={0.7}
+                        onPress={() => openDeepenModal(p, 'time')}>
+                        <Text style={styles.addTimeBtnIcon}>◷</Text>
+                        <Text style={styles.addTimeBtnText}>Add Birth Time</Text>
+                        <Text style={styles.deepenBtnArrow}>↗</Text>
+                      </TouchableOpacity>
+                    )}
+                  </View>
                 );
               })}
             </View>
           )}
 
+          {/* ─── CELEBRITY MATCH ─── */}
+          <View style={styles.celebSection}>
+            <View style={styles.celebHeader}>
+              <Text style={styles.celebLabel}>CELEBRITY MATCH</Text>
+              <Text style={[styles.celebSub, { color: colors.heading }]}>Are you compatible with your crush?</Text>
+            </View>
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.celebScroll}>
+              {CELEBRITY_DATA.map((celeb) => {
+                const isSelected = selectedCeleb?.name === celeb.name;
+                return (
+                  <TouchableOpacity
+                    key={celeb.name}
+                    activeOpacity={0.7}
+                    onPress={() => handleCelebMatch(celeb)}
+                    style={[styles.celebChip, { backgroundColor: colors.card, borderColor: colors.border }, isSelected && styles.celebChipActive]}
+                  >
+                    <Text style={styles.celebChipIcon}>{celeb.icon}</Text>
+                    <View style={{ flexShrink: 1 }}>
+                      <Text style={[styles.celebChipName, { color: colors.heading }, isSelected && styles.celebChipNameActive]} numberOfLines={1}>{celeb.name}</Text>
+                      <Text style={[styles.celebChipSign, isSelected && styles.celebChipSignActive]}>{ZODIAC_GLYPHS[celeb.sign]} {celeb.sign}</Text>
+                    </View>
+                  </TouchableOpacity>
+                );
+              })}
+            </ScrollView>
+
+            {/* Celebrity result inline */}
+            {celebResult && selectedCeleb && (
+              <View style={[styles.celebResultCard, { backgroundColor: colors.card }]}>
+                <View style={styles.celebResultTop}>
+                  <View style={styles.celebResultNames}>
+                    <Text style={[styles.celebResultYou, { color: colors.heading }]}>{userProfile?.name?.split(' ')[0] || 'You'}</Text>
+                    <Text style={styles.celebResultAmp}>&</Text>
+                    <Text style={[styles.celebResultThem, { color: colors.heading }]}>{selectedCeleb.name}</Text>
+                  </View>
+                  <View style={styles.celebResultScoreBadge}>
+                    <Text style={styles.celebResultScore}>{celebResult.harmonyScore}%</Text>
+                  </View>
+                </View>
+                <Text style={styles.celebResultVerdict}>{getScoreLabel(celebResult.harmonyScore)}</Text>
+                <View style={styles.celebResultSignsRow}>
+                  <Text style={styles.celebResultSignText}>{ZODIAC_GLYPHS[userProfile?.chart?.planets?.find(p => p.name === 'Sun')?.sign] || ''} {userProfile?.chart?.planets?.find(p => p.name === 'Sun')?.sign || ''}</Text>
+                  <Text style={styles.celebResultX}>{'\u2727'}</Text>
+                  <Text style={styles.celebResultSignText}>{ZODIAC_GLYPHS[selectedCeleb.sign]} {selectedCeleb.sign}</Text>
+                </View>
+                {celebResult.scores && Object.keys(celebResult.scores).length > 0 && (
+                  <View style={styles.celebResultDims}>
+                    {Object.entries(celebResult.scores).slice(0, 4).map(([key, val]) => (
+                      <View key={key} style={styles.celebResultDimRow}>
+                        <Text style={styles.celebResultDimLabel}>{key.charAt(0).toUpperCase() + key.slice(1)}</Text>
+                        <View style={styles.celebResultDimTrack}>
+                          <View style={[styles.celebResultDimFill, { width: `${val}%` }]} />
+                        </View>
+                        <Text style={styles.celebResultDimPct}>{val}%</Text>
+                      </View>
+                    ))}
+                  </View>
+                )}
+                <TouchableOpacity style={styles.celebShareBtn} activeOpacity={0.7} onPress={handleShareCelebResult}>
+                  <Text style={styles.celebShareText}>Share {'\u2197'}</Text>
+                </TouchableOpacity>
+              </View>
+            )}
+          </View>
+
           {/* Add person card */}
-          <TouchableOpacity style={styles.addCard} activeOpacity={0.7} onPress={() => {
-            if (!isPro && partnerProfiles.length >= 1) {
+          <TouchableOpacity style={[styles.addCard, { backgroundColor: colors.card, borderColor: colors.border }]} activeOpacity={0.7} onPress={() => {
+            if (!isPro && partnerProfiles.length >= 3) {
               haptic.medium();
               navigation.navigate('Paywall', { source: 'match' });
               return;
@@ -780,8 +1036,8 @@ export default function CompatibilityScreen() {
           }}>
             <View style={styles.addCardIcon}><Text style={{ fontSize: 18 }}>+</Text></View>
             <View>
-              <Text style={styles.addCardTitle}>Add someone to your circle</Text>
-              <Text style={styles.addCardSub}>Birth details or just their zodiac sign</Text>
+              <Text style={[styles.addCardTitle, { color: colors.heading }]}>Check compatibility with someone</Text>
+              <Text style={[styles.addCardSub, { color: colors.textSecondary }]}>Enter their birthday or just their zodiac sign</Text>
             </View>
           </TouchableOpacity>
 
@@ -803,9 +1059,9 @@ export default function CompatibilityScreen() {
               if (aiLoading) return <View key={idx} style={{ alignItems: 'center', paddingVertical: 16 }}><ActivityIndicator size="small" color={T.gold} /><Text style={{ fontSize: 11, color: T.stone, marginTop: 6 }}>Reading your charts...</Text></View>;
               if (!aiAnalysis) return null;
               return (
-                <View key={idx} style={styles.ddAiCard}>
-                  <Text style={styles.ddSectionLbl}>{lbl.aiAnalysis}</Text>
-                  <AstroText style={styles.ddAiText} text={aiAnalysis} />
+                <View key={idx} style={[styles.ddAiCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
+                  <Text style={[styles.ddSectionLbl, { color: colors.textSecondary }]}>{lbl.aiAnalysis}</Text>
+                  <AstroText style={[styles.ddAiText, { color: colors.text }]} text={aiAnalysis} />
                   {synastry.discepoloAnalysis?.isDestinySign && <View style={styles.destinyBadge}><Text style={styles.destinyBadgeText}>✦ DESTINY SIGN MATCH</Text></View>}
                 </View>
               );
@@ -813,8 +1069,8 @@ export default function CompatibilityScreen() {
             case 'dimensions':
               return (
                 <View key={idx}>
-                  <Text style={styles.ddSectionLbl}>{lbl.dimensions}</Text>
-                  <View style={styles.ddDimCard}>
+                  <Text style={[styles.ddSectionLbl, { color: colors.textSecondary }]}>{lbl.dimensions}</Text>
+                  <View style={[styles.ddDimCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
                     {roleDims.map((d, i) => (
                       <View key={i} style={styles.dimRow}>
                         <View style={styles.dimTop}><Text style={styles.dimIcon}>{d.icon}</Text><Text style={styles.dimLabel}>{d.label}</Text><Text style={styles.dimPct}>{d.pct}%</Text></View>
@@ -856,11 +1112,11 @@ export default function CompatibilityScreen() {
                   <View key={idx} style={{ marginTop: 10 }}>
                     <Text style={styles.ddSectionLbl}>{lbl.areas}</Text>
                     {teaserSections.map((ts, ti) => (
-                      <View key={ti} style={styles.blurredSection}>
+                      <View key={ti} style={[styles.blurredSection, { backgroundColor: colors.card, borderColor: colors.border }]}>
                         <View style={styles.blurredHeader}>
                           <Text style={{ fontSize: 16 }}>{ts.icon}</Text>
                           <View style={{ flex: 1 }}>
-                            <Text style={styles.blurredTitle}>{ts.title}</Text>
+                            <Text style={[styles.blurredTitle, { color: colors.heading }]}>{ts.title}</Text>
                             <Text style={styles.blurredSub}>{ts.sub}</Text>
                           </View>
                           <Text style={{ fontSize: 12, color: T.gold }}>🔒</Text>
@@ -871,10 +1127,41 @@ export default function CompatibilityScreen() {
                       </View>
                     ))}
                     <TouchableOpacity style={styles.unlockDeepBtn} activeOpacity={0.8}
-                      onPress={() => { haptic.medium(); navigation.navigate('Paywall', { source: 'match_curiosity' }); }}>
+                      onPress={() => {
+                        haptic.medium();
+                        Alert.alert(
+                          'See the Full Story',
+                          'See your emotional dynamic, where you\'ll clash, and the long game.',
+                          [
+                            { text: 'Cancel', style: 'cancel' },
+                            { text: 'This Report — $9.99', onPress: () => navigation.navigate('Paywall', { source: 'report_single_compatibility' }) },
+                            { text: 'Subscribe — All Reports', onPress: () => navigation.navigate('Paywall', { source: 'match_curiosity' }) },
+                          ]
+                        );
+                      }}>
                       <LinearGradient colors={['#C8A84B', '#A07820']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={styles.unlockDeepGrad}>
-                        <Text style={styles.unlockDeepText}>Unlock Deep Analysis</Text>
+                        <Text style={styles.unlockDeepText}>See the Deep Story</Text>
                       </LinearGradient>
+                    </TouchableOpacity>
+                    {/* Viral share hook in free preview — Plan Section 04 */}
+                    <TouchableOpacity
+                      style={{ alignItems: 'center', paddingVertical: 10 }}
+                      activeOpacity={0.7}
+                      onPress={async () => {
+                        haptic.light();
+                        const pName = selectedPartner?.name || 'someone';
+                        const score = quickScore?.harmonyScore || '?';
+                        try {
+                          await Share.share({
+                            message: `I just checked my compatibility with ${pName} on Celestia — we're ${score}% matched! Check yours: celestia.app`,
+                          });
+                          trackEvent('share').catch(() => {});
+                        } catch (e) {}
+                      }}>
+                      <Text style={{ fontSize: 11, color: T.stone, textAlign: 'center' }}>
+                        Or share with {selectedPartner?.name || 'them'} — if they join, you both get deeper insights
+                      </Text>
+                      <Text style={{ fontSize: 11, fontFamily: FONTS.sansMedium, color: T.gold, marginTop: 4 }}>Send Compatibility Link ↗</Text>
                     </TouchableOpacity>
                   </View>
                 );
@@ -887,9 +1174,9 @@ export default function CompatibilityScreen() {
                   {Object.entries(matchDetails.areas).map(([key, area], i) => {
                     const dim = roleDims.find(d => d.key === key);
                     return (
-                      <View key={i} style={styles.ddAreaCard}>
+                      <View key={i} style={[styles.ddAreaCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
                         <View style={styles.ddAreaHeader}>
-                          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>{dim && <Text style={{ fontSize: 14, color: dim.color }}>{dim.icon}</Text>}<Text style={styles.ddAreaName}>{dim?.label || key.charAt(0).toUpperCase() + key.slice(1)}</Text></View>
+                          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>{dim && <Text style={{ fontSize: 14, color: dim.color }}>{dim.icon}</Text>}<Text style={[styles.ddAreaName, { color: colors.heading }]}>{dim?.label || key.charAt(0).toUpperCase() + key.slice(1)}</Text></View>
                           <Text style={styles.ddAreaScore}>{area.score}%</Text>
                         </View>
                         <View style={[styles.dimTrack, { marginBottom: 10 }]}><View style={[styles.dimFill, { width: `${area.score}%`, backgroundColor: dim?.color || T.gold }]} /></View>
@@ -917,29 +1204,56 @@ export default function CompatibilityScreen() {
                   {/* Zodiac-only upgrade CTA */}
                   {partnerProfile?.isZodiacOnly && (
                     <TouchableOpacity style={styles.upgradeDepthCard} activeOpacity={0.7}
-                      onPress={() => {
-                        Alert.alert('Add Their Birthday', `Adding ${p2Name}'s full birth details will unlock a much deeper compatibility reading — including emotional dynamics, communication patterns, and long-term potential.`, [
-                          { text: 'Maybe Later', style: 'cancel' },
-                          { text: 'Add Birthday', onPress: () => { setShowAddModal(true); } },
-                        ]);
-                      }}>
+                      onPress={() => openDeepenModal(partnerProfile, 'full')}>
                       <Text style={styles.upgradeDepthIcon}>↑</Text>
                       <View style={{ flex: 1 }}>
-                        <Text style={styles.upgradeDepthTitle}>Go Deeper</Text>
+                        <Text style={styles.upgradeDepthTitle}>Deepen Reading</Text>
                         <Text style={styles.upgradeDepthSub}>Add {p2Name}'s birthday for a full chart reading</Text>
                       </View>
-                      <Text style={styles.upgradeDepthArrow}>→</Text>
+                      <Text style={styles.upgradeDepthArrow}>↗</Text>
+                    </TouchableOpacity>
+                  )}
+
+                  {/* Add birth time nudge for birthday-only partners */}
+                  {!partnerProfile?.isZodiacOnly && partnerProfile?.isTimeUnknown && (
+                    <TouchableOpacity style={styles.addTimeNudgeCard} activeOpacity={0.7}
+                      onPress={() => openDeepenModal(partnerProfile, 'time')}>
+                      <Text style={styles.addTimeNudgeIcon}>◷</Text>
+                      <View style={{ flex: 1 }}>
+                        <Text style={styles.addTimeNudgeTitle}>Add Birth Time</Text>
+                        <Text style={styles.addTimeNudgeSub}>Know {p2Name}'s birth time? Unlock house placements and Moon sign accuracy</Text>
+                      </View>
+                      <Text style={styles.upgradeDepthArrow}>↗</Text>
                     </TouchableOpacity>
                   )}
 
                   {/* Ask Celestia bridge */}
                   <TouchableOpacity style={styles.askCelestiaBtn} activeOpacity={0.7}
                     onPress={() => {
-                      const question = `Tell me about my compatibility with ${p2Name}. We got ${synastry.harmonyScore}% overall. What should I know about this connection?`;
+                      haptic.light();
+                      const question = `Tell me more about my compatibility with ${p2Name}. What are our biggest strengths and challenges based on our charts?`;
                       navigation.navigate('AskAI', { initialMessage: question });
                     }}>
                     <Text style={styles.askCelestiaBtnIcon}>☽</Text>
-                    <Text style={styles.askCelestiaBtnText}>Ask Celestia about {p2Name}</Text>
+                    <View style={{ flex: 1 }}>
+                      <Text style={styles.askCelestiaBtnText}>Ask Celestia why you two click</Text>
+                      <Text style={styles.askCelestiaBtnSub}>Get personalized insight about your strengths & challenges</Text>
+                    </View>
+                    <Text style={styles.askCelestiaBtnArrow}>{'\u2192'}</Text>
+                  </TouchableOpacity>
+
+                  {/* Bridge to Reports */}
+                  <TouchableOpacity style={styles.reportsBtn} activeOpacity={0.7}
+                    onPress={() => {
+                      haptic.light();
+                      navigation.navigate('Reports');
+                    }}>
+                    <Text style={styles.reportsBtnIcon}>{'\u2727'}</Text>
+                    <View style={{ flex: 1 }}>
+                      <Text style={styles.reportsBtnText}>See your full compatibility story</Text>
+                      <Text style={styles.reportsBtnSub}>Deep-dive into love, communication & long-term potential</Text>
+                    </View>
+                    <Text style={styles.reportsBtnArrow}>{'\u2192'}</Text>
                   </TouchableOpacity>
 
                   <View style={styles.ddActionRow}>
@@ -979,8 +1293,8 @@ export default function CompatibilityScreen() {
             case 'loveLanguages':
               if (!matchDetails?.loveLanguages) return null;
               return (
-                <View key={idx} style={styles.uniqueCard}>
-                  <Text style={styles.ddSectionLbl}>LOVE LANGUAGES</Text>
+                <View key={idx} style={[styles.uniqueCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
+                  <Text style={[styles.ddSectionLbl, { color: colors.textSecondary }]}>LOVE LANGUAGES</Text>
                   <View style={styles.uniqueTwoCol}>
                     <View style={styles.uniqueColCard}><Text style={styles.uniqueColIcon}>♀</Text><Text style={styles.uniqueColLabel}>{p1Name}</Text><Text style={styles.uniqueColText}>{matchDetails.loveLanguages.user}</Text></View>
                     <View style={styles.uniqueColCard}><Text style={styles.uniqueColIcon}>♀</Text><Text style={styles.uniqueColLabel}>{p2Name}</Text><Text style={styles.uniqueColText}>{matchDetails.loveLanguages.partner}</Text></View>
@@ -1163,7 +1477,7 @@ export default function CompatibilityScreen() {
                 </View>
               </LinearGradient>
 
-              <View style={styles.ddBody}>
+              <View style={[styles.ddBody, { backgroundColor: colors.bg }]}>
                 {rc.sectionOrder.map((sKey, idx) => renderSection(sKey, idx))}
                 <View style={{ height: 40 }} />
               </View>
@@ -1228,20 +1542,20 @@ export default function CompatibilityScreen() {
 
       {/* ─── ADD PARTNER MODAL ─── */}
       <Modal visible={showAddModal} animationType="slide" presentationStyle="pageSheet">
-        <View style={styles.modal}>
-          <View style={styles.modalHeader}>
-            <Text style={styles.modalTitle}>Add Person</Text>
-            <TouchableOpacity onPress={() => { setShowAddModal(false); resetForm(); }}><Text style={styles.modalClose}>✕</Text></TouchableOpacity>
+        <View style={[styles.modal, { backgroundColor: colors.modalBg }]}>
+          <View style={[styles.modalHeader, { borderBottomColor: colors.divider }]}>
+            <Text style={[styles.modalTitle, { color: colors.heading }]}>Add Person</Text>
+            <TouchableOpacity onPress={() => { setShowAddModal(false); resetForm(); }}><Text style={[styles.modalClose, { color: colors.textSecondary }]}>✕</Text></TouchableOpacity>
           </View>
           <ScrollView style={styles.modalBody} keyboardShouldPersistTaps="handled">
-            <Text style={styles.fieldLabel}>THEIR NAME</Text>
-            <TextInput style={styles.input} placeholder="Full name" placeholderTextColor={T.stone} value={partnerName} onChangeText={setPartnerName} />
+            <Text style={[styles.fieldLabel, { color: colors.textSecondary }]}>THEIR NAME</Text>
+            <TextInput style={[styles.input, { backgroundColor: colors.inputBg, borderColor: colors.inputBorder, color: colors.heading }]} placeholder="Full name" placeholderTextColor={colors.inputPlaceholder} value={partnerName} onChangeText={setPartnerName} />
 
-            <Text style={styles.fieldLabel}>RELATIONSHIP</Text>
+            <Text style={[styles.fieldLabel, { color: colors.textSecondary }]}>RELATIONSHIP</Text>
             <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: 16 }} contentContainerStyle={{ gap: 8 }}>
               {RELATIONSHIP_TYPES.map((rt) => (
-                <TouchableOpacity key={rt.key} style={[styles.relTypePill, relationshipType === rt.key && styles.relTypePillActive]} onPress={() => setRelationshipType(rt.key)}>
-                  <Text style={[styles.relTypePillText, relationshipType === rt.key && styles.relTypePillTextActive]}>{rt.icon} {rt.label}</Text>
+                <TouchableOpacity key={rt.key} style={[styles.relTypePill, { backgroundColor: colors.card, borderColor: colors.border }, relationshipType === rt.key && styles.relTypePillActive]} onPress={() => setRelationshipType(rt.key)}>
+                  <Text style={[styles.relTypePillText, { color: colors.textSecondary }, relationshipType === rt.key && styles.relTypePillTextActive]}>{rt.icon} {rt.label}</Text>
                 </TouchableOpacity>
               ))}
             </ScrollView>
@@ -1275,7 +1589,7 @@ export default function CompatibilityScreen() {
                 </TouchableOpacity>
                 {showDatePicker && <DateTimePicker value={partnerDate || new Date(2000, 0, 1)} mode="date" display={Platform.OS === 'ios' ? 'spinner' : 'default'} maximumDate={new Date()} onChange={(e, d) => { setShowDatePicker(Platform.OS === 'ios'); if (d) setPartnerDate(d); }} />}
 
-                <Text style={styles.fieldLabel}>BIRTH TIME</Text>
+                <Text style={styles.fieldLabel}>BIRTH TIME <Text style={{ fontFamily: FONTS.sans, fontSize: 9, color: T.stone, letterSpacing: 0 }}>(if you know it)</Text></Text>
                 <TouchableOpacity style={[styles.input, isTimeUnknown && { opacity: 0.4 }]} onPress={() => !isTimeUnknown && setShowTimePicker(true)}>
                   <Text style={{ color: (isTimeUnknown || partnerTime) ? T.navy : T.stone, fontFamily: FONTS.sansMedium }}>{isTimeUnknown ? 'Unknown' : (partnerTime ? partnerTime.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' }) : 'Select time')}</Text>
                 </TouchableOpacity>
@@ -1284,6 +1598,9 @@ export default function CompatibilityScreen() {
                   <View style={[styles.check, isTimeUnknown && styles.checkOn]}>{isTimeUnknown && <Text style={{ color: 'white', fontSize: 10 }}>✓</Text>}</View>
                   <Text style={styles.checkLabel}>I don't know the exact birth time</Text>
                 </TouchableOpacity>
+                {!partnerTime && !isTimeUnknown && (
+                  <Text style={{ fontSize: 10, color: T.stone, fontStyle: 'italic', marginTop: -4, marginBottom: 8, paddingHorizontal: 2 }}>Ask them! Or check their birth certificate next time you're over 😏</Text>
+                )}
 
                 <Text style={styles.fieldLabel}>BIRTH CITY</Text>
                 <TextInput style={styles.input} placeholder="Search city..." placeholderTextColor={T.stone} value={selectedCity ? selectedCity.name : citySearch} onChangeText={(t) => { setSelectedCity(null); setCitySearch(t); }} />
@@ -1310,6 +1627,102 @@ export default function CompatibilityScreen() {
           </ScrollView>
         </View>
       </Modal>
+
+      {/* ─── DEEPEN READING MODAL ─── */}
+      <Modal visible={showDeepenModal} animationType="slide" presentationStyle="pageSheet">
+        <View style={[styles.modal, { backgroundColor: colors.modalBg }]}>
+          <View style={[styles.modalHeader, { borderBottomColor: colors.divider }]}>
+            <Text style={[styles.modalTitle, { color: colors.heading }]}>{deepenMode === 'full' ? 'Deepen Reading' : 'Add Birth Time'}</Text>
+            <TouchableOpacity onPress={() => { setShowDeepenModal(false); resetDeepenForm(); }}><Text style={[styles.modalClose, { color: colors.textSecondary }]}>✕</Text></TouchableOpacity>
+          </View>
+          <ScrollView style={styles.modalBody} keyboardShouldPersistTaps="handled">
+            {/* Pre-filled name (read-only display) */}
+            <View style={styles.deepenNameRow}>
+              <Text style={styles.deepenNameLabel}>{deepenPartner?.name || ''}</Text>
+              <View style={styles.deepenSignBadge}>
+                <Text style={styles.deepenSignBadgeText}>
+                  {ZODIAC_GLYPHS[deepenPartner?.zodiacSign || deepenPartner?.chart?.planets?.find(pl => pl.name === 'Sun')?.sign] || '✦'}{' '}
+                  {deepenPartner?.zodiacSign || deepenPartner?.chart?.planets?.find(pl => pl.name === 'Sun')?.sign || ''}
+                </Text>
+              </View>
+            </View>
+
+            {deepenMode === 'full' && (
+              <View style={styles.deepenInfoBanner}>
+                <Text style={styles.deepenInfoText}>Adding birthday and location will unlock a full chart reading with emotional dynamics, communication patterns, and long-term potential.</Text>
+              </View>
+            )}
+            {deepenMode === 'time' && (
+              <View style={styles.deepenInfoBanner}>
+                <Text style={styles.deepenInfoText}>Adding birth time unlocks accurate Moon sign, house placements, and rising sign for much deeper compatibility insights.</Text>
+              </View>
+            )}
+
+            {/* Birthday (only in 'full' mode) */}
+            {deepenMode === 'full' && (
+              <>
+                <Text style={styles.fieldLabel}>BIRTH DATE</Text>
+                <TouchableOpacity style={styles.input} onPress={() => setDeepenShowDatePicker(true)}>
+                  <Text style={{ color: deepenDate ? T.navy : T.stone, fontFamily: FONTS.sansMedium }}>{deepenDate ? deepenDate.toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' }) : 'Select date'}</Text>
+                </TouchableOpacity>
+                {deepenShowDatePicker && <DateTimePicker value={deepenDate || new Date(2000, 0, 1)} mode="date" display={Platform.OS === 'ios' ? 'spinner' : 'default'} maximumDate={new Date()} onChange={(e, d) => { setDeepenShowDatePicker(Platform.OS === 'ios'); if (d) setDeepenDate(d); }} />}
+              </>
+            )}
+
+            {/* Birth time (both modes) */}
+            <Text style={styles.fieldLabel}>BIRTH TIME</Text>
+            <TouchableOpacity style={[styles.input, deepenTimeUnknown && { opacity: 0.4 }]} onPress={() => !deepenTimeUnknown && setDeepenShowTimePicker(true)}>
+              <Text style={{ color: (deepenTimeUnknown || deepenTime) ? T.navy : T.stone, fontFamily: FONTS.sansMedium }}>{deepenTimeUnknown ? 'Unknown' : (deepenTime ? deepenTime.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' }) : 'Select time')}</Text>
+            </TouchableOpacity>
+            {deepenShowTimePicker && <DateTimePicker value={deepenTime || new Date(2000, 0, 1, 12, 0)} mode="time" display={Platform.OS === 'ios' ? 'spinner' : 'default'} onChange={(e, t) => { setDeepenShowTimePicker(Platform.OS === 'ios'); if (t) setDeepenTime(t); }} />}
+            <TouchableOpacity style={styles.checkRow} onPress={() => setDeepenTimeUnknown(!deepenTimeUnknown)}>
+              <View style={[styles.check, deepenTimeUnknown && styles.checkOn]}>{deepenTimeUnknown && <Text style={{ color: 'white', fontSize: 10 }}>✓</Text>}</View>
+              <Text style={styles.checkLabel}>I don't know the exact birth time</Text>
+            </TouchableOpacity>
+
+            {/* Birth city (both modes, but pre-filled for 'time' if already set) */}
+            {(deepenMode === 'full' || !deepenSelectedCity) && (
+              <>
+                <Text style={styles.fieldLabel}>BIRTH CITY</Text>
+                <TextInput style={styles.input} placeholder="Search city..." placeholderTextColor={T.stone} value={deepenSelectedCity ? deepenSelectedCity.name : deepenCitySearch} onChangeText={(t) => { setDeepenSelectedCity(null); setDeepenCitySearch(t); }} />
+                {deepenCitySearching && <View style={[styles.suggestions, { padding: 12, alignItems: 'center' }]}><ActivityIndicator size="small" color={T.gold} /></View>}
+                {!deepenCitySearching && deepenCitySuggestions.length > 0 && (
+                  <View style={styles.suggestions}>
+                    {deepenCitySuggestions.map((c, i) => (
+                      <TouchableOpacity key={i} style={styles.suggestion} onPress={() => { setDeepenSelectedCity(c); setDeepenCitySearch(c.name); setDeepenCitySuggestions([]); }}>
+                        <Text style={{ color: T.navy, fontSize: 14 }} numberOfLines={2}>{c.name}</Text>
+                      </TouchableOpacity>
+                    ))}
+                  </View>
+                )}
+              </>
+            )}
+
+            <TouchableOpacity
+              style={[styles.saveBtn, styles.deepenSaveBtn,
+                (deepenMode === 'full' ? (!deepenDate || !deepenSelectedCity) : (!deepenTime && !deepenTimeUnknown)) && { opacity: 0.5 }
+              ]}
+              onPress={handleSaveDeepenedPartner}
+              disabled={deepenSaving || (deepenMode === 'full' ? (!deepenDate || !deepenSelectedCity) : (!deepenTime && !deepenTimeUnknown))}>
+              {deepenSaving
+                ? <ActivityIndicator color="white" />
+                : <Text style={styles.saveBtnText}>{deepenMode === 'full' ? 'Deepen Compatibility' : 'Update Reading'}</Text>
+              }
+            </TouchableOpacity>
+            <View style={{ height: 40 }} />
+          </ScrollView>
+        </View>
+      </Modal>
+
+      {/* ─── SUCCESS TOAST ─── */}
+      {successToast && (
+        <Animated.View style={[styles.toastContainer, { opacity: toastAnim, transform: [{ translateY: toastAnim.interpolate({ inputRange: [0, 1], outputRange: [-20, 0] }) }] }]} pointerEvents="none">
+          <View style={styles.toast}>
+            <Text style={styles.toastIcon}>✦</Text>
+            <Text style={styles.toastText}>{successToast}</Text>
+          </View>
+        </Animated.View>
+      )}
     </View>
   );
 }
@@ -1571,7 +1984,81 @@ const styles = StyleSheet.create({
   upgradeDepthSub: { fontSize: 11, color: T.stone, marginTop: 1 },
   upgradeDepthArrow: { fontSize: 16, color: T.gold },
   // Ask Celestia bridge
-  askCelestiaBtn: { flexDirection: 'row', alignItems: 'center', gap: 10, backgroundColor: T.navy, borderRadius: 14, padding: 14, marginBottom: 10 },
-  askCelestiaBtnIcon: { fontSize: 18, color: T.gold },
-  askCelestiaBtnText: { fontSize: 13, fontFamily: FONTS.sansMedium, color: T.cream },
+  askCelestiaBtn: { flexDirection: 'row', alignItems: 'center', gap: 10, backgroundColor: 'rgba(200,168,75,0.08)', borderWidth: 1, borderColor: 'rgba(200,168,75,0.18)', borderRadius: 14, padding: 14, marginBottom: 10 },
+  askCelestiaBtnIcon: { fontSize: 18, color: T.gold, width: 28, textAlign: 'center' },
+  askCelestiaBtnText: { fontSize: 13, fontFamily: FONTS.sansMedium, color: T.navy },
+  askCelestiaBtnSub: { fontSize: 11, fontFamily: FONTS.sans, color: T.stone, marginTop: 2 },
+  askCelestiaBtnArrow: { fontSize: 16, color: T.gold },
+  // Bridge to Reports
+  reportsBtn: { flexDirection: 'row', alignItems: 'center', gap: 10, backgroundColor: 'rgba(14,14,34,0.06)', borderWidth: 1, borderColor: 'rgba(14,14,34,0.10)', borderRadius: 14, padding: 14, marginBottom: 10 },
+  reportsBtnIcon: { fontSize: 18, color: T.gold, width: 28, textAlign: 'center' },
+  reportsBtnText: { fontSize: 13, fontFamily: FONTS.sansMedium, color: T.navy },
+  reportsBtnSub: { fontSize: 11, fontFamily: FONTS.sans, color: T.stone, marginTop: 2 },
+  reportsBtnArrow: { fontSize: 16, color: T.stone },
+
+  // Celebrity Match
+  celebSection: { paddingTop: 8, paddingBottom: 4, marginBottom: 10 },
+  celebHeader: { paddingHorizontal: 20, marginBottom: 12 },
+  celebLabel: { fontSize: 10, fontFamily: FONTS.sansSemiBold, letterSpacing: 2, color: T.stone, marginBottom: 4 },
+  celebSub: { fontSize: 13, fontFamily: FONTS.serif, color: T.navy },
+  celebScroll: { paddingHorizontal: 20, gap: 10, paddingBottom: 4 },
+  celebChip: { flexDirection: 'row', alignItems: 'center', gap: 8, backgroundColor: 'white', borderRadius: 14, paddingVertical: 10, paddingHorizontal: 14, borderWidth: 1, borderColor: 'rgba(0,0,0,0.06)', minWidth: 140 },
+  celebChipActive: { backgroundColor: 'rgba(200,168,75,0.1)', borderColor: T.gold },
+  celebChipIcon: { fontSize: 20 },
+  celebChipName: { fontSize: 13, fontFamily: FONTS.sansMedium, color: T.navy, marginBottom: 1 },
+  celebChipNameActive: { color: T.navy },
+  celebChipSign: { fontSize: 11, color: T.stone },
+  celebChipSignActive: { color: T.gold },
+  celebResultCard: { marginHorizontal: 20, marginTop: 12, backgroundColor: 'white', borderRadius: 16, padding: 16, borderWidth: 1, borderColor: 'rgba(200,168,75,0.2)', shadowColor: '#C8A84B', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.08, shadowRadius: 8 },
+  celebResultTop: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 6 },
+  celebResultNames: { flexDirection: 'row', alignItems: 'baseline', gap: 6, flex: 1, flexWrap: 'wrap' },
+  celebResultYou: { fontSize: 15, fontFamily: FONTS.serif, color: T.navy },
+  celebResultAmp: { fontSize: 14, fontFamily: FONTS.serif, color: T.gold },
+  celebResultThem: { fontSize: 15, fontFamily: FONTS.serif, color: T.navy },
+  celebResultScoreBadge: { backgroundColor: 'rgba(200,168,75,0.12)', borderRadius: 10, paddingHorizontal: 12, paddingVertical: 6, borderWidth: 1, borderColor: 'rgba(200,168,75,0.3)' },
+  celebResultScore: { fontSize: 18, fontFamily: FONTS.serif, color: T.gold },
+  celebResultVerdict: { fontSize: 13, fontFamily: FONTS.serifItalic || FONTS.serif, fontStyle: 'italic', color: T.stone, marginBottom: 10 },
+  celebResultSignsRow: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 12 },
+  celebResultSignText: { fontSize: 12, fontFamily: FONTS.sansMedium, color: T.ink },
+  celebResultX: { fontSize: 10, color: T.gold },
+  celebResultDims: { gap: 6, marginBottom: 12 },
+  celebResultDimRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  celebResultDimLabel: { fontSize: 11, fontFamily: FONTS.sansMedium, color: T.stone, width: 90 },
+  celebResultDimTrack: { flex: 1, height: 5, backgroundColor: 'rgba(0,0,0,0.05)', borderRadius: 3, overflow: 'hidden' },
+  celebResultDimFill: { height: '100%', borderRadius: 3, backgroundColor: T.gold },
+  celebResultDimPct: { fontSize: 11, fontFamily: FONTS.sansSemiBold, color: T.gold, width: 32, textAlign: 'right' },
+  celebShareBtn: { alignSelf: 'flex-end', borderRadius: 10, borderWidth: 1.5, borderColor: 'rgba(200,168,75,0.3)', paddingVertical: 8, paddingHorizontal: 16, backgroundColor: 'rgba(200,168,75,0.06)' },
+  celebShareText: { fontSize: 13, fontFamily: FONTS.sansSemiBold, color: T.gold },
+
+  // Deepen Reading button (on partner cards in YOUR CONNECTIONS)
+  deepenBtn: { flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 8, marginTop: -4, marginLeft: 62, paddingVertical: 5, paddingHorizontal: 10, borderRadius: 8, backgroundColor: 'rgba(200,168,75,0.08)', borderWidth: 1, borderColor: 'rgba(200,168,75,0.18)', alignSelf: 'flex-start' },
+  deepenBtnIcon: { fontSize: 12, color: T.gold },
+  deepenBtnText: { fontSize: 11, fontFamily: FONTS.sansMedium, color: T.gold },
+  deepenBtnArrow: { fontSize: 11, color: T.gold, marginLeft: 2 },
+
+  // Add Birth Time button (on partner cards in YOUR CONNECTIONS)
+  addTimeBtn: { flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 8, marginTop: -4, marginLeft: 62, paddingVertical: 5, paddingHorizontal: 10, borderRadius: 8, backgroundColor: 'rgba(14,14,34,0.04)', borderWidth: 1, borderColor: 'rgba(14,14,34,0.08)', alignSelf: 'flex-start' },
+  addTimeBtnIcon: { fontSize: 12, color: T.stone },
+  addTimeBtnText: { fontSize: 11, fontFamily: FONTS.sansMedium, color: T.stone },
+
+  // Add Birth Time nudge card (in detail view)
+  addTimeNudgeCard: { flexDirection: 'row', alignItems: 'center', gap: 12, backgroundColor: 'rgba(14,14,34,0.04)', borderWidth: 1, borderColor: 'rgba(14,14,34,0.08)', borderRadius: 14, padding: 14, marginBottom: 10 },
+  addTimeNudgeIcon: { fontSize: 18, color: T.stone, width: 28, textAlign: 'center' },
+  addTimeNudgeTitle: { fontSize: 13, fontFamily: FONTS.sansSemiBold, color: T.navy },
+  addTimeNudgeSub: { fontSize: 11, color: T.stone, marginTop: 1 },
+
+  // Deepen modal extras
+  deepenNameRow: { flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 16, paddingBottom: 16, borderBottomWidth: 1, borderBottomColor: '#EDE6D8' },
+  deepenNameLabel: { fontFamily: FONTS.serif, fontSize: 20, color: T.navy, flex: 1 },
+  deepenSignBadge: { backgroundColor: 'rgba(200,168,75,0.1)', borderRadius: 100, paddingVertical: 4, paddingHorizontal: 10, borderWidth: 1, borderColor: 'rgba(200,168,75,0.25)' },
+  deepenSignBadgeText: { fontSize: 12, fontFamily: FONTS.sansMedium, color: T.gold },
+  deepenInfoBanner: { backgroundColor: 'rgba(200,168,75,0.06)', borderRadius: 12, padding: 14, marginBottom: 16, borderWidth: 1, borderColor: 'rgba(200,168,75,0.12)' },
+  deepenInfoText: { fontSize: 12, color: T.ink, lineHeight: 18 },
+  deepenSaveBtn: { backgroundColor: T.gold },
+
+  // Success toast
+  toastContainer: { position: 'absolute', top: Platform.OS === 'ios' ? 80 : (StatusBar.currentHeight || 48) + 20, left: 20, right: 20, alignItems: 'center', zIndex: 999 },
+  toast: { flexDirection: 'row', alignItems: 'center', gap: 8, backgroundColor: T.navy, borderRadius: 14, paddingVertical: 12, paddingHorizontal: 18, shadowColor: '#000', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.2, shadowRadius: 12, elevation: 6 },
+  toastIcon: { fontSize: 14, color: T.gold },
+  toastText: { fontSize: 13, fontFamily: FONTS.sansMedium, color: T.cream, flex: 1 },
 });

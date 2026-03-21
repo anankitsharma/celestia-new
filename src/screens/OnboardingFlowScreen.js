@@ -6,6 +6,7 @@ import {
 import { LinearGradient } from 'expo-linear-gradient';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { T, FONTS } from '../constants/theme';
+import { useTheme } from '../contexts/ThemeContext';
 import ChartWheel from '../components/ChartWheel';
 import { useUserProfile } from '../contexts/UserProfileContext';
 import { useAuth } from '../contexts/AuthContext';
@@ -66,31 +67,34 @@ const RISING_TAGLINES = {
 const ELEMENT_LABELS = { fire: '🔥 Fire', earth: '🌿 Earth', air: '💨 Air', water: '🌊 Water' };
 
 // ── Small Components ──────────────────────────────────────
-const ProgressBar = ({ step }) => (
+const ProgressBar = ({ step, colors }) => (
   <View style={s.progWrap}>
-    <View style={s.progTrack}>
+    <View style={[s.progTrack, colors && { backgroundColor: colors.divider }]}>
       <Animated.View style={[s.progFill, { width: `${(step / TOTAL_STEPS) * 100}%` }]} />
     </View>
   </View>
 );
 
-const OptionCard = ({ text, sub, selected, onPress, icon }) => (
-  <TouchableOpacity
-    style={[s.optCard, selected && s.optCardOn]}
-    onPress={onPress} activeOpacity={0.7}
-  >
-    {icon && <Text style={s.optIcon}>{icon}</Text>}
-    <View style={{ flex: 1 }}>
-      <Text style={[s.optText, selected && s.optTextOn]}>{text}</Text>
-      {sub && <Text style={[s.optSub, selected && { color: T.ink }]}>{sub}</Text>}
-    </View>
-    <View style={[s.optRadio, selected && s.optRadioOn]}>
-      {selected && <View style={s.optRadioDot} />}
-    </View>
-  </TouchableOpacity>
-);
+const OptionCard = ({ text, sub, selected, onPress, icon, colors }) => {
+  const c = colors || {};
+  return (
+    <TouchableOpacity
+      style={[s.optCard, { backgroundColor: c.card || T.white, borderColor: c.border || T.border }, selected && { borderColor: T.gold, borderWidth: 1.5 }]}
+      onPress={onPress} activeOpacity={0.7}
+    >
+      {icon && <Text style={s.optIcon}>{icon}</Text>}
+      <View style={{ flex: 1 }}>
+        <Text style={[s.optText, { color: c.text || T.ink }, selected && { color: c.heading || T.navy }]}>{text}</Text>
+        {sub && <Text style={[s.optSub, { color: c.textSecondary || T.stone }, selected && { color: c.text || T.ink }]}>{sub}</Text>}
+      </View>
+      <View style={[s.optRadio, { borderColor: c.border || T.border }, selected && { borderColor: T.gold, backgroundColor: c.card || T.white }]}>
+        {selected && <View style={s.optRadioDot} />}
+      </View>
+    </TouchableOpacity>
+  );
+};
 
-const GoldButton = ({ text, onPress, disabled, loading, sub }) => (
+const GoldButton = ({ text, onPress, disabled, loading, sub, colors: c }) => (
   <View style={s.goldBtnWrap}>
     <TouchableOpacity activeOpacity={0.85} onPress={onPress} disabled={disabled || loading} style={s.goldBtnTouch}>
       <LinearGradient
@@ -101,7 +105,7 @@ const GoldButton = ({ text, onPress, disabled, loading, sub }) => (
         {loading ? <ActivityIndicator color={T.navy} /> : <Text style={s.goldBtnText}>{text}</Text>}
       </LinearGradient>
     </TouchableOpacity>
-    {sub && <Text style={s.goldBtnSub}>{sub}</Text>}
+    {sub && <Text style={[s.goldBtnSub, c && { color: c.textSecondary }]}>{sub}</Text>}
   </View>
 );
 
@@ -111,6 +115,7 @@ const GoldButton = ({ text, onPress, disabled, loading, sub }) => (
 export default function OnboardingFlowScreen({ navigation }) {
   const { setUserProfile } = useUserProfile();
   const { user } = useAuth();
+  const { isDark, colors } = useTheme();
   const { capture, identify } = useAnalytics();
   const [step, setStep] = useState(1);
   const slideAnim = useRef(new Animated.Value(0)).current;
@@ -271,13 +276,13 @@ export default function OnboardingFlowScreen({ navigation }) {
     <View style={s.center}>
       <View style={s.hookGlow} />
       <Text style={s.hookPre}>✦</Text>
-      <Text style={s.hookH1}>The stars remember{'\n'}when you were born</Text>
-      <Text style={s.hookSub}>Your birth chart is a fingerprint.{'\n'}No two are alike. Let's read yours.</Text>
+      <Text style={[s.hookH1, { color: colors.heading }]}>The stars remember{'\n'}when you were born</Text>
+      <Text style={[s.hookSub, { color: colors.textSecondary }]}>Your birth chart is a fingerprint.{'\n'}No two are alike. Let's read yours.</Text>
       <View style={{ height: 40, width: '100%' }} />
       <View style={{ width: '100%', paddingHorizontal: 8 }}>
         <GoldButton text="Show Me ✦" onPress={() => advance()} />
       </View>
-      <Text style={s.hookDisclaimer}>2 minutes · completely free</Text>
+      <Text style={[s.hookDisclaimer, { color: colors.textSecondary }]}>2 minutes · completely free</Text>
     </View>
   );
 
@@ -285,13 +290,13 @@ export default function OnboardingFlowScreen({ navigation }) {
   const renderMotivation = () => (
     <ScrollView style={s.scroll} contentContainerStyle={s.scrollContent} showsVerticalScrollIndicator={false}>
       <Text style={s.phaseLabel}>ABOUT YOU</Text>
-      <Text style={s.h1}>What brought you{'\n'}here tonight?</Text>
-      <Text style={s.sub}>No wrong answers. Just honesty.</Text>
+      <Text style={[s.h1, { color: colors.heading }]}>What brought you{'\n'}here tonight?</Text>
+      <Text style={[s.sub, { color: colors.textSecondary }]}>No wrong answers. Just honesty.</Text>
       <View style={s.optWrap}>
-        <OptionCard text="I want to understand myself better" icon="🪞" selected={motivation === 'self'} onPress={() => selectAndAdvance(setMotivation, 'self')} delay={100} />
-        <OptionCard text="I'm going through something big" icon="🌊" selected={motivation === 'change'} onPress={() => selectAndAdvance(setMotivation, 'change')} delay={200} />
-        <OptionCard text="I need clarity on a relationship" icon="💫" selected={motivation === 'love'} onPress={() => selectAndAdvance(setMotivation, 'love')} />
-        <OptionCard text="I'm curious — show me what you've got" icon="✨" selected={motivation === 'curious'} onPress={() => selectAndAdvance(setMotivation, 'curious')} />
+        <OptionCard text="I want to understand myself better" icon="🪞" selected={motivation === 'self'} onPress={() => selectAndAdvance(setMotivation, 'self')} colors={colors} />
+        <OptionCard text="I'm going through something big" icon="🌊" selected={motivation === 'change'} onPress={() => selectAndAdvance(setMotivation, 'change')} colors={colors} />
+        <OptionCard text="I need clarity on a relationship" icon="💫" selected={motivation === 'love'} onPress={() => selectAndAdvance(setMotivation, 'love')} colors={colors} />
+        <OptionCard text="I'm curious — show me what you've got" icon="✨" selected={motivation === 'curious'} onPress={() => selectAndAdvance(setMotivation, 'curious')} colors={colors} />
       </View>
     </ScrollView>
   );
@@ -300,13 +305,13 @@ export default function OnboardingFlowScreen({ navigation }) {
   const renderPain = () => (
     <ScrollView style={s.scroll} contentContainerStyle={s.scrollContent} showsVerticalScrollIndicator={false}>
       <Text style={s.phaseLabel}>GOING DEEPER</Text>
-      <Text style={s.h1}>What feels most{'\n'}uncertain right now?</Text>
-      <Text style={s.sub}>Your chart might explain why.</Text>
+      <Text style={[s.h1, { color: colors.heading }]}>What feels most{'\n'}uncertain right now?</Text>
+      <Text style={[s.sub, { color: colors.textSecondary }]}>Your chart might explain why.</Text>
       <View style={s.optWrap}>
-        <OptionCard text="My love life" icon="♡" selected={painPoint === 'love'} onPress={() => selectAndAdvance(setPainPoint, 'love')} delay={100} />
-        <OptionCard text="My career and purpose" icon="◆" selected={painPoint === 'career'} onPress={() => selectAndAdvance(setPainPoint, 'career')} delay={200} />
-        <OptionCard text="My sense of self" icon="☽" selected={painPoint === 'self'} onPress={() => selectAndAdvance(setPainPoint, 'self')} />
-        <OptionCard text="Everything, honestly" icon="∞" selected={painPoint === 'all'} onPress={() => selectAndAdvance(setPainPoint, 'all')} />
+        <OptionCard text="My love life" icon="♡" selected={painPoint === 'love'} onPress={() => selectAndAdvance(setPainPoint, 'love')} colors={colors} />
+        <OptionCard text="My career and purpose" icon="◆" selected={painPoint === 'career'} onPress={() => selectAndAdvance(setPainPoint, 'career')} colors={colors} />
+        <OptionCard text="My sense of self" icon="☽" selected={painPoint === 'self'} onPress={() => selectAndAdvance(setPainPoint, 'self')} colors={colors} />
+        <OptionCard text="Everything, honestly" icon="∞" selected={painPoint === 'all'} onPress={() => selectAndAdvance(setPainPoint, 'all')} colors={colors} />
       </View>
     </ScrollView>
   );
@@ -315,12 +320,12 @@ export default function OnboardingFlowScreen({ navigation }) {
   const renderDepth = () => (
     <ScrollView style={s.scroll} contentContainerStyle={s.scrollContent} showsVerticalScrollIndicator={false}>
       <Text style={s.phaseLabel}>ONE MORE THING</Text>
-      <Text style={s.h1}>How often do you feel{'\n'}like no one really{'\n'}<Text style={s.h1em}>gets</Text> you?</Text>
+      <Text style={[s.h1, { color: colors.heading }]}>How often do you feel{'\n'}like no one really{'\n'}<Text style={s.h1em}>gets</Text> you?</Text>
       <View style={s.optWrap}>
-        <OptionCard text="All the time" selected={depth === 'always'} onPress={() => selectAndAdvance(setDepth, 'always')} delay={100} />
-        <OptionCard text="More than I'd like to admit" selected={depth === 'often'} onPress={() => selectAndAdvance(setDepth, 'often')} delay={200} />
-        <OptionCard text="Sometimes" selected={depth === 'sometimes'} onPress={() => selectAndAdvance(setDepth, 'sometimes')} />
-        <OptionCard text="I just want more self-awareness" selected={depth === 'aware'} onPress={() => selectAndAdvance(setDepth, 'aware')} />
+        <OptionCard text="All the time" selected={depth === 'always'} onPress={() => selectAndAdvance(setDepth, 'always')} colors={colors} />
+        <OptionCard text="More than I'd like to admit" selected={depth === 'often'} onPress={() => selectAndAdvance(setDepth, 'often')} colors={colors} />
+        <OptionCard text="Sometimes" selected={depth === 'sometimes'} onPress={() => selectAndAdvance(setDepth, 'sometimes')} colors={colors} />
+        <OptionCard text="I just want more self-awareness" selected={depth === 'aware'} onPress={() => selectAndAdvance(setDepth, 'aware')} colors={colors} />
       </View>
     </ScrollView>
   );
@@ -329,15 +334,15 @@ export default function OnboardingFlowScreen({ navigation }) {
   const renderBirthDate = () => (
     <ScrollView style={s.scroll} contentContainerStyle={s.scrollContent} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
       <Text style={s.phaseLabel}>YOUR CHART</Text>
-      <Text style={s.h1}>When did your{'\n'}story begin?</Text>
-      <Text style={s.sub}>Your birth moment is your cosmic fingerprint.{'\n'}No two charts are alike.</Text>
+      <Text style={[s.h1, { color: colors.heading }]}>When did your{'\n'}story begin?</Text>
+      <Text style={[s.sub, { color: colors.textSecondary }]}>Your birth moment is your cosmic fingerprint.{'\n'}No two charts are alike.</Text>
 
       <View style={s.fieldWrap}>
-        <Text style={s.fieldLabel}>FIRST NAME</Text>
+        <Text style={[s.fieldLabel, { color: colors.textSecondary }]}>FIRST NAME</Text>
         <TextInput
-          style={[s.field, firstName.length > 0 && s.fieldFilled]}
+          style={[s.field, { backgroundColor: colors.inputBg, borderColor: colors.inputBorder, color: colors.heading }, firstName.length > 0 && { borderColor: colors.gold }]}
           placeholder="What should we call you?"
-          placeholderTextColor={T.stone}
+          placeholderTextColor={colors.inputPlaceholder}
           value={firstName}
           onChangeText={setFirstName}
           autoCapitalize="words"
@@ -346,9 +351,9 @@ export default function OnboardingFlowScreen({ navigation }) {
       </View>
 
       <View style={s.fieldWrap}>
-        <Text style={s.fieldLabel}>BIRTH DATE</Text>
-        <TouchableOpacity style={[s.field, birthDate && s.fieldFilled]} onPress={() => setShowDatePicker(true)}>
-          <Text style={{ color: birthDate ? T.navy : T.stone, fontFamily: FONTS.sans, fontSize: 16 }}>
+        <Text style={[s.fieldLabel, { color: colors.textSecondary }]}>BIRTH DATE</Text>
+        <TouchableOpacity style={[s.field, { backgroundColor: colors.inputBg, borderColor: colors.inputBorder }, birthDate && { borderColor: colors.gold }]} onPress={() => setShowDatePicker(true)}>
+          <Text style={{ color: birthDate ? colors.heading : colors.inputPlaceholder, fontFamily: FONTS.sans, fontSize: 16 }}>
             {birthDate ? birthDate.toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' }) : 'Select your birth date'}
           </Text>
         </TouchableOpacity>
@@ -374,8 +379,8 @@ export default function OnboardingFlowScreen({ navigation }) {
   const renderBirthTime = () => (
     <ScrollView style={s.scroll} contentContainerStyle={s.scrollContent} showsVerticalScrollIndicator={false}>
       <Text style={s.phaseLabel}>PRECISION</Text>
-      <Text style={s.h1}>Do you know what time{'\n'}you were born?</Text>
-      <Text style={s.sub}>This determines your Rising sign —{'\n'}the mask you show the world.</Text>
+      <Text style={[s.h1, { color: colors.heading }]}>Do you know what time{'\n'}you were born?</Text>
+      <Text style={[s.sub, { color: colors.textSecondary }]}>This determines your Rising sign —{'\n'}the mask you show the world.</Text>
 
       <View style={s.optWrap}>
         <OptionCard
@@ -384,6 +389,7 @@ export default function OnboardingFlowScreen({ navigation }) {
           icon="🕐"
           selected={!isTimeUnknown && birthTime !== null}
           onPress={() => { setIsTimeUnknown(false); setShowTimePicker(true); }}
+          colors={colors}
                  />
         <OptionCard
           text="I'm not sure"
@@ -391,6 +397,7 @@ export default function OnboardingFlowScreen({ navigation }) {
           icon="🤷‍♀️"
           selected={isTimeUnknown}
           onPress={() => { setIsTimeUnknown(true); setBirthTime(null); setTimeout(() => advance(), 500); }}
+          colors={colors}
                  />
       </View>
 
@@ -416,15 +423,15 @@ export default function OnboardingFlowScreen({ navigation }) {
   const renderBirthPlace = () => (
     <ScrollView style={s.scroll} contentContainerStyle={s.scrollContent} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
       <Text style={s.phaseLabel}>LOCATION</Text>
-      <Text style={s.h1}>Where did you first{'\n'}see the sky?</Text>
-      <Text style={s.sub}>Your birthplace completes your chart.</Text>
+      <Text style={[s.h1, { color: colors.heading }]}>Where did you first{'\n'}see the sky?</Text>
+      <Text style={[s.sub, { color: colors.textSecondary }]}>Your birthplace completes your chart.</Text>
 
       <View style={s.fieldWrap}>
-        <Text style={s.fieldLabel}>BIRTH CITY</Text>
+        <Text style={[s.fieldLabel, { color: colors.textSecondary }]}>BIRTH CITY</Text>
         <TextInput
-          style={[s.field, selectedCity && s.fieldFilled]}
+          style={[s.field, { backgroundColor: colors.inputBg, borderColor: colors.inputBorder, color: colors.heading }, selectedCity && { borderColor: colors.gold }]}
           placeholder="Search any city..."
-          placeholderTextColor={T.stone}
+          placeholderTextColor={colors.inputPlaceholder}
           value={selectedCity ? selectedCity.name.split(',')[0] : citySearch}
           onChangeText={(t) => { setSelectedCity(null); setCitySearch(t); }}
           autoCapitalize="words"
@@ -435,19 +442,19 @@ export default function OnboardingFlowScreen({ navigation }) {
         <View style={s.suggestWrap}><ActivityIndicator size="small" color={T.gold} /></View>
       )}
       {!citySearching && citySuggestions.length > 0 && (
-        <View style={s.suggestList}>
+        <View style={[s.suggestList, { backgroundColor: colors.card, borderColor: colors.border }]}>
           {citySuggestions.map((c, i) => (
-            <TouchableOpacity key={i} style={s.suggestItem}
+            <TouchableOpacity key={i} style={[s.suggestItem, { borderBottomColor: colors.divider }]}
               onPress={() => { setSelectedCity(c); setCitySearch(''); setCitySuggestions([]); }}>
-              <Text style={s.suggestText} numberOfLines={2}>{c.name}</Text>
+              <Text style={[s.suggestText, { color: colors.text }]} numberOfLines={2}>{c.name}</Text>
             </TouchableOpacity>
           ))}
         </View>
       )}
 
       {selectedCity && (
-        <View style={s.selectedCityBadge}>
-          <Text style={s.selectedCityText}>📍 {selectedCity.name.split(',').slice(0, 2).join(',')}</Text>
+        <View style={[s.selectedCityBadge, { backgroundColor: colors.cardAlt, borderColor: colors.border }]}>
+          <Text style={[s.selectedCityText, { color: colors.gold }]}>📍 {selectedCity.name.split(',').slice(0, 2).join(',')}</Text>
         </View>
       )}
 
@@ -464,11 +471,11 @@ export default function OnboardingFlowScreen({ navigation }) {
       <View style={s.calcOrbWrap}>
         <LinearGradient colors={['#EDD060', '#C8A84B', '#8C6C18']} style={s.calcOrb} />
       </View>
-      <Text style={s.calcTitle}>Casting your chart</Text>
-      <Text style={s.calcPhase}>{calcPhases[calcPhase] || calcPhases[0]}</Text>
+      <Text style={[s.calcTitle, { color: colors.heading }]}>Casting your chart</Text>
+      <Text style={[s.calcPhase, { color: colors.textSecondary }]}>{calcPhases[calcPhase] || calcPhases[0]}</Text>
       <View style={s.calcDots}>
         {calcPhases.map((_, i) => (
-          <View key={i} style={[s.calcDot, i <= calcPhase && s.calcDotOn]} />
+          <View key={i} style={[s.calcDot, { backgroundColor: colors.border }, i <= calcPhase && s.calcDotOn]} />
         ))}
       </View>
     </View>
@@ -479,10 +486,10 @@ export default function OnboardingFlowScreen({ navigation }) {
     <View style={s.center}>
       <View style={s.hitGlow} />
       <Text style={s.hitPre}>Your Sun is in</Text>
-      <Text style={s.hitSign}>{sun?.sign || '—'}</Text>
-      <Text style={s.hitTagline}>{SUN_TAGLINES[sun?.sign] || ''}</Text>
+      <Text style={[s.hitSign, { color: colors.heading }]}>{sun?.sign || '—'}</Text>
+      <Text style={[s.hitTagline, { color: colors.text }]}>{SUN_TAGLINES[sun?.sign] || ''}</Text>
       <View style={s.hitDivider} />
-      <Text style={s.hitWhisper}>
+      <Text style={[s.hitWhisper, { color: colors.textSecondary }]}>
         {depth === 'always' || depth === 'often'
           ? "That feeling of being misunderstood?\nYour chart explains exactly why."
           : "There's so much more beneath the surface.\nLet's go deeper."}
@@ -498,57 +505,57 @@ export default function OnboardingFlowScreen({ navigation }) {
   const renderBigReveal = () => (
     <ScrollView style={s.scroll} contentContainerStyle={[s.scrollContent, { paddingTop: 40 }]} showsVerticalScrollIndicator={false}>
       <Text style={s.revealPre}>✦ YOUR COSMIC BLUEPRINT ✦</Text>
-      <Text style={s.revealName}>{firstName}</Text>
+      <Text style={[s.revealName, { color: colors.heading }]}>{firstName}</Text>
 
       {/* Chart wheel */}
-      <View style={s.revealWheelWrap}>
-        <ChartWheel size={276} planets={chart?.planets} aspects={chart?.aspects} lightMode />
+      <View style={[s.revealWheelWrap, { borderColor: colors.border, backgroundColor: colors.card }]}>
+        <ChartWheel size={276} planets={chart?.planets} aspects={chart?.aspects} lightMode={!isDark} />
       </View>
 
       {/* Big 3 */}
       <View style={s.revealBig3}>
-        <View style={s.revealB3Card}>
+        <View style={[s.revealB3Card, { backgroundColor: colors.card, borderColor: colors.border }]}>
           <Text style={s.revealB3Label}>☉ SUN</Text>
-          <Text style={s.revealB3Sign}>{sun?.sign || '—'}</Text>
-          <Text style={s.revealB3Desc}>{SUN_TAGLINES[sun?.sign] || ''}</Text>
+          <Text style={[s.revealB3Sign, { color: colors.heading }]}>{sun?.sign || '—'}</Text>
+          <Text style={[s.revealB3Desc, { color: colors.textSecondary }]}>{SUN_TAGLINES[sun?.sign] || ''}</Text>
         </View>
-        <View style={s.revealB3Card}>
+        <View style={[s.revealB3Card, { backgroundColor: colors.card, borderColor: colors.border }]}>
           <Text style={s.revealB3Label}>☽ MOON</Text>
-          <Text style={s.revealB3Sign}>{moon?.sign || '—'}</Text>
-          <Text style={s.revealB3Desc}>{MOON_TAGLINES[moon?.sign] || ''}</Text>
+          <Text style={[s.revealB3Sign, { color: colors.heading }]}>{moon?.sign || '—'}</Text>
+          <Text style={[s.revealB3Desc, { color: colors.textSecondary }]}>{MOON_TAGLINES[moon?.sign] || ''}</Text>
         </View>
         {rising && (
-          <View style={s.revealB3Card}>
+          <View style={[s.revealB3Card, { backgroundColor: colors.card, borderColor: colors.border }]}>
             <Text style={s.revealB3Label}>↑ RISING</Text>
-            <Text style={s.revealB3Sign}>{rising?.sign || '—'}</Text>
-            <Text style={s.revealB3Desc}>{RISING_TAGLINES[rising?.sign] || ''}</Text>
+            <Text style={[s.revealB3Sign, { color: colors.heading }]}>{rising?.sign || '—'}</Text>
+            <Text style={[s.revealB3Desc, { color: colors.textSecondary }]}>{RISING_TAGLINES[rising?.sign] || ''}</Text>
           </View>
         )}
       </View>
 
       {/* Stats strip */}
-      <View style={s.revealStats}>
+      <View style={[s.revealStats, { backgroundColor: colors.cardAlt }]}>
         {dominantElement && (
           <View style={s.revealStat}>
             <Text style={s.revealStatVal}>{ELEMENT_LABELS[dominantElement[0]] || dominantElement[0]}</Text>
-            <Text style={s.revealStatLabel}>Dominant</Text>
+            <Text style={[s.revealStatLabel, { color: colors.textSecondary }]}>Dominant</Text>
           </View>
         )}
         <View style={s.revealStat}>
           <Text style={s.revealStatVal}>{chart?.aspects?.length || 0}</Text>
-          <Text style={s.revealStatLabel}>Aspects</Text>
+          <Text style={[s.revealStatLabel, { color: colors.textSecondary }]}>Aspects</Text>
         </View>
         {retroCount > 0 && (
           <View style={s.revealStat}>
             <Text style={s.revealStatVal}>{retroCount} ℞</Text>
-            <Text style={s.revealStatLabel}>Retrograde</Text>
+            <Text style={[s.revealStatLabel, { color: colors.textSecondary }]}>Retrograde</Text>
           </View>
         )}
       </View>
 
       {/* Personalized insight */}
-      <View style={s.revealInsight}>
-        <Text style={s.revealInsightText}>
+      <View style={[s.revealInsight, { backgroundColor: colors.cardAlt, borderColor: colors.border }]}>
+        <Text style={[s.revealInsightText, { color: colors.text }]}>
           {motivation === 'love' || painPoint === 'love'
             ? `With your Moon in ${moon?.sign || 'your sign'}, you love with your whole body. Your chart reveals deep patterns in how you connect — and why some connections leave you empty.`
             : motivation === 'change'
@@ -570,29 +577,29 @@ export default function OnboardingFlowScreen({ navigation }) {
   const renderDailyHook = () => (
     <ScrollView style={s.scroll} contentContainerStyle={s.scrollContent} showsVerticalScrollIndicator={false}>
       <Text style={s.phaseLabel}>RIGHT NOW</Text>
-      <Text style={s.h1}>Today in{'\n'}<Text style={s.h1em}>{firstName}'s</Text> sky</Text>
-      <Text style={s.sub}>Your chart is alive. It changes every day.</Text>
+      <Text style={[s.h1, { color: colors.heading }]}>Today in{'\n'}<Text style={s.h1em}>{firstName}'s</Text> sky</Text>
+      <Text style={[s.sub, { color: colors.textSecondary }]}>Your chart is alive. It changes every day.</Text>
 
-      <View style={s.dailyCard}>
+      <View style={[s.dailyCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
         <Text style={s.dailyCardLabel}>MOON</Text>
-        <Text style={s.dailyCardTitle}>Moon in {moonData?.sign || 'transit'}</Text>
-        <Text style={s.dailyCardDesc}>
+        <Text style={[s.dailyCardTitle, { color: colors.heading }]}>Moon in {moonData?.sign || 'transit'}</Text>
+        <Text style={[s.dailyCardDesc, { color: colors.textSecondary }]}>
           {moonData?.phaseName || 'Current phase'} · {moonData?.illumination?.toFixed(0) || '--'}% illuminated
         </Text>
       </View>
 
-      <View style={s.dailyCard}>
+      <View style={[s.dailyCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
         <Text style={s.dailyCardLabel}>ACTIVE TRANSITS</Text>
-        <Text style={s.dailyCardTitle}>{transitAspectCount} planets in motion</Text>
-        <Text style={s.dailyCardDesc}>
+        <Text style={[s.dailyCardTitle, { color: colors.heading }]}>{transitAspectCount} planets in motion</Text>
+        <Text style={[s.dailyCardDesc, { color: colors.textSecondary }]}>
           These transit planets are forming aspects to your natal chart right now — shaping your day.
         </Text>
       </View>
 
-      <View style={s.dailyCard}>
+      <View style={[s.dailyCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
         <Text style={s.dailyCardLabel}>TOMORROW</Text>
-        <Text style={s.dailyCardTitle}>Your forecast updates daily</Text>
-        <Text style={s.dailyCardDesc}>
+        <Text style={[s.dailyCardTitle, { color: colors.heading }]}>Your forecast updates daily</Text>
+        <Text style={[s.dailyCardDesc, { color: colors.textSecondary }]}>
           AI-powered readings from your real transits. Not sun-sign garbage. Your chart. Your sky. Every morning.
         </Text>
       </View>
@@ -607,8 +614,8 @@ export default function OnboardingFlowScreen({ navigation }) {
   const renderSoftPaywall = () => (
     <ScrollView style={s.scroll} contentContainerStyle={[s.scrollContent, { paddingTop: 60 }]} showsVerticalScrollIndicator={false}>
       <Text style={s.paywallPre}>✦</Text>
-      <Text style={s.paywallH1}>Your chart is cast.{'\n'}Your journey starts now.</Text>
-      <Text style={s.paywallSub}>Everything below is included — free for 7 days.</Text>
+      <Text style={[s.paywallH1, { color: colors.heading }]}>Your chart is cast.{'\n'}Your journey starts now.</Text>
+      <Text style={[s.paywallSub, { color: colors.textSecondary }]}>Everything below is included — free for 7 days.</Text>
 
       <View style={s.benefitList}>
         {[
@@ -619,10 +626,10 @@ export default function OnboardingFlowScreen({ navigation }) {
           { icon: '📊', title: 'Deep reports', desc: 'Love, career, lunar, purpose — all yours' },
         ].map((b, i) => (
           <View key={i} style={s.benefitRow}>
-            <View style={s.benefitIcon}><Text style={{ fontSize: 18 }}>{b.icon}</Text></View>
+            <View style={[s.benefitIcon, { backgroundColor: colors.cardAlt, borderColor: colors.border }]}><Text style={{ fontSize: 18 }}>{b.icon}</Text></View>
             <View style={{ flex: 1 }}>
-              <Text style={s.benefitTitle}>{b.title}</Text>
-              <Text style={s.benefitDesc}>{b.desc}</Text>
+              <Text style={[s.benefitTitle, { color: colors.heading }]}>{b.title}</Text>
+              <Text style={[s.benefitDesc, { color: colors.textSecondary }]}>{b.desc}</Text>
             </View>
           </View>
         ))}
@@ -630,7 +637,7 @@ export default function OnboardingFlowScreen({ navigation }) {
 
       <GoldButton text="Start My Free Trial" onPress={() => advance()} sub="No charge today · Cancel anytime" />
       <TouchableOpacity onPress={() => advance()} style={{ marginTop: 16, alignSelf: 'center' }}>
-        <Text style={s.paywallSkip}>Maybe later</Text>
+        <Text style={[s.paywallSkip, { color: colors.textSecondary }]}>Maybe later</Text>
       </TouchableOpacity>
       <View style={{ height: 40 }} />
     </ScrollView>
@@ -639,7 +646,7 @@ export default function OnboardingFlowScreen({ navigation }) {
   // ── 13. REASSURANCE ──────────────────────────────
   const renderReassurance = () => (
     <ScrollView style={s.scroll} contentContainerStyle={[s.scrollContent, { paddingTop: 60 }]} showsVerticalScrollIndicator={false}>
-      <Text style={s.paywallH1}>Join thousands who{'\n'}stopped settling for{'\n'}generic horoscopes</Text>
+      <Text style={[s.paywallH1, { color: colors.heading }]}>Join thousands who{'\n'}stopped settling for{'\n'}generic horoscopes</Text>
 
       {/* Testimonials */}
       <View style={s.testimonials}>
@@ -648,21 +655,21 @@ export default function OnboardingFlowScreen({ navigation }) {
           { text: '"Other apps just tell me I\'m a Libra. This one actually knows my whole chart."', name: 'Jade, 29' },
           { text: '"I\'ve never felt so seen by an app. The daily transit readings are addictive."', name: 'Sara, 22' },
         ].map((t, i) => (
-          <View key={i} style={s.testimonial}>
-            <Text style={s.testimonialText}>{t.text}</Text>
+          <View key={i} style={[s.testimonial, { backgroundColor: colors.card, borderColor: colors.border }]}>
+            <Text style={[s.testimonialText, { color: colors.text }]}>{t.text}</Text>
             <Text style={s.testimonialName}>— {t.name}</Text>
           </View>
         ))}
       </View>
 
-      <View style={s.freeCallout}>
+      <View style={[s.freeCallout, { backgroundColor: colors.cardAlt, borderColor: colors.border }]}>
         <Text style={s.freeCalloutTitle}>Try everything free for 7 days</Text>
-        <Text style={s.freeCalloutDesc}>If it doesn't change how you see yourself,{'\n'}cancel before the trial ends. No charge.</Text>
+        <Text style={[s.freeCalloutDesc, { color: colors.textSecondary }]}>If it doesn't change how you see yourself,{'\n'}cancel before the trial ends. No charge.</Text>
       </View>
 
       <GoldButton text="Try Free for 7 Days" onPress={() => advance()} />
       <TouchableOpacity onPress={() => advance()} style={{ marginTop: 16, alignSelf: 'center' }}>
-        <Text style={s.paywallSkip}>See pricing first</Text>
+        <Text style={[s.paywallSkip, { color: colors.textSecondary }]}>See pricing first</Text>
       </TouchableOpacity>
       <View style={{ height: 40 }} />
     </ScrollView>
@@ -671,46 +678,46 @@ export default function OnboardingFlowScreen({ navigation }) {
   // ── 14. HARD CLOSE ───────────────────────────────
   const renderHardClose = () => (
     <ScrollView style={s.scroll} contentContainerStyle={[s.scrollContent, { paddingTop: 50 }]} showsVerticalScrollIndicator={false}>
-      <Text style={s.paywallH1}>Choose your plan</Text>
-      <Text style={s.paywallSub}>{firstName}'s chart is waiting</Text>
+      <Text style={[s.paywallH1, { color: colors.heading }]}>Choose your plan</Text>
+      <Text style={[s.paywallSub, { color: colors.textSecondary }]}>{firstName}'s chart is waiting</Text>
 
       {/* Annual plan */}
       <TouchableOpacity
-        style={[s.planCard, selectedPlan === 'annual' && s.planCardOn]}
+        style={[s.planCard, { backgroundColor: colors.card, borderColor: colors.border }, selectedPlan === 'annual' && { borderColor: T.gold, borderWidth: 1.5 }]}
         onPress={() => setSelectedPlan('annual')} activeOpacity={0.8}
       >
         <View style={s.planBadge}><Text style={s.planBadgeText}>BEST VALUE</Text></View>
         <View style={s.planHeader}>
-          <View style={[s.planRadio, selectedPlan === 'annual' && s.planRadioOn]}>
+          <View style={[s.planRadio, { borderColor: colors.border }, selectedPlan === 'annual' && s.planRadioOn]}>
             {selectedPlan === 'annual' && <View style={s.planRadioDot} />}
           </View>
           <View style={{ flex: 1 }}>
-            <Text style={s.planName}>Annual</Text>
-            <Text style={s.planPrice}>$39.99<Text style={s.planPer}>/year</Text></Text>
+            <Text style={[s.planName, { color: colors.heading }]}>Annual</Text>
+            <Text style={[s.planPrice, { color: colors.heading }]}>$49.99<Text style={[s.planPer, { color: colors.textSecondary }]}>/year</Text></Text>
           </View>
           <View style={{ alignItems: 'flex-end' }}>
-            <Text style={s.planSave}>Save 44%</Text>
-            <Text style={s.planMonthly}>$3.33/mo</Text>
-            <Text style={s.planWas}>$71.88 value</Text>
+            <Text style={s.planSave}>Save 40%</Text>
+            <Text style={[s.planMonthly, { color: colors.text }]}>$4.17/mo</Text>
+            <Text style={[s.planWas, { color: colors.textSecondary }]}>$83.88 value</Text>
           </View>
         </View>
-        <View style={s.planTrialBadge}>
+        <View style={[s.planTrialBadge, { backgroundColor: colors.cardAlt }]}>
           <Text style={s.planTrialText}>✦ FREE for 7 days — cancel anytime</Text>
         </View>
       </TouchableOpacity>
 
       {/* Monthly plan */}
       <TouchableOpacity
-        style={[s.planCard, selectedPlan === 'monthly' && s.planCardOn]}
+        style={[s.planCard, { backgroundColor: colors.card, borderColor: colors.border }, selectedPlan === 'monthly' && { borderColor: T.gold, borderWidth: 1.5 }]}
         onPress={() => setSelectedPlan('monthly')} activeOpacity={0.8}
       >
         <View style={s.planHeader}>
-          <View style={[s.planRadio, selectedPlan === 'monthly' && s.planRadioOn]}>
+          <View style={[s.planRadio, { borderColor: colors.border }, selectedPlan === 'monthly' && s.planRadioOn]}>
             {selectedPlan === 'monthly' && <View style={s.planRadioDot} />}
           </View>
           <View style={{ flex: 1 }}>
-            <Text style={s.planName}>Monthly</Text>
-            <Text style={s.planPrice}>$5.99<Text style={s.planPer}>/month</Text></Text>
+            <Text style={[s.planName, { color: colors.heading }]}>Monthly</Text>
+            <Text style={[s.planPrice, { color: colors.heading }]}>$6.99<Text style={[s.planPer, { color: colors.textSecondary }]}>/month</Text></Text>
           </View>
         </View>
       </TouchableOpacity>
@@ -719,17 +726,17 @@ export default function OnboardingFlowScreen({ navigation }) {
       <GoldButton
         text={selectedPlan === 'annual' ? 'Start My Free Trial' : 'Subscribe Now'}
         onPress={finishOnboarding}
-        sub={selectedPlan === 'annual' ? "FREE today · You won't be charged" : '$5.99 billed today'}
+        sub={selectedPlan === 'annual' ? "FREE today · You won't be charged" : '$6.99 billed today'}
       />
 
       <TouchableOpacity onPress={finishOnboarding} style={{ marginTop: 18, alignSelf: 'center' }}>
-        <Text style={s.paywallSkip}>Continue with limited access</Text>
+        <Text style={[s.paywallSkip, { color: colors.textSecondary }]}>Continue with limited access</Text>
       </TouchableOpacity>
 
-      <Text style={s.paywallLegal}>
+      <Text style={[s.paywallLegal, { color: colors.textSecondary }]}>
         {selectedPlan === 'annual'
-          ? 'Free 7-day trial. Then $39.99/year. Cancel anytime in Settings.'
-          : '$5.99/month. Cancel anytime in Settings. No trial for monthly.'}
+          ? 'Free 7-day trial. Then $49.99/year. Cancel anytime in Settings.'
+          : 'Free 7-day trial. Then $6.99/month. Cancel anytime in Settings.'}
       </Text>
       <View style={{ height: 40 }} />
     </ScrollView>
@@ -763,16 +770,16 @@ export default function OnboardingFlowScreen({ navigation }) {
   const showBack = step >= 2 && step <= 11;
 
   return (
-    <View style={s.container}>
+    <View style={[s.container, { backgroundColor: colors.bg }]}>
       {/* Header */}
       {(showProgress || showBack) && (
         <View style={s.header}>
           {showBack ? (
-            <TouchableOpacity style={s.backBtn} onPress={() => { if (step > 1) advance(step - 1); }}>
-              <Text style={s.backText}>‹</Text>
+            <TouchableOpacity style={[s.backBtn, { backgroundColor: colors.card, borderColor: colors.border }]} onPress={() => { if (step > 1) advance(step - 1); }}>
+              <Text style={[s.backText, { color: colors.heading }]}>‹</Text>
             </TouchableOpacity>
           ) : <View style={{ width: 40 }} />}
-          {showProgress && <ProgressBar step={step} />}
+          {showProgress && <ProgressBar step={step} colors={colors} />}
           <View style={{ width: 40 }} />
         </View>
       )}

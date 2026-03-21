@@ -10,6 +10,7 @@ import {
   ScrollText
 } from 'lucide-react-native';
 import { T, FONTS } from '../constants/theme';
+import { useTheme } from '../contexts/ThemeContext';
 
 const { width } = Dimensions.get('window');
 
@@ -23,6 +24,7 @@ const TABS = [
 
 export default function TabBar({ state, navigation }) {
   const insets = useSafeAreaInsets();
+  const { isDark, colors } = useTheme();
   const [keyboardVisible, setKeyboardVisible] = useState(false);
 
   useEffect(() => {
@@ -36,13 +38,27 @@ export default function TabBar({ state, navigation }) {
   if (keyboardVisible) return null;
 
   return (
-    <View style={[styles.outerContainer, { bottom: Math.max(insets.bottom, 10) + 14 }]}>
+    <View style={[
+      styles.outerContainer,
+      {
+        bottom: Math.max(insets.bottom, 10) + 14,
+        backgroundColor: Platform.OS === 'ios' ? 'transparent' : colors.tabBarBg,
+        borderColor: isDark ? 'rgba(255,255,255,0.06)' : 'rgba(255,255,255,0.2)',
+      },
+    ]}>
       <BlurView
         intensity={Platform.OS === 'ios' ? 90 : 0}
-        tint="light"
+        tint={isDark ? 'dark' : 'light'}
         style={styles.blurContainer}
       >
-        <View style={styles.container}>
+        <View style={[
+          styles.container,
+          {
+            backgroundColor: Platform.OS === 'ios'
+              ? (isDark ? 'rgba(26,23,20,0.82)' : 'rgba(255,255,255,0.85)')
+              : 'transparent',
+          },
+        ]}>
           {state.routes.map((route, i) => {
             const active = state.index === i;
             const tab = TABS.find(t => t.name === route.name) || TABS[i];
@@ -56,17 +72,17 @@ export default function TabBar({ state, navigation }) {
                 onPress={() => navigation.navigate(route.name)}
               >
                 <View style={styles.iconContainer}>
-                  {active && <View style={styles.pill} />}
+                  {active && <View style={[styles.pill, { backgroundColor: colors.goldDim }]} />}
                   <Icon
                     size={24}
-                    color={active ? T.gold : '#A1A1AA'}
+                    color={active ? colors.gold : colors.textMuted}
                     strokeWidth={active ? 2.5 : 2}
                   />
                 </View>
                 <Text style={[
                   styles.label,
                   {
-                    color: active ? T.navy : '#A1A1AA',
+                    color: active ? colors.heading : colors.textMuted,
                     fontWeight: active ? '700' : '500'
                   }
                 ]}>
@@ -87,7 +103,6 @@ const styles = StyleSheet.create({
     left: 16,
     right: 16,
     borderRadius: 34,
-    backgroundColor: Platform.OS === 'ios' ? 'transparent' : 'rgba(255,255,255,0.98)',
     ...Platform.select({
       ios: {
         shadowColor: '#000',
@@ -101,7 +116,6 @@ const styles = StyleSheet.create({
     }),
     overflow: 'hidden',
     borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.2)',
   },
   blurContainer: {
     flex: 1,
@@ -111,7 +125,6 @@ const styles = StyleSheet.create({
     height: 72,
     alignItems: 'center',
     paddingHorizontal: 10,
-    backgroundColor: Platform.OS === 'ios' ? 'rgba(255,255,255,0.85)' : 'transparent',
   },
   tab: {
     flex: 1,
@@ -130,7 +143,6 @@ const styles = StyleSheet.create({
     width: 56,
     height: 32,
     borderRadius: 16,
-    backgroundColor: 'rgba(200,168,75,0.12)',
   },
   label: {
     fontSize: 10,

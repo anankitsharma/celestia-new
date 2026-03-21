@@ -47,6 +47,22 @@ export const HOUSE_THEMES = {
     12: "Spirituality & Closure"
 };
 
+// Friendly house names + emojis for the Chart screen (Mia-centric naming)
+export const HOUSE_FRIENDLY = {
+    1:  { name: 'Your Front Door', emoji: '🪞', desc: 'How you walk into a room. First impressions. The mask you wear.' },
+    2:  { name: 'Your Wallet', emoji: '💰', desc: 'Money, possessions, self-worth. What you value — literally.' },
+    3:  { name: 'Your Voice', emoji: '💬', desc: 'Communication, siblings, daily thoughts. How your brain works on autopilot.' },
+    4:  { name: 'Your Roots', emoji: '🏠', desc: 'Home, family, childhood. Where you go to recharge.' },
+    5:  { name: 'Your Playground', emoji: '🎨', desc: 'Fun, creativity, romance, dating. Where you express joy.' },
+    6:  { name: 'Your Daily Grind', emoji: '⚙️', desc: 'Work, health, routines. Your relationship with productivity.' },
+    7:  { name: 'Your Mirror', emoji: '💕', desc: 'Partnerships, relationships. Who you\'re drawn to and why.' },
+    8:  { name: 'Your Depths', emoji: '🔮', desc: 'Intimacy, transformation, shared resources. The things you don\'t talk about.' },
+    9:  { name: 'Your Horizon', emoji: '✈️', desc: 'Travel, philosophy, beliefs. The big questions.' },
+    10: { name: 'Your Legacy', emoji: '🏆', desc: 'Career, public image, ambition. What you want to be known for.' },
+    11: { name: 'Your Tribe', emoji: '👥', desc: 'Friends, community, hopes. Where you fit in the bigger picture.' },
+    12: { name: 'Your Blind Spot', emoji: '🌊', desc: 'The unconscious, hidden patterns, dreams. What you can\'t see about yourself.' },
+};
+
 export const ELEMENT_COLORS = {
     Fire: '#E6A8A1',
     Earth: '#A3C4A5',
