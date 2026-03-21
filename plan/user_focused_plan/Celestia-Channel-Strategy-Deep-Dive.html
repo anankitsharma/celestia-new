@@ -1,0 +1,467 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Celestia — Channel Strategy Deep Dive</title>
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,600;1,400&family=DM+Sans:ital,wght@0,300;0,400;0,500;0,600;0,700;1,400&display=swap" rel="stylesheet">
+<style>
+:root{--bg:#0F0D1A;--card:#1A1726;--card2:#211E2E;--terra:#C17F59;--gold:#D4A853;--sage:#8B9E7E;--rose:#C4918A;--lav:#9B8EC4;--sky:#7BA7C4;--cream:#F5EDE3;--muted:#6B6880;--border:rgba(255,255,255,0.06);--text:rgba(255,255,255,0.78);--dim:rgba(255,255,255,0.45)}
+*{margin:0;padding:0;box-sizing:border-box}
+body{background:var(--bg);color:var(--cream);font-family:'DM Sans',sans-serif;-webkit-font-smoothing:antialiased;line-height:1.6}
+.wrap{max-width:900px;margin:0 auto;padding:0 20px}
+
+/* Header */
+.header{text-align:center;padding:40px 20px 32px;border-bottom:1px solid var(--border)}
+.header-tag{font-size:9px;letter-spacing:5px;text-transform:uppercase;color:var(--gold);opacity:.6;margin-bottom:8px}
+.header h1{font-family:'Playfair Display',serif;font-size:clamp(24px,5vw,38px);font-weight:400;margin-bottom:6px}
+.header h1 b{font-weight:600;color:var(--terra)}
+.header p{font-size:13px;color:var(--muted);max-width:520px;margin:0 auto}
+
+/* Back button */
+.back-btn{display:none;align-items:center;gap:8px;padding:12px 0;font-size:13px;color:var(--terra);cursor:pointer;border:none;background:none;font-family:inherit}
+.back-btn:hover{opacity:.7}
+.back-btn svg{width:16px;height:16px}
+
+/* Channel Grid */
+.ch-grid{display:grid;grid-template-columns:1fr 1fr;gap:14px;padding:32px 0}
+.ch-card{background:var(--card);border:1px solid var(--border);border-radius:16px;padding:22px;cursor:pointer;transition:all .3s;position:relative;overflow:hidden}
+.ch-card:hover{border-color:rgba(255,255,255,.12);transform:translateY(-2px)}
+.ch-card::before{content:'';position:absolute;top:0;left:0;right:0;height:3px}
+.ch-card[data-ch="tiktok"]::before{background:var(--terra)}
+.ch-card[data-ch="seo"]::before{background:var(--gold)}
+.ch-card[data-ch="instagram"]::before{background:var(--rose)}
+.ch-card[data-ch="pinterest"]::before{background:var(--lav)}
+.ch-card[data-ch="viral"]::before{background:var(--sage)}
+.ch-card[data-ch="email"]::before{background:var(--sky)}
+.ch-top{display:flex;justify-content:space-between;align-items:center;margin-bottom:10px}
+.ch-icon{font-size:24px}
+.ch-badge{font-size:8px;font-weight:700;letter-spacing:1.5px;padding:3px 10px;border-radius:5px}
+.ch-name{font-size:16px;font-weight:700;margin-bottom:4px}
+.ch-desc{font-size:11.5px;color:var(--dim);line-height:1.5}
+.ch-arrow{margin-top:12px;font-size:11px;font-weight:600;display:flex;align-items:center;gap:6px}
+
+/* Detail View */
+.detail{display:none;padding:24px 0 40px}
+.detail.active{display:block}
+.detail-hero{border-radius:18px;padding:32px;margin-bottom:28px;position:relative;overflow:hidden}
+.detail-hero::before{content:'';position:absolute;inset:0;opacity:.06}
+.detail-hero h2{font-family:'Playfair Display',serif;font-size:28px;font-weight:600;margin-bottom:6px}
+.detail-hero .subtitle{font-size:14px;opacity:.7;margin-bottom:16px}
+.detail-hero .stats{display:flex;gap:16px;flex-wrap:wrap}
+.stat{background:rgba(0,0,0,.2);border-radius:10px;padding:10px 16px;text-align:center}
+.stat-val{font-size:18px;font-weight:700}
+.stat-label{font-size:9px;letter-spacing:1px;text-transform:uppercase;opacity:.6;margin-top:2px}
+
+/* Journey Flow */
+.journey{margin-bottom:28px}
+.journey-title{font-size:10px;letter-spacing:3px;text-transform:uppercase;font-weight:600;margin-bottom:18px;display:flex;align-items:center;gap:10px}
+.journey-title::after{content:'';flex:1;height:1px;opacity:.15}
+
+.flow{position:relative}
+.flow-step{display:flex;gap:18px;margin-bottom:0;position:relative}
+.flow-step:last-child .flow-line{display:none}
+.flow-dot-col{display:flex;flex-direction:column;align-items:center;width:40px;flex-shrink:0}
+.flow-dot{width:36px;height:36px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:16px;flex-shrink:0;border:2px solid;z-index:1}
+.flow-line{width:2px;flex:1;min-height:20px;opacity:.2}
+.flow-content{flex:1;padding:4px 0 28px}
+.flow-phase{font-size:9px;letter-spacing:2px;font-weight:700;text-transform:uppercase;margin-bottom:4px}
+.flow-title{font-size:15px;font-weight:600;color:var(--cream);margin-bottom:6px}
+.flow-desc{font-size:12.5px;color:var(--dim);line-height:1.6}
+
+/* Content Examples */
+.examples{margin-bottom:28px}
+.ex-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.ex-card{background:var(--card);border:1px solid var(--border);border-radius:14px;padding:18px;position:relative;overflow:hidden}
+.ex-card::before{content:'';position:absolute;top:0;left:0;width:3px;height:100%}
+.ex-label{font-size:8px;letter-spacing:2px;font-weight:700;text-transform:uppercase;margin-bottom:8px}
+.ex-title{font-size:14px;font-weight:600;color:var(--cream);margin-bottom:6px;line-height:1.3}
+.ex-body{font-size:11.5px;color:var(--dim);line-height:1.6}
+.ex-metric{display:inline-flex;align-items:center;gap:4px;font-size:10px;font-weight:600;margin-top:8px;padding:3px 8px;border-radius:5px}
+
+/* Mia Moment */
+.mia-moment{background:var(--card2);border:1px solid var(--border);border-radius:16px;padding:24px;margin-bottom:28px;display:flex;gap:20px;align-items:flex-start}
+.mia-avatar{width:48px;height:48px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:20px;flex-shrink:0;border:2px solid}
+.mia-thought{flex:1}
+.mia-thought .label{font-size:9px;letter-spacing:2px;font-weight:700;text-transform:uppercase;margin-bottom:6px}
+.mia-thought .quote{font-family:'Playfair Display',serif;font-style:italic;font-size:15px;color:var(--cream);line-height:1.5;margin-bottom:6px}
+.mia-thought .context{font-size:11px;color:var(--muted)}
+
+/* KPI Strip */
+.kpi-strip{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:28px}
+.kpi{background:var(--card);border:1px solid var(--border);border-radius:12px;padding:14px;text-align:center}
+.kpi-icon{font-size:20px;margin-bottom:4px}
+.kpi-val{font-size:16px;font-weight:700;margin-bottom:2px}
+.kpi-label{font-size:9px;color:var(--muted);letter-spacing:1px;text-transform:uppercase}
+
+/* Calendar */
+.cal-grid{display:grid;grid-template-columns:repeat(7,1fr);gap:6px;margin-bottom:28px}
+.cal-cell{background:var(--card);border-radius:8px;padding:10px 6px;text-align:center;border:1px solid var(--border)}
+.cal-day{font-size:9px;font-weight:700;letter-spacing:1px;margin-bottom:4px}
+.cal-content{font-size:9px;color:var(--dim);line-height:1.3}
+.cal-dot{width:6px;height:6px;border-radius:50%;margin:6px auto 0}
+
+/* Conversion Path */
+.conv-path{display:flex;align-items:stretch;gap:0;margin-bottom:28px;border-radius:14px;overflow:hidden}
+.conv-step{flex:1;padding:18px 14px;text-align:center;position:relative}
+.conv-step::after{content:'›';position:absolute;right:-4px;top:50%;transform:translateY(-50%);font-size:16px;opacity:.3;z-index:1}
+.conv-step:last-child::after{display:none}
+.conv-num{font-size:9px;font-weight:700;letter-spacing:1.5px;opacity:.6;margin-bottom:4px}
+.conv-emoji{font-size:22px;margin-bottom:4px}
+.conv-text{font-size:11px;font-weight:600;margin-bottom:2px}
+.conv-sub{font-size:9px;opacity:.5}
+
+@media(max-width:700px){
+  .ch-grid{grid-template-columns:1fr}
+  .ex-grid{grid-template-columns:1fr}
+  .kpi-strip{grid-template-columns:1fr 1fr}
+  .cal-grid{grid-template-columns:repeat(4,1fr)}
+  .conv-path{flex-direction:column}
+  .conv-step::after{content:'↓';right:auto;bottom:-4px;top:auto;left:50%;transform:translateX(-50%)}
+  .flow-step{gap:12px}
+  .mia-moment{flex-direction:column;align-items:center;text-align:center}
+  .detail-hero .stats{justify-content:center}
+}
+</style>
+</head>
+<body>
+
+<div class="wrap">
+  <div class="header">
+    <div class="header-tag">✦ Celestia — Mia Reyes Persona ✦</div>
+    <h1>How to <b>Reach Mia</b></h1>
+    <p>Tap any channel to see Mia's exact journey — from the moment she's scrolling to the moment she pays $9.99</p>
+  </div>
+
+  <button class="back-btn" id="backBtn" onclick="showGrid()">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 12H5M12 19l-7-7 7-7"/></svg>
+    Back to all channels
+  </button>
+
+  <!-- ═══════ CHANNEL GRID ═══════ -->
+  <div class="ch-grid" id="chGrid">
+    <div class="ch-card" data-ch="tiktok" onclick="showDetail('tiktok')">
+      <div class="ch-top"><span class="ch-icon">🎬</span><span class="ch-badge" style="color:var(--terra);background:rgba(193,127,89,.12)">AWARENESS</span></div>
+      <div class="ch-name">TikTok Reels</div>
+      <div class="ch-desc">POV sign-specific videos, 30s hooks. Where Mia first discovers Celestia while scrolling at 10pm.</div>
+      <div class="ch-arrow" style="color:var(--terra)">See Mia's journey →</div>
+    </div>
+    <div class="ch-card" data-ch="seo" onclick="showDetail('seo')">
+      <div class="ch-top"><span class="ch-icon">🔍</span><span class="ch-badge" style="color:var(--gold);background:rgba(212,168,83,.12)">CONVERSION</span></div>
+      <div class="ch-name">Google SEO</div>
+      <div class="ch-desc">Compatibility & chart pages that rank #1. The channel where emotional urgency meets Celestia.</div>
+      <div class="ch-arrow" style="color:var(--gold)">See Mia's journey →</div>
+    </div>
+    <div class="ch-card" data-ch="instagram" onclick="showDetail('instagram')">
+      <div class="ch-top"><span class="ch-icon">📸</span><span class="ch-badge" style="color:var(--rose);background:rgba(196,145,138,.12)">ENGAGEMENT</span></div>
+      <div class="ch-name">Instagram</div>
+      <div class="ch-desc">Carousels she saves, stories she shares, zodiac content she sends to friends.</div>
+      <div class="ch-arrow" style="color:var(--rose)">See Mia's journey →</div>
+    </div>
+    <div class="ch-card" data-ch="pinterest" onclick="showDetail('pinterest')">
+      <div class="ch-top"><span class="ch-icon">📌</span><span class="ch-badge" style="color:var(--lav);background:rgba(155,142,196,.12)">LONG-TAIL</span></div>
+      <div class="ch-name">Pinterest SEO</div>
+      <div class="ch-desc">Birth chart aesthetics, zodiac boards. Where Mia goes when she's in deep research mode.</div>
+      <div class="ch-arrow" style="color:var(--lav)">See Mia's journey →</div>
+    </div>
+    <div class="ch-card" data-ch="viral" onclick="showDetail('viral')">
+      <div class="ch-top"><span class="ch-icon">🔄</span><span class="ch-badge" style="color:var(--sage);background:rgba(139,158,126,.12)">GROWTH</span></div>
+      <div class="ch-name">Viral Loop</div>
+      <div class="ch-desc">Built-in sharing mechanics. How Mia brings 3-5 friends without us spending a dollar.</div>
+      <div class="ch-arrow" style="color:var(--sage)">See Mia's journey →</div>
+    </div>
+    <div class="ch-card" data-ch="email" onclick="showDetail('email')">
+      <div class="ch-top"><span class="ch-icon">📩</span><span class="ch-badge" style="color:var(--sky);background:rgba(123,167,196,.12)">RETENTION</span></div>
+      <div class="ch-name">Email & Push</div>
+      <div class="ch-desc">Weekly transits, Mercury Rx alerts, birthday nudges. How she comes back week after week.</div>
+      <div class="ch-arrow" style="color:var(--sky)">See Mia's journey →</div>
+    </div>
+  </div>
+
+  <!-- ═══════ TIKTOK DETAIL ═══════ -->
+  <div class="detail" id="detail-tiktok">
+    <div class="detail-hero" style="background:linear-gradient(135deg,rgba(193,127,89,.15),rgba(193,127,89,.05));border:1px solid rgba(193,127,89,.15)">
+      <h2 style="color:var(--terra)">🎬 TikTok Reels</h2>
+      <div class="subtitle">The Awareness Engine — Where Mia first discovers Celestia</div>
+      <div class="stats">
+        <div class="stat"><div class="stat-val" style="color:var(--terra)">10:15pm</div><div class="stat-label">Peak scroll time</div></div>
+        <div class="stat"><div class="stat-val" style="color:var(--terra)">30s</div><div class="stat-label">Ideal reel length</div></div>
+        <div class="stat"><div class="stat-val" style="color:var(--terra)">3-5x/wk</div><div class="stat-label">Post frequency</div></div>
+        <div class="stat"><div class="stat-val" style="color:var(--terra)">80%+</div><div class="stat-label">Watch-time target</div></div>
+      </div>
+    </div>
+
+    <div class="journey">
+      <div class="journey-title" style="color:var(--terra)">Mia's TikTok Journey — Scene by Scene</div>
+      <div class="flow">
+        <div class="flow-step">
+          <div class="flow-dot-col"><div class="flow-dot" style="border-color:var(--terra);background:rgba(193,127,89,.1)">📱</div><div class="flow-line" style="background:var(--terra)"></div></div>
+          <div class="flow-content"><div class="flow-phase" style="color:var(--terra)">10:15pm — The Scroll</div><div class="flow-title">Mia is in bed, scrolling TikTok after a long day</div><div class="flow-desc">She's watched 3 dance videos, 2 cooking clips, a dog video. Her thumb is on autopilot. She's not looking for anything specific — she's looking for something that makes her feel seen.</div></div>
+        </div>
+        <div class="flow-step">
+          <div class="flow-dot-col"><div class="flow-dot" style="border-color:var(--terra);background:rgba(193,127,89,.1)">👀</div><div class="flow-line" style="background:var(--terra)"></div></div>
+          <div class="flow-content"><div class="flow-phase" style="color:var(--terra)">The Hook — First 3 Seconds</div><div class="flow-title">A text overlay stops her thumb: "POV: you're a Virgo Sun with a Scorpio Moon and you wonder why every relationship ends the same way"</div><div class="flow-desc">She reads it. She IS a Virgo Sun with Scorpio Moon. The video hasn't even started yet and she's already hooked. The background is a warm, golden-hour aesthetic — not the typical dark space theme. The font is clean, modern, feels like a friend wrote it.</div></div>
+        </div>
+        <div class="flow-step">
+          <div class="flow-dot-col"><div class="flow-dot" style="border-color:var(--terra);background:rgba(193,127,89,.1)">🎯</div><div class="flow-line" style="background:var(--terra)"></div></div>
+          <div class="flow-content"><div class="flow-phase" style="color:var(--terra)">The Reveal — 3-15 Seconds</div><div class="flow-title">A voiceover (warm, female, slightly irreverent) explains her exact pattern</div><div class="flow-desc">"Your Scorpio Moon craves emotional intensity, but your Virgo Sun picks it apart the second it gets real. So you find guys who give you the intensity in the beginning, then pull away — because your subconscious knows you'll self-sabotage before they can hurt you first." Her jaw drops. She replays it. She watches it twice.</div></div>
+        </div>
+        <div class="flow-step">
+          <div class="flow-dot-col"><div class="flow-dot" style="border-color:var(--terra);background:rgba(193,127,89,.1)">💬</div><div class="flow-line" style="background:var(--terra)"></div></div>
+          <div class="flow-content"><div class="flow-phase" style="color:var(--terra)">The Comment Section</div><div class="flow-title">She scrolls to the comments: "HOW DOES THIS APP KNOW MY LIFE"</div><div class="flow-desc">Other Virgo-Scorpio combos are tagging friends, saying "this is literally me." She sees 200+ comments. Top comment: "I got my free chart on their site and I'm shook." Celestia's account replies: "Your Venus placement is the key — check your free chart to see it 🔗"</div></div>
+        </div>
+        <div class="flow-step">
+          <div class="flow-dot-col"><div class="flow-dot" style="border-color:var(--terra);background:rgba(193,127,89,.1)">🔗</div><div class="flow-line" style="background:var(--terra)"></div></div>
+          <div class="flow-content"><div class="flow-phase" style="color:var(--terra)">The Click — Profile → Link in Bio</div><div class="flow-title">She taps the profile. Sees more videos that feel like they're about her. Taps "link in bio."</div><div class="flow-desc">The Celestia bio reads: "Your chart explains the patterns. Free birth chart. No fluff, no sugarcoating." She lands on hicelestia.com. She enters her birth data. The funnel begins.</div></div>
+        </div>
+        <div class="flow-step">
+          <div class="flow-dot-col"><div class="flow-dot" style="border-color:var(--terra);background:rgba(193,127,89,.15)">🤯</div></div>
+          <div class="flow-content"><div class="flow-phase" style="color:var(--terra)">The Eureka Moment</div><div class="flow-title">She gets her chart. Opens the AI chat. Types her real question. Her eyes go wide.</div><div class="flow-desc">She screenshots the AI's answer about her Venus-Neptune square. Sends it to her group chat: "you guys HAVE to try this." Three friends enter their birth data within 24 hours.</div></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="mia-moment" style="border-color:rgba(193,127,89,.15)">
+      <div class="mia-avatar" style="border-color:var(--terra);background:rgba(193,127,89,.1)">😲</div>
+      <div class="mia-thought">
+        <div class="label" style="color:var(--terra)">Mia's Internal Thought</div>
+        <div class="quote">"Wait... how does a random TikTok video know about my exact relationship pattern? I need to check this app. Like, right now."</div>
+        <div class="context">10:22pm · In bed · Already entering her birth data</div>
+      </div>
+    </div>
+
+    <div class="examples">
+      <div class="journey-title" style="color:var(--terra)">Content Formats That Work — 5 Proven TikTok Templates</div>
+      <div class="ex-grid">
+        <div class="ex-card" style="border-color:rgba(193,127,89,.15)"><div style="position:absolute;top:0;left:0;width:3px;height:100%;background:var(--terra)"></div><div class="ex-label" style="color:var(--terra)">Format 1 — POV Call-Out</div><div class="ex-title">"POV: you're a [sign] and you just realized why all your relationships implode"</div><div class="ex-body">Text overlay hook → warm voiceover explaining the pattern → end card with "check your free chart." Sign-specific, ultra-personal. Make 12 variations (one per sign).</div><div class="ex-metric" style="color:var(--terra);background:rgba(193,127,89,.1)">📊 Highest save rate — 8-12%</div></div>
+        <div class="ex-card" style="border-color:rgba(193,127,89,.15)"><div style="position:absolute;top:0;left:0;width:3px;height:100%;background:var(--terra)"></div><div class="ex-label" style="color:var(--terra)">Format 2 — "The Reason" Explainer</div><div class="ex-title">"The actual astrological reason you keep dating the same type of person"</div><div class="ex-body">Educational but emotional. Quick chart graphic → Venus sign explanation → "this is why you do this." Universal hook, then personalize by sign in comments. Drives chart curiosity.</div><div class="ex-metric" style="color:var(--terra);background:rgba(193,127,89,.1)">📊 Highest comment rate — "omg this is me"</div></div>
+        <div class="ex-card" style="border-color:rgba(193,127,89,.15)"><div style="position:absolute;top:0;left:0;width:3px;height:100%;background:var(--terra)"></div><div class="ex-label" style="color:var(--terra)">Format 3 — Zodiac Ranking</div><div class="ex-title">"Ranking every sign's toxic trait from most to least destructive"</div><div class="ex-body">Controversial rankings = comment wars = algorithm fuel. Use Celestia's brand colors, end with "agree? disagree? check your full chart to see why." Debate drives shares.</div><div class="ex-metric" style="color:var(--terra);background:rgba(193,127,89,.1)">📊 Highest share rate — tag wars</div></div>
+        <div class="ex-card" style="border-color:rgba(193,127,89,.15)"><div style="position:absolute;top:0;left:0;width:3px;height:100%;background:var(--terra)"></div><div class="ex-label" style="color:var(--terra)">Format 4 — Transit Alert</div><div class="ex-title">"Mercury goes retrograde next week — here's which signs are going to spiral"</div><div class="ex-body">Timely, urgent, newsworthy. Taps into existing cultural awareness of Mercury Rx. Drive to Celestia for personalized transit reading. Post 48hrs before every major transit.</div><div class="ex-metric" style="color:var(--terra);background:rgba(193,127,89,.1)">📊 Highest urgency conversion</div></div>
+        <div class="ex-card" style="border-color:rgba(193,127,89,.15)"><div style="position:absolute;top:0;left:0;width:3px;height:100%;background:var(--terra)"></div><div class="ex-label" style="color:var(--terra)">Format 5 — Compatibility Bait</div><div class="ex-title">"Drop your sign and your crush's sign — I'll tell you if it's going to work"</div><div class="ex-body">Interactive format. Reply in comments with mini-readings. Drive to Celestia compatibility checker for the full analysis. Each reply = another piece of content. Infinite content loop.</div><div class="ex-metric" style="color:var(--terra);background:rgba(193,127,89,.1)">📊 Highest comment count — 500+</div></div>
+        <div class="ex-card" style="border-color:rgba(193,127,89,.15)"><div style="position:absolute;top:0;left:0;width:3px;height:100%;background:var(--terra)"></div><div class="ex-label" style="color:var(--terra)">Format 6 — AI Reading Reaction</div><div class="ex-title">"I asked Celestia AI why I can't stop self-sabotaging and this is what it said..."</div><div class="ex-body">Screen recording of actual Celestia chat. Real reaction. Raw, unfiltered. UGC style. Shows the product in action without feeling like an ad. Most authentic format.</div><div class="ex-metric" style="color:var(--terra);background:rgba(193,127,89,.1)">📊 Highest click-through to app</div></div>
+      </div>
+    </div>
+
+    <div class="journey-title" style="color:var(--terra)">Posting Calendar — Weekly Rhythm</div>
+    <div class="cal-grid">
+      <div class="cal-cell"><div class="cal-day" style="color:var(--terra)">MON</div><div class="cal-content">Weekly transit alert</div><div class="cal-dot" style="background:var(--terra)"></div></div>
+      <div class="cal-cell"><div class="cal-day" style="color:var(--muted)">TUE</div><div class="cal-content">POV call-out (sign-specific)</div><div class="cal-dot" style="background:var(--terra)"></div></div>
+      <div class="cal-cell"><div class="cal-day" style="color:var(--muted)">WED</div><div class="cal-content">Rest / engage comments</div><div class="cal-dot" style="background:rgba(255,255,255,.1)"></div></div>
+      <div class="cal-cell"><div class="cal-day" style="color:var(--terra)">THU</div><div class="cal-content">Compatibility bait</div><div class="cal-dot" style="background:var(--terra)"></div></div>
+      <div class="cal-cell"><div class="cal-day" style="color:var(--muted)">FRI</div><div class="cal-content">Ranking / debate</div><div class="cal-dot" style="background:var(--terra)"></div></div>
+      <div class="cal-cell"><div class="cal-day" style="color:var(--muted)">SAT</div><div class="cal-content">AI reaction UGC</div><div class="cal-dot" style="background:var(--terra)"></div></div>
+      <div class="cal-cell"><div class="cal-day" style="color:var(--terra)">SUN</div><div class="cal-content">Emotional explainer</div><div class="cal-dot" style="background:var(--terra)"></div></div>
+    </div>
+
+    <div class="journey-title" style="color:var(--terra)">Conversion Path — TikTok View → $9.99</div>
+    <div class="conv-path">
+      <div class="conv-step" style="background:rgba(193,127,89,.08)"><div class="conv-num">01</div><div class="conv-emoji">👁️</div><div class="conv-text">Views Reel</div><div class="conv-sub">100%</div></div>
+      <div class="conv-step" style="background:rgba(193,127,89,.12)"><div class="conv-num">02</div><div class="conv-emoji">🔄</div><div class="conv-text">Replays / Saves</div><div class="conv-sub">~15%</div></div>
+      <div class="conv-step" style="background:rgba(193,127,89,.16)"><div class="conv-num">03</div><div class="conv-emoji">👤</div><div class="conv-text">Visits Profile</div><div class="conv-sub">~8%</div></div>
+      <div class="conv-step" style="background:rgba(193,127,89,.20)"><div class="conv-num">04</div><div class="conv-emoji">🔗</div><div class="conv-text">Taps Link in Bio</div><div class="conv-sub">~3%</div></div>
+      <div class="conv-step" style="background:rgba(193,127,89,.28)"><div class="conv-num">05</div><div class="conv-emoji">📝</div><div class="conv-text">Enters Birth Data</div><div class="conv-sub">~2%</div></div>
+      <div class="conv-step" style="background:rgba(193,127,89,.36)"><div class="conv-num">06</div><div class="conv-emoji">💬</div><div class="conv-text">Chats with AI</div><div class="conv-sub">~1.5%</div></div>
+      <div class="conv-step" style="background:var(--terra)"><div class="conv-num" style="color:rgba(255,255,255,.7)">07</div><div class="conv-emoji">💰</div><div class="conv-text" style="color:white">Pays $9.99</div><div class="conv-sub" style="color:rgba(255,255,255,.7)">~0.3%</div></div>
+    </div>
+
+    <div class="kpi-strip">
+      <div class="kpi"><div class="kpi-icon">🎯</div><div class="kpi-val" style="color:var(--terra)">80%+</div><div class="kpi-label">Watch time target</div></div>
+      <div class="kpi"><div class="kpi-icon">💾</div><div class="kpi-val" style="color:var(--terra)">8-12%</div><div class="kpi-label">Save rate goal</div></div>
+      <div class="kpi"><div class="kpi-icon">💬</div><div class="kpi-val" style="color:var(--terra)">500+</div><div class="kpi-label">Comments/viral post</div></div>
+      <div class="kpi"><div class="kpi-icon">🔗</div><div class="kpi-val" style="color:var(--terra)">3%</div><div class="kpi-label">Profile → Link CTR</div></div>
+    </div>
+  </div>
+
+  <!-- ═══════ SEO DETAIL ═══════ -->
+  <div class="detail" id="detail-seo">
+    <div class="detail-hero" style="background:linear-gradient(135deg,rgba(212,168,83,.15),rgba(212,168,83,.05));border:1px solid rgba(212,168,83,.15)">
+      <h2 style="color:var(--gold)">🔍 Google SEO</h2>
+      <div class="subtitle">The Conversion Engine — Where Emotional Urgency Meets Celestia</div>
+      <div class="stats">
+        <div class="stat"><div class="stat-val" style="color:var(--gold)">10:30pm</div><div class="stat-label">Peak search time</div></div>
+        <div class="stat"><div class="stat-val" style="color:var(--gold)">#1-3</div><div class="stat-label">Target rank position</div></div>
+        <div class="stat"><div class="stat-val" style="color:var(--gold)">200+</div><div class="stat-label">SEO pages to build</div></div>
+        <div class="stat"><div class="stat-val" style="color:var(--gold)">4.2%</div><div class="stat-label">Avg conversion rate</div></div>
+      </div>
+    </div>
+
+    <div class="journey">
+      <div class="journey-title" style="color:var(--gold)">Mia's Google Journey — The Burning Search</div>
+      <div class="flow">
+        <div class="flow-step"><div class="flow-dot-col"><div class="flow-dot" style="border-color:var(--gold);background:rgba(212,168,83,.1)">💔</div><div class="flow-line" style="background:var(--gold)"></div></div><div class="flow-content"><div class="flow-phase" style="color:var(--gold)">The Trigger — Something Just Happened</div><div class="flow-title">He left her on read. Or her ex texted. Or the new guy feels eerily like the last one.</div><div class="flow-desc">It's 10:30pm. She's in bed. She doesn't want to text her friends again about the same thing. She wants an ANSWER. She wants to understand WHY this keeps happening. She opens Google.</div></div></div>
+        <div class="flow-step"><div class="flow-dot-col"><div class="flow-dot" style="border-color:var(--gold);background:rgba(212,168,83,.1)">🔍</div><div class="flow-line" style="background:var(--gold)"></div></div><div class="flow-content"><div class="flow-phase" style="color:var(--gold)">The Search — Emotional Urgency</div><div class="flow-title">She types: "virgo and scorpio compatibility"</div><div class="flow-desc">She's not browsing casually. This search has emotional weight behind it. She wants to know if the guy she's seeing (Scorpio) is going to end the same way. She scrolls past the generic results.</div></div></div>
+        <div class="flow-step"><div class="flow-dot-col"><div class="flow-dot" style="border-color:var(--gold);background:rgba(212,168,83,.1)">✨</div><div class="flow-line" style="background:var(--gold)"></div></div><div class="flow-content"><div class="flow-phase" style="color:var(--gold)">The Landing — Celestia's SEO Page Appears</div><div class="flow-title">She clicks Celestia's result. It looks different from the rest.</div><div class="flow-desc">No wall of generic text. No ugly ads. The page is warm (Desert Dawn palette), specific, and answers her question in the first 3 sentences. It doesn't say "Virgo and Scorpio are compatible" — it says "Here's the exact dynamic that happens between these two signs, and why it feels intense." She keeps reading.</div></div></div>
+        <div class="flow-step"><div class="flow-dot-col"><div class="flow-dot" style="border-color:var(--gold);background:rgba(212,168,83,.1)">🪝</div><div class="flow-line" style="background:var(--gold)"></div></div><div class="flow-content"><div class="flow-phase" style="color:var(--gold)">The CTA — Personalized Hook</div><div class="flow-title">Midway through: "This is the general pattern. But YOUR chart tells the specific story."</div><div class="flow-desc">A warm, non-pushy CTA: "Enter your birth details to see exactly how YOUR Virgo placements interact with Scorpio energy — free." It doesn't feel like an ad. It feels like the natural next step. She clicks.</div></div></div>
+        <div class="flow-step"><div class="flow-dot-col"><div class="flow-dot" style="border-color:var(--gold);background:rgba(212,168,83,.1)">📊</div><div class="flow-line" style="background:var(--gold)"></div></div><div class="flow-content"><div class="flow-phase" style="color:var(--gold)">The Chart — Eyes Wide Open</div><div class="flow-title">She enters her birth data. Gets her chart. Sees her Venus in the 7th house.</div><div class="flow-desc">The page shows her specific placements with warm, personal explanations — not astro-jargon. She reads about her Venus-Neptune square and her jaw drops. "This is literally describing my entire dating history."</div></div></div>
+        <div class="flow-step"><div class="flow-dot-col"><div class="flow-dot" style="border-color:var(--gold);background:rgba(212,168,83,.15)">💰</div></div><div class="flow-content"><div class="flow-phase" style="color:var(--gold)">The Payment — Natural Escalation</div><div class="flow-title">"Get your complete Virgo-Scorpio compatibility report — $9.99"</div><div class="flow-desc">She's already convinced. The free content was SO specific that the paid report feels like a necessity, not a luxury. She thinks "I've spent more at Starbucks today." She pays. She gets the deep-dive. She screenshots it and sends it to her group chat.</div></div></div>
+      </div>
+    </div>
+
+    <div class="mia-moment" style="border-color:rgba(212,168,83,.15)">
+      <div class="mia-avatar" style="border-color:var(--gold);background:rgba(212,168,83,.1)">😳</div>
+      <div class="mia-thought">
+        <div class="label" style="color:var(--gold)">Mia's Internal Thought</div>
+        <div class="quote">"Every other astrology site gave me the same generic paragraph. This one described my EXACT relationship pattern. I need the full report."</div>
+        <div class="context">10:48pm · Already entering credit card</div>
+      </div>
+    </div>
+
+    <div class="examples">
+      <div class="journey-title" style="color:var(--gold)">SEO Content Clusters — The Pages to Build</div>
+      <div class="ex-grid">
+        <div class="ex-card" style="border-color:rgba(212,168,83,.15)"><div style="position:absolute;top:0;left:0;width:3px;height:100%;background:var(--gold)"></div><div class="ex-label" style="color:var(--gold)">Cluster 1 — Compatibility</div><div class="ex-title">144 pages: every sign × sign combo</div><div class="ex-body">"virgo and scorpio compatibility" · "cancer and leo love match" · Each page: 1,200 words, warm tone, specific dynamics, CTA to personalized compatibility report.</div><div class="ex-metric" style="color:var(--gold);background:rgba(212,168,83,.1)">📊 Vol: 50K-200K/mo combined</div></div>
+        <div class="ex-card" style="border-color:rgba(212,168,83,.15)"><div style="position:absolute;top:0;left:0;width:3px;height:100%;background:var(--gold)"></div><div class="ex-label" style="color:var(--gold)">Cluster 2 — Birth Chart</div><div class="ex-title">"free birth chart" · "natal chart reading" · "what does my chart mean"</div><div class="ex-body">Tool-based pages. Enter birth data → instant chart → AI explanation. High intent, high conversion. Interactive, not just text.</div><div class="ex-metric" style="color:var(--gold);background:rgba(212,168,83,.1)">📊 Vol: 90K/mo · Conversion: 6%+</div></div>
+        <div class="ex-card" style="border-color:rgba(212,168,83,.15)"><div style="position:absolute;top:0;left:0;width:3px;height:100%;background:var(--gold)"></div><div class="ex-label" style="color:var(--gold)">Cluster 3 — Placement Meanings</div><div class="ex-title">"venus in capricorn" · "moon in scorpio" · "saturn return"</div><div class="ex-body">Deep-dive pages for each planet × sign placement. 300+ pages. Educational but personal. CTA: "See where this falls in YOUR chart."</div><div class="ex-metric" style="color:var(--gold);background:rgba(212,168,83,.1)">📊 Vol: 30K-100K/mo combined</div></div>
+        <div class="ex-card" style="border-color:rgba(212,168,83,.15)"><div style="position:absolute;top:0;left:0;width:3px;height:100%;background:var(--gold)"></div><div class="ex-label" style="color:var(--gold)">Cluster 4 — Transit Moments</div><div class="ex-title">"mercury retrograde march 2026" · "saturn return age 27"</div><div class="ex-body">Time-sensitive, news-like pages. Spike traffic around major transits. Mercury Rx, eclipses, Saturn return. Post 2 weeks before each event.</div><div class="ex-metric" style="color:var(--gold);background:rgba(212,168,83,.1)">📊 Spike traffic: 5-10x normal</div></div>
+      </div>
+    </div>
+
+    <div class="conv-path">
+      <div class="conv-step" style="background:rgba(212,168,83,.08)"><div class="conv-emoji">🔍</div><div class="conv-text">Google Search</div><div class="conv-sub">100%</div></div>
+      <div class="conv-step" style="background:rgba(212,168,83,.12)"><div class="conv-emoji">📄</div><div class="conv-text">Clicks Celestia</div><div class="conv-sub">~25%</div></div>
+      <div class="conv-step" style="background:rgba(212,168,83,.18)"><div class="conv-emoji">📊</div><div class="conv-text">Gets Free Chart</div><div class="conv-sub">~12%</div></div>
+      <div class="conv-step" style="background:rgba(212,168,83,.26)"><div class="conv-emoji">💬</div><div class="conv-text">Opens AI Chat</div><div class="conv-sub">~6%</div></div>
+      <div class="conv-step" style="background:var(--gold)"><div class="conv-emoji">💰</div><div class="conv-text" style="color:#1a1a1a">Pays $9.99</div><div class="conv-sub" style="color:rgba(0,0,0,.5)">~2-4%</div></div>
+    </div>
+  </div>
+
+  <!-- ═══════ INSTAGRAM DETAIL ═══════ -->
+  <div class="detail" id="detail-instagram">
+    <div class="detail-hero" style="background:linear-gradient(135deg,rgba(196,145,138,.15),rgba(196,145,138,.05));border:1px solid rgba(196,145,138,.15)">
+      <h2 style="color:var(--rose)">📸 Instagram</h2>
+      <div class="subtitle">The Engagement Engine — Where Mia Saves, Shares & Tags Friends</div>
+      <div class="stats">
+        <div class="stat"><div class="stat-val" style="color:var(--rose)">10.15%</div><div class="stat-label">Carousel engage rate</div></div>
+        <div class="stat"><div class="stat-val" style="color:var(--rose)">3.1x</div><div class="stat-label">vs single-post engage</div></div>
+        <div class="stat"><div class="stat-val" style="color:var(--rose)">8-12</div><div class="stat-label">Slides per carousel</div></div>
+        <div class="stat"><div class="stat-val" style="color:var(--rose)">Save+Share</div><div class="stat-label">Primary KPI</div></div>
+      </div>
+    </div>
+
+    <div class="journey">
+      <div class="journey-title" style="color:var(--rose)">Mia's Instagram Journey — Scroll to Share</div>
+      <div class="flow">
+        <div class="flow-step"><div class="flow-dot-col"><div class="flow-dot" style="border-color:var(--rose);background:rgba(196,145,138,.1)">📱</div><div class="flow-line" style="background:var(--rose)"></div></div><div class="flow-content"><div class="flow-phase" style="color:var(--rose)">Lunch Break Scroll</div><div class="flow-title">Mia is scrolling Instagram at work during lunch. She sees a carousel in her Explore feed.</div><div class="flow-desc">Cover slide: a warm, terracotta-toned graphic that says "Your Venus Sign Explains Your Love Language" — with 12 sign icons. She can't NOT swipe. She needs to find Virgo.</div></div></div>
+        <div class="flow-step"><div class="flow-dot-col"><div class="flow-dot" style="border-color:var(--rose);background:rgba(196,145,138,.1)">👆</div><div class="flow-line" style="background:var(--rose)"></div></div><div class="flow-content"><div class="flow-phase" style="color:var(--rose)">The Swipe — Deep Engagement</div><div class="flow-title">She swipes through 8 slides. Each sign has 2-3 sentences that feel eerily specific.</div><div class="flow-desc">When she gets to Virgo: "Venus in Virgo: You show love through acts of service. You'll reorganize someone's entire closet before you'll say 'I love you.' You fall for people who need fixing — and then resent them for not being fixed." She screenshots it.</div></div></div>
+        <div class="flow-step"><div class="flow-dot-col"><div class="flow-dot" style="border-color:var(--rose);background:rgba(196,145,138,.1)">💾</div><div class="flow-line" style="background:var(--rose)"></div></div><div class="flow-content"><div class="flow-phase" style="color:var(--rose)">Save + Share</div><div class="flow-title">She hits Save. Then she taps Share → sends to 3 friends via DM with "this is SO you"</div><div class="flow-desc">She tags her Gemini friend in the comments: "@jessica literally read the Gemini one 💀." Her friend opens it, swipes to Gemini, screenshots it, reposts to Stories. The content is now spreading without Celestia doing anything.</div></div></div>
+        <div class="flow-step"><div class="flow-dot-col"><div class="flow-dot" style="border-color:var(--rose);background:rgba(196,145,138,.1)">📖</div><div class="flow-line" style="background:var(--rose)"></div></div><div class="flow-content"><div class="flow-phase" style="color:var(--rose)">Story Repost</div><div class="flow-title">She reposts the Virgo slide to her Stories with the caption "why is this so accurate 💀"</div><div class="flow-desc">Her 800 followers see it. 15 of them tap the Celestia tag. 5 of them follow the account. 2 of them get their free chart that night. The social proof compounds.</div></div></div>
+        <div class="flow-step"><div class="flow-dot-col"><div class="flow-dot" style="border-color:var(--rose);background:rgba(196,145,138,.15)">🔗</div></div><div class="flow-content"><div class="flow-phase" style="color:var(--rose)">The Follow → Bio → Chart</div><div class="flow-title">She follows @celestia_astro. That night, she sees a Story: "Your March forecast is ready — link in bio."</div><div class="flow-desc">She taps the link. Gets her chart. The funnel begins. Instagram didn't directly convert her — it built trust and social proof over days, so when the moment came, she was already warm.</div></div></div>
+      </div>
+    </div>
+
+    <div class="mia-moment" style="border-color:rgba(196,145,138,.15)">
+      <div class="mia-avatar" style="border-color:var(--rose);background:rgba(196,145,138,.1)">📸</div>
+      <div class="mia-thought">
+        <div class="label" style="color:var(--rose)">Mia's Internal Thought</div>
+        <div class="quote">"Okay I've seen this account 3 times now — my friend tagged me, I saved a carousel, and now they popped up in my Explore. This is a sign. I need to check my chart."</div>
+        <div class="context">Multi-touch attribution · 3-7 day conversion window</div>
+      </div>
+    </div>
+
+    <div class="examples">
+      <div class="journey-title" style="color:var(--rose)">Instagram Content Formats</div>
+      <div class="ex-grid">
+        <div class="ex-card" style="border-color:rgba(196,145,138,.15)"><div style="position:absolute;top:0;left:0;width:3px;height:100%;background:var(--rose)"></div><div class="ex-label" style="color:var(--rose)">Carousels — The Save Machine</div><div class="ex-title">"Your Venus Sign Explains Your Love Language" · "What Your Moon Sign Says About Your Anxiety"</div><div class="ex-body">8-12 slides. One sign per slide. Cover = universal hook. Each slide = 2-3 sentences max. Last slide = CTA. Post 3x/week. These get saved and shared more than any other format.</div><div class="ex-metric" style="color:var(--rose);background:rgba(196,145,138,.1)">📊 10% avg engagement · 3.1x vs photos</div></div>
+        <div class="ex-card" style="border-color:rgba(196,145,138,.15)"><div style="position:absolute;top:0;left:0;width:3px;height:100%;background:var(--rose)"></div><div class="ex-label" style="color:var(--rose)">Stories — The Daily Pulse</div><div class="ex-title">Polls: "Is your ex a Gemini? 🔥 or 🚩" · Quizzes: "Guess which sign does this"</div><div class="ex-body">Daily interactive Stories. Polls, quizzes, "this or that." Drive to link sticker for chart/report. Mercury Rx countdown stories. Behind-the-scenes of AI readings.</div><div class="ex-metric" style="color:var(--rose);background:rgba(196,145,138,.1)">📊 Highest link-sticker CTR</div></div>
+        <div class="ex-card" style="border-color:rgba(196,145,138,.15)"><div style="position:absolute;top:0;left:0;width:3px;height:100%;background:var(--rose)"></div><div class="ex-label" style="color:var(--rose)">Reels — The Reach Expander</div><div class="ex-title">Cross-post top TikToks (remove watermark). Reach new audiences via Explore.</div><div class="ex-body">Same content as TikTok but optimized for IG (slightly different pacing, IG-native text styles). Reels drive discovery, carousels drive saves, Stories drive clicks.</div><div class="ex-metric" style="color:var(--rose);background:rgba(196,145,138,.1)">📊 Expand reach to non-followers</div></div>
+        <div class="ex-card" style="border-color:rgba(196,145,138,.15)"><div style="position:absolute;top:0;left:0;width:3px;height:100%;background:var(--rose)"></div><div class="ex-label" style="color:var(--rose)">Tag-a-Friend — The Viral Format</div><div class="ex-title">"Tag the Scorpio who needs to hear this" · "Send to a friend going through Saturn Return"</div><div class="ex-body">Single-image posts designed to trigger tags. Bold text, one provocative statement per sign. Comment section becomes a tagging frenzy. Each tag = a new potential user seeing your brand.</div><div class="ex-metric" style="color:var(--rose);background:rgba(196,145,138,.1)">📊 1 post = 200+ tags in comments</div></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══════ PINTEREST DETAIL ═══════ -->
+  <div class="detail" id="detail-pinterest">
+    <div class="detail-hero" style="background:linear-gradient(135deg,rgba(155,142,196,.15),rgba(155,142,196,.05));border:1px solid rgba(155,142,196,.15)">
+      <h2 style="color:var(--lav)">📌 Pinterest SEO</h2>
+      <div class="subtitle">The Long-Tail Engine — Where Mia Does Her Deep Research</div>
+      <div class="stats"><div class="stat"><div class="stat-val" style="color:var(--lav)">Sunday</div><div class="stat-label">Peak browse day</div></div><div class="stat"><div class="stat-val" style="color:var(--lav)">90 day</div><div class="stat-label">Content lifespan</div></div><div class="stat"><div class="stat-val" style="color:var(--lav)">Pin→Click</div><div class="stat-label">Primary funnel</div></div><div class="stat"><div class="stat-val" style="color:var(--lav)">4x</div><div class="stat-label">Longer shelf life vs IG</div></div></div>
+    </div>
+    <div class="journey"><div class="journey-title" style="color:var(--lav)">Mia's Pinterest Journey — Research Mode</div>
+      <div class="flow">
+        <div class="flow-step"><div class="flow-dot-col"><div class="flow-dot" style="border-color:var(--lav);background:rgba(155,142,196,.1)">🌙</div><div class="flow-line" style="background:var(--lav)"></div></div><div class="flow-content"><div class="flow-phase" style="color:var(--lav)">Sunday Afternoon — Cozy Research Mode</div><div class="flow-title">She searches "scorpio moon aesthetic" or "birth chart explained for beginners"</div><div class="flow-desc">She's not on Pinterest for quick dopamine. She's here to go deep. She's building boards: "Astrology," "Self-Discovery," "Spirituality." She's in learning mode.</div></div></div>
+        <div class="flow-step"><div class="flow-dot-col"><div class="flow-dot" style="border-color:var(--lav);background:rgba(155,142,196,.1)">📌</div><div class="flow-line" style="background:var(--lav)"></div></div><div class="flow-content"><div class="flow-phase" style="color:var(--lav)">The Pin — Beautiful Infographic</div><div class="flow-title">A Celestia pin appears: warm, Desert Dawn palette, clean typography — "What Your Moon Sign Says About Your Emotional Needs"</div><div class="flow-desc">It looks NOTHING like the dark, cluttered astrology graphics she usually sees. It looks like something from a wellness magazine. She saves it. Then she clicks through to the full article on hicelestia.com.</div></div></div>
+        <div class="flow-step"><div class="flow-dot-col"><div class="flow-dot" style="border-color:var(--lav);background:rgba(155,142,196,.15)">🔗</div></div><div class="flow-content"><div class="flow-phase" style="color:var(--lav)">The Click-Through — From Pin to Site to Chart</div><div class="flow-title">She reads the full article. At the bottom: "See your complete birth chart — free."</div><div class="flow-desc">Pinterest content lives for 90+ days. A pin posted in January still drives traffic in April. It's the slowest channel but the most compounding. Every pin is a permanent SEO asset that sends warm, high-intent traffic to your site.</div></div></div>
+      </div>
+    </div>
+    <div class="examples"><div class="journey-title" style="color:var(--lav)">Pin Formats</div><div class="ex-grid">
+      <div class="ex-card" style="border-color:rgba(155,142,196,.15)"><div style="position:absolute;top:0;left:0;width:3px;height:100%;background:var(--lav)"></div><div class="ex-label" style="color:var(--lav)">Infographic Pins</div><div class="ex-title">"Complete Guide to Your Birth Chart" · "12 Moon Signs Explained"</div><div class="ex-body">Tall, vertical images (1000×1500px). Desert Dawn colors. Clean text overlay. Each pin links to a full article on hicelestia.com. 20+ new pins/week.</div><div class="ex-metric" style="color:var(--lav);background:rgba(155,142,196,.1)">📊 90-day shelf life per pin</div></div>
+      <div class="ex-card" style="border-color:rgba(155,142,196,.15)"><div style="position:absolute;top:0;left:0;width:3px;height:100%;background:var(--lav)"></div><div class="ex-label" style="color:var(--lav)">Aesthetic Boards</div><div class="ex-title">"Scorpio Moon Aesthetic" · "Virgo Rising Vibes" · "Saturn Return Survival"</div><div class="ex-body">Curated boards mixing Celestia content with aspirational lifestyle images. She saves the whole board. Builds brand association between Celestia and the aesthetic she already loves.</div><div class="ex-metric" style="color:var(--lav);background:rgba(155,142,196,.1)">📊 Board follows → recurring traffic</div></div>
+    </div></div>
+  </div>
+
+  <!-- ═══════ VIRAL DETAIL ═══════ -->
+  <div class="detail" id="detail-viral">
+    <div class="detail-hero" style="background:linear-gradient(135deg,rgba(139,158,126,.15),rgba(139,158,126,.05));border:1px solid rgba(139,158,126,.15)">
+      <h2 style="color:var(--sage)">🔄 Viral Loop</h2>
+      <div class="subtitle">The Growth Engine — How Mia Brings 3-5 Friends Without Us Spending a Dollar</div>
+      <div class="stats"><div class="stat"><div class="stat-val" style="color:var(--sage)">$0</div><div class="stat-label">CAC per referral</div></div><div class="stat"><div class="stat-val" style="color:var(--sage)">3-5</div><div class="stat-label">Friends per user</div></div><div class="stat"><div class="stat-val" style="color:var(--sage)">24hrs</div><div class="stat-label">Avg referral time</div></div><div class="stat"><div class="stat-val" style="color:var(--sage)">Group Chat</div><div class="stat-label">Primary vector</div></div></div>
+    </div>
+    <div class="journey"><div class="journey-title" style="color:var(--sage)">The Viral Loop — Built Into the Product</div>
+      <div class="flow">
+        <div class="flow-step"><div class="flow-dot-col"><div class="flow-dot" style="border-color:var(--sage);background:rgba(139,158,126,.1)">🤯</div><div class="flow-line" style="background:var(--sage)"></div></div><div class="flow-content"><div class="flow-phase" style="color:var(--sage)">Step 1 — The "How Does It Know" Moment</div><div class="flow-title">Mia gets an AI reading that's eerily accurate. Her instinct: screenshot.</div><div class="flow-desc">The product MUST create at least one moment per session where the user's reaction is "how does it know this?" This is the screenshot moment. Without it, there is no viral loop.</div></div></div>
+        <div class="flow-step"><div class="flow-dot-col"><div class="flow-dot" style="border-color:var(--sage);background:rgba(139,158,126,.1)">📸</div><div class="flow-line" style="background:var(--sage)"></div></div><div class="flow-content"><div class="flow-phase" style="color:var(--sage)">Step 2 — The Screenshot → Group Chat</div><div class="flow-title">"You guys HAVE to try this" — sent to her iMessage group with 4 friends</div><div class="flow-desc">Make charts and readings visually beautiful. If it's ugly, she won't screenshot it. If it's text-heavy, she won't share it. The shareable unit must be a visual card — beautiful, specific, screenshot-ready.</div></div></div>
+        <div class="flow-step"><div class="flow-dot-col"><div class="flow-dot" style="border-color:var(--sage);background:rgba(139,158,126,.1)">🔗</div><div class="flow-line" style="background:var(--sage)"></div></div><div class="flow-content"><div class="flow-phase" style="color:var(--sage)">Step 3 — The Shareable Link</div><div class="flow-title">One-tap "Share your chart" button generates a unique link: celestia.com/chart/mia-virgo</div><div class="flow-desc">The link opens a beautiful web page showing Mia's chart summary. At the bottom: "Want to see YOUR chart? Enter your birthday." Each shared link = a landing page = a conversion opportunity. The product IS the marketing.</div></div></div>
+        <div class="flow-step"><div class="flow-dot-col"><div class="flow-dot" style="border-color:var(--sage);background:rgba(139,158,126,.1)">💕</div><div class="flow-line" style="background:var(--sage)"></div></div><div class="flow-content"><div class="flow-phase" style="color:var(--sage)">Step 4 — Compatibility as Social Glue</div><div class="flow-title">"Check our compatibility!" — she sends the compatibility link to the guy she's dating</div><div class="flow-desc">Compatibility checks are inherently 2-person. Every check = 2 users. "Send this to your crush" = acquisition disguised as a feature. He enters his birth data. Now he's a user too. And he sends it to HIS friends.</div></div></div>
+        <div class="flow-step"><div class="flow-dot-col"><div class="flow-dot" style="border-color:var(--sage);background:rgba(139,158,126,.15)">📈</div></div><div class="flow-content"><div class="flow-phase" style="color:var(--sage)">Step 5 — The Compound Effect</div><div class="flow-title">Mia → 4 friends → each brings 2-3 more → exponential growth</div><div class="flow-desc">If each user brings 3 friends, and 30% of those friends bring 2 more: 1 → 3 → ~6 → ~12. Viral coefficient >1.0. Self-sustaining growth with $0 ad spend. THIS is how Co-Star got to 20M downloads.</div></div></div>
+      </div>
+    </div>
+    <div class="mia-moment" style="border-color:rgba(139,158,126,.15)">
+      <div class="mia-avatar" style="border-color:var(--sage);background:rgba(139,158,126,.1)">💬</div>
+      <div class="mia-thought">
+        <div class="label" style="color:var(--sage)">In Mia's Group Chat (4 friends)</div>
+        <div class="quote">"okay I know you guys are going to think I'm crazy but this app just described my entire relationship history and I'm literally shaking. you HAVE to try it. just put in your birthday."</div>
+        <div class="context">3 of 4 friends enter their birth data within 24 hours</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══════ EMAIL DETAIL ═══════ -->
+  <div class="detail" id="detail-email">
+    <div class="detail-hero" style="background:linear-gradient(135deg,rgba(123,167,196,.15),rgba(123,167,196,.05));border:1px solid rgba(123,167,196,.15)">
+      <h2 style="color:var(--sky)">📩 Email & Push</h2>
+      <div class="subtitle">The Retention Engine — How Mia Comes Back Week After Week</div>
+      <div class="stats"><div class="stat"><div class="stat-val" style="color:var(--sky)">Mon 8am</div><div class="stat-label">Best email send</div></div><div class="stat"><div class="stat-val" style="color:var(--sky)">35%+</div><div class="stat-label">Open rate target</div></div><div class="stat"><div class="stat-val" style="color:var(--sky)">Weekly</div><div class="stat-label">Transit digest</div></div><div class="stat"><div class="stat-val" style="color:var(--sky)">Birthday</div><div class="stat-label">Highest converting</div></div></div>
+    </div>
+    <div class="journey"><div class="journey-title" style="color:var(--sky)">Email Sequences That Bring Mia Back</div>
+      <div class="flow">
+        <div class="flow-step"><div class="flow-dot-col"><div class="flow-dot" style="border-color:var(--sky);background:rgba(123,167,196,.1)">👋</div><div class="flow-line" style="background:var(--sky)"></div></div><div class="flow-content"><div class="flow-phase" style="color:var(--sky)">Day 0 — Welcome Email</div><div class="flow-title">"Your chart is ready, Mia. Here's the one thing you need to know right now."</div><div class="flow-desc">Not a generic welcome. Pull her dominant placement and give her one specific, personal insight she hasn't seen yet. Tease the depth available. "Your Mars in the 12th house explains something you've always felt but never understood — open the app to see it."</div></div></div>
+        <div class="flow-step"><div class="flow-dot-col"><div class="flow-dot" style="border-color:var(--sky);background:rgba(123,167,196,.1)">📅</div><div class="flow-line" style="background:var(--sky)"></div></div><div class="flow-content"><div class="flow-phase" style="color:var(--sky)">Every Monday — Weekly Transit Digest</div><div class="flow-title">"Your week ahead: Venus enters your 7th house. Love stuff is about to get interesting."</div><div class="flow-desc">Personalized to HER chart. Not a generic horoscope. "This week, with Venus transiting your 7th house, you might meet someone who feels different — pay attention to Tuesday and Wednesday." She opens the app to read more.</div></div></div>
+        <div class="flow-step"><div class="flow-dot-col"><div class="flow-dot" style="border-color:var(--sky);background:rgba(123,167,196,.1)">⚠️</div><div class="flow-line" style="background:var(--sky)"></div></div><div class="flow-content"><div class="flow-phase" style="color:var(--sky)">Transit Alerts — Mercury Rx, Eclipses</div><div class="flow-title">"Mercury Retrograde starts in 3 days. Here's what it hits in YOUR chart."</div><div class="flow-desc">Timely push notifications before major transits. Everyone's talking about Mercury Rx — Celestia tells her what it specifically means for HER. Creates urgency. She opens the app, reads her personalized transit report.</div></div></div>
+        <div class="flow-step"><div class="flow-dot-col"><div class="flow-dot" style="border-color:var(--sky);background:rgba(123,167,196,.1)">🎂</div><div class="flow-line" style="background:var(--sky)"></div></div><div class="flow-content"><div class="flow-phase" style="color:var(--sky)">Birthday — The Highest-Converting Email</div><div class="flow-title">"Happy Solar Return, Mia ✨ Your year-ahead forecast is ready."</div><div class="flow-desc">Sent on her birthday. Includes a free preview of her Solar Return chart. "This is going to be a big year — your Saturn is moving into your 10th house, which means career breakthroughs." CTA: "Get your full Year-Ahead Report — $9.99." This email alone converts at 8-12%.</div></div></div>
+        <div class="flow-step"><div class="flow-dot-col"><div class="flow-dot" style="border-color:var(--sky);background:rgba(123,167,196,.15)">💕</div></div><div class="flow-content"><div class="flow-phase" style="color:var(--sky)">Relationship Trigger — "New Connection?"</div><div class="flow-title">"Had a great date recently? Check your compatibility — just enter their birthday."</div><div class="flow-desc">Sent after she's been active in the app (behavioral trigger). Not random. Timed to when she's most likely dating. Drives the compatibility feature, which drives the viral loop, which drives new users. Retention → Growth flywheel.</div></div></div>
+      </div>
+    </div>
+    <div class="mia-moment" style="border-color:rgba(123,167,196,.15)">
+      <div class="mia-avatar" style="border-color:var(--sky);background:rgba(123,167,196,.1)">🎂</div>
+      <div class="mia-thought">
+        <div class="label" style="color:var(--sky)">Mia on Her Birthday</div>
+        <div class="quote">"Celestia just sent me a birthday email with a preview of my year ahead and it said career breakthroughs are coming... okay I NEED the full report. Take my money."</div>
+        <div class="context">Birthday email → 8-12% conversion rate → highest ROI email</div>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<script>
+const grid = document.getElementById('chGrid');
+const backBtn = document.getElementById('backBtn');
+const details = document.querySelectorAll('.detail');
+
+function showDetail(ch) {
+  grid.style.display = 'none';
+  backBtn.style.display = 'flex';
+  details.forEach(d => d.classList.remove('active'));
+  document.getElementById('detail-' + ch).classList.add('active');
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+}
+
+function showGrid() {
+  grid.style.display = 'grid';
+  backBtn.style.display = 'none';
+  details.forEach(d => d.classList.remove('active'));
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+}
+</script>
+</body>
+</html>

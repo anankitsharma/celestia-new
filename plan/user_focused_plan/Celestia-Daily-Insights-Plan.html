@@ -1,0 +1,620 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Celestia — Daily Insights Plan (The Reason She Opens the App Every Morning)</title>
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,300;0,400;0,500;0,600;0,700;1,400;1,500&family=DM+Sans:ital,wght@0,300;0,400;0,500;0,600;0,700;1,400&display=swap" rel="stylesheet">
+<style>
+:root{--bg:#0F0D1A;--card:#1A1726;--card2:#211E2E;--terra:#C17F59;--gold:#D4A853;--sage:#8B9E7E;--rose:#C4918A;--lav:#9B8EC4;--sky:#7BA7C4;--cream:#F5EDE3;--muted:#6B6880;--border:rgba(255,255,255,0.06);--text:rgba(255,255,255,0.78);--dim:rgba(255,255,255,0.45)}
+*{margin:0;padding:0;box-sizing:border-box}
+body{background:var(--bg);color:var(--cream);font-family:'DM Sans',sans-serif;-webkit-font-smoothing:antialiased;line-height:1.65}
+.wrap{max-width:880px;margin:0 auto;padding:0 24px}
+
+.topnav{position:sticky;top:0;z-index:100;background:rgba(15,13,26,.92);backdrop-filter:blur(16px);border-bottom:1px solid var(--border);overflow-x:auto}
+.topnav::-webkit-scrollbar{display:none}
+.topnav-inner{display:flex;max-width:880px;margin:0 auto;min-width:max-content}
+.topnav a{padding:11px 14px;font-size:9px;letter-spacing:1.5px;text-transform:uppercase;color:var(--muted);text-decoration:none;white-space:nowrap;border-bottom:2px solid transparent;transition:.3s}
+.topnav a:hover,.topnav a.active{color:var(--terra);border-bottom-color:var(--terra)}
+
+.hero{text-align:center;padding:52px 20px 36px;position:relative}
+.hero::before{content:'';position:absolute;top:-120px;left:50%;transform:translateX(-50%);width:600px;height:600px;background:radial-gradient(circle,rgba(193,127,89,.07) 0%,transparent 65%);pointer-events:none}
+.htag{font-size:9px;letter-spacing:5px;text-transform:uppercase;color:var(--gold);opacity:.6;margin-bottom:14px}
+.hero h1{font-family:'Playfair Display',serif;font-size:clamp(24px,5vw,40px);font-weight:300;line-height:1.2;margin-bottom:10px}
+.hero h1 b{font-weight:600;color:var(--terra)}
+.hero .sub{font-size:13.5px;color:var(--dim);max-width:560px;margin:0 auto}
+
+.sec{padding:44px 0 16px}
+.sec-head{display:flex;align-items:center;gap:12px;margin-bottom:24px}
+.sec-num{width:32px;height:32px;border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;color:white;flex-shrink:0}
+.sec-label{font-size:9.5px;letter-spacing:3px;text-transform:uppercase;font-weight:600}
+.sec-line{flex:1;height:1px;opacity:.15}
+
+.card{background:var(--card);border:1px solid var(--border);border-radius:14px;padding:22px;margin-bottom:12px}
+.card-t{font-size:9px;letter-spacing:2.5px;text-transform:uppercase;font-weight:600;margin-bottom:14px}
+.g2{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.g3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px}
+
+.mia{display:flex;gap:14px;align-items:flex-start;background:var(--card2);border:1px solid var(--border);border-radius:14px;padding:18px;margin-bottom:12px}
+.mia-ava{width:38px;height:38px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:15px;flex-shrink:0;border:2px solid var(--terra);background:rgba(193,127,89,.08)}
+.mia-txt{flex:1}
+.mia-label{font-size:8px;letter-spacing:2px;font-weight:700;text-transform:uppercase;color:var(--terra);margin-bottom:3px}
+.mia-q{font-family:'Playfair Display',serif;font-style:italic;font-size:13.5px;color:var(--cream);line-height:1.5}
+.mia-ctx{font-size:10px;color:var(--muted);margin-top:3px}
+
+/* Phone notification sim */
+.phone-sim{background:#1c1c1e;border-radius:24px;max-width:360px;margin:0 auto 14px;overflow:hidden;border:1px solid rgba(255,255,255,.08);box-shadow:0 12px 48px rgba(0,0,0,.5)}
+.phone-status{display:flex;justify-content:space-between;padding:10px 20px 4px;font-size:10px;color:rgba(255,255,255,.5)}
+.phone-notif{margin:8px 12px 12px;background:rgba(255,255,255,.08);border-radius:16px;padding:14px 16px;backdrop-filter:blur(20px)}
+.phone-notif-header{display:flex;align-items:center;gap:8px;margin-bottom:6px}
+.phone-notif-icon{width:22px;height:22px;border-radius:6px;display:flex;align-items:center;justify-content:center;font-size:11px}
+.phone-notif-app{font-size:11px;font-weight:600;color:rgba(255,255,255,.7)}
+.phone-notif-time{font-size:10px;color:rgba(255,255,255,.35);margin-left:auto}
+.phone-notif-title{font-size:13px;font-weight:600;color:white;margin-bottom:3px;line-height:1.3}
+.phone-notif-body{font-size:12px;color:rgba(255,255,255,.65);line-height:1.5}
+
+/* Daily insight page sim */
+.insight-sim{background:linear-gradient(180deg,#1E1B2E 0%,#0F0D1A 100%);border-radius:18px;max-width:400px;margin:0 auto 14px;overflow:hidden;border:1px solid var(--border)}
+.insight-top{padding:24px 24px 0;text-align:center}
+.insight-date{font-size:10px;letter-spacing:2px;text-transform:uppercase;color:var(--muted);margin-bottom:4px}
+.insight-greeting{font-family:'Playfair Display',serif;font-size:20px;color:var(--cream);margin-bottom:16px}
+.insight-card-inner{background:var(--card);border:1px solid var(--border);border-radius:14px;margin:0 16px 16px;padding:20px}
+.insight-transit{font-size:9px;letter-spacing:1.5px;text-transform:uppercase;color:var(--terra);font-weight:600;margin-bottom:8px}
+.insight-headline{font-family:'Playfair Display',serif;font-size:17px;color:var(--cream);line-height:1.4;margin-bottom:10px}
+.insight-body{font-size:12.5px;color:var(--dim);line-height:1.7}
+.insight-highlight{background:rgba(193,127,89,.06);border-left:2px solid var(--terra);padding:10px 14px;border-radius:0 8px 8px 0;margin:12px 0;font-size:12px;line-height:1.6;color:var(--text)}
+.insight-areas{display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin:16px 16px;text-align:center}
+.insight-area{background:var(--card);border:1px solid var(--border);border-radius:10px;padding:12px 8px}
+.insight-area-emoji{font-size:20px;margin-bottom:4px}
+.insight-area-label{font-size:9px;color:var(--muted);text-transform:uppercase;letter-spacing:1px;margin-bottom:2px}
+.insight-area-val{font-size:11px;font-weight:600}
+.insight-actions{display:flex;gap:8px;padding:0 16px 16px}
+.insight-action{flex:1;background:var(--card);border:1px solid var(--border);border-radius:10px;padding:10px;text-align:center;font-size:10px;color:var(--dim)}
+.insight-action b{display:block;font-size:14px;margin-bottom:2px}
+
+/* Compare section */
+.compare-row{display:grid;grid-template-columns:1fr 1fr;gap:0;border-radius:12px;overflow:hidden;margin-bottom:10px}
+.compare-bad{background:rgba(212,96,90,.05);padding:14px;border:1px solid rgba(212,96,90,.08)}
+.compare-good{background:rgba(107,191,122,.05);padding:14px;border:1px solid rgba(107,191,122,.08)}
+.compare-label{font-size:8px;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;margin-bottom:6px}
+
+/* Notification examples */
+.notif-example{background:var(--card);border:1px solid var(--border);border-radius:12px;padding:16px;margin-bottom:8px;position:relative;overflow:hidden}
+.notif-example::before{content:'';position:absolute;left:0;top:0;bottom:0;width:3px}
+.notif-time{font-size:9px;color:var(--muted);letter-spacing:1px;margin-bottom:4px}
+.notif-text{font-size:13px;color:var(--cream);line-height:1.5}
+.notif-why{font-size:10.5px;color:var(--dim);margin-top:6px;font-style:italic;padding-top:6px;border-top:1px solid var(--border)}
+.notif-tag{display:inline-block;font-size:8px;font-weight:700;letter-spacing:1px;padding:2px 8px;border-radius:4px;text-transform:uppercase;margin-top:6px}
+
+/* Week view */
+.week-grid{display:grid;grid-template-columns:repeat(7,1fr);gap:6px;margin-bottom:12px}
+.week-cell{background:var(--card);border:1px solid var(--border);border-radius:10px;padding:12px 6px;text-align:center}
+.week-day{font-size:9px;font-weight:700;letter-spacing:1px;margin-bottom:4px}
+.week-type{font-size:9px;color:var(--dim);line-height:1.3}
+.week-icon{font-size:18px;margin-bottom:4px}
+
+/* Calendar events */
+.cal-event{display:flex;gap:14px;padding:14px 0;border-bottom:1px solid var(--border)}
+.cal-event:last-child{border-bottom:none}
+.cal-date{width:56px;text-align:center;flex-shrink:0}
+.cal-month{font-size:9px;font-weight:700;letter-spacing:1px;text-transform:uppercase}
+.cal-num{font-size:20px;font-weight:700}
+.cal-info{flex:1}
+.cal-name{font-size:13px;font-weight:600;margin-bottom:2px}
+.cal-desc{font-size:11px;color:var(--dim);line-height:1.5}
+
+.footer{text-align:center;padding:28px;border-top:1px solid var(--border)}
+.footer p{font-size:12px;color:var(--muted);font-style:italic}
+.footer .brand{font-size:9px;letter-spacing:4px;color:var(--gold);opacity:.4;margin-top:8px;text-transform:uppercase}
+
+@media(max-width:700px){.g2,.g3,.compare-row{grid-template-columns:1fr}.week-grid{grid-template-columns:repeat(4,1fr)}.phone-sim,.insight-sim{max-width:100%}.mia{flex-direction:column;text-align:center;align-items:center}}
+</style>
+</head>
+<body>
+
+<nav class="topnav"><div class="topnav-inner">
+  <a href="#why">Why Daily</a>
+  <a href="#push">Push Notif</a>
+  <a href="#page">Daily Page</a>
+  <a href="#content">Content Types</a>
+  <a href="#week">Weekly Rhythm</a>
+  <a href="#seasonal">Seasonal</a>
+  <a href="#screenshot">Screenshots</a>
+  <a href="#rules">Rules</a>
+</div></nav>
+
+<div class="wrap">
+
+<section class="hero">
+  <div class="htag">✦ Celestia — Deep Product Plan: Daily Insights ✦</div>
+  <h1>The Reason She Opens the App <b>Every Morning</b></h1>
+  <p class="sub">The daily insight is not a feature. It's the habit loop. It's what turns a one-time user into someone who checks Celestia the way she checks the weather — every single day, before she's fully awake.</p>
+</section>
+
+<!-- ═══════ 01 WHY DAILY MATTERS ═══════ -->
+<section class="sec" id="why">
+  <div class="sec-head">
+    <div class="sec-num" style="background:var(--terra)">01</div>
+    <span class="sec-label" style="color:var(--terra)">Why Daily Insights Are the Entire Retention Strategy</span>
+    <div class="sec-line" style="background:var(--terra)"></div>
+  </div>
+
+  <div class="card" style="border-top:3px solid var(--terra)">
+    <p style="font-size:14px;color:var(--cream);line-height:1.7;margin-bottom:16px">Co-Star didn't become a daily-use app because of birth charts. People check their chart once. They check their <b style="color:var(--terra)">daily insight every single morning.</b> That daily notification is responsible for more retention than every other feature combined.</p>
+    <div class="g3">
+      <div style="text-align:center;padding:14px;background:rgba(193,127,89,.05);border-radius:12px">
+        <p style="font-size:28px;font-weight:700;font-family:'Playfair Display',serif;color:var(--terra)">365x</p>
+        <p style="font-size:10px;color:var(--muted)">She checks her chart ONCE.<br>She reads daily insights 365 times.</p>
+      </div>
+      <div style="text-align:center;padding:14px;background:rgba(212,168,83,.05);border-radius:12px">
+        <p style="font-size:28px;font-weight:700;font-family:'Playfair Display',serif;color:var(--gold)">7:22am</p>
+        <p style="font-size:10px;color:var(--muted)">Average time Mia sees the notification.<br>Before coffee. Before getting up.</p>
+      </div>
+      <div style="text-align:center;padding:14px;background:rgba(139,158,126,.05);border-radius:12px">
+        <p style="font-size:28px;font-weight:700;font-family:'Playfair Display',serif;color:var(--sage)">#1</p>
+        <p style="font-size:10px;color:var(--muted)">Retention mechanic in astrology apps.<br>The daily is the glue.</p>
+      </div>
+    </div>
+  </div>
+
+  <div class="mia">
+    <div class="mia-ava">🌅</div>
+    <div class="mia-txt">
+      <div class="mia-label">Mia's morning ritual (after 2 weeks with Celestia)</div>
+      <div class="mia-q">"Alarm goes off. I grab my phone. Check the time. Check Celestia. Then check Instagram. In that order. I don't even think about it anymore — it's just what I do. The daily insight is like someone who knows me leaving a note on my pillow every morning."</div>
+      <div class="mia-ctx">THIS is what we're building. A ritual. A habit. A thing she'd miss if it stopped.</div>
+    </div>
+  </div>
+
+  <!-- Co-Star comparison -->
+  <div class="card">
+    <div class="card-t" style="color:var(--gold)">Where Co-Star Gets It Wrong — Our Opportunity</div>
+    <div class="compare-row">
+      <div class="compare-bad">
+        <div class="compare-label" style="color:#D4605A">Co-Star's Approach</div>
+        <p style="font-size:12px;color:var(--dim);line-height:1.6;margin-bottom:8px">Cryptic, blunt, sometimes hostile notifications that became memes: "Fix ur life," "You talk about other people because you don't have your own life," "Eat something new."</p>
+        <p style="font-size:11px;color:#D4605A">People screenshot them as jokes. Not as wisdom. Viral but empty.</p>
+      </div>
+      <div class="compare-good">
+        <div class="compare-label" style="color:#6BBF7A">Celestia's Approach</div>
+        <p style="font-size:12px;color:var(--dim);line-height:1.6;margin-bottom:8px">Warm, specific, actionable. Based on actual transits hitting HER chart. "Venus trines your natal Moon today — conversations about feelings will flow easier. If you've been holding something back, today's the day."</p>
+        <p style="font-size:11px;color:#6BBF7A">She screenshots it because it's TRUE. She shares it because it's USEFUL.</p>
+      </div>
+    </div>
+    <p style="font-size:11px;color:var(--muted);font-style:italic;margin-top:8px">Co-Star owns "cryptic and edgy." We own "warm and scary-accurate." Both get screenshotted. Only one builds trust.</p>
+  </div>
+</section>
+
+<!-- ═══════ 02 PUSH NOTIFICATION ═══════ -->
+<section class="sec" id="push">
+  <div class="sec-head">
+    <div class="sec-num" style="background:var(--gold)">02</div>
+    <span class="sec-label" style="color:var(--gold)">The Push Notification — Her Morning Note</span>
+    <div class="sec-line" style="background:var(--gold)"></div>
+  </div>
+
+  <div class="card">
+    <div class="card-t" style="color:var(--gold)">Notification Specs</div>
+    <div class="g2">
+      <div style="font-size:12px;color:var(--dim);line-height:1.8">
+        <b style="color:var(--cream)">Delivery time:</b> 7:15-7:30 AM (her timezone)<br>
+        <b style="color:var(--cream)">Why:</b> She wakes at 7:15. Phone is the first thing she touches. Celestia should be the first thing she reads — before Instagram, before TikTok, before texts.<br>
+        <b style="color:var(--cream)">Frequency:</b> Once per day. Always. Never skip a day. Never send 2.<br>
+        <b style="color:var(--cream)">Personalized:</b> Based on today's transits hitting HER natal chart. Not her sun sign. HER chart.
+      </div>
+      <div style="font-size:12px;color:var(--dim);line-height:1.8">
+        <b style="color:var(--cream)">Length:</b> 2 lines max for the notification preview. She must be able to read the core insight WITHOUT opening the app.<br>
+        <b style="color:var(--cream)">Tone:</b> Warm, direct, like a note from a friend. Never cryptic. Never vague.<br>
+        <b style="color:var(--cream)">Structure:</b> [What's happening] + [What it means for her today]<br>
+        <b style="color:var(--cream)">Always ends with:</b> A reason to tap and open the full insight page.
+      </div>
+    </div>
+  </div>
+
+  <!-- Phone sim examples -->
+  <p style="font-size:10px;letter-spacing:2px;text-transform:uppercase;color:var(--terra);font-weight:600;margin:20px 0 12px">Notification Examples — How It Looks on Mia's Lock Screen</p>
+
+  <div class="phone-sim">
+    <div class="phone-status"><span>7:22 AM</span><span>☀️ 73°</span></div>
+    <div class="phone-notif">
+      <div class="phone-notif-header">
+        <div class="phone-notif-icon" style="background:var(--terra)">✦</div>
+        <div class="phone-notif-app">Celestia</div>
+        <div class="phone-notif-time">now</div>
+      </div>
+      <div class="phone-notif-title">Feelings will flow easier today.</div>
+      <div class="phone-notif-body">Venus trines your Moon — if you've been holding something back from someone, today's the day to say it. Open for your full daily insight →</div>
+    </div>
+  </div>
+
+  <div class="phone-sim">
+    <div class="phone-status"><span>7:18 AM</span><span>🌤 68°</span></div>
+    <div class="phone-notif">
+      <div class="phone-notif-header">
+        <div class="phone-notif-icon" style="background:var(--terra)">✦</div>
+        <div class="phone-notif-app">Celestia</div>
+        <div class="phone-notif-time">now</div>
+      </div>
+      <div class="phone-notif-title">Double-check everything you send today.</div>
+      <div class="phone-notif-body">Mercury squares your Mars — words might come out sharper than you mean. Re-read that email before hitting send. Open for details →</div>
+    </div>
+  </div>
+
+  <div class="phone-sim">
+    <div class="phone-status"><span>7:25 AM</span><span>☁️ 65°</span></div>
+    <div class="phone-notif">
+      <div class="phone-notif-header">
+        <div class="phone-notif-icon" style="background:var(--terra)">✦</div>
+        <div class="phone-notif-app">Celestia</div>
+        <div class="phone-notif-time">now</div>
+      </div>
+      <div class="phone-notif-title">Your energy is magnetic today. Use it.</div>
+      <div class="phone-notif-body">Sun conjuncts your Rising — you'll light up every room without trying. If there's something you've been wanting to initiate, this is the day. →</div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-t" style="color:var(--terra)">Notification Categories — Rotating Daily</div>
+    <div class="g3">
+      <div class="notif-example" style="border-left-color:var(--rose)">
+        <div class="notif-time" style="color:var(--rose)">LOVE & RELATIONSHIPS</div>
+        <div class="notif-text">"Someone from your past might reach out today. Your Venus is activated — you'll know whether to respond or not. Trust the gut feeling, not the nostalgia."</div>
+        <div class="notif-tag" style="color:var(--rose);background:rgba(196,145,138,.1)">Venus / 7th house transits</div>
+      </div>
+      <div class="notif-example" style="border-left-color:var(--gold)">
+        <div class="notif-time" style="color:var(--gold)">CAREER & PURPOSE</div>
+        <div class="notif-text">"Today's a power day for work conversations. Jupiter is lighting up your 10th house — if you've been waiting to pitch that idea or ask for more, today's the window."</div>
+        <div class="notif-tag" style="color:var(--gold);background:rgba(212,168,83,.1)">Jupiter / Saturn / 10th house</div>
+      </div>
+      <div class="notif-example" style="border-left-color:var(--lav)">
+        <div class="notif-time" style="color:var(--lav)">INNER WORLD & ENERGY</div>
+        <div class="notif-text">"Go easy on yourself today. The Moon is moving through your 12th house — you'll feel more drained than usual. This isn't laziness. It's your body asking for rest."</div>
+        <div class="notif-tag" style="color:var(--lav);background:rgba(155,142,196,.1)">Moon / 12th house transits</div>
+      </div>
+    </div>
+    <div class="g3" style="margin-top:10px">
+      <div class="notif-example" style="border-left-color:var(--sage)">
+        <div class="notif-time" style="color:var(--sage)">HEADS UP / CAUTION</div>
+        <div class="notif-text">"Mercury squares your natal Mars today — you might say something you can't take back. If someone annoys you at work, wait 10 minutes before responding. Seriously."</div>
+        <div class="notif-tag" style="color:var(--sage);background:rgba(139,158,126,.1)">Challenging aspects</div>
+      </div>
+      <div class="notif-example" style="border-left-color:var(--terra)">
+        <div class="notif-time" style="color:var(--terra)">OPPORTUNITY / GREEN LIGHT</div>
+        <div class="notif-text">"Everything you start today has momentum behind it. Mars trines your Midheaven — take the action you've been overthinking. Your chart says GO."</div>
+        <div class="notif-tag" style="color:var(--terra);background:rgba(193,127,89,.1)">Supportive aspects</div>
+      </div>
+      <div class="notif-example" style="border-left-color:var(--sky)">
+        <div class="notif-time" style="color:var(--sky)">SOCIAL & FRIENDSHIPS</div>
+        <div class="notif-text">"Your 11th house is lit today — group energy is where the magic is. Say yes to the plans. That random invite you're on the fence about? Go."</div>
+        <div class="notif-tag" style="color:var(--sky);background:rgba(123,167,196,.1)">11th house / Venus transits</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ═══════ 03 DAILY PAGE ═══════ -->
+<section class="sec" id="page">
+  <div class="sec-head">
+    <div class="sec-num" style="background:var(--sage)">03</div>
+    <span class="sec-label" style="color:var(--sage)">The In-App Daily Insight Page — What She Sees When She Taps</span>
+    <div class="sec-line" style="background:var(--sage)"></div>
+  </div>
+
+  <p style="font-size:12px;color:var(--dim);margin-bottom:18px">When Mia taps the notification or opens the app, she lands on this page. It should feel like opening a personal letter — warm, beautiful, and about HER day specifically. Read time: 60-90 seconds.</p>
+
+  <div class="insight-sim">
+    <div class="insight-top">
+      <div class="insight-date">Tuesday, March 19</div>
+      <div class="insight-greeting">Good morning, Mia ✦</div>
+    </div>
+
+    <div class="insight-card-inner">
+      <div class="insight-transit">☽ Moon in Pisces · ♀ Venus trine natal Moon</div>
+      <div class="insight-headline">Feelings will flow easier today.</div>
+      <div class="insight-body">Your emotional guard drops a notch today — in a good way. Venus is forming a trine to your natal Scorpio Moon, which means the things you usually keep locked inside will want to come out. Conversations about feelings won't feel as scary as they normally do.</div>
+      <div class="insight-highlight"><b style="color:var(--terra)">Today's nudge:</b> If there's someone you've been wanting to tell how you feel — a friend, the person you're seeing, even just a text you've been drafting in your head — today's the day the words will actually land the way you mean them.</div>
+    </div>
+
+    <div class="insight-areas">
+      <div class="insight-area">
+        <div class="insight-area-emoji">💕</div>
+        <div class="insight-area-label">Love</div>
+        <div class="insight-area-val" style="color:var(--rose)">Open & flowing</div>
+      </div>
+      <div class="insight-area">
+        <div class="insight-area-emoji">💼</div>
+        <div class="insight-area-label">Work</div>
+        <div class="insight-area-val" style="color:var(--gold)">Steady. Focus on details.</div>
+      </div>
+      <div class="insight-area">
+        <div class="insight-area-emoji">🔋</div>
+        <div class="insight-area-label">Energy</div>
+        <div class="insight-area-val" style="color:var(--sage)">Medium — pace yourself</div>
+      </div>
+    </div>
+
+    <div class="insight-actions">
+      <div class="insight-action"><b>💬</b>Ask Celestia</div>
+      <div class="insight-action"><b>📸</b>Share to Stories</div>
+      <div class="insight-action"><b>📖</b>Go deeper</div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-t" style="color:var(--sage)">Daily Page Anatomy — Every Section</div>
+    <div class="g2">
+      <div style="font-size:12px;color:var(--dim);line-height:1.8">
+        <b style="color:var(--cream)">① Greeting</b> — "Good morning, Mia ✦" + date. Personal. Warm. Her name.<br>
+        <b style="color:var(--cream)">② Transit badge</b> — Small, subtle. Moon sign + key transit. For the astro-curious, not required reading.<br>
+        <b style="color:var(--cream)">③ Headline</b> — One sentence. The core message. This is what she remembers all day. Bold, clear, Playfair Display font.<br>
+        <b style="color:var(--cream)">④ Body</b> — 2-3 sentences explaining what's happening in her chart today and what it means in real life. Warm. Specific.
+      </div>
+      <div style="font-size:12px;color:var(--dim);line-height:1.8">
+        <b style="color:var(--cream)">⑤ Today's nudge</b> — The highlight box. One actionable suggestion. "If you've been wanting to..." This is the screenshottable part.<br>
+        <b style="color:var(--cream)">⑥ Three life areas</b> — Love / Work / Energy. 2-4 words each. Quick-glance mood forecast. She checks these in 3 seconds.<br>
+        <b style="color:var(--cream)">⑦ Actions</b> — Ask Celestia (opens chat), Share to Stories (screenshot share), Go deeper (Premium weekly report or chat).
+      </div>
+    </div>
+  </div>
+
+  <div class="mia">
+    <div class="mia-ava">📸</div>
+    <div class="mia-txt">
+      <div class="mia-label">What Mia does after reading this</div>
+      <div class="mia-q">"Okay the notification said 'feelings will flow easier today' and I literally just had the best conversation with the guy I'm seeing. I'm screenshotting this. This app is SCARY."</div>
+      <div class="mia-ctx">She screenshots the highlight box → posts to IG Stories with "this app is scary accurate" → 4 friends ask "what app is this"</div>
+    </div>
+  </div>
+</section>
+
+<!-- ═══════ 04 CONTENT TYPES ═══════ -->
+<section class="sec" id="content">
+  <div class="sec-head">
+    <div class="sec-num" style="background:var(--rose)">04</div>
+    <span class="sec-label" style="color:var(--rose)">Daily Content Types — What Changes Each Day</span>
+    <div class="sec-line" style="background:var(--rose)"></div>
+  </div>
+
+  <p style="font-size:12px;color:var(--dim);margin-bottom:16px">The daily insight isn't the same type every day. It rotates across 6 categories to keep it fresh. Some days are about love. Some about energy. Some are warnings. Some are green lights. She never knows what she'll get — which is what keeps her opening it.</p>
+
+  <div class="g2">
+    <div class="card" style="border-left:3px solid var(--rose)">
+      <div class="card-t" style="color:var(--rose)">💕 Love & Connection Days</div>
+      <p style="font-size:12px;color:var(--dim);line-height:1.7"><b style="color:var(--cream)">Triggered by:</b> Venus transits, 7th house activity, Moon in water signs<br><br><b style="color:var(--cream)">Example headline:</b> "Someone is thinking about you today."<br><br><b style="color:var(--cream)">Example nudge:</b> "Venus is crossing your descendant — you're radiating something extra today. Don't be surprised if someone you haven't heard from reaches out."<br><br><b style="color:var(--cream)">Why Mia cares:</b> Relationships are her #1 concern. Any insight about love gets read twice and screenshotted immediately.</p>
+    </div>
+    <div class="card" style="border-left:3px solid var(--gold)">
+      <div class="card-t" style="color:var(--gold)">💼 Career & Ambition Days</div>
+      <p style="font-size:12px;color:var(--dim);line-height:1.7"><b style="color:var(--cream)">Triggered by:</b> Mars/Jupiter transits, 10th house activity, Midheaven aspects<br><br><b style="color:var(--cream)">Example headline:</b> "This is your power day at work."<br><br><b style="color:var(--cream)">Example nudge:</b> "Mars is lighting up your Midheaven — if you've been sitting on an idea, pitch it today. Your confidence will peak around 2pm."<br><br><b style="color:var(--cream)">Why Mia cares:</b> She wonders daily if she's in the right job. Career insights give her a sense of direction when she feels stuck.</p>
+    </div>
+    <div class="card" style="border-left:3px solid var(--lav)">
+      <div class="card-t" style="color:var(--lav)">🔋 Energy & Self-Care Days</div>
+      <p style="font-size:12px;color:var(--dim);line-height:1.7"><b style="color:var(--cream)">Triggered by:</b> Moon in 12th house, Neptune transits, void-of-course Moon<br><br><b style="color:var(--cream)">Example headline:</b> "Go easy on yourself today."<br><br><b style="color:var(--cream)">Example nudge:</b> "The Moon is moving through your 12th house — you'll feel more drained than usual. This isn't laziness. Cancel the plans you don't want to keep. Your chart says rest."<br><br><b style="color:var(--cream)">Why Mia cares:</b> She pushes herself constantly. Permission to rest — backed by her chart — feels like relief, not weakness.</p>
+    </div>
+    <div class="card" style="border-left:3px solid var(--sage)">
+      <div class="card-t" style="color:var(--sage)">⚠️ Heads Up Days</div>
+      <p style="font-size:12px;color:var(--dim);line-height:1.7"><b style="color:var(--cream)">Triggered by:</b> Mercury/Mars squares, difficult transits, retrograde stations<br><br><b style="color:var(--cream)">Example headline:</b> "Watch your words today."<br><br><b style="color:var(--cream)">Example nudge:</b> "Mercury squares your Mars — things you say will land harder than you intend. That 'honest feedback' you're thinking of giving your coworker? Save it for Thursday."<br><br><b style="color:var(--cream)">Why Mia cares:</b> This is the most USEFUL type. When she gets a heads-up and then the thing actually happens, her trust in Celestia goes through the roof. This is the "okay this app is REAL" moment.</p>
+    </div>
+    <div class="card" style="border-left:3px solid var(--terra)">
+      <div class="card-t" style="color:var(--terra)">🟢 Green Light Days</div>
+      <p style="font-size:12px;color:var(--dim);line-height:1.7"><b style="color:var(--cream)">Triggered by:</b> Jupiter/Sun trines, stelliums in angular houses, new moons<br><br><b style="color:var(--cream)">Example headline:</b> "Everything you start today has momentum."<br><br><b style="color:var(--cream)">Example nudge:</b> "The Sun trines your natal Jupiter — this is one of the best days of the month for you. Start the thing. Send the text. Apply for the job. Your chart says GO."<br><br><b style="color:var(--cream)">Why Mia cares:</b> On hesitant days, hearing "your chart says go" from something she trusts is the push she needs. These are the days she takes action.</p>
+    </div>
+    <div class="card" style="border-left:3px solid var(--sky)">
+      <div class="card-t" style="color:var(--sky)">🌙 Reflection Days</div>
+      <p style="font-size:12px;color:var(--dim);line-height:1.7"><b style="color:var(--cream)">Triggered by:</b> Full moons, Saturn transits, North Node activity<br><br><b style="color:var(--cream)">Example headline:</b> "Something you've been avoiding is ready to be looked at."<br><br><b style="color:var(--cream)">Example nudge:</b> "The full moon illuminates your 4th house today — old family patterns or childhood stuff might surface. You don't have to fix it. Just notice it. Sometimes seeing the pattern is enough."<br><br><b style="color:var(--cream)">Why Mia cares:</b> These are the insights that feel the most profound. The ones she journals about. The ones she brings up in therapy (eventually).</p>
+    </div>
+  </div>
+</section>
+
+<!-- ═══════ 05 WEEKLY RHYTHM ═══════ -->
+<section class="sec" id="week">
+  <div class="sec-head">
+    <div class="sec-num" style="background:var(--lav)">05</div>
+    <span class="sec-label" style="color:var(--lav)">Weekly Rhythm — How the Week Feels to Mia</span>
+    <div class="sec-line" style="background:var(--lav)"></div>
+  </div>
+
+  <p style="font-size:12px;color:var(--dim);margin-bottom:16px">The daily insight doesn't exist in isolation. It's part of a weekly rhythm that gives Mia's week a structure she didn't know she needed.</p>
+
+  <div class="card">
+    <div class="card-t" style="color:var(--lav)">Mia's Week With Celestia</div>
+    <div class="week-grid">
+      <div class="week-cell" style="border-color:rgba(193,127,89,.2);background:rgba(193,127,89,.04)">
+        <div class="week-day" style="color:var(--terra)">MON</div>
+        <div class="week-icon">📋</div>
+        <div class="week-type"><b style="color:var(--cream)">Weekly Report</b><br>drops at 8am (Premium)</div>
+      </div>
+      <div class="week-cell">
+        <div class="week-day" style="color:var(--muted)">TUE</div>
+        <div class="week-icon">💕</div>
+        <div class="week-type">Daily insight<br>+ love energy focus</div>
+      </div>
+      <div class="week-cell">
+        <div class="week-day" style="color:var(--muted)">WED</div>
+        <div class="week-icon">💼</div>
+        <div class="week-type">Daily insight<br>+ midweek career check</div>
+      </div>
+      <div class="week-cell">
+        <div class="week-day" style="color:var(--muted)">THU</div>
+        <div class="week-icon">⚡</div>
+        <div class="week-type">Daily insight<br>+ energy forecast</div>
+      </div>
+      <div class="week-cell">
+        <div class="week-day" style="color:var(--muted)">FRI</div>
+        <div class="week-icon">🌙</div>
+        <div class="week-type">Daily insight<br>+ weekend preview</div>
+      </div>
+      <div class="week-cell">
+        <div class="week-day" style="color:var(--muted)">SAT</div>
+        <div class="week-icon">✨</div>
+        <div class="week-type">Lighter tone<br>+ social energy</div>
+      </div>
+      <div class="week-cell" style="border-color:rgba(155,142,196,.2);background:rgba(155,142,196,.04)">
+        <div class="week-day" style="color:var(--lav)">SUN</div>
+        <div class="week-icon">🪞</div>
+        <div class="week-type"><b style="color:var(--cream)">Week reflection</b><br>+ next week preview</div>
+      </div>
+    </div>
+    <p style="font-size:11px;color:var(--muted);font-style:italic">Monday = structure ("here's your week"). Sunday = reflection ("here's what you learned"). Weekdays = daily guidance. Weekends = lighter, more social. The rhythm mirrors how Mia actually feels across the week.</p>
+  </div>
+
+  <div class="card">
+    <div class="card-t" style="color:var(--terra)">The Monday Report — Premium's Killer Feature</div>
+    <p style="font-size:12.5px;color:var(--dim);line-height:1.7;margin-bottom:12px">Every Monday at 8am, Premium users get a personalized weekly briefing. This is the single biggest reason Mia stays subscribed. If she misses one Monday, she feels off all week — like she forgot to check the weather before a road trip.</p>
+    <div class="g2">
+      <div style="font-size:12px;color:var(--dim);line-height:1.7">
+        <b style="color:var(--cream)">The Monday Report contains:</b><br>
+        → This week's theme in one sentence<br>
+        → Key transit hitting her chart + what to expect<br>
+        → Best day of the week (green light day)<br>
+        → Day to be careful (heads up day)<br>
+        → Love forecast for the week<br>
+        → Career/money energy for the week<br>
+        → One thing to focus on
+      </div>
+      <div style="font-size:12px;color:var(--dim);line-height:1.7">
+        <b style="color:var(--cream)">Read time:</b> 3-4 minutes<br>
+        <b style="color:var(--cream)">Format:</b> In-app scroll page (beautiful, not PDF)<br>
+        <b style="color:var(--cream)">Tone:</b> "Here's your week. Let me tell you what's coming."<br>
+        <b style="color:var(--cream)">Free users see:</b> "Your weekly report is ready" + first 2 sentences blurred → upgrade nudge<br><br>
+        <span style="font-style:italic;color:var(--terra)">This is the #1 Premium conversion trigger. She reads the free daily, loves it, then Monday comes and she can't read the weekly. That's when she upgrades.</span>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ═══════ 06 SEASONAL EVENTS ═══════ -->
+<section class="sec" id="seasonal">
+  <div class="sec-head">
+    <div class="sec-num" style="background:var(--sky)">06</div>
+    <span class="sec-label" style="color:var(--sky)">Seasonal & Event-Based Dailies</span>
+    <div class="sec-line" style="background:var(--sky)"></div>
+  </div>
+
+  <p style="font-size:12px;color:var(--dim);margin-bottom:16px">Some days are bigger than others. Major astrological events create spikes in engagement, downloads, and upgrades. Celestia should treat these like cultural events — because for Mia's world, they ARE cultural events.</p>
+
+  <div class="card">
+    <div class="card-t" style="color:var(--sky)">Major Event Calendar — Plan Content Around These</div>
+    <div class="cal-event"><div class="cal-date"><div class="cal-month" style="color:var(--terra)">3-4x/yr</div><div class="cal-num" style="color:var(--terra)">☿</div></div><div class="cal-info"><div class="cal-name" style="color:var(--terra)">Mercury Retrograde</div><div class="cal-desc">The #1 astrology cultural event. Everyone talks about it — even people who don't believe. Celestia sends a special 3-day pre-retrograde notification series: Day -3 ("It's coming"), Day -1 ("Tomorrow — here's your chart-specific survival guide"), Day 1 ("It's here — here's what to watch"). This drives the biggest traffic spikes of the year.</div></div></div>
+    <div class="cal-event"><div class="cal-date"><div class="cal-month" style="color:var(--lav)">Monthly</div><div class="cal-num" style="color:var(--lav)">🌕</div></div><div class="cal-info"><div class="cal-name" style="color:var(--lav)">Full Moon / New Moon</div><div class="cal-desc">Full moons = release, clarity, heightened emotions. New moons = new beginnings, setting intentions. Each one hits a different house in Mia's chart. The daily insight on full/new moon days is EXTRA — longer, more detailed, more profound. These are the insights she journals about.</div></div></div>
+    <div class="cal-event"><div class="cal-date"><div class="cal-month" style="color:var(--gold)">2x/yr</div><div class="cal-num" style="color:var(--gold)">🌑</div></div><div class="cal-info"><div class="cal-name" style="color:var(--gold)">Eclipse Season</div><div class="cal-desc">Solar and lunar eclipses are the most dramatic moments in astrology. "Eclipse season" is a 2-3 week window that drives huge engagement. Celestia sends a special eclipse guide: which house it hits in her chart, what to expect, what NOT to start during eclipse season. Premium conversion spike.</div></div></div>
+    <div class="cal-event"><div class="cal-date"><div class="cal-month" style="color:var(--sage)">12x/yr</div><div class="cal-num" style="color:var(--sage)">♈</div></div><div class="cal-info"><div class="cal-name" style="color:var(--sage)">Season Changes (Aries Season → Taurus Season etc.)</div><div class="cal-desc">Every ~30 days, the Sun moves into a new sign. "Welcome to Scorpio Season" content feels timely and cultural. Mia sees it on TikTok, then checks Celestia for her personalized version: "What Scorpio Season means for YOUR chart."</div></div></div>
+    <div class="cal-event"><div class="cal-date"><div class="cal-month" style="color:var(--rose)">1x/yr</div><div class="cal-num" style="color:var(--rose)">🎂</div></div><div class="cal-info"><div class="cal-name" style="color:var(--rose)">Her Birthday / Solar Return</div><div class="cal-desc">The most personal day of the year. Celestia sends a special birthday daily insight that's longer, warmer, and more meaningful than any other day. "Happy Solar Return, Mia ✦ Here's what the next year of your life is about." This drives the Year-Ahead Report purchase — 8-12% conversion.</div></div></div>
+    <div class="cal-event"><div class="cal-date"><div class="cal-month" style="color:var(--terra)">Annual</div><div class="cal-num" style="color:var(--terra)">🗓</div></div><div class="cal-info"><div class="cal-name" style="color:var(--terra)">New Year / January Energy</div><div class="cal-desc">Everyone wants to know "what's coming this year." January 1st daily insight is a special edition: "Your 2027 at a Glance." Drives Year-Ahead Report sales. Also a big download spike as people set intentions and look for guidance.</div></div></div>
+  </div>
+</section>
+
+<!-- ═══════ 07 SCREENSHOT DESIGN ═══════ -->
+<section class="sec" id="screenshot">
+  <div class="sec-head">
+    <div class="sec-num" style="background:var(--rose)">07</div>
+    <span class="sec-label" style="color:var(--rose)">The Screenshot Moment — Designing for Sharing</span>
+    <div class="sec-line" style="background:var(--rose)"></div>
+  </div>
+
+  <div class="card" style="border-top:3px solid var(--rose)">
+    <div class="card-t" style="color:var(--rose)">Every Daily Insight Must Be Screenshot-Worthy</div>
+    <p style="font-size:13px;color:var(--dim);line-height:1.7;margin-bottom:16px">The daily insight is Celestia's daily marketing asset. Every morning, thousands of Mias screenshot it and post to Stories. This is free advertising — but ONLY if the insight is beautiful enough to share and specific enough to feel personal.</p>
+    <div class="g2">
+      <div style="font-size:12px;color:var(--dim);line-height:1.8">
+        <b style="color:var(--cream)">Design for Screenshots:</b><br>
+        → The highlight box should <b style="color:var(--cream)">look beautiful</b> when screenshotted in isolation<br>
+        → Celestia branding (✦ logo) visible but not obnoxious<br>
+        → The headline should <b style="color:var(--cream)">make sense standalone</b> — even out of context<br>
+        → Dark mode = better screenshots (white text on dark bg pops on IG Stories)<br>
+        → Include a subtle "celestia.com" watermark — every screenshot = a tiny billboard
+      </div>
+      <div style="font-size:12px;color:var(--dim);line-height:1.8">
+        <b style="color:var(--cream)">Share to Stories button:</b><br>
+        → One-tap generates a beautiful <b style="color:var(--cream)">pre-designed story card</b><br>
+        → Shows: headline + her sign + Celestia branding<br>
+        → She doesn't screenshot and crop — she taps Share and it's perfect<br>
+        → Friends who see the Story can <b style="color:var(--cream)">tap to get their own daily</b><br>
+        → This is the daily viral loop. It runs automatically. Every. Single. Day.
+      </div>
+    </div>
+  </div>
+
+  <div class="mia">
+    <div class="mia-ava">📸</div>
+    <div class="mia-txt">
+      <div class="mia-label">Mia's IG Story at 7:45am</div>
+      <div class="mia-q">She posts the Celestia daily card to her Stories with the caption "this app is SCARY accurate every single day 😭" — her 800 followers see it. 12 of them tap through. 4 download Celestia that morning. 1 of them upgrades to Premium by Thursday.</div>
+      <div class="mia-ctx">This happens across thousands of Mias every morning. Free marketing at scale.</div>
+    </div>
+  </div>
+</section>
+
+<!-- ═══════ 08 RULES ═══════ -->
+<section class="sec" id="rules">
+  <div class="sec-head">
+    <div class="sec-num" style="background:var(--terra)">08</div>
+    <span class="sec-label" style="color:var(--terra)">Non-Negotiable Rules for Daily Insights</span>
+    <div class="sec-line" style="background:var(--terra)"></div>
+  </div>
+
+  <div class="g2">
+    <div class="card" style="border-left:3px solid var(--sage)">
+      <div class="card-t" style="color:var(--sage)">Always</div>
+      <div style="font-size:12px;color:var(--dim);line-height:1.9">
+        ✓ <b style="color:var(--cream)">Personalized to HER chart</b> — not her sun sign, HER placements<br>
+        ✓ <b style="color:var(--cream)">Delivered by 7:30am</b> — she should see it when she wakes up<br>
+        ✓ <b style="color:var(--cream)">One clear headline</b> she can remember all day<br>
+        ✓ <b style="color:var(--cream)">One actionable nudge</b> — not "be careful," but "re-read that email before sending"<br>
+        ✓ <b style="color:var(--cream)">Different every day</b> — never repeat a headline within 30 days<br>
+        ✓ <b style="color:var(--cream)">3 life area ratings</b> (Love / Work / Energy) — quick glance<br>
+        ✓ <b style="color:var(--cream)">Beautiful enough to screenshot</b> — this is daily marketing<br>
+        ✓ <b style="color:var(--cream)">60-90 second read</b> — she reads it before getting out of bed<br>
+        ✓ <b style="color:var(--cream)">Warm, specific, concrete</b> — like a note from a friend who knows her chart
+      </div>
+    </div>
+    <div class="card" style="border-left:3px solid #D4605A">
+      <div class="card-t" style="color:#D4605A">Never</div>
+      <div style="font-size:12px;color:var(--dim);line-height:1.9">
+        ✗ <b style="color:var(--cream)">Generic</b> — "Virgos will feel emotional today" is NOT acceptable<br>
+        ✗ <b style="color:var(--cream)">Cryptic</b> — Co-Star owns cryptic. We own clarity. No riddles.<br>
+        ✗ <b style="color:var(--cream)">Negative without actionable</b> — never "bad things are coming." Always "here's what to watch for AND how to handle it"<br>
+        ✗ <b style="color:var(--cream)">Repetitive</b> — if she sees the same type of insight 3 days in a row, she'll stop opening it<br>
+        ✗ <b style="color:var(--cream)">Long</b> — if the notification is >2 lines or the page takes >90 seconds to read, it's too much<br>
+        ✗ <b style="color:var(--cream)">Scary</b> — never use fear as a hook. "Something terrible is coming" is never okay<br>
+        ✗ <b style="color:var(--cream)">Skip a day</b> — the daily must arrive 365 days/year. One missed day breaks the habit<br>
+        ✗ <b style="color:var(--cream)">Sound like a horoscope</b> — "You may encounter challenges in your interpersonal relationships" is dead on arrival. Sound like a FRIEND.
+      </div>
+    </div>
+  </div>
+
+  <!-- Final quality test -->
+  <div style="background:linear-gradient(135deg,var(--terra),#A66842);border-radius:16px;padding:32px;margin-top:14px">
+    <p style="font-size:9px;letter-spacing:3px;text-transform:uppercase;opacity:.6;margin-bottom:10px">The Daily Insight Quality Test</p>
+    <p style="font-family:'Playfair Display',serif;font-size:clamp(16px,2.5vw,21px);font-style:italic;line-height:1.5;margin-bottom:14px">"If Mia reads today's insight and nothing in her day is affected by it — it was too vague. If she reads it and it changes one decision, one conversation, or one feeling — it worked. If she screenshots it — it's perfect."</p>
+    <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;margin-top:16px">
+      <div style="text-align:center;padding:12px;background:rgba(0,0,0,.15);border-radius:10px">
+        <p style="font-size:22px;margin-bottom:2px">📖</p>
+        <p style="font-size:10px;opacity:.8">She reads it every morning before getting up</p>
+      </div>
+      <div style="text-align:center;padding:12px;background:rgba(0,0,0,.15);border-radius:10px">
+        <p style="font-size:22px;margin-bottom:2px">🧠</p>
+        <p style="font-size:10px;opacity:.8">She remembers the headline all day</p>
+      </div>
+      <div style="text-align:center;padding:12px;background:rgba(0,0,0,.15);border-radius:10px">
+        <p style="font-size:22px;margin-bottom:2px">📸</p>
+        <p style="font-size:10px;opacity:.8">She screenshots it at least twice a week</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<footer class="footer">
+  <p>365 mornings. 365 notes from a friend who knows her chart. That's the habit loop.</p>
+  <div class="brand">Celestia · Daily Insights Plan · 2026</div>
+</footer>
+
+</div>
+
+<script>
+const secs=document.querySelectorAll('.sec');
+const navs=document.querySelectorAll('.topnav a');
+const obs=new IntersectionObserver(entries=>{entries.forEach(e=>{if(e.isIntersecting){navs.forEach(n=>n.classList.remove('active'));const a=document.querySelector(`.topnav a[href="#${e.target.id}"]`);if(a)a.classList.add('active')}})},{threshold:.2});
+secs.forEach(s=>obs.observe(s));
+</script>
+</body>
+</html>

@@ -452,22 +452,7 @@ export default function ChartScreen() {
           </TouchableOpacity>
         )}
 
-        {/* Unlock progress bar */}
-        {/* Unlock Bar — hidden for Pro users */}
-        {!isPro && unlockProgress && !unlockProgress.isComplete && tab === 0 && (
-
-          <View style={styles.unlockBar}>
-            <View style={[styles.unlockBarInner, { backgroundColor: colors.cardAlt }]}>
-              <View style={[styles.unlockBarTrack, { backgroundColor: isDark ? colors.card : '#E8E2D8' }]}>
-                <View style={[styles.unlockBarFill, { width: `${unlockProgress.percentage}%` }]} />
-              </View>
-              <Text style={[styles.unlockBarText, { color: colors.textSecondary }]}>
-                {unlockProgress.unlocked}/{unlockProgress.total} chapters revealed
-                {unlockProgress.nextPlanet ? ` · ${unlockProgress.nextPlanet}: ${UNLOCK_NARRATIVES[unlockProgress.nextPlanet] || 'tomorrow'}` : ''}
-              </Text>
-            </View>
-          </View>
-        )}
+        {/* Unlock progress bar removed — breaks chart immersion */}
 
         <View style={styles.list}>
           {/* ALL planets visible — Mia sees her entire chart. Deep dive is what's gated, not the list. */}

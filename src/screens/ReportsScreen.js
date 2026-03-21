@@ -303,16 +303,74 @@ const MONTH_ZODIAC_ENERGY = [
 ];
 
 const REPORTS = [
-  { icon: '♀', bg: ['#3A0A3A', '#1A1060'], accent: '#E85090', name: 'Love Report', desc: 'Deep romantic insights based on your Venus & 7th house', type: 'love' },
-  { icon: '♄', bg: ['#0A2A3A', '#1A1060'], accent: '#5090E8', name: 'Career Map', desc: 'Professional destiny through your 10th house & Saturn', type: 'career' },
-  { icon: '☽', bg: ['#1A0A3A', '#0E0E22'], accent: '#A080E0', name: 'Lunar Guide', desc: 'Moon phase rituals aligned with your natal Moon', type: 'lunar' },
-  { icon: '☊', bg: ['#2A1A0A', '#1A1060'], accent: '#C8A84B', name: 'Life Purpose', desc: 'North Node & soul path decoded for your chart', type: 'purpose' },
-  { icon: '♃', bg: ['#0A1A2A', '#0E0E22'], accent: '#4ECDC4', name: 'Yearly Forecast', desc: `Your ${CURRENT_YEAR} roadmap — profections, transits & quarterly outlook`, type: 'yearly' },
-  { icon: '☿', bg: ['#1A0A1A', '#2A0A2A'], accent: '#FF6B6B', name: 'Transit Report', desc: 'Current planetary weather hitting your natal chart right now', type: 'transit' },
-  { icon: '☉', bg: ['#0E0E22', '#2A1A6E'], accent: '#C8A84B', name: `${CURRENT_YEAR} Solar Return`, desc: `Your complete ${CURRENT_YEAR} year ahead — every transit, season & lunar cycle`, type: 'solar_return' },
-  { icon: '♀', bg: ['#2D0A1E', '#1A0520'], accent: '#E8A0B0', name: 'Venus Report', desc: 'Why you love like this — attachment style, patterns & what you actually need', type: 'venus' },
-  { icon: '♄', bg: ['#1A1510', '#14100E'], accent: '#A0A0B0', name: 'Saturn Return Guide', desc: 'Ages 27-30 survival guide — what changes, what stays & how to navigate', type: 'saturn_return_guide' },
+  {
+    icon: '♀', bg: ['#3A0A3A', '#1A1060'], accent: '#E85090', name: 'Love Report', type: 'love', tier: 'premium',
+    subtitle: 'Why You Love Like This',
+    desc: 'Venus placement, attachment style, relationship patterns, what you actually need in a partner — and why you keep choosing what you don\'t.',
+    pages: '12-16', readTime: '12 min', tag: 'Most Personal',
+  },
+  {
+    icon: '♄', bg: ['#0A2A3A', '#1A1060'], accent: '#5090E8', name: 'Career Map', type: 'career', tier: 'premium',
+    subtitle: 'Your Professional Destiny',
+    desc: 'Midheaven, Saturn, 10th house decoded. What you\'re built for, where you\'re stuck, and when the next career door opens.',
+    pages: '14-18', readTime: '14 min', tag: 'Career Clarity',
+  },
+  {
+    icon: '☽', bg: ['#1A0A3A', '#0E0E22'], accent: '#A080E0', name: 'Lunar Guide', type: 'lunar', tier: 'pro',
+    subtitle: 'Moon Phase Rituals',
+    desc: 'Personalized rituals for every lunar phase — aligned with your natal Moon. New Moon intentions, Full Moon releases.',
+    pages: '10-12', readTime: '10 min', tag: 'In Pro',
+  },
+  {
+    icon: '☊', bg: ['#2A1A0A', '#1A1060'], accent: '#C8A84B', name: 'Life Purpose', type: 'purpose', tier: 'premium',
+    subtitle: 'Where Your Soul Is Headed',
+    desc: 'North Node decoded — the qualities you\'re learning this lifetime, the comfort zone you\'re outgrowing, and where growth is calling.',
+    pages: '14-16', readTime: '14 min', tag: 'Deep Self-Discovery',
+  },
+  {
+    icon: '♃', bg: ['#0A1A2A', '#0E0E22'], accent: '#4ECDC4', name: 'Yearly Forecast', type: 'yearly', tier: 'premium',
+    subtitle: `Your ${CURRENT_YEAR} Roadmap`,
+    desc: 'Month-by-month forecast. Love windows, career peaks, rest periods, power dates — your year mapped to your chart.',
+    pages: '16-20', readTime: '15 min', tag: 'Re-read Monthly',
+  },
+  {
+    icon: '☿', bg: ['#1A0A1A', '#2A0A2A'], accent: '#FF6B6B', name: 'Transit Report', type: 'transit', tier: 'pro',
+    subtitle: 'What\'s Hitting Your Chart Now',
+    desc: 'Every active transit explained — what it means, how long it lasts, and what to do about it. Your current cosmic weather.',
+    pages: '8-12', readTime: '8 min', tag: 'In Pro',
+  },
+  {
+    icon: '☉', bg: ['#0E0E22', '#2A1A6E'], accent: '#C8A84B', name: `Solar Return ${CURRENT_YEAR}`, type: 'solar_return', tier: 'premium',
+    subtitle: 'Your Birthday Year Ahead',
+    desc: 'Complete year-ahead from your last birthday. Every season, every transit, every opportunity — 12 months of guidance.',
+    pages: '18-22', readTime: '18 min', tag: 'Birthday Essential',
+  },
+  {
+    icon: '♀', bg: ['#2D0A1E', '#1A0520'], accent: '#E8A0B0', name: 'Venus Report', type: 'venus', tier: 'premium',
+    subtitle: 'Your Attachment Decoded',
+    desc: 'Venus sign, 7th house, Moon-Venus dynamics — your love language, the pattern you keep repeating, and how to finally break it.',
+    pages: '12-16', readTime: '12 min', tag: 'Post-Breakup Essential',
+  },
+  {
+    icon: '♄', bg: ['#1A1510', '#14100E'], accent: '#A0A0B0', name: 'Saturn Return Guide', type: 'saturn_return_guide', tier: 'premium',
+    subtitle: 'Ages 27-30 Survival Guide',
+    desc: 'Why everything falls apart and why that\'s the point. Relationships, career, identity — month-by-month through the storm.',
+    pages: '18-22', readTime: '18 min', tag: 'For Ages 24-30',
+  },
 ];
+
+// Report tier system:
+// 'free'    — Monthly forecast (always free for everyone)
+// 'pro'     — Included with Pro subscription (Lunar Guide, Transit Report)
+// 'premium' — Always $9.99 one-time purchase (even for Pro subscribers)
+const isReportAccessible = (reportType, isPro) => {
+  if (reportType === 'monthly') return true; // Always free
+  const report = REPORTS.find(r => r.type === reportType);
+  if (!report) return false;
+  if (report.tier === 'pro' && isPro) return true; // Included with Pro
+  // 'premium' tier reports are ALWAYS paid ($9.99) — this is the revenue driver
+  return false;
+};
 
 // ── Deep PDF HTML Generator ─────────────────────────────────────────────────
 const generateDeepReportHTML = (report, profile, reportType) => {
@@ -361,11 +419,11 @@ const generateDeepReportHTML = (report, profile, reportType) => {
     </div>`;
   };
 
-  // Big Three sections
+  // Big Three sections — warm light backgrounds, NOT dark
   const BIG3_CONFIG = {
-    sun: { band: '#2A1F08', glyph: '☉', label: 'Your Sun', sublabel: 'Identity · Ego · Life Force' },
-    moon: { band: '#0D1E35', glyph: '☽', label: 'Your Moon', sublabel: 'Emotions · Inner World · Needs' },
-    rising: { band: '#0D2535', glyph: 'ASC', label: 'Your Rising', sublabel: 'First Impression · Outer Self · Path' },
+    sun: { band: '#F0E6D5', glyph: '☉', label: 'Your Sun', sublabel: 'Identity · Ego · Life Force' },
+    moon: { band: '#E8E2EE', glyph: '☽', label: 'Your Moon', sublabel: 'Emotions · Inner World · Needs' },
+    rising: { band: '#E2EAE8', glyph: 'ASC', label: 'Your Rising', sublabel: 'First Impression · Outer Self · Path' },
   };
 
   const big3HTML = ['sun', 'moon', 'rising'].map(key => {
@@ -374,79 +432,90 @@ const generateDeepReportHTML = (report, profile, reportType) => {
     const cfg = BIG3_CONFIG[key];
     const planetData = key === 'sun' ? sun : key === 'moon' ? moon : rising;
     return `
-      <div class="b3-band" style="background:${cfg.band}">
-        <div class="b3-band-inner">
-          <span class="b3-glyph">${cfg.glyph}</span>
-          <div class="b3-band-text">
-            <div class="b3-title">${escapeHTML(data.title)}</div>
-            <div class="b3-meta">${planetData?.sign || ''} · House ${planetData?.house || ''}</div>
+      <div class="section-block">
+        <div class="b3-band" style="background:${cfg.band}">
+          <div class="b3-band-inner">
+            <span class="b3-glyph">${cfg.glyph}</span>
+            <div class="b3-band-text">
+              <div class="b3-title">${escapeHTML(data.title)}</div>
+              <div class="b3-meta">${planetData?.sign || ''} · House ${planetData?.house || ''}</div>
+            </div>
           </div>
         </div>
-      </div>
-      <div class="b3-content">
-        <div class="b3-sublabel">${cfg.sublabel}</div>
-        ${nl2p(data.interpretation)}
-        <div class="callout shadow-callout">
-          <div class="callout-icon">☾</div>
-          <div>
-            <div class="callout-label shadow-label">SHADOW SIDE</div>
-            <p class="callout-text">${escapeHTML(data.shadow)}</p>
+        <div class="b3-content">
+          <div class="placement-badge">${cfg.glyph} ${cfg.label.replace('Your ', '')} in ${planetData?.sign || ''}${planetData?.house ? ' · House ' + planetData.house : ''}</div>
+          <div class="b3-sublabel">${cfg.sublabel}</div>
+          ${nl2p(data.interpretation)}
+          <div class="callout shadow-callout">
+            <div class="callout-icon">☾</div>
+            <div>
+              <div class="callout-label shadow-label">SHADOW SIDE</div>
+              <p class="callout-text">${escapeHTML(data.shadow)}</p>
+            </div>
           </div>
-        </div>
-        <div class="callout gold-callout">
-          <div class="callout-icon">✦</div>
-          <div>
-            <div class="callout-label gold-label">GUIDANCE</div>
-            <p class="callout-text">${escapeHTML(data.advice)}</p>
+          <div class="callout gold-callout">
+            <div class="callout-icon">✦</div>
+            <div>
+              <div class="callout-label gold-label">GUIDANCE</div>
+              <p class="callout-text">${escapeHTML(data.advice)}</p>
+            </div>
           </div>
         </div>
       </div>
     `;
-  }).join('<div class="ornament">· · ·</div>');
+  }).join('<div class="section-ornament">✦</div>');
 
   // Planets sections
-  const planetsHTML = (report.planets || []).map(p => `
-    <div class="planet-band">
-      <span class="planet-glyph">${PLANET_GLYPHS[p.name] || '★'}</span>
-      <div class="planet-band-text">
-        <div class="planet-title">${escapeHTML(p.title)}</div>
-        <div class="planet-placement">${escapeHTML(p.placement)}</div>
-      </div>
-    </div>
-    <div class="planet-body">
-      ${nl2p(p.interpretation)}
-      <div class="callout gold-callout">
-        <div class="callout-icon">✦</div>
-        <div>
-          <div class="callout-label gold-label">GUIDANCE</div>
-          <p class="callout-text">${escapeHTML(p.advice)}</p>
+  const planetsHTML = (report.planets || []).map((p, idx) => `
+    <div class="section-block${idx > 0 ? ' new-page' : ''}">
+      <div class="planet-band">
+        <span class="planet-glyph">${PLANET_GLYPHS[p.name] || '★'}</span>
+        <div class="planet-band-text">
+          <div class="planet-title">${escapeHTML(p.title)}</div>
+          <div class="planet-placement">${escapeHTML(p.placement)}</div>
         </div>
       </div>
-    </div>
-  `).join('');
-
-  // Life areas
-  const areasHTML = ['love', 'career', 'purpose', 'challenge'].map(key => {
-    const data = report.lifeAreas?.[key];
-    if (!data) return '';
-    return `
-      <div class="area-band" style="background:${AREA_COLORS[key]}">
-        <span class="area-icon">${AREA_ICONS[key]}</span>
-        <div class="area-band-text">
-          <div class="area-title">${AREA_LABELS[key]}</div>
-          <div class="area-theme">${escapeHTML(data.theme)}</div>
-        </div>
-      </div>
-      <div class="area-content">
-        ${nl2p(data.analysis)}
+      <div class="planet-body">
+        <div class="placement-badge">${PLANET_GLYPHS[p.name] || '★'} ${escapeHTML(p.placement)}</div>
+        ${nl2p(p.interpretation)}
         <div class="callout gold-callout">
-          <div class="callout-icon">→</div>
+          <div class="callout-icon">✦</div>
           <div>
-            <div class="callout-label gold-label">YOUR MOVE</div>
-            <p class="callout-text">${escapeHTML(data.advice)}</p>
+            <div class="callout-label gold-label">GUIDANCE</div>
+            <p class="callout-text">${escapeHTML(p.advice)}</p>
           </div>
         </div>
       </div>
+    </div>
+    ${idx < (report.planets || []).length - 1 ? '<div class="section-ornament">✦</div>' : ''}
+  `).join('');
+
+  // Life areas
+  const areasHTML = ['love', 'career', 'purpose', 'challenge'].map((key, idx) => {
+    const data = report.lifeAreas?.[key];
+    if (!data) return '';
+    return `
+      <div class="section-block">
+        <div class="area-band" style="background:${AREA_COLORS[key]}">
+          <span class="area-icon">${AREA_ICONS[key]}</span>
+          <div class="area-band-text">
+            <div class="area-title">${AREA_LABELS[key]}</div>
+            <div class="area-theme">${escapeHTML(data.theme)}</div>
+          </div>
+        </div>
+        <div class="area-content">
+          <div class="placement-badge">${AREA_ICONS[key]} ${AREA_LABELS[key]}</div>
+          ${nl2p(data.analysis)}
+          <div class="callout gold-callout">
+            <div class="callout-icon">→</div>
+            <div>
+              <div class="callout-label gold-label">YOUR MOVE</div>
+              <p class="callout-text">${escapeHTML(data.advice)}</p>
+            </div>
+          </div>
+        </div>
+      </div>
+      ${idx < 3 ? '<div class="section-ornament">✦</div>' : ''}
     `;
   }).join('');
 
@@ -485,35 +554,91 @@ body {
   print-color-adjust: exact;
 }
 
-/* ─── Utility ───────────────────────────────────────────────────── */
+/* ─── Page System ──────────────────────────────────────────────── */
+/* Smart flowing pages — content flows naturally, sections never split */
 .page-break { page-break-before: always; }
+
+/* Each section stays together — never splits across pages */
+.section-block {
+  page-break-inside: avoid;
+  break-inside: avoid;
+  margin-bottom: 28px;
+}
+
+/* Major section dividers force a new page */
+.major-break {
+  page-break-before: always;
+  break-before: page;
+}
+
+/* Prevent orphaned headings — heading always stays with its content */
+h3, .section-title, .planet-band, .b3-band, .area-band {
+  page-break-after: avoid;
+  break-after: avoid;
+}
+
+/* Text flow: at least 3 lines on each page */
+.body, p { orphans: 3; widows: 3; }
+
+/* Boxes never split */
+.highlight, .callout, .pull-quote, .placement-badge {
+  page-break-inside: avoid;
+  break-inside: avoid;
+}
+
+/* Decorative divider between sections on same page */
+.section-divider {
+  border-bottom: 1px solid #E0D8CC;
+  margin: 24px 0 28px;
+  position: relative;
+}
+.section-divider::after {
+  content: '✦';
+  position: absolute;
+  left: 50%;
+  top: -8px;
+  transform: translateX(-50%);
+  background: #FAF8F3;
+  padding: 0 12px;
+  font-size: 10px;
+  color: #C17F59;
+  opacity: 0.5;
+}
 
 /* ─── Page Header (warm sand band at top of every content page) ── */
 .ph {
-  background: #F0E8DC;
-  padding: 13px 85px;
+  background: #EDE3D5;
+  padding: 14px 85px;
   display: flex;
   justify-content: space-between;
   align-items: center;
   font-family: Helvetica, Arial, sans-serif;
-  margin-bottom: 28px;
+  margin-bottom: 32px;
   border-bottom: 1px solid #E0D8CC;
 }
 .ph-left {
   font-size: 8px; font-weight: 700; color: #C17F59;
-  letter-spacing: 3px; text-transform: uppercase;
+  letter-spacing: 4px; text-transform: uppercase;
+  opacity: 0.7;
 }
 .ph-right {
-  font-size: 7px; color: #97907F; letter-spacing: 1.2px;
+  font-size: 7px; color: #97907F; letter-spacing: 1.5px;
 }
 
 /* ─── Page Footer ───────────────────────────────────────────────── */
 .pf {
   font-family: Helvetica, Arial, sans-serif;
-  font-size: 7px; color: #9C9590; letter-spacing: 0.5px;
-  text-align: center; padding: 12px 85px;
-  border-top: 1px solid #E0DAD3;
+  font-size: 7px; color: #97907F; letter-spacing: 0.8px;
+  text-align: center; padding: 14px 85px;
+  border-top: 1px solid #E8E2D8;
   margin-top: auto;
+}
+.pf .page-num {
+  display: inline-block;
+  color: #C17F59;
+  font-weight: 600;
+  margin-left: 6px;
+  opacity: 0.5;
 }
 
 /* ─── Page Content Area ─────────────────────────────────────────── */
@@ -521,7 +646,7 @@ body {
 
 /* ─── Section Label + Rule ──────────────────────────────────────── */
 .sl {
-  font-size: 9px; font-weight: 700; color: #C49A2A;
+  font-size: 9px; font-weight: 700; color: #C17F59;
   letter-spacing: 2.5px; text-transform: uppercase;
   margin-bottom: 6px; margin-top: 4px;
   font-family: Helvetica, Arial, sans-serif;
@@ -535,17 +660,67 @@ body {
 }
 .body-sm { font-size: 9.5px; color: #5C5650; line-height: 1.7; margin-bottom: 8px; }
 
+/* ─── Highlight Box (screenshottable element) ──────────────────── */
+.highlight {
+  background: rgba(193,127,89,0.06);
+  border-left: 3px solid #C17F59;
+  padding: 14px 18px;
+  border-radius: 0 8px 8px 0;
+  margin: 14px 0;
+  font-size: 11.5px;
+  line-height: 1.8;
+  color: #2A2418;
+  page-break-inside: avoid;
+}
+.highlight b { color: #C17F59; }
+
+/* ─── Placement Badge (pill at top of each section) ────────────── */
+.placement-badge {
+  display: inline-block;
+  background: rgba(193,127,89,0.08);
+  border: 0.5px solid rgba(193,127,89,0.25);
+  border-radius: 20px;
+  padding: 4px 14px;
+  font-size: 9px;
+  color: #C17F59;
+  letter-spacing: 0.8px;
+  font-family: Helvetica, Arial, sans-serif;
+  margin-bottom: 10px;
+}
+
+/* ─── Section Heading (evocative Playfair-style) ───────────────── */
+.section-title {
+  font-size: 18px;
+  font-weight: 700;
+  color: #2A2418;
+  line-height: 1.3;
+  margin-bottom: 6px;
+  font-family: Georgia, 'Playfair Display', serif;
+}
+.section-subtitle {
+  font-size: 9px;
+  color: #97907F;
+  letter-spacing: 1.5px;
+  text-transform: uppercase;
+  font-family: Helvetica, Arial, sans-serif;
+  margin-bottom: 16px;
+}
+
 /* ─── Ornamental Divider ────────────────────────────────────────── */
 .ornament {
   color: #C49A2A; text-align: center; letter-spacing: 10px;
   font-size: 14px; margin: 22px 0; opacity: 0.7;
+}
+.section-ornament {
+  color: #C17F59; text-align: center; letter-spacing: 8px;
+  font-size: 11px; margin: 28px 0 24px; opacity: 0.4;
 }
 
 /* ─── Divider ───────────────────────────────────────────────────── */
 .divider { border-bottom: 1px solid #E0DAD3; margin: 18px 0; }
 
 /* ═══════════════════════════════════════════════════════════════════
-   COVER PAGE — Full A4 dark premium design
+   COVER PAGE — Coffee table book quality
    ═══════════════════════════════════════════════════════════════════ */
 .cover {
   width: 100%;
@@ -557,13 +732,14 @@ body {
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  padding: 60px 40px;
+  padding: 80px 60px;
 }
-/* Terracotta inset border — warm solid */
+/* Terracotta inset border — warm solid, generous inset */
 .cover-border {
   position: absolute;
-  top: 30px; left: 30px; right: 30px; bottom: 30px;
-  border: 0.5px solid rgba(193,127,89,0.3);
+  top: 36px; left: 36px; right: 36px; bottom: 36px;
+  border: 0.5px solid rgba(193,127,89,0.25);
+  border-radius: 2px;
 }
 .corner { display: none; }
 .cover-stars { display: none; }
@@ -571,7 +747,7 @@ body {
 .cover-inner {
   position: relative; z-index: 2;
   text-align: center;
-  padding: 0 40px;
+  padding: 0 50px;
   display: flex; flex-direction: column;
   align-items: center;
   width: 100%;
@@ -579,275 +755,292 @@ body {
 
 /* Top brand section */
 .cover-brand {
-  font-size: 10px; font-weight: 700; color: #C49A2A;
-  letter-spacing: 6px; text-transform: uppercase;
+  font-size: 9px; font-weight: 700; color: #C17F59;
+  letter-spacing: 8px; text-transform: uppercase;
   font-family: Helvetica, Arial, sans-serif;
-  margin-bottom: 16px;
+  margin-bottom: 20px;
 }
 .cover-brand-rule {
-  width: 100px; height: 0.5px;
-  background: #C49A2A;
-  margin-bottom: 20px;
+  width: 80px; height: 0.5px;
+  background: #C17F59;
+  opacity: 0.4;
+  margin-bottom: 28px;
 }
 
 /* Report type badge */
 .cover-type-badge {
   display: inline-block;
-  border: 0.5px solid rgba(193,127,89,0.4);
-  border-radius: 2px;
-  padding: 4px 16px;
-  font-size: 8px; color: #C17F59; letter-spacing: 3.5px;
+  border: 0.5px solid rgba(193,127,89,0.35);
+  border-radius: 20px;
+  padding: 5px 20px;
+  font-size: 7.5px; color: #C17F59; letter-spacing: 3.5px;
   text-transform: uppercase;
   font-family: Helvetica, Arial, sans-serif;
-  margin-bottom: 24px;
+  margin-bottom: 30px;
 }
 
 /* Decorative zodiac ring */
 .cover-zodiac-ring {
-  font-size: 7px; color: rgba(196,154,42,0.25);
-  letter-spacing: 6px; margin-bottom: 20px;
+  font-size: 8px; color: rgba(193,127,89,0.18);
+  letter-spacing: 8px; margin-bottom: 28px;
 }
 
-/* Person's name — big serif */
+/* Person's name — the dominant element, large serif */
 .cover-name {
-  font-size: 42px; font-weight: 700; color: #2A2418;
-  letter-spacing: 1px; margin-bottom: 14px;
-  line-height: 1.2;
+  font-size: 48px; font-weight: 700; color: #2A2418;
+  letter-spacing: 2px; margin-bottom: 18px;
+  line-height: 1.15;
+  font-family: Georgia, 'Playfair Display', serif;
 }
 
 /* Gold ornamental divider */
 .cover-divider {
-  display: flex; align-items: center; gap: 8px;
-  margin-bottom: 16px;
+  display: flex; align-items: center; gap: 12px;
+  margin-bottom: 20px;
 }
 .cover-divider-line {
-  width: 70px; height: 0.5px;
-  background: rgba(196,154,42,0.5);
+  width: 80px; height: 0.5px;
+  background: rgba(193,127,89,0.4);
 }
 .cover-divider-star {
-  font-size: 10px; color: rgba(196,154,42,0.6);
+  font-size: 11px; color: rgba(193,127,89,0.5);
 }
 
 /* Headline / tagline */
 .cover-headline {
-  font-size: 13.5px; font-style: italic; color: #C49A2A;
-  line-height: 1.8; max-width: 360px;
-  margin-bottom: 20px;
+  font-size: 13px; font-style: italic; color: #97907F;
+  line-height: 1.85; max-width: 380px;
+  margin-bottom: 26px;
+  font-family: Georgia, serif;
 }
 
 /* Birth details */
 .cover-meta {
   font-size: 9px; color: #97907F;
-  letter-spacing: 1.5px; line-height: 1.8;
+  letter-spacing: 1.5px; line-height: 2;
   font-family: Helvetica, Arial, sans-serif;
-  margin-bottom: 20px;
+  margin-bottom: 24px;
 }
 .cover-meta-highlight {
-  color: #5C5650;
+  color: #5C5650; font-weight: 600;
 }
 
 /* Big Three pills row */
 .cv-pills {
-  display: flex; gap: 12px; margin-bottom: 20px;
+  display: flex; gap: 14px; margin-bottom: 26px;
 }
 .cv-pill {
-  border: 0.5px solid rgba(193,127,89,0.3);
-  border-radius: 3px;
-  padding: 6px 14px;
+  border: 0.5px solid rgba(193,127,89,0.25);
+  border-radius: 6px;
+  padding: 8px 18px;
   text-align: center;
-  background: rgba(193,127,89,0.06);
+  background: rgba(193,127,89,0.04);
 }
 .cv-pill-glyph {
-  font-size: 14px; color: #C17F59;
-  display: block; margin-bottom: 3px;
+  font-size: 16px; color: #C17F59;
+  display: block; margin-bottom: 4px;
 }
 .cv-pill-sign {
   font-size: 11px; font-weight: 700; color: #2A2418;
   margin-bottom: 2px;
 }
 .cv-pill-role {
-  font-size: 6.5px; color: rgba(196,154,42,0.7);
+  font-size: 6.5px; color: #C17F59; opacity: 0.6;
   letter-spacing: 2px; text-transform: uppercase;
   font-weight: 700; font-family: Helvetica, Arial, sans-serif;
 }
 
 /* Core motif */
 .cv-motif-rule {
-  width: 120px; height: 0.5px;
-  background: rgba(196,154,42,0.3);
-  margin-bottom: 14px;
+  width: 100px; height: 0.5px;
+  background: rgba(193,127,89,0.25);
+  margin-bottom: 16px;
 }
 .cv-motif-label {
-  font-size: 7px; color: rgba(196,154,42,0.6);
+  font-size: 7px; color: #C17F59; opacity: 0.5;
   letter-spacing: 3px; text-transform: uppercase;
-  font-weight: 700; margin-bottom: 10px;
+  font-weight: 700; margin-bottom: 12px;
   font-family: Helvetica, Arial, sans-serif;
 }
 .cv-motif {
-  font-size: 10.5px; font-style: italic;
+  font-size: 11px; font-style: italic;
   color: #97907F;
-  line-height: 1.8; max-width: 340px;
+  line-height: 1.85; max-width: 360px;
+  font-family: Georgia, serif;
 }
 
-/* Bottom footer */
+/* Bottom footer — more prominent date */
 .cover-foot {
-  position: absolute; bottom: 40px; left: 0; right: 0;
+  position: absolute; bottom: 48px; left: 0; right: 0;
   text-align: center; z-index: 2;
 }
 .cover-foot-text {
-  font-size: 7px; color: rgba(193,127,89,0.4);
-  letter-spacing: 2px; font-family: Helvetica, Arial, sans-serif;
+  font-size: 8px; color: #C17F59; opacity: 0.5;
+  letter-spacing: 2.5px; font-family: Helvetica, Arial, sans-serif;
+  text-transform: uppercase;
 }
 .cover-foot-date {
-  font-size: 6.5px; color: #B0A898;
-  letter-spacing: 1px; margin-top: 3px;
+  font-size: 8px; color: #97907F;
+  letter-spacing: 1.5px; margin-top: 5px;
   font-family: Helvetica, Arial, sans-serif;
 }
 
 /* ═══════════════════════════════════════════════════════════════════
    CHART DATA TABLES
    ═══════════════════════════════════════════════════════════════════ */
-.dt { width: 100%; border-collapse: collapse; margin-bottom: 20px; font-size: 9.5px; }
+.dt { width: 100%; border-collapse: collapse; margin-bottom: 22px; font-size: 9.5px; }
 .dt th {
-  font-size: 7.5px; font-weight: 700; color: #9C9590;
-  letter-spacing: 1.2px; text-transform: uppercase;
-  padding: 8px 10px; border-bottom: 2px solid #C49A2A;
+  font-size: 7.5px; font-weight: 700; color: #C17F59;
+  letter-spacing: 1.5px; text-transform: uppercase;
+  padding: 9px 10px; border-bottom: 2px solid #C17F59;
   text-align: left; font-family: Helvetica, Arial, sans-serif;
+  opacity: 0.7;
 }
-.tc { padding: 7px 10px; border-bottom: 1px solid #EDEBE8; font-size: 9.5px; }
-.tc-name { font-weight: 600; color: #0D1527; }
+.tc { padding: 8px 10px; border-bottom: 1px solid #EDEBE8; font-size: 9.5px; color: #2A2418; }
+.tc-name { font-weight: 600; color: #2A2418; }
 .tc-center { text-align: center; }
 .tc-right { text-align: right; }
-.row-alt { background: #F7F4EF; }
-.glyph { color: #C49A2A; font-size: 12px; }
+.row-alt { background: #F9F6F1; }
+.glyph { color: #C17F59; font-size: 12px; }
 .retro { color: #DC2626; font-weight: 700; font-size: 11px; }
 
 /* ═══════════════════════════════════════════════════════════════════
    BIG THREE
    ═══════════════════════════════════════════════════════════════════ */
 .b3-band {
-  margin: 0 -85px; padding: 14px 85px;
+  margin: 0 -85px; padding: 16px 85px;
   display: flex; align-items: center;
   page-break-inside: avoid; page-break-after: avoid;
+  border-bottom: 1px solid #E0D8CC;
 }
-.b3-band-inner { display: flex; align-items: center; gap: 14px; }
-.b3-glyph { font-size: 22px; color: #C17F59; min-width: 28px; text-align: center; }
+.b3-band-inner { display: flex; align-items: center; gap: 16px; }
+.b3-glyph { font-size: 24px; color: #C17F59; min-width: 30px; text-align: center; }
 .b3-band-text { }
 .b3-title {
-  font-size: 15px; font-weight: 700; color: #2A2418;
-  margin-bottom: 2px;
+  font-size: 16px; font-weight: 700; color: #2A2418;
+  margin-bottom: 3px;
+  font-family: Georgia, 'Playfair Display', serif;
 }
 .b3-meta {
   font-size: 9px; color: #C17F59;
-  font-family: Helvetica, Arial, sans-serif; letter-spacing: 0.5px;
+  font-family: Helvetica, Arial, sans-serif; letter-spacing: 0.8px;
 }
-.b3-content { padding: 16px 0 8px; }
+.b3-content { padding: 18px 0 8px; }
 .b3-sublabel {
   font-size: 8px; color: #9C9590; letter-spacing: 2px;
   text-transform: uppercase; font-weight: 700;
-  margin-bottom: 12px; font-family: Helvetica, Arial, sans-serif;
+  margin-bottom: 14px; font-family: Helvetica, Arial, sans-serif;
 }
 
 /* ─── Callout Boxes ─────────────────────────────────────────────── */
 .callout {
-  border-radius: 5px; padding: 12px 14px;
-  margin: 10px 0 12px; display: flex; gap: 10px;
+  border-radius: 0 8px 8px 0; padding: 14px 18px;
+  margin: 14px 0 16px; display: flex; gap: 12px;
   align-items: flex-start; page-break-inside: avoid;
 }
 .callout-icon {
-  font-size: 14px; color: #C49A2A; min-width: 18px;
+  font-size: 14px; color: #C17F59; min-width: 18px;
   text-align: center; margin-top: 1px;
 }
 .callout-label {
   font-size: 7.5px; font-weight: 700; letter-spacing: 2px;
-  text-transform: uppercase; margin-bottom: 4px;
+  text-transform: uppercase; margin-bottom: 5px;
   display: block; font-family: Helvetica, Arial, sans-serif;
 }
-.callout-text { font-size: 10px; color: #1A1614; line-height: 1.65; }
+.callout-text { font-size: 10.5px; color: #1A1614; line-height: 1.75; }
 .shadow-callout {
-  background: #F2EDE7; border-left: 3px solid #7A3520;
+  background: rgba(122,53,32,0.04); border-left: 3px solid #7A3520;
 }
 .shadow-label { color: #7A3520; }
 .gold-callout {
-  background: #FDF8ED; border-left: 3px solid #C49A2A;
+  background: rgba(193,127,89,0.06); border-left: 3px solid #C17F59;
 }
-.gold-label { color: #C49A2A; }
+.gold-label { color: #C17F59; }
 
 /* ═══════════════════════════════════════════════════════════════════
    PLANETS
    ═══════════════════════════════════════════════════════════════════ */
 .planet-band {
-  background: #EDE3D5; margin: 0 -85px; padding: 11px 85px;
-  display: flex; align-items: center; gap: 12px;
+  background: #EDE3D5; margin: 0 -85px; padding: 14px 85px;
+  display: flex; align-items: center; gap: 14px;
   page-break-inside: avoid; page-break-after: avoid;
   border-bottom: 1px solid #E0D8CC;
 }
-.planet-glyph { font-size: 16px; color: #C17F59; min-width: 22px; text-align: center; }
+.planet-glyph { font-size: 18px; color: #C17F59; min-width: 24px; text-align: center; }
 .planet-band-text { flex: 1; }
-.planet-title { font-size: 13px; font-weight: 700; color: #2A2418; margin-bottom: 1px; }
+.planet-title {
+  font-size: 14px; font-weight: 700; color: #2A2418; margin-bottom: 2px;
+  font-family: Georgia, 'Playfair Display', serif;
+}
 .planet-placement {
   font-size: 8.5px; color: #C17F59;
-  font-family: Helvetica, Arial, sans-serif; letter-spacing: 0.5px;
+  font-family: Helvetica, Arial, sans-serif; letter-spacing: 0.8px;
 }
-.planet-body { padding: 14px 0 6px; }
+.planet-body { padding: 18px 0 8px; }
 
 /* ═══════════════════════════════════════════════════════════════════
    LIFE AREAS
    ═══════════════════════════════════════════════════════════════════ */
 .area-band {
-  margin: 0 -85px; padding: 13px 85px;
-  display: flex; align-items: center; gap: 12px;
+  margin: 0 -85px; padding: 14px 85px;
+  display: flex; align-items: center; gap: 14px;
   page-break-inside: avoid; page-break-after: avoid;
   border-bottom: 1px solid #E0D8CC;
 }
-.area-icon { font-size: 16px; min-width: 20px; text-align: center; }
+.area-icon { font-size: 17px; min-width: 22px; text-align: center; color: #C17F59; }
 .area-band-text { flex: 1; }
-.area-title { font-size: 13px; font-weight: 700; color: #2A2418; margin-bottom: 2px; }
+.area-title {
+  font-size: 14px; font-weight: 700; color: #2A2418; margin-bottom: 3px;
+  font-family: Georgia, 'Playfair Display', serif;
+}
 .area-theme {
   font-size: 9px; color: #97907F;
   font-family: Helvetica, Arial, sans-serif; font-style: italic;
+  letter-spacing: 0.3px;
 }
-.area-content { padding: 14px 0 6px; }
+.area-content { padding: 18px 0 8px; }
 
 /* ═══════════════════════════════════════════════════════════════════
    SOUL PATH
    ═══════════════════════════════════════════════════════════════════ */
 .soul-card {
-  background: #FFFFFF; border-radius: 6px;
-  padding: 16px 18px; margin-bottom: 14px;
+  background: #FFFFFF; border-radius: 8px;
+  padding: 18px 20px; margin-bottom: 16px;
   border: 1px solid #E0DAD3;
   page-break-inside: avoid;
 }
 .soul-heading {
-  font-size: 12px; font-weight: 700; color: #0D1527;
-  margin-bottom: 10px;
+  font-size: 13px; font-weight: 700; color: #2A2418;
+  margin-bottom: 12px;
+  font-family: Georgia, 'Playfair Display', serif;
 }
 .soul-gift {
-  background: #FDF8ED; border: 1px solid #C49A2A;
-  border-radius: 6px; padding: 20px 24px;
-  text-align: center; margin-top: 8px;
+  background: rgba(193,127,89,0.05); border: 1px solid #C17F59;
+  border-radius: 8px; padding: 22px 28px;
+  text-align: center; margin-top: 12px;
   page-break-inside: avoid;
 }
 .soul-gift-label {
-  font-size: 8px; color: #C49A2A; letter-spacing: 2.5px;
+  font-size: 8px; color: #C17F59; letter-spacing: 2.5px;
   text-transform: uppercase; font-weight: 700;
-  margin-bottom: 8px; font-family: Helvetica, Arial, sans-serif;
+  margin-bottom: 10px; font-family: Helvetica, Arial, sans-serif;
 }
 .soul-gift-text {
   font-size: 12px; font-style: italic; color: #5C5650;
-  line-height: 1.75;
+  line-height: 1.85;
+  font-family: Georgia, serif;
 }
 
 /* ═══════════════════════════════════════════════════════════════════
    ELEMENTAL BALANCE
    ═══════════════════════════════════════════════════════════════════ */
 .el-row {
-  display: flex; align-items: center; gap: 8px;
-  margin-bottom: 10px;
+  display: flex; align-items: center; gap: 10px;
+  margin-bottom: 12px;
 }
-.el-icon { font-size: 14px; width: 20px; text-align: center; }
+.el-icon { font-size: 15px; width: 22px; text-align: center; }
 .el-label {
-  font-size: 10px; width: 46px;
+  font-size: 10px; width: 48px;
   font-family: Helvetica, Arial, sans-serif;
   font-weight: 600; color: #5C5650;
 }
@@ -862,18 +1055,19 @@ body {
   font-family: Helvetica, Arial, sans-serif;
 }
 .el-summary {
-  background: #FFFFFF; border-radius: 6px;
-  padding: 16px 18px; margin-top: 16px;
+  background: #FFFFFF; border-radius: 8px;
+  padding: 18px 20px; margin-top: 18px;
   border: 1px solid #E0DAD3;
 }
 .el-dom-label {
-  font-size: 8px; color: #9C9590; letter-spacing: 2px;
+  font-size: 8px; color: #C17F59; letter-spacing: 2px;
   text-transform: uppercase; font-weight: 700;
-  margin-bottom: 4px; font-family: Helvetica, Arial, sans-serif;
+  margin-bottom: 5px; font-family: Helvetica, Arial, sans-serif;
 }
 .el-dom-val {
-  font-size: 14px; font-weight: 700; color: #0D1527;
-  margin-bottom: 6px;
+  font-size: 14px; font-weight: 700; color: #2A2418;
+  margin-bottom: 8px;
+  font-family: Georgia, 'Playfair Display', serif;
 }
 
 /* ═══════════════════════════════════════════════════════════════════
@@ -887,11 +1081,11 @@ body {
   position: relative;
 }
 .closing-ph {
-  background: #F0E8DC;
+  background: #EDE3D5;
   padding: 13px 85px;
   display: flex; justify-content: space-between;
   align-items: center; font-family: Helvetica, Arial, sans-serif;
-  margin-bottom: 32px; position: relative; z-index: 1;
+  margin-bottom: 40px; position: relative; z-index: 1;
   border-bottom: 1px solid #E0D8CC;
 }
 .closing-content {
@@ -899,62 +1093,82 @@ body {
   position: relative; z-index: 1;
 }
 .closing-body {
-  font-size: 10.5px; color: #2A2418; line-height: 1.9;
+  font-size: 10.5px; color: #2A2418; line-height: 1.95;
   margin-bottom: 14px; text-align: justify;
+  font-family: Georgia, serif;
 }
 .closing-ornament {
-  color: #C49A2A; text-align: center; letter-spacing: 12px;
-  font-size: 12px; margin: 26px 0; opacity: 0.6;
+  color: #C17F59; text-align: center; letter-spacing: 12px;
+  font-size: 12px; margin: 30px 0; opacity: 0.45;
+}
+.closing-philosophy {
+  font-size: 11px; color: #97907F; line-height: 1.85;
+  text-align: center; font-style: italic;
+  margin-bottom: 28px; max-width: 380px;
+  margin-left: auto; margin-right: auto;
+  font-family: Georgia, serif;
 }
 .closing-affirm {
-  border: 1px solid rgba(193,127,89,0.4);
-  border-radius: 6px; padding: 22px 30px;
-  margin: 0 auto 36px; max-width: 400px;
+  border: 1px solid rgba(193,127,89,0.35);
+  border-left: 3px solid #C17F59;
+  border-radius: 0 8px 8px 0; padding: 24px 30px;
+  margin: 0 auto 40px; max-width: 420px;
   text-align: center; background: rgba(193,127,89,0.04);
+}
+.closing-affirm-label {
+  font-size: 7.5px; color: #C17F59; letter-spacing: 2.5px;
+  text-transform: uppercase; font-weight: 700;
+  margin-bottom: 8px; font-family: Helvetica, Arial, sans-serif;
 }
 .closing-affirm-text {
   font-size: 13px; font-style: italic; color: #C17F59;
-  line-height: 1.8;
+  line-height: 1.85; font-family: Georgia, serif;
 }
 .closing-brand-section {
-  text-align: center; padding: 24px 85px 32px;
-  border-top: 1px solid rgba(193,127,89,0.2);
+  text-align: center; padding: 28px 85px 36px;
+  border-top: 1px solid rgba(193,127,89,0.15);
   position: relative; z-index: 1;
 }
 .closing-brand-name {
-  font-size: 18px; font-weight: 700; color: #C17F59;
-  letter-spacing: 4px; margin-bottom: 6px;
+  font-size: 16px; font-weight: 700; color: #C17F59;
+  letter-spacing: 5px; margin-bottom: 6px;
+  opacity: 0.7;
 }
 .closing-tagline {
-  font-size: 10px; color: #97907F;
-  font-style: italic; margin-bottom: 6px;
+  font-size: 9.5px; color: #97907F;
+  font-style: italic; margin-bottom: 8px;
+  font-family: Georgia, serif;
 }
 .closing-url {
-  font-size: 9px; color: #6B5D40;
+  font-size: 8px; color: #97907F;
   font-family: Helvetica, Arial, sans-serif;
-  margin-bottom: 18px;
+  letter-spacing: 1px;
+  margin-bottom: 20px;
 }
 .closing-disclaimer {
-  font-size: 7.5px; color: #4A4035;
-  line-height: 1.7; text-align: center;
+  font-size: 7px; color: #97907F;
+  line-height: 1.75; text-align: center;
   font-family: Helvetica, Arial, sans-serif;
 }
 
 /* ─── Pull Quote (screenshottable) ──────────────────────────────── */
 .pull-quote {
-  border-top: 1px solid rgba(196,154,42,0.3);
-  border-bottom: 1px solid rgba(196,154,42,0.3);
-  padding: 18px 24px; margin: 20px 0;
+  border-top: 1px solid rgba(193,127,89,0.2);
+  border-bottom: 1px solid rgba(193,127,89,0.2);
+  padding: 22px 28px; margin: 24px 0;
   text-align: center; page-break-inside: avoid;
+  background: rgba(193,127,89,0.02);
 }
 .pull-quote-text {
   font-size: 14px; font-style: italic;
-  color: #0D1527; line-height: 1.7;
+  color: #2A2418; line-height: 1.75;
+  font-family: Georgia, serif;
 }
 .pull-quote-attr {
-  font-size: 8px; color: #9C9590; letter-spacing: 2px;
-  text-transform: uppercase; margin-top: 8px;
+  font-size: 8px; color: #C17F59; letter-spacing: 2px;
+  text-transform: uppercase; margin-top: 10px;
   font-family: Helvetica, Arial, sans-serif;
+  opacity: 0.6;
 }
 </style></head>
 <body>
@@ -997,15 +1211,17 @@ body {
   </div>
 
   <div class="cover-foot">
-    <div class="cover-foot-text">Generated by Celestia</div>
-    <div class="cover-foot-date">${escapeHTML(genDate)}</div>
+    <div class="cover-foot-text">Celestia</div>
+    <div class="cover-foot-date">Generated ${escapeHTML(genDate)}</div>
   </div>
 </div>
 
 <!-- ═══════════════ OVERVIEW ═══════════════ -->
 <div class="ph"><span class="ph-left">CELESTIA</span><span class="ph-right">${escapeHTML(name.toUpperCase())} · OVERVIEW</span></div>
 <div class="pc">
-  <div class="sl">Your Cosmic Blueprint</div><div class="sr"></div>
+  <div class="section-title">The Story Written in Your Stars</div>
+  <div class="section-subtitle">YOUR COSMIC BLUEPRINT</div>
+  <div class="sr"></div>
   ${nl2p(report.overview)}
   ${report.coreMotif ? `
   <div class="pull-quote">
@@ -1013,7 +1229,7 @@ body {
     <div class="pull-quote-attr">— ${escapeHTML(firstName)}'s Core Motif</div>
   </div>` : ''}
 </div>
-<div class="pf">Celestia · ${escapeHTML(reportLabel)} Report · ${escapeHTML(firstName)}</div>
+<div class="pf">Celestia · ${escapeHTML(reportLabel)} Report · ${escapeHTML(firstName)} <span class="page-num">2</span></div>
 
 <!-- ═══════════════ CHART DATA ═══════════════ -->
 <div class="page-break"></div>
@@ -1031,32 +1247,109 @@ body {
     ${aspectRows}
   </table>` : ''}
 </div>
-<div class="pf">Celestia · ${escapeHTML(reportLabel)} Report · ${escapeHTML(firstName)}</div>
+<div class="pf">Celestia · ${escapeHTML(reportLabel)} Report · ${escapeHTML(firstName)} <span class="page-num">3</span></div>
 
-<!-- ═══════════════ BIG THREE ═══════════════ -->
+<!-- ═══════════════ BIG THREE — flowing, sections stay together ═══════════════ -->
 <div class="page-break"></div>
 <div class="ph"><span class="ph-left">CELESTIA</span><span class="ph-right">${escapeHTML(name.toUpperCase())} · THE BIG THREE</span></div>
 <div class="pc">
-  <div class="sl">Sun · Moon · Rising</div><div class="sr"></div>
-  ${big3HTML}
+  <div class="section-title">The Three Pillars of You</div>
+  <div class="section-subtitle">SUN · MOON · RISING</div>
+  <div class="sr"></div>
+${['sun', 'moon', 'rising'].map((key, idx) => {
+  const data = report.bigThree?.[key];
+  if (!data) return '';
+  const cfg = BIG3_CONFIG[key];
+  const planetData = key === 'sun' ? sun : key === 'moon' ? moon : rising;
+  return `
+  <div class="section-block">
+    <div class="b3-band" style="background:${cfg.band}">
+      <div class="b3-band-inner">
+        <span class="b3-glyph">${cfg.glyph}</span>
+        <div class="b3-band-text">
+          <div class="b3-title">${escapeHTML(data.title)}</div>
+          <div class="b3-meta">${planetData?.sign || ''} · House ${planetData?.house || ''}</div>
+        </div>
+      </div>
+    </div>
+    <div class="b3-content">
+      <div class="placement-badge">${cfg.glyph} ${cfg.label.replace('Your ', '')} in ${planetData?.sign || ''}${planetData?.house ? ' · House ' + planetData.house : ''}</div>
+      <div class="b3-sublabel">${cfg.sublabel}</div>
+      ${nl2p(data.interpretation)}
+      <div class="highlight">
+        <b style="color:#C17F59">THE SHADOW:</b> ${escapeHTML(data.shadow)}
+      </div>
+      <div class="callout gold-callout">
+        <div class="callout-icon">✦</div>
+        <div><div class="callout-label gold-label">GUIDANCE</div><p class="callout-text">${escapeHTML(data.advice)}</p></div>
+      </div>
+    </div>
+  </div>
+  ${idx < 2 ? '<div class="section-divider"></div>' : ''}`;
+}).join('')}
 </div>
 <div class="pf">Celestia · ${escapeHTML(reportLabel)} Report · ${escapeHTML(firstName)}</div>
 
-<!-- ═══════════════ PLANETS ═══════════════ -->
+<!-- ═══════════════ PLANETS — flowing, each planet stays together ═══════════════ -->
 <div class="page-break"></div>
 <div class="ph"><span class="ph-left">CELESTIA</span><span class="ph-right">${escapeHTML(name.toUpperCase())} · PLANETARY PLACEMENTS</span></div>
 <div class="pc">
-  <div class="sl">Mercury through Pluto</div><div class="sr"></div>
-  ${planetsHTML}
+  <div class="section-title">The Voices Within You</div>
+  <div class="section-subtitle">MERCURY THROUGH PLUTO</div>
+  <div class="sr"></div>
+${(report.planets || []).map((p, idx) => `
+  <div class="section-block">
+    <div class="planet-band">
+      <span class="planet-glyph">${PLANET_GLYPHS[p.name] || '★'}</span>
+      <div class="planet-band-text">
+        <div class="planet-title">${escapeHTML(p.title)}</div>
+        <div class="planet-placement">${escapeHTML(p.placement)}</div>
+      </div>
+    </div>
+    <div class="planet-body">
+      <div class="placement-badge">${PLANET_GLYPHS[p.name] || '★'} ${escapeHTML(p.placement)}</div>
+      ${nl2p(p.interpretation)}
+      <div class="callout gold-callout">
+        <div class="callout-icon">✦</div>
+        <div><div class="callout-label gold-label">GUIDANCE</div><p class="callout-text">${escapeHTML(p.advice)}</p></div>
+      </div>
+    </div>
+  </div>
+  ${idx < (report.planets || []).length - 1 ? '<div class="section-divider"></div>' : ''}
+`).join('')}
 </div>
 <div class="pf">Celestia · ${escapeHTML(reportLabel)} Report · ${escapeHTML(firstName)}</div>
 
-<!-- ═══════════════ LIFE AREAS ═══════════════ -->
+<!-- ═══════════════ LIFE AREAS — flowing, each area stays together ═══════════════ -->
 <div class="page-break"></div>
 <div class="ph"><span class="ph-left">CELESTIA</span><span class="ph-right">${escapeHTML(name.toUpperCase())} · LIFE AREAS</span></div>
 <div class="pc">
-  <div class="sl">Where Your Chart Shows Up in Life</div><div class="sr"></div>
-  ${areasHTML}
+  <div class="section-title">Where Your Stars Meet Your Life</div>
+  <div class="section-subtitle">LOVE · CAREER · PURPOSE · CHALLENGE</div>
+  <div class="sr"></div>
+${['love', 'career', 'purpose', 'challenge'].map((key, idx) => {
+  const data = report.lifeAreas?.[key];
+  if (!data) return '';
+  return `
+  <div class="section-block">
+    <div class="area-band" style="background:${AREA_COLORS[key]}">
+      <span class="area-icon">${AREA_ICONS[key]}</span>
+      <div class="area-band-text">
+        <div class="area-title">${AREA_LABELS[key]}</div>
+        <div class="area-theme">${escapeHTML(data.theme)}</div>
+      </div>
+    </div>
+    <div class="area-content">
+      <div class="placement-badge">${AREA_ICONS[key]} ${AREA_LABELS[key]}</div>
+      ${nl2p(data.analysis)}
+      <div class="callout gold-callout">
+        <div class="callout-icon">→</div>
+        <div><div class="callout-label gold-label">YOUR MOVE</div><p class="callout-text">${escapeHTML(data.advice)}</p></div>
+      </div>
+    </div>
+  </div>
+  ${idx < 3 ? '<div class="section-divider"></div>' : ''}`;
+}).join('')}
 </div>
 <div class="pf">Celestia · ${escapeHTML(reportLabel)} Report · ${escapeHTML(firstName)}</div>
 
@@ -1084,39 +1377,46 @@ ${(() => {
   return `<div class="page-break"></div>
 <div class="ph"><span class="ph-left">CELESTIA</span><span class="ph-right">${escapeHTML(name.toUpperCase())} · KEY ASPECTS</span></div>
 <div class="pc">
-  <div class="sl">The Patterns That Define You</div><div class="sr"></div>
+  <div class="section-title">The Invisible Threads</div>
+  <div class="section-subtitle">THE PATTERNS THAT DEFINE YOU</div>
+  <div class="sr"></div>
   <p class="body">These are the aspects in your chart that shape your deepest patterns — the ones you live every day but may have never been able to name. Understanding them is not about fixing anything. It is about finally seeing what has always been there.</p>
+  <div class="section-ornament">✦</div>
   ${patterns.map(p => `
-  <div style="margin-bottom: 18px; padding: 14px 16px; background: rgba(193,127,89,0.04); border-left: 3px solid #C17F59; border-radius: 0 6px 6px 0;">
-    <div style="font-size: 9px; font-weight: 700; color: #C17F59; letter-spacing: 1.5px; text-transform: uppercase; font-family: Helvetica, Arial, sans-serif; margin-bottom: 4px;">${escapeHTML(p.label)} (${p.orb?.toFixed(1) || ''}°)</div>
-    <p style="font-size: 11px; color: #1A1614; line-height: 1.8; margin: 0;">${escapeHTML(p.text)}</p>
+  <div class="highlight">
+    <div style="font-size: 9px; font-weight: 700; color: #C17F59; letter-spacing: 1.5px; text-transform: uppercase; font-family: Helvetica, Arial, sans-serif; margin-bottom: 6px;"><span class="placement-badge" style="display:inline;padding:3px 10px;font-size:8px">${escapeHTML(p.label)} (${p.orb?.toFixed(1) || ''}°)</span></div>
+    <p style="font-size: 11.5px; color: #2A2418; line-height: 1.8; margin: 0;">${escapeHTML(p.text)}</p>
   </div>`).join('')}
 </div>
-<div class="pf">Celestia · ${escapeHTML(reportLabel)} Report · ${escapeHTML(firstName)}</div>`;
+<div class="pf">Celestia · ${escapeHTML(reportLabel)} Report · ${escapeHTML(firstName)} <span class="page-num">7</span></div>`;
 })()}
 
 <!-- ═══════════════ SOUL PATH ═══════════════ -->
 <div class="page-break"></div>
 <div class="ph"><span class="ph-left">CELESTIA</span><span class="ph-right">${escapeHTML(name.toUpperCase())} · SOUL PATH</span></div>
 <div class="pc">
-  <div class="sl">Your Evolutionary Journey</div><div class="sr"></div>
+  <div class="section-title">The Path You Were Born to Walk</div>
+  <div class="section-subtitle">YOUR EVOLUTIONARY JOURNEY</div>
+  <div class="sr"></div>
   ${soulPathHTML}
 </div>
-<div class="pf">Celestia · ${escapeHTML(reportLabel)} Report · ${escapeHTML(firstName)}</div>
+<div class="pf">Celestia · ${escapeHTML(reportLabel)} Report · ${escapeHTML(firstName)} <span class="page-num">8</span></div>
 
 <!-- ═══════════════ ELEMENTAL BALANCE ═══════════════ -->
 <div class="page-break"></div>
 <div class="ph"><span class="ph-left">CELESTIA</span><span class="ph-right">${escapeHTML(name.toUpperCase())} · ELEMENTAL BALANCE</span></div>
 <div class="pc">
-  <div class="sl">Your Elemental Temperament</div><div class="sr"></div>
-  <div style="padding:8px 0 4px">
+  <div class="section-title">Your Inner Landscape</div>
+  <div class="section-subtitle">ELEMENTAL TEMPERAMENT</div>
+  <div class="sr"></div>
+  <div style="padding:10px 0 6px">
     ${elBar('fire', elements.fire || 0)}
     ${elBar('earth', elements.earth || 0)}
     ${elBar('air', elements.air || 0)}
     ${elBar('water', elements.water || 0)}
   </div>
   <div class="el-summary">
-    <div style="display:flex;gap:24px;margin-bottom:12px">
+    <div style="display:flex;gap:24px;margin-bottom:14px">
       <div>
         <div class="el-dom-label">DOMINANT ELEMENT</div>
         <div class="el-dom-val">${escapeHTML(report.elementalBalance?.dominantElement || 'Mixed')}</div>
@@ -1129,7 +1429,7 @@ ${(() => {
     ${nl2p(report.elementalBalance?.analysis)}
   </div>
 </div>
-<div class="pf">Celestia · ${escapeHTML(reportLabel)} Report · ${escapeHTML(firstName)}</div>
+<div class="pf">Celestia · ${escapeHTML(reportLabel)} Report · ${escapeHTML(firstName)} <span class="page-num">9</span></div>
 
 <!-- ═══════════════ CLOSING ═══════════════ -->
 <div class="closing">
@@ -1138,11 +1438,14 @@ ${(() => {
     <span class="ph-right">${escapeHTML(name.toUpperCase())} · YOUR COSMIC JOURNEY</span>
   </div>
   <div class="closing-content">
-    <div class="sl" style="color:#C49A2A">Your Cosmic Journey</div>
-    <div class="sr" style="border-color:#C49A2A;opacity:0.25;margin-bottom:22px"></div>
+    <div class="section-title" style="text-align:center;margin-bottom:4px">A Letter to ${escapeHTML(firstName)}</div>
+    <div class="section-subtitle" style="text-align:center">YOUR COSMIC JOURNEY</div>
+    <div class="sr" style="border-color:#C17F59;opacity:0.2;margin-bottom:26px"></div>
     ${(report.closing || '').split(/\n\n+/).filter(Boolean).map(p => `<p class="closing-body">${escapeHTML(p)}</p>`).join('')}
     <div class="closing-ornament">✦   ✦   ✦</div>
+    <div class="closing-philosophy">Your chart does not define your destiny. It illuminates the patterns. Now you see them.</div>
     <div class="closing-affirm">
+      <div class="closing-affirm-label">YOUR CORE MOTIF</div>
       <div class="closing-affirm-text">"${escapeHTML(report.coreMotif || '')}"</div>
     </div>
   </div>
@@ -1271,17 +1574,30 @@ export default function ReportsScreen() {
     }
 
     // Selective Gating: Only 'monthly' is free. Dual-path: subscribe OR buy single report.
-    if (!isPro && r.type !== 'monthly') {
+    if (!isReportAccessible(r.type, isPro)) {
       haptic.medium();
-      Alert.alert(
-        `Get Your ${r.name}`,
-        'Choose how to access this report:',
-        [
-          { text: 'Cancel', style: 'cancel' },
-          { text: 'This Report — $9.99', onPress: () => navigation.navigate('Paywall', { source: `report_single_${r.type}`, reportName: r.name }) },
-          { text: 'All Reports (Subscribe)', onPress: () => navigation.navigate('Paywall', { source: 'reports', reportName: r.name }) },
-        ]
-      );
+      const report = REPORTS.find(rep => rep.type === r.type);
+      if (report?.tier === 'premium') {
+        // Premium reports — always $9.99, even for Pro subscribers
+        Alert.alert(
+          `Get Your ${r.name}`,
+          'This deep-dive report is a one-time purchase.',
+          [
+            { text: 'Cancel', style: 'cancel' },
+            { text: '$9.99 — Get This Report', onPress: () => navigation.navigate('Paywall', { source: `report_single_${r.type}`, reportName: r.name }) },
+          ]
+        );
+      } else {
+        // Pro-tier reports — subscribe to unlock
+        Alert.alert(
+          `Get Your ${r.name}`,
+          'This report is included with Pro.',
+          [
+            { text: 'Cancel', style: 'cancel' },
+            { text: 'Go Pro', onPress: () => navigation.navigate('Paywall', { source: 'reports', reportName: r.name }) },
+          ]
+        );
+      }
       return;
     }
 
@@ -1323,17 +1639,19 @@ export default function ReportsScreen() {
   const handleDownloadPdf = async () => {
     if (!userProfile?.chart) return;
 
-    // Allow 'monthly' reports to be downloaded even for free users
-    if (!isPro && reportType !== 'monthly') {
+    // Gate check using tier system
+    if (!isReportAccessible(reportType, isPro)) {
       haptic.medium();
       const theme = REPORT_THEMES[reportType] || DEFAULT_THEME;
+      const report = REPORTS.find(r => r.type === reportType);
       Alert.alert(
         `Get Your ${theme.title}`,
-        'Choose how to access this report:',
+        report?.tier === 'premium' ? 'This deep-dive report is a one-time purchase.' : 'This report is included with Pro.',
         [
           { text: 'Cancel', style: 'cancel' },
-          { text: 'This Report — $9.99', onPress: () => navigation.navigate('Paywall', { source: `report_single_${reportType}`, reportName: theme.title }) },
-          { text: 'All Reports (Subscribe)', onPress: () => navigation.navigate('Paywall', { source: 'reports', reportName: theme.title }) },
+          report?.tier === 'premium'
+            ? { text: '$9.99 — Get This Report', onPress: () => navigation.navigate('Paywall', { source: `report_single_${reportType}`, reportName: theme.title }) }
+            : { text: 'Go Pro', onPress: () => navigation.navigate('Paywall', { source: 'reports', reportName: theme.title }) },
         ]
       );
       return;
@@ -1478,25 +1796,46 @@ export default function ReportsScreen() {
           </View>
         )}
 
-        {/* Report Grid */}
-        <View style={styles.grid}>
-          {REPORTS.map((r, i) => (
-            <TouchableOpacity key={i} style={[styles.rtile, { backgroundColor: colors.card, borderColor: colors.border }]} activeOpacity={0.8} onPress={() => handleReport(r)}>
-              <LinearGradient colors={r.bg} style={styles.rtileColor}>
-                <Text style={{ fontSize: 32, color: r.accent }}>{r.icon}</Text>
-                {!isPro && r.type !== 'monthly' && (
-                  <View style={styles.tileLock}><Text style={{ fontSize: 10 }}>🔒</Text></View>
-                )}
-              </LinearGradient>
-              <View style={styles.rtileBody}>
-                <Text style={[styles.rtileName, { color: colors.heading }]}>{r.name}</Text>
-                <Text style={[styles.rtileDesc, { color: colors.textSecondary }]}>{getReportDescription(r.type)}</Text>
-                <Text style={[styles.rtilePrice, { color: colors.heading }, !isPro && r.type !== 'monthly' && { color: colors.gold, fontSize: 14 }]}>
-                  {(!isPro && r.type !== 'monthly') ? '$9.99' : 'Free'}
-                </Text>
-              </View>
-            </TouchableOpacity>
-          ))}
+        {/* Report Grid — rich cards matching plan design */}
+        <View style={{ paddingHorizontal: 18 }}>
+          {REPORTS.map((r, i) => {
+            const accessible = isReportAccessible(r.type, isPro);
+            return (
+              <TouchableOpacity key={i} style={[styles.reportCard, { backgroundColor: colors.card, borderColor: colors.border }]} activeOpacity={0.8} onPress={() => handleReport(r)}>
+                {/* Top accent bar */}
+                <View style={{ height: 3, backgroundColor: r.accent, borderTopLeftRadius: 16, borderTopRightRadius: 16 }} />
+                <View style={{ padding: 16 }}>
+                  {/* Header row: icon + name + tag */}
+                  <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 8 }}>
+                    <View style={{ width: 44, height: 44, borderRadius: 12, backgroundColor: r.bg[0], alignItems: 'center', justifyContent: 'center', marginRight: 12 }}>
+                      <Text style={{ fontSize: 22, color: r.accent }}>{r.icon}</Text>
+                    </View>
+                    <View style={{ flex: 1 }}>
+                      <Text style={{ fontFamily: FONTS.serif, fontSize: 16, color: colors.heading }}>{r.name}</Text>
+                      {r.subtitle && <Text style={{ fontSize: 11, color: r.accent, fontFamily: FONTS.sansMedium, marginTop: 1 }}>{r.subtitle}</Text>}
+                    </View>
+                    {r.tag && (
+                      <View style={{ backgroundColor: r.accent + '18', borderRadius: 8, paddingVertical: 3, paddingHorizontal: 8 }}>
+                        <Text style={{ fontSize: 8, fontFamily: FONTS.sansSemiBold, letterSpacing: 0.5, color: r.accent }}>{r.tag.toUpperCase()}</Text>
+                      </View>
+                    )}
+                  </View>
+                  {/* Description */}
+                  <Text style={{ fontSize: 12.5, color: colors.textSecondary, lineHeight: 18, marginBottom: 10 }}>{r.desc}</Text>
+                  {/* Meta row: pages + read time + price */}
+                  <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
+                    <View style={{ flexDirection: 'row', gap: 12 }}>
+                      {r.pages && <Text style={{ fontSize: 10, color: colors.textMuted }}>📖 {r.pages} pages</Text>}
+                      {r.readTime && <Text style={{ fontSize: 10, color: colors.textMuted }}>⏱ {r.readTime} read</Text>}
+                    </View>
+                    <Text style={{ fontFamily: FONTS.sansSemiBold, fontSize: 14, color: accessible ? colors.gold : r.accent }}>
+                      {accessible ? (r.type === 'monthly' ? 'Free' : 'In Pro ✓') : (r.tier === 'premium' ? '$9.99' : 'Pro')}
+                    </Text>
+                  </View>
+                </View>
+              </TouchableOpacity>
+            );
+          })}
         </View>
 
         <View style={{ height: 20 }} />
@@ -1668,6 +2007,7 @@ const styles = StyleSheet.create({
   featuredCta: { borderRadius: 12, paddingVertical: 10, paddingHorizontal: 18, shadowColor: T.gold, shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.3, shadowRadius: 12 },
   featuredCtaText: { fontFamily: FONTS.sansMedium, fontSize: 13, color: T.navy },
   grid: { flexDirection: 'row', flexWrap: 'wrap', gap: 10, paddingHorizontal: 20, marginBottom: 18 },
+  reportCard: { borderRadius: 16, overflow: 'hidden', borderWidth: 1, marginBottom: 12, shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.05, shadowRadius: 8, elevation: 2 },
   rtile: { width: '48%', backgroundColor: 'white', borderRadius: 17, overflow: 'hidden', borderWidth: 1, borderColor: T.border, shadowColor: '#000', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.04, shadowRadius: 6 },
   rtileColor: { height: 74, alignItems: 'center', justifyContent: 'center' },
   rtileBody: { padding: 11, paddingHorizontal: 13, paddingBottom: 13 },

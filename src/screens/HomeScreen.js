@@ -1462,65 +1462,7 @@ export default function HomeScreen({ navigation, route }) {
             </TouchableOpacity>
           )}
 
-          {/* ── YOUR CIRCLE ── */}
-          {partnerProfiles && partnerProfiles.length > 0 && (
-            <TouchableOpacity style={[styles.circleWidget, { backgroundColor: colors.card, borderColor: colors.border }]} activeOpacity={0.7}
-              onPress={() => navigation.navigate('Circle')}>
-              <View style={styles.circleWidgetLeft}>
-                <Text style={[styles.circleWidgetTitle, { color: colors.textSecondary }]}>YOUR CIRCLE</Text>
-                <View style={styles.circleWidgetOrbs}>
-                  {partnerProfiles.slice(0, 5).map((p, i) => {
-                    const role = p.relationshipType || 'other';
-                    const colors = (ROLE_COLORS[role] || ROLE_COLORS.other).bg;
-                    let score = null;
-                    try {
-                      if (p.isZodiacOnly) {
-                        const uSun = userProfile?.chart?.planets?.find(pl => pl.name === 'Sun')?.sign;
-                        score = calculateZodiacOnlyScore(uSun, p.zodiacSign).harmonyScore;
-                      } else if (p.chart && userProfile?.chart) {
-                        score = calculateSynastryScore(userProfile.chart, p.chart, role).harmonyScore;
-                      }
-                    } catch (e) { }
-                    return (
-                      <View key={p.id} style={[styles.circleWidgetOrb, { marginLeft: i > 0 ? -8 : 0 }]}>
-                        <LinearGradient colors={colors} style={styles.circleWidgetOrbInner}>
-                          <Text style={styles.circleWidgetOrbText}>{(p.name || '?')[0].toUpperCase()}</Text>
-                        </LinearGradient>
-                        {score != null && (
-                          <View style={styles.circleWidgetOrbScore}>
-                            <Text style={{ fontSize: 7, color: T.gold, fontFamily: FONTS.sansSemiBold }}>{score}</Text>
-                          </View>
-                        )}
-                      </View>
-                    );
-                  })}
-                  {partnerProfiles.length > 5 && (
-                    <View style={[styles.circleWidgetOrb, { marginLeft: -8 }]}>
-                      <View style={[styles.circleWidgetOrbInner, { backgroundColor: 'rgba(200,168,75,0.1)', borderColor: 'rgba(200,168,75,0.3)' }]}>
-                        <Text style={{ fontSize: 10, color: T.gold }}>+{partnerProfiles.length - 5}</Text>
-                      </View>
-                    </View>
-                  )}
-                </View>
-                <Text style={[styles.circleWidgetSub, { color: colors.textSecondary }]}>
-                  {(() => {
-                    const counts = {};
-                    partnerProfiles.forEach(p => { const r = p.relationshipType || 'other'; counts[r] = (counts[r] || 0) + 1; });
-                    const parts = [];
-                    if (counts.partner) parts.push(`${counts.partner} partner${counts.partner > 1 ? 's' : ''}`);
-                    if (counts.friend) parts.push(`${counts.friend} friend${counts.friend > 1 ? 's' : ''}`);
-                    const fam = (counts.parent || 0) + (counts.sibling || 0) + (counts.child || 0);
-                    if (fam) parts.push(`${fam} family`);
-                    const work = (counts.boss || 0) + (counts.colleague || 0);
-                    if (work) parts.push(`${work} work`);
-                    if (counts.other) parts.push(`${counts.other} other`);
-                    return parts.join(' · ');
-                  })()}
-                </Text>
-              </View>
-              <Text style={{ fontSize: 16, color: colors.textSecondary }}>›</Text>
-            </TouchableOpacity>
-          )}
+          {/* Circle widget removed — redundant with Circle tab */}
 
           {/* ── TIME-ADAPTIVE PROMPTS — each time mode gets a different emotional entry point ── */}
           {activeTab === 'today' && timeMode === 'morning' && (
@@ -1575,30 +1517,7 @@ export default function HomeScreen({ navigation, route }) {
             </View>
           )}
 
-          {/* ── QUICK ACTIONS ── */}
-          <Text style={[styles.sectionLabel, { color: colors.textSecondary }]}>CONTINUE YOUR STORY</Text>
-          <View style={styles.quickRow}>
-            <TouchableOpacity style={[styles.quickCard, { backgroundColor: colors.card, borderColor: colors.border }]} activeOpacity={0.7}
-              onPress={() => navigation.navigate('Chart')}>
-              <Text style={styles.quickIcon}>◎</Text>
-              <Text style={[styles.quickLabel, { color: colors.text }]}>Explore Chart</Text>
-            </TouchableOpacity>
-            <TouchableOpacity style={[styles.quickCard, { backgroundColor: colors.card, borderColor: colors.border }]} activeOpacity={0.7}
-              onPress={() => navigation.navigate('AskAI')}>
-              <Text style={styles.quickIcon}>☽</Text>
-              <Text style={[styles.quickLabel, { color: colors.text }]}>Ask Celestia</Text>
-            </TouchableOpacity>
-            <TouchableOpacity style={[styles.quickCard, { backgroundColor: colors.card, borderColor: colors.border }]} activeOpacity={0.7}
-              onPress={() => navigation.navigate('QuickChart')}>
-              <Text style={styles.quickIcon}>★</Text>
-              <Text style={[styles.quickLabel, { color: colors.text }]}>Quick Chart</Text>
-            </TouchableOpacity>
-            <TouchableOpacity style={[styles.quickCard, { backgroundColor: colors.card, borderColor: colors.border }]} activeOpacity={0.7}
-              onPress={() => navigation.navigate('Circle')}>
-              <Text style={styles.quickIcon}>♡</Text>
-              <Text style={[styles.quickLabel, { color: colors.text }]}>Your Circle</Text>
-            </TouchableOpacity>
-          </View>
+          {/* Quick Actions removed — redundant with tab bar */}
 
           {/* ── PROMO (hidden in latenight comfort mode — no selling when she's vulnerable) ── */}
           {timeMode !== 'latenight' && (

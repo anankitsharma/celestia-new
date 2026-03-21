@@ -1,0 +1,753 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Celestia — My Chart Plan (Her Cosmic Fingerprint)</title>
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,300;0,400;0,500;0,600;0,700;1,400;1,500&family=DM+Sans:ital,wght@0,300;0,400;0,500;0,600;0,700;1,400&display=swap" rel="stylesheet">
+<style>
+:root{--bg:#0F0D1A;--card:#1A1726;--card2:#211E2E;--terra:#C17F59;--gold:#D4A853;--sage:#8B9E7E;--rose:#C4918A;--lav:#9B8EC4;--sky:#7BA7C4;--cream:#F5EDE3;--muted:#6B6880;--border:rgba(255,255,255,0.06);--text:rgba(255,255,255,0.78);--dim:rgba(255,255,255,0.45)}
+*{margin:0;padding:0;box-sizing:border-box}
+body{background:var(--bg);color:var(--cream);font-family:'DM Sans',sans-serif;-webkit-font-smoothing:antialiased;line-height:1.65}
+.wrap{max-width:880px;margin:0 auto;padding:0 24px}
+.topnav{position:sticky;top:0;z-index:100;background:rgba(15,13,26,.92);backdrop-filter:blur(16px);border-bottom:1px solid var(--border);overflow-x:auto}
+.topnav::-webkit-scrollbar{display:none}
+.topnav-inner{display:flex;max-width:880px;margin:0 auto;min-width:max-content}
+.topnav a{padding:11px 14px;font-size:9px;letter-spacing:1.5px;text-transform:uppercase;color:var(--muted);text-decoration:none;white-space:nowrap;border-bottom:2px solid transparent;transition:.3s}
+.topnav a:hover,.topnav a.active{color:var(--lav);border-bottom-color:var(--lav)}
+.hero{text-align:center;padding:52px 20px 36px;position:relative}
+.hero::before{content:'';position:absolute;top:-120px;left:50%;transform:translateX(-50%);width:600px;height:600px;background:radial-gradient(circle,rgba(155,142,196,.08) 0%,transparent 65%);pointer-events:none}
+.htag{font-size:9px;letter-spacing:5px;text-transform:uppercase;color:var(--gold);opacity:.6;margin-bottom:14px}
+.hero h1{font-family:'Playfair Display',serif;font-size:clamp(24px,5vw,40px);font-weight:300;line-height:1.2;margin-bottom:10px}
+.hero h1 b{font-weight:600;color:var(--lav)}
+.hero .sub{font-size:13.5px;color:var(--dim);max-width:580px;margin:0 auto}
+.sec{padding:44px 0 16px}
+.sec-head{display:flex;align-items:center;gap:12px;margin-bottom:24px}
+.sec-num{width:32px;height:32px;border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;color:white;flex-shrink:0}
+.sec-label{font-size:9.5px;letter-spacing:3px;text-transform:uppercase;font-weight:600}
+.sec-line{flex:1;height:1px;opacity:.15}
+.card{background:var(--card);border:1px solid var(--border);border-radius:14px;padding:22px;margin-bottom:12px}
+.card-t{font-size:9px;letter-spacing:2.5px;text-transform:uppercase;font-weight:600;margin-bottom:14px}
+.g2{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.g3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px}
+.mia{display:flex;gap:14px;align-items:flex-start;background:var(--card2);border:1px solid var(--border);border-radius:14px;padding:18px;margin-bottom:12px}
+.mia-ava{width:38px;height:38px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:15px;flex-shrink:0;border:2px solid var(--lav);background:rgba(155,142,196,.08)}
+.mia-txt{flex:1}
+.mia-label{font-size:8px;letter-spacing:2px;font-weight:700;text-transform:uppercase;color:var(--lav);margin-bottom:3px}
+.mia-q{font-family:'Playfair Display',serif;font-style:italic;font-size:13.5px;color:var(--cream);line-height:1.5}
+.mia-ctx{font-size:10px;color:var(--muted);margin-top:3px}
+
+/* Chart wheel sim */
+.chart-wheel-wrap{position:relative;max-width:340px;margin:0 auto 20px}
+.chart-wheel{width:100%;padding-bottom:100%;border-radius:50%;position:relative;background:radial-gradient(circle,rgba(155,142,196,.04) 0%,transparent 70%)}
+.chart-ring{position:absolute;border-radius:50%;border:1px solid rgba(255,255,255,.04)}
+.chart-ring-outer{inset:0}
+.chart-ring-mid{inset:15%}
+.chart-ring-inner{inset:35%}
+.chart-ring-core{inset:42%;background:radial-gradient(circle,rgba(155,142,196,.06) 0%,transparent 100%)}
+/* House lines */
+.house-line{position:absolute;top:50%;left:50%;width:50%;height:1px;background:rgba(255,255,255,.04);transform-origin:left center}
+/* Planet dots */
+.planet-dot{position:absolute;width:36px;height:36px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:15px;cursor:pointer;transition:all .3s;z-index:2}
+.planet-dot:hover{transform:scale(1.3);box-shadow:0 0 20px rgba(155,142,196,.3)}
+.planet-dot .planet-label{position:absolute;bottom:-16px;font-size:8px;color:var(--muted);letter-spacing:.5px;white-space:nowrap;font-weight:600}
+
+/* Planet card - expanded */
+.planet-card{background:var(--card);border:1px solid var(--border);border-radius:14px;overflow:hidden;margin-bottom:10px;transition:all .3s}
+.planet-card-header{padding:16px 18px;display:flex;align-items:center;gap:12px;cursor:pointer}
+.planet-card-icon{width:40px;height:40px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:18px;border:2px solid;flex-shrink:0}
+.planet-card-info{flex:1}
+.planet-card-name{font-size:14px;font-weight:700}
+.planet-card-placement{font-size:11px;color:var(--muted)}
+.planet-card-arrow{font-size:14px;color:var(--muted);transition:.3s}
+.planet-card.open .planet-card-arrow{transform:rotate(180deg)}
+.planet-card-body{padding:0 18px 18px;display:none}
+.planet-card.open .planet-card-body{display:block}
+.planet-card-meaning{font-size:9px;letter-spacing:2px;text-transform:uppercase;font-weight:600;margin-bottom:6px}
+.planet-card-text{font-size:12.5px;color:var(--dim);line-height:1.7}
+.planet-card-highlight{background:rgba(155,142,196,.06);border-left:2px solid var(--lav);padding:10px 14px;border-radius:0 8px 8px 0;margin:10px 0;font-size:12px;line-height:1.6;color:var(--text)}
+.planet-card-ask{display:inline-flex;align-items:center;gap:6px;font-size:11px;color:var(--terra);margin-top:8px;cursor:default;padding:6px 12px;background:rgba(193,127,89,.06);border-radius:8px;border:1px solid rgba(193,127,89,.1)}
+
+/* House card */
+.house-card{background:var(--card);border:1px solid var(--border);border-radius:12px;padding:16px;text-align:center;transition:.3s;cursor:default}
+.house-card:hover{border-color:rgba(155,142,196,.2);background:rgba(155,142,196,.03)}
+.house-num{font-size:10px;font-weight:700;letter-spacing:1px;color:var(--muted);margin-bottom:2px}
+.house-emoji{font-size:22px;margin-bottom:4px}
+.house-name{font-size:12px;font-weight:600;margin-bottom:3px;line-height:1.2}
+.house-sign{font-size:10px;margin-bottom:6px}
+.house-desc{font-size:10px;color:var(--dim);line-height:1.4}
+.house-planets{font-size:9px;color:var(--lav);margin-top:6px;font-weight:600}
+
+/* Aspect card */
+.aspect-card{background:var(--card);border:1px solid var(--border);border-radius:12px;padding:18px;margin-bottom:10px}
+.aspect-header{display:flex;align-items:center;gap:10px;margin-bottom:8px}
+.aspect-type{font-size:8px;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;padding:3px 10px;border-radius:5px}
+.aspect-planets{font-size:13px;font-weight:600}
+.aspect-title{font-family:'Playfair Display',serif;font-size:15px;color:var(--cream);margin-bottom:6px}
+.aspect-body{font-size:12px;color:var(--dim);line-height:1.7}
+
+/* Sub-tab navigation */
+.subtabs{display:flex;gap:0;margin-bottom:20px;border-radius:10px;overflow:hidden;border:1px solid var(--border)}
+.subtab{flex:1;padding:12px 10px;text-align:center;font-size:10px;font-weight:600;letter-spacing:1px;text-transform:uppercase;color:var(--muted);background:var(--card);cursor:pointer;border-right:1px solid var(--border);transition:.3s}
+.subtab:last-child{border-right:none}
+.subtab.active{background:rgba(155,142,196,.1);color:var(--lav)}
+.subtab:hover{color:var(--cream)}
+
+/* Depth toggle */
+.depth-toggle{display:flex;gap:0;border-radius:8px;overflow:hidden;margin-bottom:14px;border:1px solid var(--border)}
+.depth-opt{flex:1;padding:8px;text-align:center;font-size:9px;font-weight:600;letter-spacing:1px;text-transform:uppercase;cursor:default;transition:.3s}
+
+.footer{text-align:center;padding:28px;border-top:1px solid var(--border)}
+.footer p{font-size:12px;color:var(--muted);font-style:italic}
+.footer .brand{font-size:9px;letter-spacing:4px;color:var(--gold);opacity:.4;margin-top:8px;text-transform:uppercase}
+@media(max-width:700px){.g2,.g3{grid-template-columns:1fr}.chart-wheel-wrap{max-width:280px}.subtabs{flex-wrap:wrap}.mia{flex-direction:column;text-align:center;align-items:center}}
+</style>
+</head>
+<body>
+
+<nav class="topnav"><div class="topnav-inner">
+  <a href="#philosophy">Philosophy</a>
+  <a href="#wheel">Chart Wheel</a>
+  <a href="#planets">My Planets</a>
+  <a href="#houses">My Houses</a>
+  <a href="#aspects">My Patterns</a>
+  <a href="#depth">Depth Levels</a>
+  <a href="#share">Sharing</a>
+  <a href="#rules">Rules</a>
+</div></nav>
+
+<div class="wrap">
+
+<section class="hero">
+  <div class="htag">✦ Celestia — Deep Product Plan: My Chart ✦</div>
+  <h1>Her <b>Cosmic Fingerprint</b></h1>
+  <p class="sub">Not a data dump. Not a NASA dashboard. An interactive, tappable story about who she is — where every planet is a chapter, every house is a room in her life, and every aspect is a pattern she'll recognize immediately.</p>
+</section>
+
+<!-- ═══════ 01 PHILOSOPHY ═══════ -->
+<section class="sec" id="philosophy">
+  <div class="sec-head">
+    <div class="sec-num" style="background:var(--lav)">01</div>
+    <span class="sec-label" style="color:var(--lav)">The Design Philosophy — A Story, Not a Spreadsheet</span>
+    <div class="sec-line" style="background:var(--lav)"></div>
+  </div>
+
+  <div class="mia">
+    <div class="mia-ava">😵‍💫</div>
+    <div class="mia-txt">
+      <div class="mia-label">What Mia sees on every other astrology app</div>
+      <div class="mia-q">"I open my chart and it's a circle with a bunch of lines and symbols I don't understand. It looks like a math diagram. I close the app. I never look at it again."</div>
+      <div class="mia-ctx">THIS is why 90% of users never engage with their chart beyond the initial "oh cool." We fix this.</div>
+    </div>
+  </div>
+
+  <div class="mia" style="border-color:rgba(139,158,126,.15)">
+    <div class="mia-ava" style="border-color:var(--sage)">🤩</div>
+    <div class="mia-txt">
+      <div class="mia-label" style="color:var(--sage)">What Mia sees on Celestia</div>
+      <div class="mia-q">"I open my chart and it's BEAUTIFUL. I tap on Venus and it tells me why I love the way I love. I tap on the 7th House and it explains why relationships consume my energy. Every tap reveals something new about myself. I've spent 45 minutes just exploring. I've screenshotted 6 things."</div>
+      <div class="mia-ctx">The chart is an EXPLORATION experience. She discovers herself one tap at a time.</div>
+    </div>
+  </div>
+
+  <div class="card" style="border-top:3px solid var(--lav)">
+    <div class="card-t" style="color:var(--lav)">Three Layers of the Chart Experience</div>
+    <div class="g3">
+      <div style="text-align:center;padding:16px;background:rgba(155,142,196,.05);border-radius:12px">
+        <p style="font-size:28px;margin-bottom:6px">🎨</p>
+        <p style="font-size:14px;font-weight:700;margin-bottom:4px">Layer 1: Beautiful</p>
+        <p style="font-size:11px;color:var(--dim);line-height:1.5">The chart wheel is visually stunning. Desert Dawn colors. Screenshottable. She posts it to Stories before she even reads a word. The beauty IS the first hook.</p>
+      </div>
+      <div style="text-align:center;padding:16px;background:rgba(155,142,196,.05);border-radius:12px">
+        <p style="font-size:28px;margin-bottom:6px">👆</p>
+        <p style="font-size:14px;font-weight:700;margin-bottom:4px">Layer 2: Tappable</p>
+        <p style="font-size:11px;color:var(--dim);line-height:1.5">Every planet, house, and aspect is interactive. Tap = a warm, personal paragraph about HER. No jargon. No prerequisites. She learns astrology by exploring herself.</p>
+      </div>
+      <div style="text-align:center;padding:16px;background:rgba(155,142,196,.05);border-radius:12px">
+        <p style="font-size:28px;margin-bottom:6px">🔬</p>
+        <p style="font-size:14px;font-weight:700;margin-bottom:4px">Layer 3: Deep (Optional)</p>
+        <p style="font-size:11px;color:var(--dim);line-height:1.5">For the 10% who want technical details — degrees, exact aspects, house systems — it's there behind a "Show details" toggle. Hidden by default. Available for nerds.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ═══════ 02 CHART WHEEL ═══════ -->
+<section class="sec" id="wheel">
+  <div class="sec-head">
+    <div class="sec-num" style="background:var(--terra)">02</div>
+    <span class="sec-label" style="color:var(--terra)">The Chart Wheel — What She Sees First</span>
+    <div class="sec-line" style="background:var(--terra)"></div>
+  </div>
+
+  <div class="card">
+    <div class="card-t" style="color:var(--terra)">The Visual Chart — Beautiful First, Informative Second</div>
+
+    <!-- Simulated chart wheel -->
+    <div class="chart-wheel-wrap">
+      <div class="chart-wheel">
+        <div class="chart-ring chart-ring-outer" style="border-color:rgba(155,142,196,.08)"></div>
+        <div class="chart-ring chart-ring-mid" style="border-color:rgba(155,142,196,.06)"></div>
+        <div class="chart-ring chart-ring-inner" style="border-color:rgba(155,142,196,.04)"></div>
+        <div class="chart-ring chart-ring-core"></div>
+
+        <!-- House lines (12 lines at 30° intervals) -->
+        <div class="house-line" style="transform:rotate(0deg)"></div>
+        <div class="house-line" style="transform:rotate(30deg)"></div>
+        <div class="house-line" style="transform:rotate(60deg)"></div>
+        <div class="house-line" style="transform:rotate(90deg)"></div>
+        <div class="house-line" style="transform:rotate(120deg)"></div>
+        <div class="house-line" style="transform:rotate(150deg)"></div>
+        <div class="house-line" style="transform:rotate(180deg)"></div>
+        <div class="house-line" style="transform:rotate(210deg)"></div>
+        <div class="house-line" style="transform:rotate(240deg)"></div>
+        <div class="house-line" style="transform:rotate(270deg)"></div>
+        <div class="house-line" style="transform:rotate(300deg)"></div>
+        <div class="house-line" style="transform:rotate(330deg)"></div>
+
+        <!-- Planet dots positioned around the wheel -->
+        <div class="planet-dot" style="top:8%;left:55%;background:rgba(212,168,83,.15);border:2px solid var(--gold)">☉<span class="planet-label">Sun</span></div>
+        <div class="planet-dot" style="top:25%;left:82%;background:rgba(155,142,196,.15);border:2px solid var(--lav)">☽<span class="planet-label">Moon</span></div>
+        <div class="planet-dot" style="top:55%;left:88%;background:rgba(196,145,138,.15);border:2px solid var(--rose)">♀<span class="planet-label">Venus</span></div>
+        <div class="planet-dot" style="top:75%;left:68%;background:rgba(193,127,89,.15);border:2px solid var(--terra)">♂<span class="planet-label">Mars</span></div>
+        <div class="planet-dot" style="top:82%;left:35%;background:rgba(139,158,126,.15);border:2px solid var(--sage)">☿<span class="planet-label">Mercury</span></div>
+        <div class="planet-dot" style="top:60%;left:8%;background:rgba(123,167,196,.15);border:2px solid var(--sky)">♃<span class="planet-label">Jupiter</span></div>
+        <div class="planet-dot" style="top:30%;left:5%;background:rgba(107,104,128,.15);border:2px solid var(--muted)">♄<span class="planet-label">Saturn</span></div>
+
+        <!-- Center label -->
+        <div style="position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);text-align:center">
+          <div style="font-family:'Playfair Display',serif;font-size:14px;color:var(--cream)">Mia</div>
+          <div style="font-size:8px;color:var(--muted);letter-spacing:1px">SEP 14, 1999</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="g2">
+      <div style="font-size:12px;color:var(--dim);line-height:1.8">
+        <b style="color:var(--cream)">What she sees:</b><br>
+        → Beautiful circular chart with <b style="color:var(--cream)">glowing planet dots</b><br>
+        → Her name in the center. This is HERS.<br>
+        → Desert Dawn colors — warm terracotta, sage, lavender<br>
+        → Soft animated glow on each planet<br>
+        → House divisions as subtle lines (not overwhelming)<br>
+        → The whole thing fits on one phone screen<br>
+        → <b style="color:var(--cream)">Screenshottable</b> without any extra work
+      </div>
+      <div style="font-size:12px;color:var(--dim);line-height:1.8">
+        <b style="color:var(--cream)">What happens when she taps:</b><br>
+        → Tap any planet dot → <b style="color:var(--cream)">card expands below</b> with warm text<br>
+        → Tap a house section → explanation of that life area<br>
+        → Tap the center → shows her Big 3 summary<br>
+        → <b style="color:var(--cream)">Long press</b> any planet → shows the line connections (aspects) to other planets<br>
+        → Pinch to zoom → see more detail<br>
+        → The chart is NOT a static image — it's a living, interactive map
+      </div>
+    </div>
+
+    <p style="font-size:11px;color:var(--lav);font-style:italic;margin-top:12px">The chart wheel should feel like looking at a beautiful piece of art that happens to be about you. Not like opening a technical manual. If she screenshots it and posts it with no caption and her friends say "that's so pretty" — we've won.</p>
+  </div>
+</section>
+
+<!-- ═══════ 03 MY PLANETS ═══════ -->
+<section class="sec" id="planets">
+  <div class="sec-head">
+    <div class="sec-num" style="background:var(--gold)">03</div>
+    <span class="sec-label" style="color:var(--gold)">My Planets — The Characters in Her Story</span>
+    <div class="sec-line" style="background:var(--gold)"></div>
+  </div>
+
+  <p style="font-size:12px;color:var(--dim);margin-bottom:6px">Each planet represents a part of who she is. Not "planetary bodies" — think of them as characters. The Sun is her identity. The Moon is her emotional core. Venus is how she loves. Mars is what drives her. When she taps a planet, she meets a part of herself she already knew but couldn't name.</p>
+
+  <div class="subtabs">
+    <div class="subtab active">☉ Sun</div>
+    <div class="subtab">☽ Moon</div>
+    <div class="subtab">↑ Rising</div>
+    <div class="subtab">☿ Mercury</div>
+    <div class="subtab">♀ Venus</div>
+    <div class="subtab">♂ Mars</div>
+    <div class="subtab">More ↓</div>
+  </div>
+
+  <p style="font-size:10px;color:var(--muted);margin-bottom:14px;font-style:italic">Below: what she sees when she taps each planet. Cards expand/collapse. Open = warm personal text. Always starts with the Big 3 (Sun/Moon/Rising) expanded.</p>
+
+  <!-- Planet cards with sample content -->
+  <div class="planet-card open">
+    <div class="planet-card-header">
+      <div class="planet-card-icon" style="border-color:var(--gold);background:rgba(212,168,83,.08)">☉</div>
+      <div class="planet-card-info">
+        <div class="planet-card-name">Your Sun — <span style="color:var(--gold)">Virgo</span></div>
+        <div class="planet-card-placement">6th House · Your core identity</div>
+      </div>
+      <div class="planet-card-arrow">▼</div>
+    </div>
+    <div class="planet-card-body">
+      <div class="planet-card-meaning" style="color:var(--gold)">Who You Are at Your Core</div>
+      <div class="planet-card-text">You're the person who notices what everyone else misses. The detail no one caught. The thing that's slightly off. Your brain is a sorting machine — constantly organizing, analyzing, improving. This makes you incredibly good at your job, an amazing friend (you remember everything), and absolutely exhausting to live inside of sometimes.</div>
+      <div class="planet-card-highlight">
+        <b style="color:var(--gold)">The Virgo pattern:</b> You hold yourself to a standard that would break most people. And when you inevitably fall short of that impossible standard, you don't give yourself grace — you give yourself a lecture. Your biggest growth edge: learning that "good enough" isn't failure.
+      </div>
+      <div class="planet-card-text" style="margin-top:8px">In the 6th house, your identity is tied to being useful. You feel most like yourself when you're helping, organizing, or solving someone's problem. The shadow side: you sometimes forget that you deserve help too.</div>
+      <div class="planet-card-ask">💬 Ask Celestia more about your Sun →</div>
+    </div>
+  </div>
+
+  <div class="planet-card open">
+    <div class="planet-card-header">
+      <div class="planet-card-icon" style="border-color:var(--lav);background:rgba(155,142,196,.08)">☽</div>
+      <div class="planet-card-info">
+        <div class="planet-card-name">Your Moon — <span style="color:var(--lav)">Scorpio</span></div>
+        <div class="planet-card-placement">4th House · Your emotional world</div>
+      </div>
+      <div class="planet-card-arrow">▼</div>
+    </div>
+    <div class="planet-card-body">
+      <div class="planet-card-meaning" style="color:var(--lav)">How You Feel — The Depth You Carry</div>
+      <div class="planet-card-text">You feel everything at a 10. Even when you act like it's a 3. Your emotional world isn't a pond — it's an ocean with undertows. When you love someone, it's with your entire chest. When someone hurts you, it doesn't scratch the surface — it goes straight to the bone.</div>
+      <div class="planet-card-highlight">
+        <b style="color:var(--lav)">The Scorpio Moon pattern:</b> You test people before you trust them. Not consciously — your emotional radar just does it automatically. You'll push, pull back, create a small crisis — and watch how they respond. If they stay? You let them in. If they flinch? The walls go back up. You've been doing this your whole life.
+      </div>
+      <div class="planet-card-text" style="margin-top:8px">In the 4th house, your home is your emotional decompression chamber. You NEED alone time at home the way other people need social time. Without it, everything gets louder inside. Your apartment isn't just where you sleep — it's where you process your entire life.</div>
+      <div class="planet-card-ask">💬 Ask Celestia more about your Moon →</div>
+    </div>
+  </div>
+
+  <div class="planet-card">
+    <div class="planet-card-header">
+      <div class="planet-card-icon" style="border-color:var(--rose);background:rgba(196,145,138,.08)">♀</div>
+      <div class="planet-card-info">
+        <div class="planet-card-name">Your Venus — <span style="color:var(--rose)">Virgo</span></div>
+        <div class="planet-card-placement">7th House · How you love</div>
+      </div>
+      <div class="planet-card-arrow">▶</div>
+    </div>
+  </div>
+
+  <div class="planet-card">
+    <div class="planet-card-header">
+      <div class="planet-card-icon" style="border-color:var(--terra);background:rgba(193,127,89,.08)">♂</div>
+      <div class="planet-card-info">
+        <div class="planet-card-name">Your Mars — <span style="color:var(--terra)">Cancer</span></div>
+        <div class="planet-card-placement">12th House · What drives you</div>
+      </div>
+      <div class="planet-card-arrow">▶</div>
+    </div>
+  </div>
+
+  <div class="planet-card">
+    <div class="planet-card-header">
+      <div class="planet-card-icon" style="border-color:var(--sage);background:rgba(139,158,126,.08)">☿</div>
+      <div class="planet-card-info">
+        <div class="planet-card-name">Your Mercury — <span style="color:var(--sage)">Libra</span></div>
+        <div class="planet-card-placement">7th House · How you think & talk</div>
+      </div>
+      <div class="planet-card-arrow">▶</div>
+    </div>
+  </div>
+
+  <div class="card" style="margin-top:14px">
+    <div class="card-t" style="color:var(--terra)">Planet Card Design Rules</div>
+    <div class="g2">
+      <div style="font-size:12px;color:var(--dim);line-height:1.8">
+        <b style="color:var(--cream)">Every planet card has:</b><br>
+        → Color-coded icon matching the planet's energy<br>
+        → <b style="color:var(--cream)">Name she recognizes</b> ("Your Venus — How You Love" not "♀ in ♍")<br>
+        → Sign + House in one line<br>
+        → Tap to expand: warm personal text (150-250 words)<br>
+        → One <b style="color:var(--cream)">highlight box</b> with the key pattern<br>
+        → "Ask Celestia more →" button opens chat with context pre-filled<br>
+        → The Big 3 (Sun/Moon/Rising) start EXPANDED by default
+      </div>
+      <div style="font-size:12px;color:var(--dim);line-height:1.8">
+        <b style="color:var(--cream)">The 10 planets shown (in order):</b><br>
+        1. ☉ <b style="color:var(--gold)">Sun</b> — Who you are at your core<br>
+        2. ☽ <b style="color:var(--lav)">Moon</b> — Your emotional world<br>
+        3. ↑ <b style="color:var(--terra)">Rising</b> — How others see you<br>
+        4. ☿ <b style="color:var(--sage)">Mercury</b> — How you think & communicate<br>
+        5. ♀ <b style="color:var(--rose)">Venus</b> — How you love<br>
+        6. ♂ <b style="color:var(--terra)">Mars</b> — What drives you & how you fight<br>
+        7. ♃ <b style="color:var(--sky)">Jupiter</b> — Where you expand & get lucky<br>
+        8. ♄ <b style="color:var(--muted)">Saturn</b> — Where you're tested & grow<br>
+        9. ☊ <b style="color:var(--gold)">North Node</b> — Where you're headed in life<br>
+        10. ♇ <b style="color:var(--lav)">Pluto</b> — Your deepest transformation
+      </div>
+    </div>
+    <p style="font-size:11px;color:var(--muted);font-style:italic;margin-top:10px">Uranus and Neptune are included but collapsed in a "More" section — their effects are generational and less personally impactful. Don't overwhelm with 12 planet cards on first load. Show 6, let her discover more.</p>
+  </div>
+
+  <div class="mia">
+    <div class="mia-ava">🤯</div>
+    <div class="mia-txt">
+      <div class="mia-label">Mia tapping through her planets at 11pm</div>
+      <div class="mia-q">"I just spent 40 minutes tapping through every planet. The Mars one explained why I avoid confrontation until I explode. The Saturn one told me why I feel like I have to earn everything. I didn't plan to spend this long in the app. I couldn't stop."</div>
+      <div class="mia-ctx">THIS is the engagement loop. Every tap = a new "how does it KNOW" moment. She'll spend 30-45 min on first exploration.</div>
+    </div>
+  </div>
+</section>
+
+<!-- ═══════ 04 MY HOUSES ═══════ -->
+<section class="sec" id="houses">
+  <div class="sec-head">
+    <div class="sec-num" style="background:var(--sage)">04</div>
+    <span class="sec-label" style="color:var(--sage)">My Houses — 12 Rooms of Her Life</span>
+    <div class="sec-line" style="background:var(--sage)"></div>
+  </div>
+
+  <p style="font-size:12px;color:var(--dim);margin-bottom:16px">Houses are confusing in astrology. We make them simple: each house is a ROOM in Mia's life. The 1st house is her front door (how she presents herself). The 7th house is the relationship room. The 10th house is the career room. She taps a room, she learns what's going on in that area of her life.</p>
+
+  <div class="g3">
+    <div class="house-card" style="border-top:2px solid var(--terra)">
+      <div class="house-num">1ST HOUSE</div>
+      <div class="house-emoji">🪞</div>
+      <div class="house-name">Your Front Door</div>
+      <div class="house-sign" style="color:var(--terra)">Leo ♌</div>
+      <div class="house-desc">How you walk into a room. First impressions. The mask you wear.</div>
+      <div class="house-planets">Your Rising lives here</div>
+    </div>
+    <div class="house-card">
+      <div class="house-num">2ND HOUSE</div>
+      <div class="house-emoji">💰</div>
+      <div class="house-name">Your Wallet</div>
+      <div class="house-sign" style="color:var(--gold)">Virgo ♍</div>
+      <div class="house-desc">Money, possessions, self-worth. What you value — literally.</div>
+    </div>
+    <div class="house-card">
+      <div class="house-num">3RD HOUSE</div>
+      <div class="house-emoji">💬</div>
+      <div class="house-name">Your Voice</div>
+      <div class="house-sign" style="color:var(--sage)">Libra ♎</div>
+      <div class="house-desc">Communication, siblings, daily thoughts. How your brain works on autopilot.</div>
+    </div>
+    <div class="house-card" style="border-top:2px solid var(--lav)">
+      <div class="house-num">4TH HOUSE</div>
+      <div class="house-emoji">🏠</div>
+      <div class="house-name">Your Roots</div>
+      <div class="house-sign" style="color:var(--lav)">Scorpio ♏</div>
+      <div class="house-desc">Home, family, childhood. Where you go to recharge. Your emotional foundation.</div>
+      <div class="house-planets">☽ Moon lives here</div>
+    </div>
+    <div class="house-card">
+      <div class="house-num">5TH HOUSE</div>
+      <div class="house-emoji">🎨</div>
+      <div class="house-name">Your Playground</div>
+      <div class="house-sign" style="color:var(--terra)">Sagittarius ♐</div>
+      <div class="house-desc">Fun, creativity, romance, dating. Where you express joy (or don't).</div>
+    </div>
+    <div class="house-card">
+      <div class="house-num">6TH HOUSE</div>
+      <div class="house-emoji">⚙️</div>
+      <div class="house-name">Your Daily Grind</div>
+      <div class="house-sign" style="color:var(--gold)">Capricorn ♑</div>
+      <div class="house-desc">Work, health, routines. Your relationship with productivity and self-care.</div>
+      <div class="house-planets">☉ Sun lives here</div>
+    </div>
+    <div class="house-card" style="border-top:2px solid var(--rose)">
+      <div class="house-num">7TH HOUSE</div>
+      <div class="house-emoji">💕</div>
+      <div class="house-name">Your Mirror</div>
+      <div class="house-sign" style="color:var(--rose)">Aquarius ♒</div>
+      <div class="house-desc">Partnerships, committed relationships. Who you're drawn to and why.</div>
+      <div class="house-planets">♀ Venus + ☿ Mercury live here</div>
+    </div>
+    <div class="house-card">
+      <div class="house-num">8TH HOUSE</div>
+      <div class="house-emoji">🔮</div>
+      <div class="house-name">Your Depths</div>
+      <div class="house-sign" style="color:var(--lav)">Pisces ♓</div>
+      <div class="house-desc">Intimacy, transformation, shared resources. The things you don't talk about at brunch.</div>
+    </div>
+    <div class="house-card">
+      <div class="house-num">9TH HOUSE</div>
+      <div class="house-emoji">✈️</div>
+      <div class="house-name">Your Horizon</div>
+      <div class="house-sign" style="color:var(--terra)">Aries ♈</div>
+      <div class="house-desc">Travel, philosophy, beliefs. The big questions. What you're searching for.</div>
+    </div>
+    <div class="house-card" style="border-top:2px solid var(--gold)">
+      <div class="house-num">10TH HOUSE</div>
+      <div class="house-emoji">🏆</div>
+      <div class="house-name">Your Legacy</div>
+      <div class="house-sign" style="color:var(--gold)">Taurus ♉</div>
+      <div class="house-desc">Career, public image, ambition. What you want to be known for.</div>
+    </div>
+    <div class="house-card">
+      <div class="house-num">11TH HOUSE</div>
+      <div class="house-emoji">👥</div>
+      <div class="house-name">Your Tribe</div>
+      <div class="house-sign" style="color:var(--sage)">Gemini ♊</div>
+      <div class="house-desc">Friends, community, hopes. Where you fit in the bigger picture.</div>
+    </div>
+    <div class="house-card">
+      <div class="house-num">12TH HOUSE</div>
+      <div class="house-emoji">🌊</div>
+      <div class="house-name">Your Blind Spot</div>
+      <div class="house-sign" style="color:var(--sky)">Cancer ♋</div>
+      <div class="house-desc">The unconscious, hidden patterns, dreams. What you can't see about yourself.</div>
+      <div class="house-planets">♂ Mars lives here</div>
+    </div>
+  </div>
+
+  <div class="card" style="margin-top:12px">
+    <div class="card-t" style="color:var(--sage)">House Card Design Rules</div>
+    <div class="g2">
+      <div style="font-size:12px;color:var(--dim);line-height:1.8">
+        <b style="color:var(--cream)">Each house card shows:</b><br>
+        → House number (subtle, not prominent)<br>
+        → <b style="color:var(--cream)">Friendly name</b> ("Your Mirror" not "7th House")<br>
+        → Emoji representing the life area<br>
+        → Sign on the cusp ("Aquarius ♒")<br>
+        → One-line description of the life area<br>
+        → Planets in this house (if any) — highlighted<br>
+        → Houses WITH planets get <b style="color:var(--cream)">colored top border</b> — they're the active rooms
+      </div>
+      <div style="font-size:12px;color:var(--dim);line-height:1.8">
+        <b style="color:var(--cream)">When she taps a house:</b><br>
+        → Expands to a full card with 2-3 paragraphs<br>
+        → Explains what this area means in HER life<br>
+        → If planets live here: "Venus in your 7th house means relationships are where you pour ALL your energy. This house is busy for you."<br>
+        → If empty: "No planets here means this area of life runs on autopilot — it's not where the drama is. Look to the sign on the cusp for the vibe."<br>
+        → <b style="color:var(--cream)">"Ask Celestia about this house →"</b> button
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ═══════ 05 MY ASPECTS (PATTERNS) ═══════ -->
+<section class="sec" id="aspects">
+  <div class="sec-head">
+    <div class="sec-num" style="background:var(--rose)">05</div>
+    <span class="sec-label" style="color:var(--rose)">My Patterns — The "Why You Do That Thing" Section</span>
+    <div class="sec-line" style="background:var(--rose)"></div>
+  </div>
+
+  <p style="font-size:12px;color:var(--dim);margin-bottom:16px">Aspects are the most powerful — and most confusing — part of astrology. We DON'T call them "aspects." We call them <b style="color:var(--cream)">"Patterns."</b> Because that's what they are: the recurring themes in her life that she can't explain. We also DON'T use geometry language ("trine," "square"). We use human language ("flow," "tension," "power").</p>
+
+  <div class="card">
+    <div class="card-t" style="color:var(--rose)">We Rename Everything — No Jargon, Just Life</div>
+    <div class="g2">
+      <div style="font-size:12px;color:var(--dim);line-height:2">
+        <b style="color:var(--cream)">Astro jargon → Celestia language:</b><br>
+        Trine → <b style="color:var(--sage)">Flow</b> (these parts of you work together easily)<br>
+        Sextile → <b style="color:var(--sage)">Boost</b> (natural talent, slight effort unlocks it)<br>
+        Conjunction → <b style="color:var(--gold)">Fusion</b> (these energies are merged — amplified)<br>
+        Square → <b style="color:var(--rose)">Tension</b> (these parts of you fight each other)<br>
+        Opposition → <b style="color:var(--terra)">Tug of War</b> (pull between two extremes)
+      </div>
+      <div style="font-size:12px;color:var(--dim);line-height:2">
+        <b style="color:var(--cream)">Color coding:</b><br>
+        <span style="color:var(--sage)">🟢 Green</span> — Flow / Boost (easy, natural)<br>
+        <span style="color:var(--gold)">🟡 Gold</span> — Fusion (powerful, amplified)<br>
+        <span style="color:var(--rose)">🔴 Rose</span> — Tension (challenging, growth-edge)<br>
+        <span style="color:var(--terra)">🟠 Terra</span> — Tug of War (polarizing, dynamic)<br><br>
+        <span style="font-style:italic;font-size:11px">She never needs to learn what a "square" is. She just sees "Tension: Venus ↔ Neptune" and reads why she idealizes partners.</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- Sample aspect cards -->
+  <div class="aspect-card" style="border-left:3px solid var(--rose)">
+    <div class="aspect-header">
+      <div class="aspect-type" style="color:var(--rose);background:rgba(196,145,138,.1)">Tension</div>
+      <div class="aspect-planets">Venus ↔ Neptune</div>
+    </div>
+    <div class="aspect-title">Why You Fall in Love With Potential, Not Reality</div>
+    <div class="aspect-body">This is probably the pattern that's cost you the most heartbreak. Your Venus (how you love) is locked in a tension with Neptune (the planet of illusion and idealization). What this means in practice: you don't fall for who someone IS. You fall for who they COULD be. You see the best possible version of someone and then love THAT person — while the real person standing in front of you is waving red flags you genuinely cannot see. This isn't naivety. It's a wiring in your chart. The good news: now that you can name it, you can start catching it in real time.</div>
+  </div>
+
+  <div class="aspect-card" style="border-left:3px solid var(--sage)">
+    <div class="aspect-header">
+      <div class="aspect-type" style="color:var(--sage);background:rgba(139,158,126,.1)">Flow</div>
+      <div class="aspect-planets">Sun ↔ Jupiter</div>
+    </div>
+    <div class="aspect-title">The Quiet Confidence That Saves You Every Time</div>
+    <div class="aspect-body">Even when everything feels like it's falling apart, there's a part of you that quietly believes it'll work out. That's your Sun flowing with Jupiter — the planet of expansion and luck. This aspect gives you a resilience that other people genuinely envy. You bounce back. Not quickly, not dramatically, but inevitably. People call it "positivity" but it's deeper than that — it's a bone-deep trust that the story isn't over yet.</div>
+  </div>
+
+  <div class="aspect-card" style="border-left:3px solid var(--terra)">
+    <div class="aspect-header">
+      <div class="aspect-type" style="color:var(--terra);background:rgba(193,127,89,.1)">Tug of War</div>
+      <div class="aspect-planets">Moon ↔ Mars</div>
+    </div>
+    <div class="aspect-title">The Battle Between Feeling and Doing</div>
+    <div class="aspect-body">You feel things deeply (Scorpio Moon), but when it comes to acting on those feelings, something blocks you (Mars in the 12th house). The result: you swallow your anger until it leaks out sideways — passive-aggressive comments, silent treatment, or eventually an explosion that seems "out of nowhere" to everyone else but has actually been building for weeks. This opposition is asking you to learn that anger isn't dangerous. It's information.</div>
+  </div>
+
+  <div class="mia">
+    <div class="mia-ava">😭</div>
+    <div class="mia-txt">
+      <div class="mia-label">Mia reading the Venus-Neptune pattern</div>
+      <div class="mia-q">"The 'Why You Fall in Love With Potential' section literally described my last three relationships. I'm sitting here in bed reading this and I feel like someone opened my brain and wrote down what they saw. I just screenshotted this and sent it to my therapist."</div>
+      <div class="mia-ctx">The Patterns section is the most emotionally powerful part of the chart. She'll re-read these for months.</div>
+    </div>
+  </div>
+</section>
+
+<!-- ═══════ 06 DEPTH LEVELS ═══════ -->
+<section class="sec" id="depth">
+  <div class="sec-head">
+    <div class="sec-num" style="background:var(--sky)">06</div>
+    <span class="sec-label" style="color:var(--sky)">Depth Levels — One Chart, Two Audiences</span>
+    <div class="sec-line" style="background:var(--sky)"></div>
+  </div>
+
+  <div class="card">
+    <div class="card-t" style="color:var(--sky)">The Toggle: "Simple" vs "Detailed"</div>
+    <p style="font-size:12.5px;color:var(--dim);line-height:1.7;margin-bottom:14px">Mia is the default user. She sees warm, personal language with zero jargon. But her friend who's been studying astrology for 3 years wants to see degrees, exact orbs, and house system options. Both are served by ONE chart with a depth toggle.</p>
+
+    <div class="depth-toggle">
+      <div class="depth-opt" style="background:rgba(155,142,196,.15);color:var(--lav)">✦ Simple — Default</div>
+      <div class="depth-opt" style="background:var(--card);color:var(--muted)">⚙️ Detailed — For Nerds</div>
+    </div>
+
+    <div class="g2">
+      <div style="padding:16px;background:rgba(155,142,196,.04);border-radius:12px;border:1px solid rgba(155,142,196,.1)">
+        <p style="font-size:11px;font-weight:700;color:var(--lav);letter-spacing:1px;text-transform:uppercase;margin-bottom:8px">✦ Simple Mode (Default for Mia)</p>
+        <div style="font-size:12px;color:var(--dim);line-height:1.8">
+          → <b style="color:var(--cream)">Planet names in English</b> ("Your Venus" not "♀")<br>
+          → <b style="color:var(--cream)">Signs written out</b> ("Scorpio" not "♏")<br>
+          → <b style="color:var(--cream)">Houses as rooms</b> ("Your Mirror" not "7th House")<br>
+          → <b style="color:var(--cream)">Aspects as patterns</b> ("Tension" not "Square")<br>
+          → <b style="color:var(--cream)">No degrees, no orbs</b>, no technical notation<br>
+          → <b style="color:var(--cream)">Warm personal text</b> for everything<br>
+          → She never needs to know what "14° Virgo" means
+        </div>
+      </div>
+      <div style="padding:16px;background:rgba(255,255,255,.02);border-radius:12px;border:1px solid var(--border)">
+        <p style="font-size:11px;font-weight:700;color:var(--muted);letter-spacing:1px;text-transform:uppercase;margin-bottom:8px">⚙️ Detailed Mode (For astro-nerds)</p>
+        <div style="font-size:12px;color:var(--dim);line-height:1.8">
+          → <b style="color:var(--cream)">Exact degrees</b> ("Venus at 14°32' Virgo")<br>
+          → <b style="color:var(--cream)">Aspect orbs</b> ("Venus square Neptune, orb 2°14'")<br>
+          → <b style="color:var(--cream)">Traditional aspect names</b> shown alongside Celestia names<br>
+          → <b style="color:var(--cream)">House system selector</b> (Placidus, Whole Sign, Porphyry)<br>
+          → <b style="color:var(--cream)">Full aspect table</b> grid<br>
+          → <b style="color:var(--cream)">Planetary dignities</b> (domicile, detriment, exaltation, fall)<br>
+          → Same warm text PLUS technical addendum
+        </div>
+      </div>
+    </div>
+    <p style="font-size:11px;color:var(--muted);font-style:italic;margin-top:10px">The default is ALWAYS Simple. The toggle is tucked in a corner — visible but not prominent. 90% of users never touch it. 10% love that it exists. Both feel served.</p>
+  </div>
+</section>
+
+<!-- ═══════ 07 SHARING ═══════ -->
+<section class="sec" id="share">
+  <div class="sec-head">
+    <div class="sec-num" style="background:var(--sage)">07</div>
+    <span class="sec-label" style="color:var(--sage)">Sharing — Her Chart as Social Currency</span>
+    <div class="sec-line" style="background:var(--sage)"></div>
+  </div>
+
+  <div class="card" style="border-top:3px solid var(--sage)">
+    <div class="card-t" style="color:var(--sage)">4 Ways She Shares Her Chart</div>
+    <div class="g2">
+      <div style="padding:16px;background:rgba(139,158,126,.04);border-radius:12px;border:1px solid rgba(139,158,126,.1)">
+        <p style="font-size:14px;font-weight:700;margin-bottom:6px">📸 Screenshot the Wheel</p>
+        <p style="font-size:12px;color:var(--dim);line-height:1.6">The chart wheel is designed to look beautiful as a screenshot. She posts it to IG Stories with "my chart is insane 😭." No editing needed. Celestia branding is subtly visible = free billboard every time someone shares.</p>
+      </div>
+      <div style="padding:16px;background:rgba(139,158,126,.04);border-radius:12px;border:1px solid rgba(139,158,126,.1)">
+        <p style="font-size:14px;font-weight:700;margin-bottom:6px">🔗 Share Chart Link</p>
+        <p style="font-size:12px;color:var(--dim);line-height:1.6"><b style="color:var(--cream)">celestia.com/chart/mia</b> — a beautiful web page showing her chart summary with Big 3 and key patterns. Friends see it, want their own. "Get your free chart" CTA at the bottom. Every link = a landing page = a new user funnel.</p>
+      </div>
+      <div style="padding:16px;background:rgba(139,158,126,.04);border-radius:12px;border:1px solid rgba(139,158,126,.1)">
+        <p style="font-size:14px;font-weight:700;margin-bottom:6px">📋 Share a Placement Card</p>
+        <p style="font-size:12px;color:var(--dim);line-height:1.6">One-tap generates a shareable card for any planet: "My Venus is in Virgo — I show love by fixing people and then resenting them for not being fixed 💀." Pre-designed, branded, IG Story-ready. She shares individual planets, not just the whole chart.</p>
+      </div>
+      <div style="padding:16px;background:rgba(139,158,126,.04);border-radius:12px;border:1px solid rgba(139,158,126,.1)">
+        <p style="font-size:14px;font-weight:700;margin-bottom:6px">💕 "Compare With Me"</p>
+        <p style="font-size:12px;color:var(--dim);line-height:1.6">She sends an invite: "Compare our charts on Celestia!" Friend clicks → enters birth data → sees side-by-side comparison. This flows directly into the compatibility feature. Chart sharing → compatibility checking → viral loop.</p>
+      </div>
+    </div>
+  </div>
+
+  <div class="mia">
+    <div class="mia-ava">📱</div>
+    <div class="mia-txt">
+      <div class="mia-label" style="color:var(--sage)">Mia's IG Story at 10:45pm</div>
+      <div class="mia-q">She posts the chart wheel screenshot with "this is apparently my entire personality mapped out 🌙✨" — then swipes to a second Story: a placement card that says "My Mars is in the 12th house — I avoid confrontation until I literally explode 💀" — 8 friends DM her "what app is this"</div>
+      <div class="mia-ctx">Two types of shareable content: the pretty wheel (visual flex) + the specific placement card (relatable content). Both drive downloads.</div>
+    </div>
+  </div>
+</section>
+
+<!-- ═══════ 08 RULES ═══════ -->
+<section class="sec" id="rules">
+  <div class="sec-head">
+    <div class="sec-num" style="background:var(--terra)">08</div>
+    <span class="sec-label" style="color:var(--terra)">Non-Negotiable Rules for My Chart</span>
+    <div class="sec-line" style="background:var(--terra)"></div>
+  </div>
+
+  <div class="g2">
+    <div class="card" style="border-left:3px solid var(--sage)">
+      <div class="card-t" style="color:var(--sage)">Always</div>
+      <div style="font-size:12px;color:var(--dim);line-height:1.9">
+        ✓ <b style="color:var(--cream)">Beautiful before informative</b> — if it's ugly, she'll never explore<br>
+        ✓ <b style="color:var(--cream)">Tappable EVERYTHING</b> — no dead elements on the chart<br>
+        ✓ <b style="color:var(--cream)">Big 3 expanded by default</b> — she doesn't have to figure out what to tap first<br>
+        ✓ <b style="color:var(--cream)">Friendly names for everything</b> — "Your Mirror" not "7th House"<br>
+        ✓ <b style="color:var(--cream)">One "how does it KNOW" moment per planet</b><br>
+        ✓ <b style="color:var(--cream)">Every section has "Ask Celestia more →"</b> — seamless bridge to chat<br>
+        ✓ <b style="color:var(--cream)">Chart fits on one phone screen</b> — no scrolling to see the wheel<br>
+        ✓ <b style="color:var(--cream)">Simple mode is ALWAYS the default</b><br>
+        ✓ <b style="color:var(--cream)">4 sharing options visible</b> — screenshot, link, card, compare
+      </div>
+    </div>
+    <div class="card" style="border-left:3px solid #D4605A">
+      <div class="card-t" style="color:#D4605A">Never</div>
+      <div style="font-size:12px;color:var(--dim);line-height:1.9">
+        ✗ <b style="color:var(--cream)">Show a wall of symbols</b> on first load — she'll close the app<br>
+        ✗ <b style="color:var(--cream)">Use technical jargon by default</b> — "trine," "orb," "domicile" mean nothing to her<br>
+        ✗ <b style="color:var(--cream)">Show an aspect grid/table</b> as the main view — that's a spreadsheet<br>
+        ✗ <b style="color:var(--cream)">Make the wheel tiny and unreadable</b> — it should be the hero visual<br>
+        ✗ <b style="color:var(--cream)">Auto-show all 12 planets at once</b> — start with 6, let her discover<br>
+        ✗ <b style="color:var(--cream)">Have dead/non-tappable elements</b> — everything that looks tappable must BE tappable<br>
+        ✗ <b style="color:var(--cream)">Make Detailed mode the default</b> — this kills 90% of engagement<br>
+        ✗ <b style="color:var(--cream)">Forget the share buttons</b> — the chart is the viral asset, sharing must be frictionless
+      </div>
+    </div>
+  </div>
+
+  <div style="background:linear-gradient(135deg,var(--lav),#7A6DAE);border-radius:16px;padding:32px;margin-top:14px">
+    <p style="font-size:9px;letter-spacing:3px;text-transform:uppercase;opacity:.6;margin-bottom:10px">The Chart Experience Quality Test</p>
+    <p style="font-family:'Playfair Display',serif;font-size:clamp(15px,2.5vw,20px);font-style:italic;line-height:1.5;margin-bottom:14px">"If Mia opens her chart and feels confused or overwhelmed — we've failed. If she opens it and spends 30 minutes tapping through planets saying 'how does it know this' — we've built something she'll come back to for years."</p>
+    <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;margin-top:16px">
+      <div style="text-align:center;padding:12px;background:rgba(0,0,0,.15);border-radius:10px">
+        <p style="font-size:20px;margin-bottom:2px">🎨</p>
+        <p style="font-size:10px;opacity:.8">She screenshots the wheel within 30 seconds of seeing it</p>
+      </div>
+      <div style="text-align:center;padding:12px;background:rgba(0,0,0,.15);border-radius:10px">
+        <p style="font-size:20px;margin-bottom:2px">👆</p>
+        <p style="font-size:10px;opacity:.8">She taps at least 4 planets on her first visit</p>
+      </div>
+      <div style="text-align:center;padding:12px;background:rgba(0,0,0,.15);border-radius:10px">
+        <p style="font-size:20px;margin-bottom:2px">📸</p>
+        <p style="font-size:10px;opacity:.8">She shares at least one placement card within 48 hours</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<footer class="footer">
+  <p>Her chart is her cosmic fingerprint. Make it beautiful. Make it tappable. Make it hers.</p>
+  <div class="brand">Celestia · My Chart Plan · 2026</div>
+</footer>
+
+</div>
+
+<script>
+// Toggle planet cards
+document.querySelectorAll('.planet-card-header').forEach(h=>{
+  h.addEventListener('click',()=>{
+    const card=h.parentElement;
+    card.classList.toggle('open');
+    const arrow=card.querySelector('.planet-card-arrow');
+    arrow.textContent=card.classList.contains('open')?'▼':'▶';
+  });
+});
+// Nav active
+const secs=document.querySelectorAll('.sec');
+const navs=document.querySelectorAll('.topnav a');
+const obs=new IntersectionObserver(entries=>{entries.forEach(e=>{if(e.isIntersecting){navs.forEach(n=>n.classList.remove('active'));const a=document.querySelector(`.topnav a[href="#${e.target.id}"]`);if(a)a.classList.add('active')}})},{threshold:.2});
+secs.forEach(s=>obs.observe(s));
+</script>
+</body>
+</html>

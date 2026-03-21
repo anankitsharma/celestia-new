@@ -1,0 +1,467 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Celestia — The Bottom-Up Approach Explained</title>
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,300;0,400;0,500;0,600;0,700;1,400&family=DM+Sans:ital,wght@0,300;0,400;0,500;0,600;0,700;1,400&display=swap" rel="stylesheet">
+<style>
+:root{--bg:#0F0D1A;--card:#1A1726;--card2:#211E2E;--terra:#C17F59;--gold:#D4A853;--sage:#8B9E7E;--rose:#C4918A;--lav:#9B8EC4;--sky:#7BA7C4;--cream:#F5EDE3;--muted:#6B6880;--border:rgba(255,255,255,0.06);--text:rgba(255,255,255,0.78);--dim:rgba(255,255,255,0.45);--red:#D4605A;--green:#6BBF7A}
+*{margin:0;padding:0;box-sizing:border-box}
+body{background:var(--bg);color:var(--cream);font-family:'DM Sans',sans-serif;-webkit-font-smoothing:antialiased;line-height:1.6}
+.wrap{max-width:860px;margin:0 auto;padding:0 24px}
+.serif{font-family:'Playfair Display',serif}
+
+/* ═══ HERO ═══ */
+.hero{text-align:center;padding:60px 20px 48px;position:relative}
+.hero::before{content:'';position:absolute;top:-100px;left:50%;transform:translateX(-50%);width:500px;height:500px;background:radial-gradient(circle,rgba(193,127,89,.06) 0%,transparent 70%);pointer-events:none}
+.tag{font-size:9px;letter-spacing:5px;text-transform:uppercase;color:var(--gold);opacity:.6;margin-bottom:20px}
+.hero h1{font-family:'Playfair Display',serif;font-size:clamp(28px,6vw,46px);font-weight:300;line-height:1.2;margin-bottom:12px}
+.hero h1 b{font-weight:600;color:var(--terra)}
+.hero .sub{font-size:15px;color:var(--dim);max-width:560px;margin:0 auto 8px}
+.hero .for{font-size:12px;color:var(--muted);padding:8px 20px;border:1px solid var(--border);border-radius:100px;display:inline-block;margin-top:16px}
+
+/* ═══ DIVIDER ═══ */
+.divider{text-align:center;padding:40px 0;position:relative}
+.divider::before{content:'';position:absolute;top:50%;left:0;right:0;height:1px;background:var(--border)}
+.div-text{position:relative;display:inline-block;background:var(--bg);padding:0 20px;font-size:10px;letter-spacing:3px;text-transform:uppercase;color:var(--muted)}
+
+/* ═══ VS SECTION ═══ */
+.vs-section{padding:20px 0 40px}
+.vs-grid{display:grid;grid-template-columns:1fr 60px 1fr;gap:0;align-items:start}
+.vs-card{border-radius:16px;padding:28px 24px}
+.vs-card h3{font-family:'Playfair Display',serif;font-size:20px;margin-bottom:16px}
+.vs-card p{font-size:12.5px;line-height:1.7;margin-bottom:12px}
+.vs-vs{display:flex;align-items:center;justify-content:center;font-family:'Playfair Display',serif;font-size:18px;font-style:italic;color:var(--muted)}
+.vs-list{list-style:none;padding:0}
+.vs-list li{font-size:12px;padding:6px 0;border-bottom:1px solid rgba(255,255,255,.03);display:flex;align-items:flex-start;gap:8px;color:var(--dim)}
+.vs-list li span{flex-shrink:0;font-size:14px}
+
+/* ═══ THE REVELATION ═══ */
+.reveal{text-align:center;padding:40px 0}
+.reveal-quote{font-family:'Playfair Display',serif;font-size:clamp(18px,3.5vw,26px);font-style:italic;color:var(--cream);line-height:1.5;max-width:640px;margin:0 auto 12px}
+.reveal-attr{font-size:11px;color:var(--terra);font-weight:600;letter-spacing:1px}
+
+/* ═══ BIG FLOW ═══ */
+.flow-section{padding:20px 0}
+.flow-title{text-align:center;margin-bottom:36px}
+.flow-title h2{font-family:'Playfair Display',serif;font-size:clamp(22px,4vw,32px);font-weight:400;margin-bottom:6px}
+.flow-title h2 b{font-weight:600;color:var(--terra)}
+.flow-title p{font-size:13px;color:var(--muted)}
+
+/* Vertical flow */
+.vflow{position:relative;max-width:680px;margin:0 auto}
+.vflow::before{content:'';position:absolute;left:50%;top:0;bottom:0;width:2px;background:linear-gradient(to bottom,var(--terra),var(--gold),var(--sage),var(--lav),var(--sky),var(--rose));opacity:.2;transform:translateX(-50%)}
+
+.vf-step{position:relative;display:flex;gap:0;margin-bottom:0}
+.vf-step:nth-child(odd){flex-direction:row}
+.vf-step:nth-child(even){flex-direction:row-reverse}
+.vf-left,.vf-right{flex:1;padding:12px 0}
+.vf-center{width:80px;display:flex;flex-direction:column;align-items:center;flex-shrink:0;z-index:1}
+.vf-dot{width:52px;height:52px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:22px;border:2px solid;background:var(--bg)}
+.vf-line{width:2px;flex:1;min-height:16px;opacity:.15}
+.vf-card{background:var(--card);border:1px solid var(--border);border-radius:14px;padding:20px;margin:4px 0}
+.vf-num{font-size:9px;font-weight:700;letter-spacing:2px;text-transform:uppercase;margin-bottom:4px}
+.vf-heading{font-size:15px;font-weight:700;color:var(--cream);margin-bottom:6px;line-height:1.3}
+.vf-desc{font-size:12px;color:var(--dim);line-height:1.6}
+.vf-empty{display:flex;align-items:center;justify-content:center}
+.vf-arrow{font-size:11px;color:var(--muted);font-style:italic;text-align:center;padding:0 12px}
+
+/* ═══ PYRAMID ═══ */
+.pyramid-section{padding:40px 0;text-align:center}
+.pyramid{max-width:600px;margin:0 auto}
+.py-row{display:flex;justify-content:center;margin-bottom:6px}
+.py-block{border-radius:10px;padding:14px;text-align:center;position:relative}
+.py-label{font-size:9px;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;margin-bottom:2px}
+.py-text{font-size:11px;color:var(--cream);font-weight:500}
+.py-connector{text-align:center;font-size:14px;opacity:.3;margin:2px 0}
+
+/* ═══ COMPARE TABLE ═══ */
+.compare{margin:32px 0;border-radius:16px;overflow:hidden;border:1px solid var(--border)}
+.compare-head{display:grid;grid-template-columns:2fr 1fr 1fr;gap:0}
+.compare-head>div{padding:14px 18px;font-size:10px;font-weight:700;letter-spacing:2px;text-transform:uppercase}
+.compare-row{display:grid;grid-template-columns:2fr 1fr 1fr;gap:0;border-top:1px solid var(--border)}
+.compare-row>div{padding:12px 18px;font-size:12px}
+.compare-row>div:first-child{color:var(--dim)}
+
+/* ═══ DECISION CHAIN ═══ */
+.chain{margin:40px 0}
+.chain-title{text-align:center;margin-bottom:28px}
+.chain-title h2{font-family:'Playfair Display',serif;font-size:24px;font-weight:400;margin-bottom:4px}
+.chain-title h2 b{color:var(--terra);font-weight:600}
+.chain-title p{font-size:12px;color:var(--muted)}
+
+.chain-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}
+.chain-card{background:var(--card);border:1px solid var(--border);border-radius:12px;padding:18px;position:relative}
+.chain-card::before{content:'';position:absolute;top:0;left:0;right:0;height:3px;border-radius:12px 12px 0 0}
+.cc-q{font-size:11px;color:var(--muted);margin-bottom:6px;font-style:italic}
+.cc-a{font-size:13px;font-weight:600;color:var(--cream);margin-bottom:8px;line-height:1.4}
+.cc-why{font-size:10.5px;color:var(--dim);line-height:1.5;border-top:1px solid var(--border);padding-top:8px}
+
+/* ═══ FLYWHEEL ═══ */
+.flywheel-section{padding:40px 0}
+.fw-wrap{position:relative;max-width:500px;margin:0 auto}
+.fw-ring{border:2px dashed rgba(193,127,89,.15);border-radius:50%;width:100%;padding-bottom:100%;position:relative}
+.fw-node{position:absolute;width:110px;text-align:center}
+.fw-node-dot{width:44px;height:44px;border-radius:50%;display:flex;align-items:center;justify-content:center;margin:0 auto 6px;font-size:18px;border:2px solid}
+.fw-node-label{font-size:9px;font-weight:700;letter-spacing:1px;text-transform:uppercase}
+.fw-node-desc{font-size:9px;color:var(--muted);margin-top:2px;line-height:1.3}
+.fw-center{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);text-align:center}
+.fw-center-text{font-family:'Playfair Display',serif;font-size:18px;color:var(--terra)}
+.fw-center-sub{font-size:10px;color:var(--muted);margin-top:4px}
+
+/* ═══ FINAL ═══ */
+.final{padding:40px 0 20px}
+.final-card{background:linear-gradient(135deg,var(--terra),#A66842);border-radius:18px;padding:36px 32px;margin-bottom:24px}
+.final-label{font-size:9px;letter-spacing:3px;text-transform:uppercase;opacity:.6;margin-bottom:14px}
+.final-text{font-family:'Playfair Display',serif;font-size:clamp(18px,3vw,24px);font-style:italic;line-height:1.5;margin-bottom:14px}
+.final-list{display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;margin-top:20px}
+.final-item{background:rgba(0,0,0,.15);border-radius:10px;padding:14px;text-align:center}
+.final-item-num{font-size:22px;font-weight:700;margin-bottom:2px}
+.final-item-label{font-size:10px;opacity:.7}
+
+.footer{text-align:center;padding:28px;border-top:1px solid var(--border)}
+.footer p{font-size:12px;color:var(--muted);font-style:italic}
+.footer .brand{font-size:9px;letter-spacing:4px;color:var(--gold);opacity:.4;margin-top:8px;text-transform:uppercase}
+
+@media(max-width:700px){
+  .vs-grid{grid-template-columns:1fr;gap:12px}
+  .vs-vs{padding:8px 0}
+  .vf-step,.vf-step:nth-child(even){flex-direction:column}
+  .vf-center{width:100%;flex-direction:row;gap:12px;padding:8px 0}
+  .vf-line{width:auto;height:2px;min-height:auto;min-width:20px}
+  .vf-left,.vf-right{padding:0}
+  .vf-empty{display:none}
+  .chain-grid{grid-template-columns:1fr}
+  .final-list{grid-template-columns:1fr}
+  .compare-head,.compare-row{grid-template-columns:1.5fr 1fr 1fr}
+  .compare-head>div,.compare-row>div{padding:10px 12px;font-size:10px}
+}
+</style>
+</head>
+<body>
+
+<div class="wrap">
+
+<!-- ═══════ HERO ═══════ -->
+<section class="hero">
+  <div class="tag">✦ Celestia — Strategy Briefing for the CEO ✦</div>
+  <h1>The <b>Bottom-Up</b> Approach</h1>
+  <p class="sub">How we plan everything — product, marketing, content, growth — starting from one single person, not from a market size spreadsheet</p>
+  <div class="for">Written for a CEO who doesn't do marketing jargon</div>
+</section>
+
+<!-- ═══════ THE TWO APPROACHES ═══════ -->
+<div class="divider"><span class="div-text">There are two ways to build a company</span></div>
+
+<section class="vs-section">
+  <div class="vs-grid">
+    <!-- TOP DOWN -->
+    <div class="vs-card" style="background:rgba(212,96,90,.06);border:1px solid rgba(212,96,90,.1);border-radius:16px">
+      <h3 style="color:var(--red)">❌ Top-Down</h3>
+      <p style="color:var(--dim)">Start with the market. Work down to the person.</p>
+      <ul class="vs-list">
+        <li><span>📊</span>"The astrology market is $12.8 billion"</li>
+        <li><span>🎯</span>"Our target: women 18-34 interested in astrology"</li>
+        <li><span>📢</span>"Let's run ads to 'astrology enthusiasts'"</li>
+        <li><span>🤞</span>"Let's hope someone converts"</li>
+        <li><span>💸</span>Burns $50K on ads before finding product-market fit</li>
+        <li><span>😐</span>10,000 people kinda like you. None love you.</li>
+      </ul>
+      <p style="font-size:11px;color:var(--red);font-weight:600;margin-top:12px">This is how most startups waste their first year.</p>
+    </div>
+
+    <div class="vs-vs">vs</div>
+
+    <!-- BOTTOM UP -->
+    <div class="vs-card" style="background:rgba(107,191,122,.06);border:1px solid rgba(107,191,122,.1);border-radius:16px">
+      <h3 style="color:var(--green)">✅ Bottom-Up</h3>
+      <p style="color:var(--dim)">Start with ONE person. Build up from her.</p>
+      <ul class="vs-list">
+        <li><span>👤</span>"Her name is Mia. She's 24. She lives in Austin."</li>
+        <li><span>💔</span>"She Googles 'virgo scorpio compatibility' at 10:30pm"</li>
+        <li><span>✨</span>"We build the page that answers HER question"</li>
+        <li><span>🤯</span>"She tries it. Her eyes go wide. She screenshots it."</li>
+        <li><span>💬</span>"She sends it to 4 friends. They all sign up."</li>
+        <li><span>🔥</span>100 people who LOVE you. They bring 300 more.</li>
+      </ul>
+      <p style="font-size:11px;color:var(--green);font-weight:600;margin-top:12px">This is how Co-Star got to 20M downloads.</p>
+    </div>
+  </div>
+</section>
+
+<!-- ═══════ THE REVELATION ═══════ -->
+<section class="reveal">
+  <p class="reveal-quote">"It's better to have 100 users who love you than 10,000 who sort of like you."</p>
+  <p class="reveal-attr">— Paul Graham, Y Combinator founder</p>
+  <p style="font-size:13px;color:var(--dim);max-width:500px;margin:20px auto 0;line-height:1.7">The bottom-up approach means: <b style="color:var(--cream)">every single decision</b> — what feature to build, what content to post, which platform to focus on, what price to charge — is answered by asking one question:</p>
+  <div style="margin:20px auto;padding:16px 28px;background:rgba(193,127,89,.08);border:1px solid rgba(193,127,89,.15);border-radius:12px;display:inline-block">
+    <p style="font-family:'Playfair Display',serif;font-size:18px;font-style:italic;color:var(--terra)">"What would Mia do?"</p>
+  </div>
+</section>
+
+<!-- ═══════ THE FULL FLOW ═══════ -->
+<div class="divider"><span class="div-text">How it works, step by step</span></div>
+
+<section class="flow-section">
+  <div class="flow-title">
+    <h2>From <b>One Person</b> to an Entire Business</h2>
+    <p>Every step flows from the one before it. Nothing is guessed.</p>
+  </div>
+
+  <div class="vflow">
+    <!-- STEP 1 -->
+    <div class="vf-step">
+      <div class="vf-left">
+        <div class="vf-card">
+          <div class="vf-num" style="color:var(--terra)">Step 1 — Start With ONE Person</div>
+          <div class="vf-heading">We don't say "women 18-34." We say: "Her name is Mia Reyes."</div>
+          <div class="vf-desc">She's 24. Lives in Austin, TX (SoCo neighborhood, 78704). Marketing coordinator. $44K/year. Virgo Sun, Scorpio Moon. Single. iPhone 14 in her hand at 10:30pm. We know what's on her nightstand. We know her exact address. This isn't a demographic — this is a real person we can picture.</div>
+        </div>
+      </div>
+      <div class="vf-center"><div class="vf-dot" style="border-color:var(--terra);background:rgba(193,127,89,.08)">👤</div><div class="vf-line" style="background:var(--terra)"></div></div>
+      <div class="vf-right vf-empty"><div class="vf-arrow">Everything below<br>flows from her ↓</div></div>
+    </div>
+
+    <!-- STEP 2 -->
+    <div class="vf-step">
+      <div class="vf-left vf-empty"><div class="vf-arrow">Her pain tells us<br>what to build ←</div></div>
+      <div class="vf-center"><div class="vf-dot" style="border-color:var(--rose);background:rgba(196,145,138,.08)">💔</div><div class="vf-line" style="background:var(--rose)"></div></div>
+      <div class="vf-right">
+        <div class="vf-card">
+          <div class="vf-num" style="color:var(--rose)">Step 2 — Understand Her Pain</div>
+          <div class="vf-heading">WHY does she need Celestia? What's the real problem?</div>
+          <div class="vf-desc">She keeps dating the same type. She can't afford therapy. Co-Star feels cold. She feels behind in life. She doesn't want entertainment — she wants to understand WHY things keep happening to her. The pain isn't "I need an astrology app." The pain is "I need to understand myself and no one is helping me."</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- STEP 3 -->
+    <div class="vf-step">
+      <div class="vf-left">
+        <div class="vf-card">
+          <div class="vf-num" style="color:var(--gold)">Step 3 — Build What She Needs</div>
+          <div class="vf-heading">The product is shaped by her pain, not by what competitors do.</div>
+          <div class="vf-desc">She needs warm, personal, specific answers — not cold data. So we build an AI that talks like a best friend, not a textbook. She can't afford $200 therapy — so we price reports at $9.99. She wants to understand patterns — so we show her Venus placement, not just her sun sign. Every feature is a direct response to a specific pain she has.</div>
+        </div>
+      </div>
+      <div class="vf-center"><div class="vf-dot" style="border-color:var(--gold);background:rgba(212,168,83,.08)">🛠️</div><div class="vf-line" style="background:var(--gold)"></div></div>
+      <div class="vf-right vf-empty"><div class="vf-arrow">Her pain tells us<br>what to build →</div></div>
+    </div>
+
+    <!-- STEP 4 -->
+    <div class="vf-step">
+      <div class="vf-left vf-empty"><div class="vf-arrow">Her location tells us<br>where to show up ←</div></div>
+      <div class="vf-center"><div class="vf-dot" style="border-color:var(--sage);background:rgba(139,158,126,.08)">📍</div><div class="vf-line" style="background:var(--sage)"></div></div>
+      <div class="vf-right">
+        <div class="vf-card">
+          <div class="vf-num" style="color:var(--sage)">Step 4 — Go Where She Already Is</div>
+          <div class="vf-heading">We don't pick channels randomly. We follow Mia.</div>
+          <div class="vf-desc">She scrolls TikTok 2+ hrs/day → so we make TikTok reels. She Googles at 10:30pm → so we build SEO pages. She saves Instagram carousels → so we make shareable zodiac content. She sends screenshots to group chats → so we build a viral sharing feature. We're not "doing marketing." We're showing up where she already spends her time.</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- STEP 5 -->
+    <div class="vf-step">
+      <div class="vf-left">
+        <div class="vf-card">
+          <div class="vf-num" style="color:var(--lav)">Step 5 — Speak Her Language</div>
+          <div class="vf-heading">The content isn't what WE want to say. It's what SHE needs to hear.</div>
+          <div class="vf-desc">She doesn't search "natal chart interpretation." She searches "why do I keep attracting unavailable men." So our content answers THAT question — in her words, not astrology jargon. Every TikTok hook, every SEO page title, every Instagram caption is written in the exact language she uses when she's lying in bed at 10:30pm trying to understand her life.</div>
+        </div>
+      </div>
+      <div class="vf-center"><div class="vf-dot" style="border-color:var(--lav);background:rgba(155,142,196,.08)">💬</div><div class="vf-line" style="background:var(--lav)"></div></div>
+      <div class="vf-right vf-empty"><div class="vf-arrow">Her words become<br>our content →</div></div>
+    </div>
+
+    <!-- STEP 6 -->
+    <div class="vf-step">
+      <div class="vf-left vf-empty"><div class="vf-arrow">Her behavior tells us<br>when to charge ←</div></div>
+      <div class="vf-center"><div class="vf-dot" style="border-color:var(--sky);background:rgba(123,167,196,.08)">💰</div><div class="vf-line" style="background:var(--sky)"></div></div>
+      <div class="vf-right">
+        <div class="vf-card">
+          <div class="vf-num" style="color:var(--sky)">Step 6 — The Payment Happens Naturally</div>
+          <div class="vf-heading">She pays because the free value already proved we understand her.</div>
+          <div class="vf-desc">We give away the birth chart for free. She's already amazed. The AI chat gives her one insight that makes her eyes go wide. NOW she trusts us. The $9.99 report isn't a sales pitch — it's a natural "I need to know more." She pays less than a Starbucks order. She doesn't think twice.</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- STEP 7 -->
+    <div class="vf-step">
+      <div class="vf-left">
+        <div class="vf-card">
+          <div class="vf-num" style="color:var(--terra)">Step 7 — She Becomes the Marketing</div>
+          <div class="vf-heading">Mia brings 3-5 friends. Each friend brings 2-3 more. Growth becomes free.</div>
+          <div class="vf-desc">She screenshots the AI reading. Sends it to her group chat: "you HAVE to try this." She posts her chart to Instagram Stories. She makes her boyfriend check their compatibility. She didn't become a "brand ambassador" — she became someone who genuinely can't stop talking about something that finally understood her. The product IS the marketing.</div>
+        </div>
+      </div>
+      <div class="vf-center"><div class="vf-dot" style="border-color:var(--terra);background:rgba(193,127,89,.12)">🚀</div></div>
+      <div class="vf-right vf-empty"><div class="vf-arrow">She brings others →<br>Cycle repeats ↺</div></div>
+    </div>
+  </div>
+</section>
+
+<!-- ═══════ THE DECISION CHAIN ═══════ -->
+<div class="divider"><span class="div-text">How every business decision traces back to Mia</span></div>
+
+<section class="chain">
+  <div class="chain-title">
+    <h2>The <b>"Ask Mia"</b> Decision Framework</h2>
+    <p>Every question the CEO asks has an answer that comes from knowing Mia.</p>
+  </div>
+
+  <div class="chain-grid">
+    <div class="chain-card" style="border-top:3px solid var(--terra)">
+      <div class="cc-q">CEO asks: "What should our app look like?"</div>
+      <div class="cc-a">Warm, earthy, Desert Dawn palette. NOT dark mode.</div>
+      <div class="cc-why">Because Mia shops at Free People, saves boho Pinterest boards, and wants warmth — not a NASA terminal. Every competitor is dark mode. We own warmth.</div>
+    </div>
+    <div class="chain-card" style="border-top:3px solid var(--gold)">
+      <div class="cc-q">CEO asks: "What price should we charge?"</div>
+      <div class="cc-a">$9.99 per report. Not $29. Not $4.99.</div>
+      <div class="cc-why">Because Mia makes $44K/yr. $29 feels like a commitment. $4.99 feels cheap. $9.99 is "less than my Starbucks today." She pays without thinking twice.</div>
+    </div>
+    <div class="chain-card" style="border-top:3px solid var(--sage)">
+      <div class="cc-q">CEO asks: "Which platform do we focus on first?"</div>
+      <div class="cc-a">TikTok for awareness. Google SEO for conversion.</div>
+      <div class="cc-why">Because Mia scrolls TikTok 2+ hrs/day (that's where she discovers). But she Googles with emotional urgency at 10:30pm (that's where she converts and pays).</div>
+    </div>
+    <div class="chain-card" style="border-top:3px solid var(--rose)">
+      <div class="cc-q">CEO asks: "What should our AI sound like?"</div>
+      <div class="cc-a">A warm, honest best friend. Not a guru.</div>
+      <div class="cc-why">Because Mia is turned off by "mystical guru" energy. She wants someone who talks like her smart friend who happens to know astrology deeply. Direct. Specific. No sugarcoating.</div>
+    </div>
+    <div class="chain-card" style="border-top:3px solid var(--lav)">
+      <div class="cc-q">CEO asks: "What content do we post?"</div>
+      <div class="cc-a">"POV: you're a Virgo and you wonder why every relationship ends the same way"</div>
+      <div class="cc-why">Because Mia doesn't search "natal chart aspects." She searches "why do I keep attracting the same type." Our content uses HER words, not astrology textbook words.</div>
+    </div>
+    <div class="chain-card" style="border-top:3px solid var(--sky)">
+      <div class="cc-q">CEO asks: "What feature do we build next?"</div>
+      <div class="cc-a">Compatibility checker with shareable links.</div>
+      <div class="cc-why">Because Mia just met a guy and the first thing she wants to know is "are we compatible?" And when she shares the link, the guy enters HIS birth data too — that's a new user for free.</div>
+    </div>
+  </div>
+</section>
+
+<!-- ═══════ COMPARE: TOP-DOWN vs BOTTOM-UP RESULTS ═══════ -->
+<div class="divider"><span class="div-text">The difference in results</span></div>
+
+<div class="compare">
+  <div class="compare-head" style="background:var(--card2)">
+    <div style="color:var(--dim)">METRIC</div>
+    <div style="color:var(--red)">❌ TOP-DOWN</div>
+    <div style="color:var(--green)">✅ BOTTOM-UP</div>
+  </div>
+  <div class="compare-row"><div>First 6 months spend</div><div style="color:var(--red)">$50-100K on ads</div><div style="color:var(--green)">$2-5K (content only)</div></div>
+  <div class="compare-row" style="background:rgba(255,255,255,.02)"><div>Users acquired</div><div style="color:var(--red)">10,000 "meh" users</div><div style="color:var(--green)">500 users who love you</div></div>
+  <div class="compare-row"><div>Retention at Day 30</div><div style="color:var(--red)">5-8%</div><div style="color:var(--green)">35-50%</div></div>
+  <div class="compare-row" style="background:rgba(255,255,255,.02)"><div>Viral coefficient</div><div style="color:var(--red)">0.1 (nobody shares)</div><div style="color:var(--green)">1.2+ (self-sustaining)</div></div>
+  <div class="compare-row"><div>Cost per paying user</div><div style="color:var(--red)">$25-50</div><div style="color:var(--green)">$3-8</div></div>
+  <div class="compare-row" style="background:rgba(255,255,255,.02)"><div>Product-market fit signal</div><div style="color:var(--red)">Still searching at Month 12</div><div style="color:var(--green)">Obvious by Month 2-3</div></div>
+  <div class="compare-row"><div>How it grows</div><div style="color:var(--red)">More ads = more users<br>(linear, expensive)</div><div style="color:var(--green)">Users bring friends<br>(exponential, free)</div></div>
+</div>
+
+<!-- ═══════ FLYWHEEL ═══════ -->
+<div class="divider"><span class="div-text">The growth flywheel</span></div>
+
+<section class="flywheel-section">
+  <div class="flow-title">
+    <h2>The <b>Self-Sustaining</b> Flywheel</h2>
+    <p>Once it starts spinning, it accelerates on its own. Each step fuels the next.</p>
+  </div>
+
+  <div class="fw-wrap">
+    <div class="fw-ring">
+      <!-- Nodes positioned around the circle -->
+      <div class="fw-node" style="top:0;left:50%;transform:translateX(-50%)">
+        <div class="fw-node-dot" style="border-color:var(--terra);background:rgba(193,127,89,.1)">🎬</div>
+        <div class="fw-node-label" style="color:var(--terra)">Content</div>
+        <div class="fw-node-desc">TikTok, SEO, Instagram posts reach Mia</div>
+      </div>
+      <div class="fw-node" style="top:22%;right:-8%">
+        <div class="fw-node-dot" style="border-color:var(--gold);background:rgba(212,168,83,.1)">✨</div>
+        <div class="fw-node-label" style="color:var(--gold)">Discovery</div>
+        <div class="fw-node-desc">She finds Celestia, enters birth data</div>
+      </div>
+      <div class="fw-node" style="bottom:22%;right:-8%">
+        <div class="fw-node-dot" style="border-color:var(--sage);background:rgba(139,158,126,.1)">🤯</div>
+        <div class="fw-node-label" style="color:var(--sage)">Wow Moment</div>
+        <div class="fw-node-desc">AI gives eerily accurate answer</div>
+      </div>
+      <div class="fw-node" style="bottom:0;left:50%;transform:translateX(-50%)">
+        <div class="fw-node-dot" style="border-color:var(--lav);background:rgba(155,142,196,.1)">📸</div>
+        <div class="fw-node-label" style="color:var(--lav)">Share</div>
+        <div class="fw-node-desc">Screenshots → group chat → Stories</div>
+      </div>
+      <div class="fw-node" style="bottom:22%;left:-8%">
+        <div class="fw-node-dot" style="border-color:var(--sky);background:rgba(123,167,196,.1)">👥</div>
+        <div class="fw-node-label" style="color:var(--sky)">Friends Join</div>
+        <div class="fw-node-desc">3-5 friends sign up in 24hrs</div>
+      </div>
+      <div class="fw-node" style="top:22%;left:-8%">
+        <div class="fw-node-dot" style="border-color:var(--rose);background:rgba(196,145,138,.1)">💰</div>
+        <div class="fw-node-label" style="color:var(--rose)">Revenue</div>
+        <div class="fw-node-desc">Reports, upgrades fund more content</div>
+      </div>
+      <!-- Center -->
+      <div class="fw-center">
+        <div class="fw-center-text">Mia</div>
+        <div class="fw-center-sub">She's at the center<br>of everything</div>
+      </div>
+    </div>
+  </div>
+  <p style="text-align:center;font-size:12px;color:var(--muted);margin-top:24px;max-width:460px;margin-left:auto;margin-right:auto">Each cycle spins faster than the last. Revenue from Step 6 funds more content in Step 1. Friends from Step 5 each start their own cycle. This is how companies grow exponentially while spending near-zero on ads.</p>
+</section>
+
+<!-- ═══════ THE SIMPLE SUMMARY ═══════ -->
+<div class="divider"><span class="div-text">The entire strategy on one napkin</span></div>
+
+<section style="padding:32px 0">
+  <div style="background:var(--card);border:1px solid var(--border);border-radius:18px;padding:32px;text-align:center">
+    <p style="font-size:10px;letter-spacing:3px;text-transform:uppercase;color:var(--gold);margin-bottom:20px">The Napkin Version — Show This to Anyone</p>
+
+    <div style="display:flex;align-items:center;justify-content:center;flex-wrap:wrap;gap:8px;font-size:14px;line-height:2.2">
+      <span style="background:rgba(193,127,89,.12);border:1px solid rgba(193,127,89,.2);padding:4px 14px;border-radius:8px;color:var(--terra);font-weight:600">Know ONE girl deeply</span>
+      <span style="color:var(--muted)">→</span>
+      <span style="background:rgba(196,145,138,.12);border:1px solid rgba(196,145,138,.2);padding:4px 14px;border-radius:8px;color:var(--rose);font-weight:600">Learn her exact pain</span>
+      <span style="color:var(--muted)">→</span>
+      <span style="background:rgba(212,168,83,.12);border:1px solid rgba(212,168,83,.2);padding:4px 14px;border-radius:8px;color:var(--gold);font-weight:600">Build what solves it</span>
+      <span style="color:var(--muted)">→</span>
+      <span style="background:rgba(139,158,126,.12);border:1px solid rgba(139,158,126,.2);padding:4px 14px;border-radius:8px;color:var(--sage);font-weight:600">Show up where she is</span>
+      <span style="color:var(--muted)">→</span>
+      <span style="background:rgba(155,142,196,.12);border:1px solid rgba(155,142,196,.2);padding:4px 14px;border-radius:8px;color:var(--lav);font-weight:600">Speak her language</span>
+      <span style="color:var(--muted)">→</span>
+      <span style="background:rgba(123,167,196,.12);border:1px solid rgba(123,167,196,.2);padding:4px 14px;border-radius:8px;color:var(--sky);font-weight:600">She pays happily</span>
+      <span style="color:var(--muted)">→</span>
+      <span style="background:rgba(193,127,89,.2);border:1px solid rgba(193,127,89,.3);padding:4px 14px;border-radius:8px;color:var(--terra);font-weight:700">She brings friends</span>
+      <span style="color:var(--muted)">→</span>
+      <span style="color:var(--muted);font-size:16px">🔄 Repeat</span>
+    </div>
+  </div>
+</section>
+
+<!-- ═══════ FINAL ═══════ -->
+<section class="final">
+  <div class="final-card">
+    <div class="final-label">The Bottom Line for the CEO</div>
+    <div class="final-text">"We don't chase a market. We serve one person so well that she can't stop telling everyone about us. The market comes to us."</div>
+    <p style="font-size:13px;opacity:.8">This is not a theory. This is how Spotify started (music nerds in Sweden), how Airbnb started (broke designers in SF), how Co-Star got to 20M downloads (one type of girl in Brooklyn). The pattern is always the same: obsess over one person, nail it for her, and let her bring the world.</p>
+    <div class="final-list">
+      <div class="final-item"><div class="final-item-num">1</div><div class="final-item-label">Person to obsess over</div></div>
+      <div class="final-item"><div class="final-item-num">100</div><div class="final-item-label">Users who love you first</div></div>
+      <div class="final-item"><div class="final-item-num">∞</div><div class="final-item-label">Growth from word-of-mouth</div></div>
+    </div>
+  </div>
+</section>
+
+<footer class="footer">
+  <p>Build for Mia. Let Mia bring her friends. That's the entire strategy.</p>
+  <div class="brand">Celestia · 2026</div>
+</footer>
+
+</div>
+</body>
+</html>
