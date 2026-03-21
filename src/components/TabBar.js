@@ -35,7 +35,9 @@ export default function TabBar({ state, navigation }) {
     return () => { subShow.remove(); subHide.remove(); };
   }, []);
 
-  if (keyboardVisible) return null;
+  // Hide tab bar when AskAI is active (immersive chat mode)
+  const currentRoute = state.routes[state.index]?.name;
+  if (keyboardVisible || currentRoute === 'AskAI') return null;
 
   return (
     <View style={[
@@ -69,7 +71,14 @@ export default function TabBar({ state, navigation }) {
                 key={i}
                 style={styles.tab}
                 activeOpacity={0.7}
-                onPress={() => navigation.navigate(route.name)}
+                onPress={() => {
+                  if (route.name === 'AskAI') {
+                    // Pass current tab so ChatScreen can dismiss back to it
+                    navigation.navigate('AskAI', { previousTab: currentRoute });
+                  } else {
+                    navigation.navigate(route.name);
+                  }
+                }}
               >
                 <View style={styles.iconContainer}>
                   {active && <View style={[styles.pill, { backgroundColor: colors.goldDim }]} />}

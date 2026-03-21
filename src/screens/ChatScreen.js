@@ -19,6 +19,7 @@ import { getNarrativeContext } from '../services/narrativeService';
 import { useRevenueCat } from '../contexts/RevenueCatContext';
 import { useNavigation } from '@react-navigation/native';
 import { useAnalytics, EVENTS } from '../services/analytics';
+import { X } from 'lucide-react-native';
 
 
 // ── DYNAMIC SUGGESTION QUESTIONS ─────────────────────────────
@@ -271,8 +272,9 @@ const CHAT_THEMES = [
 export default function ChatScreen({ navigation, route }) {
   const { isPro } = useRevenueCat();
   const insets = useSafeAreaInsets();
-  // Tab bar offset: floating tab bar sits at bottom: insets.bottom + 14, height ~72px, plus 8px gap
-  const tabBarClearance = Math.max(insets.bottom, 10) + 14 + 72 + 8;
+  // Tab bar is hidden on this screen, so only need safe area bottom
+  const bottomPadding = Math.max(insets.bottom, 10);
+  const previousTab = route?.params?.previousTab || 'Today';
   const { capture } = useAnalytics();
   const { colors, isDark } = useTheme();
 
@@ -575,11 +577,18 @@ export default function ChatScreen({ navigation, route }) {
       {/* Header */}
       <View style={[styles.header, { backgroundColor: colors.headerBg, borderBottomColor: colors.border, paddingTop: insets.top + 12 }]}>
         <View style={styles.aiRow}>
+          <TouchableOpacity
+            style={[styles.dismissBtn, { backgroundColor: colors.cardAlt, borderColor: colors.border }]}
+            activeOpacity={0.7}
+            onPress={() => { haptic.light(); navigation.navigate(previousTab); }}
+          >
+            <X size={18} color={colors.text} strokeWidth={2.5} />
+          </TouchableOpacity>
           <LinearGradient colors={['#0E0E22', '#1A1060']} style={styles.chatOrb}>
             <Text style={{ fontSize: 22, color: '#C8A84B' }}>☽</Text>
             <View style={[styles.orbDot, { borderColor: colors.headerBg }]} />
           </LinearGradient>
-          <View>
+          <View style={{ flex: 1 }}>
             <Text style={[styles.aiName, { color: colors.heading }]}>Ask Celestia</Text>
             <Text style={[styles.aiSub, { color: colors.textSecondary }]}>Your cosmic guide</Text>
           </View>
@@ -587,7 +596,6 @@ export default function ChatScreen({ navigation, route }) {
             <Text style={[styles.newChatBtnText, { color: colors.text }]}>New Chat</Text>
           </TouchableOpacity>
         </View>
-        {/* Context chips removed — Mia knows her Big 3, the AI knows it too */}
       </View>
 
       {/* Theme selector — only shown at start of conversation */}
@@ -613,7 +621,7 @@ export default function ChatScreen({ navigation, route }) {
       <ScrollView
         ref={scrollRef}
         style={styles.msgs}
-        contentContainerStyle={{ paddingTop: 17, paddingBottom: tabBarClearance + 100, paddingHorizontal: 17, gap: 15 }}
+        contentContainerStyle={{ paddingTop: 17, paddingBottom: bottomPadding + 20, paddingHorizontal: 17, gap: 15 }}
         keyboardDismissMode="interactive"
         keyboardShouldPersistTaps="handled"
       >
@@ -673,7 +681,7 @@ export default function ChatScreen({ navigation, route }) {
         )}
       </ScrollView>
 
-      <View style={{ paddingBottom: keyboardVisible ? (Platform.OS === 'ios' ? 10 : 0) : tabBarClearance, backgroundColor: colors.bg, zIndex: 100 }}>
+      <View style={{ paddingBottom: keyboardVisible ? (Platform.OS === 'ios' ? 10 : 0) : bottomPadding, backgroundColor: colors.bg, zIndex: 100 }}>
         {/* Suggestions */}
         <ScrollView horizontal showsHorizontalScrollIndicator={false} style={[styles.suggestStrip, { backgroundColor: colors.bg }]} contentContainerStyle={{ paddingHorizontal: 17, gap: 7 }}>
           {suggestions.map((s, i) => (
@@ -743,7 +751,8 @@ const styles = StyleSheet.create({
   orbDot: { position: 'absolute', bottom: 1, right: 1, width: 12, height: 12, borderRadius: 6, backgroundColor: '#4CAF50', borderWidth: 2.5, borderColor: T.cream },
   aiName: { fontFamily: FONTS.serif, fontSize: 20, color: T.navy, marginBottom: 1 },
   aiSub: { fontSize: 11, color: T.stone },
-  newChatBtn: { marginLeft: 'auto', backgroundColor: T.warm, borderRadius: 100, paddingVertical: 6, paddingHorizontal: 14, borderWidth: 1, borderColor: T.border },
+  dismissBtn: { width: 36, height: 36, borderRadius: 18, alignItems: 'center', justifyContent: 'center', borderWidth: 1 },
+  newChatBtn: { backgroundColor: T.warm, borderRadius: 100, paddingVertical: 6, paddingHorizontal: 14, borderWidth: 1, borderColor: T.border },
   newChatBtnText: { fontSize: 11, fontFamily: FONTS.sansMedium, color: T.ink },
   ctxBar: { flexDirection: 'row' },
   ctxChip: { backgroundColor: T.warm, borderRadius: 100, paddingVertical: 4, paddingHorizontal: 11, marginRight: 6 },
