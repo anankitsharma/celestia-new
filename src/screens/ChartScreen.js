@@ -7,7 +7,7 @@ import { useUserProfile } from '../contexts/UserProfileContext';
 import { useRevenueCat } from '../contexts/RevenueCatContext';
 import { useNavigation } from '@react-navigation/native';
 
-import { HOUSE_THEMES, HOUSE_FRIENDLY } from '../constants/AstrologyCore';
+import { HOUSE_THEMES, HOUSE_FRIENDLY, ZODIAC_SYMBOLS } from '../constants/AstrologyCore';
 import { generatePlacementDeepDive, generateAspectDeepDive, generateHouseDeepDive } from '../services/geminiService';
 import { haptic } from '../services/hapticService';
 import { trackEvent } from '../services/achievementService';
@@ -203,7 +203,8 @@ export default function ChartScreen() {
               p.name.toUpperCase(),
         sign: p.sign,
         deg: `${p.degree.toFixed(0)}° ${Math.round((p.degree % 1) * 60).toString().padStart(2, '0')}'`,
-        house: p.house ? `House ${toRoman(p.house)}` : '',
+        house: p.house ? (HOUSE_FRIENDLY[p.house]?.name || `House ${toRoman(p.house)}`) : '',
+        houseNum: p.house,
         isRetrograde: p.isRetrograde,
         name: p.name,
       }));
@@ -303,62 +304,45 @@ export default function ChartScreen() {
     <View style={{ flex: 1, backgroundColor: colors.bg }}>
       <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 110 }}>
         <LinearGradient colors={colors.heroGradient} locations={[0, 0.5, 1]} style={styles.hero}>
-          <View style={styles.heroGlow} />
-          <View style={styles.topRow}>
-            <View>
-              <Text style={styles.title}>Birth Chart</Text>
-              <Text style={styles.heroSub}>
-                {sun ? `${sun.sign} Sun` : ''}
-                {moon ? ` · ${moon.sign} Moon` : ''}
-                {rising ? ` · ${rising.sign} Rising` : ''}
-              </Text>
-            </View>
-            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-              <TouchableOpacity
-                style={[styles.depthToggle, detailedMode && styles.depthToggleActive]}
-                activeOpacity={0.7}
-                onPress={() => { haptic.light(); setDetailedMode(prev => !prev); }}
-              >
-                <Text style={[styles.depthToggleText, detailedMode && styles.depthToggleTextActive]}>
-                  {detailedMode ? '\u2699\uFE0F Detailed' : '\u2726 Simple'}
-                </Text>
-              </TouchableOpacity>
-              <View style={styles.housePill}><Text style={styles.housePillText}>Whole Sign</Text></View>
-              <CosmicTooltip id="whole_sign" size={14} light />
-            </View>
-          </View>
+          {/* Centered title + subtitle */}
+          <Text style={styles.title}>Birth Chart</Text>
+          <Text style={styles.heroSub}>
+            {sun ? `${sun.sign} Sun` : ''}
+            {moon ? ` · ${moon.sign} Moon` : ''}
+            {rising ? ` · ${rising.sign} Rising` : ''}
+          </Text>
 
-          {/* Big 3 */}
+          {/* Big 3 — centered row with dividers */}
           {(sun || moon || rising) && (
             <View style={styles.big3Row}>
               {sun && <View style={styles.big3Item}>
                 <Text style={styles.big3Glyph}>☉</Text>
-                <Text style={styles.big3Sign}>{sun.sign}</Text>
-                <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-                  <Text style={styles.big3Label}>SUN</Text>
-                  <CosmicTooltip id="sun_sign" size={14} color="rgba(250,248,242,0.4)" />
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 2 }}>
+                  <Text style={styles.big3Sign}>{sun.sign}</Text>
+                  <CosmicTooltip id="sun_sign" size={12} color="rgba(250,248,242,0.35)" />
                 </View>
+                <Text style={styles.big3Label}>SUN</Text>
               </View>}
-              {moon && <View style={[styles.big3Item, { borderLeftWidth: 1, borderRightWidth: 1, borderColor: 'rgba(255,255,255,0.1)' }]}>
+              {moon && <View style={[styles.big3Item, styles.big3Divider]}>
                 <Text style={styles.big3Glyph}>☽</Text>
-                <Text style={styles.big3Sign}>{moon.sign}</Text>
-                <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-                  <Text style={styles.big3Label}>MOON</Text>
-                  <CosmicTooltip id="moon_sign" size={14} color="rgba(250,248,242,0.4)" />
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 2 }}>
+                  <Text style={styles.big3Sign}>{moon.sign}</Text>
+                  <CosmicTooltip id="moon_sign" size={12} color="rgba(250,248,242,0.35)" />
                 </View>
+                <Text style={styles.big3Label}>MOON</Text>
               </View>}
               {rising && <View style={styles.big3Item}>
                 <Text style={styles.big3Glyph}>↑</Text>
-                <Text style={styles.big3Sign}>{rising.sign}</Text>
-                <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-                  <Text style={styles.big3Label}>RISING</Text>
-                  <CosmicTooltip id="rising_sign" size={14} color="rgba(250,248,242,0.4)" />
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 2 }}>
+                  <Text style={styles.big3Sign}>{rising.sign}</Text>
+                  <CosmicTooltip id="rising_sign" size={12} color="rgba(250,248,242,0.35)" />
                 </View>
+                <Text style={styles.big3Label}>RISING</Text>
               </View>}
             </View>
           )}
 
-          {/* Share My Chart button */}
+          {/* Share My Chart */}
           <TouchableOpacity style={styles.shareChartBtn} activeOpacity={0.75} onPress={async () => {
             haptic.light();
             await shareBigThree(`My cosmic identity: ${sun?.sign} Sun · ${moon?.sign} Moon · ${rising?.sign} Rising`);
@@ -368,17 +352,33 @@ export default function ChartScreen() {
             <Text style={styles.shareChartText}>Share My Chart</Text>
           </TouchableOpacity>
 
-          <View style={{ alignItems: 'center', marginTop: 10 }}>
-            <ChartWheel size={260} planets={chart.planets} aspects={chart.aspects} />
+          {/* Chart Wheel — inside dark hero */}
+          <View style={{ alignItems: 'center', marginTop: 12 }}>
+            <ChartWheel size={280} planets={chart.planets} aspects={chart.aspects} />
           </View>
         </LinearGradient>
 
-        <View style={[styles.tabsBar, { backgroundColor: isDark ? colors.cardAlt : '#EDE6D8' }]}>
-          {tabs.map((t, i) => (
-            <TouchableOpacity key={i} style={[styles.ctab, tab === i && [styles.ctabOn, { backgroundColor: colors.card }]]} onPress={() => setTab(i)}>
-              <Text style={[styles.ctabText, { color: colors.textSecondary }, tab === i && [styles.ctabTextOn, { color: colors.heading }]]}>{t}</Text>
+        {/* Floating tab pill — overlaps hero bottom edge */}
+        <View style={styles.chartTabWrap}>
+          <View style={[styles.chartTabBar, { backgroundColor: isDark ? colors.card : colors.bg, borderColor: isDark ? colors.border : 'rgba(0,0,0,0.04)' }]}>
+            {tabs.filter((t) => {
+              if (t === 'Aspects' && !detailedMode) return false;
+              return true;
+            }).map((t) => (
+              <TouchableOpacity key={t} style={[styles.chartTab, tabs.indexOf(t) === tab && styles.chartTabOn]} onPress={() => setTab(tabs.indexOf(t))}>
+                <Text style={[styles.chartTabText, { color: colors.textSecondary }, tabs.indexOf(t) === tab && styles.chartTabTextOn]}>{t}</Text>
+              </TouchableOpacity>
+            ))}
+            {/* Depth toggle */}
+            <TouchableOpacity
+              style={[styles.depthToggle, detailedMode && styles.depthToggleActive, { marginLeft: 'auto' }]}
+              activeOpacity={0.7}
+              onPress={() => { haptic.light(); setDetailedMode(prev => !prev); }}>
+              <Text style={[styles.depthToggleText, detailedMode && styles.depthToggleTextActive]}>
+                {detailedMode ? '⚙️' : '✦'}
+              </Text>
             </TouchableOpacity>
-          ))}
+          </View>
         </View>
 
         {/* Guide header */}
@@ -846,11 +846,9 @@ const toRoman = (n) => {
 };
 
 const styles = StyleSheet.create({
-  hero: { paddingTop: Platform.OS === 'ios' ? 70 : (StatusBar.currentHeight || 48) + 16, paddingBottom: 26, alignItems: 'center', overflow: 'hidden', position: 'relative',  },
-  heroGlow: { position: 'absolute', width: 260, height: 260, borderRadius: 130, backgroundColor: 'rgba(200,168,75,0.08)', right: -60, top: -40 },
-  topRow: { width: '100%', paddingHorizontal: 22, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14 },
-  title: { fontFamily: FONTS.serif, fontSize: 30, color: T.cream },
-  heroSub: { fontSize: 12, color: 'rgba(250,248,242,0.4)', marginTop: 3 },
+  hero: { paddingTop: Platform.OS === 'ios' ? 70 : (StatusBar.currentHeight || 48) + 16, paddingBottom: 40, alignItems: 'center', position: 'relative', borderBottomLeftRadius: 36, borderBottomRightRadius: 36 },
+  title: { fontFamily: FONTS.serif, fontSize: 32, color: T.cream, textAlign: 'center' },
+  heroSub: { fontSize: 12, color: 'rgba(250,248,242,0.45)', marginTop: 4, textAlign: 'center', marginBottom: 16 },
   housePill: { backgroundColor: 'rgba(255,255,255,0.08)', borderWidth: 1, borderColor: 'rgba(255,255,255,0.1)', borderRadius: 100, paddingVertical: 5, paddingHorizontal: 14 },
   housePillText: { fontSize: 11, color: 'rgba(250,248,242,0.48)' },
   depthToggle: { backgroundColor: 'rgba(255,255,255,0.06)', borderWidth: 1, borderColor: 'rgba(255,255,255,0.1)', borderRadius: 100, paddingVertical: 5, paddingHorizontal: 12 },
@@ -859,16 +857,19 @@ const styles = StyleSheet.create({
   depthToggleTextActive: { color: T.gold },
   retroBadge: { backgroundColor: 'rgba(232,120,120,0.12)', borderRadius: 4, paddingHorizontal: 6, paddingVertical: 2, alignSelf: 'flex-start', marginTop: 3 },
   retroBadgeText: { fontSize: 8, fontFamily: FONTS.sansSemiBold, letterSpacing: 1, color: '#E87878' },
-  big3Row: { flexDirection: 'row', width: '100%', paddingHorizontal: 22, marginBottom: 12 },
-  big3Item: { flex: 1, alignItems: 'center', paddingVertical: 10 },
-  big3Glyph: { fontSize: 20, color: T.gold, marginBottom: 2 },
-  big3Sign: { fontFamily: FONTS.serif, fontSize: 14, color: T.cream, marginBottom: 2 },
-  big3Label: { fontSize: 9, fontFamily: FONTS.sansSemiBold, letterSpacing: 1.2, color: 'rgba(250,248,242,0.4)' },
-  tabsBar: { backgroundColor: '#EDE6D8', borderRadius: 13, padding: 4, flexDirection: 'row', marginHorizontal: 20, marginTop: 16 },
-  ctab: { flex: 1, height: 38, borderRadius: 9, alignItems: 'center', justifyContent: 'center' },
-  ctabOn: { backgroundColor: 'white', shadowColor: '#000', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.09, shadowRadius: 5 },
-  ctabText: { fontSize: 12.5, color: T.stone },
-  ctabTextOn: { color: T.navy, fontFamily: FONTS.sansSemiBold },
+  big3Row: { flexDirection: 'row', width: '100%', paddingHorizontal: 22, marginBottom: 14, justifyContent: 'center' },
+  big3Item: { flex: 1, alignItems: 'center', paddingVertical: 8 },
+  big3Divider: { borderLeftWidth: 1, borderRightWidth: 1, borderColor: 'rgba(255,255,255,0.1)' },
+  big3Glyph: { fontSize: 22, color: T.gold, marginBottom: 4 },
+  big3Sign: { fontFamily: FONTS.serif, fontSize: 15, color: T.cream },
+  big3Label: { fontSize: 9, fontFamily: FONTS.sansSemiBold, letterSpacing: 1.2, color: 'rgba(250,248,242,0.4)', marginTop: 2 },
+  // Floating tab pill (same as HomeScreen)
+  chartTabWrap: { marginTop: -24, paddingHorizontal: 20, marginBottom: 16, zIndex: 10 },
+  chartTabBar: { flexDirection: 'row', borderRadius: 100, padding: 4, shadowColor: '#000', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.08, shadowRadius: 20, elevation: 6, borderWidth: 1 },
+  chartTab: { flex: 1, paddingVertical: 11, alignItems: 'center', borderRadius: 100 },
+  chartTabOn: { backgroundColor: T.navy },
+  chartTabText: { fontSize: 13, fontFamily: FONTS.sansMedium, color: T.stone },
+  chartTabTextOn: { color: T.cream, fontFamily: FONTS.sansSemiBold },
   list: { paddingHorizontal: 20, paddingTop: 6 },
   plrow: { flexDirection: 'row', alignItems: 'center', gap: 13, paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: '#F0E8DA' },
   plrowIcon: { width: 40, height: 40, borderRadius: 20, backgroundColor: T.warm, alignItems: 'center', justifyContent: 'center' },

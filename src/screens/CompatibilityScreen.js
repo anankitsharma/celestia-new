@@ -749,34 +749,30 @@ export default function CompatibilityScreen() {
       {/* ─── MAIN CIRCLE VIEW ─── */}
       {!showDetailScreen && (
         <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 110 }}>
-          {/* Compact hero header (sticky) */}
+          {/* Hero — rounded bottom, centered */}
           <LinearGradient colors={['#0E0E22', '#1A1228', '#14101E']} style={styles.hero}>
-            <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
-              <View>
-                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-                  <Text style={styles.title}>Compatibility</Text>
-                  <CosmicTooltip id="synastry" size={16} light />
-                </View>
-                <Text style={styles.sub}>
-                  {partnerProfiles.length === 0 ? 'See how your chart aligns with anyone — a crush, a friend, or a celebrity' : `${partnerProfiles.length} ${partnerProfiles.length === 1 ? 'person' : 'people'} in your circle`}
-                </Text>
-              </View>
-              <TouchableOpacity style={styles.heroAddBtn} activeOpacity={0.7}
-                onPress={() => {
-                  if (!isPro && partnerProfiles.length >= 3) {
-                    haptic.medium();
-                    navigation.navigate('Paywall', { source: 'match' });
-                    return;
-                  }
-                  setShowAddModal(true);
-                }}>
-                <Text style={{ fontSize: 18, color: T.gold }}>+</Text>
-              </TouchableOpacity>
+            <Text style={styles.title}>Compatibility</Text>
+            <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 4, marginBottom: 4 }}>
+              <Text style={styles.sub}>
+                {partnerProfiles.length === 0 ? 'Check anyone — a crush, a friend, or a celebrity' : `${partnerProfiles.length} ${partnerProfiles.length === 1 ? 'person' : 'people'} in your circle`}
+              </Text>
+              <CosmicTooltip id="synastry" size={14} light />
             </View>
+            <TouchableOpacity style={styles.heroAddBtn} activeOpacity={0.7}
+              onPress={() => {
+                if (!isPro && partnerProfiles.length >= 3) {
+                  haptic.medium();
+                  navigation.navigate('Paywall', { source: 'match' });
+                  return;
+                }
+                setShowAddModal(true);
+              }}>
+              <Text style={styles.heroAddBtnText}>+ Add Someone</Text>
+            </TouchableOpacity>
           </LinearGradient>
 
-          {/* ─── CONCENTRIC ORBIT SYSTEM ─── */}
-          <View style={styles.orbitSystemWrap}>
+          {/* ─── CONCENTRIC ORBIT SYSTEM — collapsed when partners exist, visible when empty ─── */}
+          {partnerProfiles.length === 0 && <View style={styles.orbitSystemWrap}>
             <View style={[styles.orbitSystem, { width: ORBIT_AREA, height: ORBIT_AREA }]}>
 
               {/* Orbit ring tracks (visual only) */}
@@ -886,9 +882,10 @@ export default function CompatibilityScreen() {
                 );
               })}
             </View>
-          </View>
+          </View>}
 
-          {/* ─── ORBIT LEGEND ─── */}
+          {/* ─── ORBIT LEGEND — only when empty ─── */}
+          {partnerProfiles.length === 0 &&
           <View style={styles.legendWrap}>
             {legendItems.map(item => (
               <TouchableOpacity key={item.key} style={[styles.legendItem, { backgroundColor: colors.card, borderColor: colors.border }]} activeOpacity={0.7}
@@ -906,12 +903,12 @@ export default function CompatibilityScreen() {
                 <Text style={styles.legendAdd}>+</Text>
               </TouchableOpacity>
             ))}
-          </View>
+          </View>}
 
-          {/* ─── YOUR CONNECTIONS (scrollable below orbit) ─── */}
+          {/* ─── YOUR CONNECTIONS (directly below hero when partners exist) ─── */}
           {partnerProfiles.length > 0 && (
             <View style={styles.peopleListSection}>
-              <Text style={styles.peopleListLabel}>YOUR CONNECTIONS</Text>
+              <Text style={[styles.peopleListLabel, { color: colors.textSecondary }]}>YOUR CONNECTIONS</Text>
               {partnerProfiles.map(p => {
                 const role = p.relationshipType || 'other';
                 const roleColor = ROLE_COLORS[role] || ROLE_COLORS.other;
@@ -1475,6 +1472,19 @@ export default function CompatibilityScreen() {
                     </View>
                   ))}
                 </View>
+                {/* Quick share from detail hero */}
+                <TouchableOpacity style={styles.ddShareBtn} activeOpacity={0.7}
+                  onPress={async () => {
+                    haptic.light();
+                    try {
+                      await Share.share({
+                        message: `${p1Name} & ${p2Name} — ${synastry.harmonyScore}% compatibility on Celestia! Check yours: celestia.app`,
+                      });
+                      trackEvent('share').catch(() => {});
+                    } catch (e) {}
+                  }}>
+                  <Text style={styles.ddShareBtnText}>Share Result ↗</Text>
+                </TouchableOpacity>
               </LinearGradient>
 
               <View style={[styles.ddBody, { backgroundColor: colors.bg }]}>
@@ -1784,10 +1794,11 @@ const generateMatchReportHTML = (report, user, partner, synastry, role = 'partne
 
 const styles = StyleSheet.create({
   // Hero (compact)
-  hero: { paddingTop: Platform.OS === 'ios' ? 70 : (StatusBar.currentHeight || 48) + 16, paddingHorizontal: 22, paddingBottom: 24, overflow: 'hidden' },
-  title: { fontFamily: FONTS.serif, fontSize: 26, color: T.cream, marginBottom: 2 },
-  sub: { fontSize: 12, fontFamily: FONTS.sans, color: 'rgba(250,248,242,0.45)' },
-  heroAddBtn: { width: 38, height: 38, borderRadius: 19, backgroundColor: 'rgba(200,168,75,0.12)', borderWidth: 1, borderColor: 'rgba(200,168,75,0.25)', alignItems: 'center', justifyContent: 'center' },
+  hero: { paddingTop: Platform.OS === 'ios' ? 70 : (StatusBar.currentHeight || 48) + 16, paddingHorizontal: 22, paddingBottom: 28, borderBottomLeftRadius: 36, borderBottomRightRadius: 36, alignItems: 'center' },
+  title: { fontFamily: FONTS.serif, fontSize: 30, color: T.cream, marginBottom: 4, textAlign: 'center' },
+  sub: { fontSize: 12, fontFamily: FONTS.sans, color: 'rgba(250,248,242,0.45)', textAlign: 'center' },
+  heroAddBtn: { backgroundColor: 'rgba(200,168,75,0.12)', borderWidth: 1, borderColor: 'rgba(200,168,75,0.25)', borderRadius: 100, paddingVertical: 8, paddingHorizontal: 20, marginTop: 10 },
+  heroAddBtnText: { fontSize: 12, fontFamily: FONTS.sansMedium, color: T.gold },
 
   // Concentric orbit system
   orbitSystemWrap: { alignItems: 'center', paddingVertical: 10 },
@@ -1819,15 +1830,15 @@ const styles = StyleSheet.create({
   legendAdd: { fontSize: 11, color: T.gold, marginLeft: 1 },
 
   // People list
-  peopleListSection: { paddingHorizontal: 20, marginBottom: 10 },
+  peopleListSection: { paddingHorizontal: 20, marginBottom: 10, marginTop: 14 },
   peopleListLabel: { fontSize: 10, fontFamily: FONTS.sansSemiBold, letterSpacing: 2, color: T.stone, marginBottom: 10 },
   personRow: { flexDirection: 'row', alignItems: 'center', gap: 12, backgroundColor: 'white', borderRadius: 14, padding: 12, marginBottom: 8, borderWidth: 1, borderColor: 'rgba(0,0,0,0.05)' },
   personRowOrb: { width: 38, height: 38, borderRadius: 19, alignItems: 'center', justifyContent: 'center', borderWidth: 1.5, borderColor: 'rgba(255,255,255,0.15)' },
   personRowOrbText: { fontFamily: FONTS.serif, fontSize: 15, color: 'white' },
   personRowName: { fontSize: 14, fontFamily: FONTS.sansSemiBold, color: T.navy, marginBottom: 1 },
   personRowSub: { fontSize: 11, color: T.stone },
-  personRowScoreBadge: { backgroundColor: 'rgba(200,168,75,0.1)', borderRadius: 8, paddingHorizontal: 8, paddingVertical: 3, borderWidth: 1, borderColor: 'rgba(200,168,75,0.25)' },
-  personRowScoreText: { fontSize: 12, fontFamily: FONTS.sansSemiBold, color: T.gold },
+  personRowScoreBadge: { backgroundColor: 'rgba(200,168,75,0.12)', borderRadius: 20, width: 44, height: 44, alignItems: 'center', justifyContent: 'center', borderWidth: 1.5, borderColor: 'rgba(200,168,75,0.3)' },
+  personRowScoreText: { fontSize: 15, fontFamily: FONTS.serif, color: T.gold },
 
   // Add card
   addCard: { marginHorizontal: 20, marginBottom: 10, backgroundColor: 'white', borderRadius: 17, padding: 16, borderWidth: 1.5, borderStyle: 'dashed', borderColor: '#D4CFC4', flexDirection: 'row', alignItems: 'center', gap: 13 },
@@ -1836,7 +1847,7 @@ const styles = StyleSheet.create({
   addCardSub: { fontSize: 11.5, color: T.stone },
 
   // Detail screen
-  ddHero: { paddingTop: Platform.OS === 'ios' ? 60 : (StatusBar.currentHeight || 48) + 12, paddingBottom: 22, paddingHorizontal: 22, alignItems: 'center' },
+  ddHero: { paddingTop: Platform.OS === 'ios' ? 60 : (StatusBar.currentHeight || 48) + 12, paddingBottom: 28, paddingHorizontal: 22, alignItems: 'center', borderBottomLeftRadius: 36, borderBottomRightRadius: 36 },
   ddBack: { position: 'absolute', top: Platform.OS === 'ios' ? 56 : (StatusBar.currentHeight || 48) + 8, left: 16, zIndex: 10, width: 36, height: 36, borderRadius: 18, backgroundColor: 'rgba(255,255,255,0.08)', alignItems: 'center', justifyContent: 'center' },
   ddPair: { flexDirection: 'row', alignItems: 'center', marginBottom: 10, marginTop: 10 },
   ddOrb: { width: 50, height: 50, borderRadius: 25, alignItems: 'center', justifyContent: 'center', borderWidth: 2, borderColor: 'rgba(255,255,255,0.15)' },
@@ -1853,6 +1864,8 @@ const styles = StyleSheet.create({
   ddChip: { flexDirection: 'row', alignItems: 'center', gap: 4, backgroundColor: 'rgba(255,255,255,0.06)', borderWidth: 1, borderRadius: 100, paddingVertical: 5, paddingHorizontal: 10 },
   ddChipLabel: { fontSize: 10, color: 'rgba(250,248,242,0.5)' },
   ddChipVal: { fontSize: 10, fontFamily: FONTS.sansSemiBold },
+  ddShareBtn: { marginTop: 14, backgroundColor: 'rgba(200,168,75,0.15)', borderWidth: 1, borderColor: 'rgba(200,168,75,0.3)', borderRadius: 100, paddingVertical: 8, paddingHorizontal: 20, alignSelf: 'center' },
+  ddShareBtnText: { fontSize: 12, fontFamily: FONTS.sansMedium, color: T.gold },
   ddBody: { padding: 20 },
   ddSectionLbl: { fontSize: 10, fontFamily: FONTS.sansSemiBold, letterSpacing: 2, color: T.stone, marginBottom: 10, marginTop: 4 },
   ddAiCard: { backgroundColor: 'white', borderRadius: 14, padding: 14, marginBottom: 14, borderWidth: 1, borderColor: 'rgba(0,0,0,0.05)' },
