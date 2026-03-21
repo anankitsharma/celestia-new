@@ -305,7 +305,6 @@ const fullReportSchema = {
                 properties: {
                     heading: { type: Type.STRING },
                     body: { type: Type.STRING },
-                    highlight: { type: Type.STRING, description: "One key screenshottable insight from this section — the single most resonant takeaway. Max 25 words." },
                     remedy: { type: Type.STRING },
                     affirmation: { type: Type.STRING },
                 },
@@ -425,18 +424,6 @@ const deepPdfReportSchema = {
         closing: { type: Type.STRING, description: "2 inspiring paragraphs weaving all themes into empowerment, ~150 words" },
     },
     required: ["headline", "coreMotif", "overview", "bigThree", "planets", "lifeAreas", "soulPath", "elementalBalance", "closing"]
-};
-
-
-// --- HELPERS ---
-
-const getISOWeekLabel = (date) => {
-    const d = new Date(date);
-    d.setHours(0, 0, 0, 0);
-    d.setDate(d.getDate() + 4 - (d.getDay() || 7));
-    const year = d.getFullYear();
-    const week = Math.ceil((((d.getTime() - new Date(year, 0, 1).getTime()) / 86400000) + 1) / 7);
-    return `${year}-W${week.toString().padStart(2, '0')}`;
 };
 
 const cleanAndParseJson = (text, fallback) => {
@@ -2706,28 +2693,6 @@ const REPORT_PROMPTS = {
         6. Key Dates (3-5 pivotal upcoming dates with themes)
         Focus on how transits affect love, career, and growth. Include "do this" advice and "watch for" warnings.`
     },
-    venus: {
-        focus: 'Venus sign, Venus house, Venus aspects, 7th house, Mars-Venus, Moon-Venus, Saturn-Venus, attachment patterns',
-        instruction: `Write a "Why You Love Like This" Venus Report. Cover:
-        1. Your Venus Sign (love language, what you need to feel loved, how you express affection — deep dive)
-        2. Your 7th House (what you look for in a partner, the type you're drawn to, unconscious attraction patterns)
-        3. Your Attachment Style (anxious/avoidant/secure based on Moon-Venus-Saturn aspects — chart explains the wiring)
-        4. The Pattern (the relationship cycle you keep repeating — name it specifically, don't judge it)
-        5. What You Actually Need (not what you think you want — what your chart says you need to feel safe, loved, seen)
-        6. Breaking the Pattern (practical guidance on what to look for next time, based on chart)
-        Write with deep empathy. This is the report that makes someone cry because it's so accurate.`
-    },
-    saturn_return_guide: {
-        focus: 'Natal Saturn sign, Saturn house, Saturn aspects, Saturn return dates, Saturn-Moon, Saturn-Sun, Saturn-Venus',
-        instruction: `Write a Saturn Return Survival Guide for ages 27-30. Cover:
-        1. What Is Saturn Return (plain language, no jargon — why everything gets stress-tested in late 20s)
-        2. YOUR Saturn Return (when it starts, peaks, and ends based on natal Saturn — be specific about the sign and house)
-        3. Relationships During Saturn Return (what stays, what breaks, why — based on Saturn aspects to Venus/Moon)
-        4. Career During Saturn Return (job crisis, identity questioning, how to navigate — based on Saturn and 10th house)
-        5. Identity During Saturn Return (who you were vs who you're becoming, the shedding process)
-        6. What's On the Other Side (life waiting after the destruction — always end hopeful)
-        Write like a wise older friend who went through it. Direct, warm, specific. Never scary.`
-    },
     monthly: {
         focus: 'Current month lunar phases, inner planet transits, Mercury/Venus/Mars sign changes, New Moon & Full Moon, eclipse if applicable',
         instruction: `Write a Monthly Forecast Report for the current calendar month. Cover:
@@ -2786,22 +2751,17 @@ export const generateFullReport = async (profile, reportType, narrativeContext =
         ${reportConfig.instruction}
 
         WRITING RULES:
-        1. Each section has: heading (max 4 words, evocative like "The Depth You Carry"), body (3-4 rich paragraphs, ~120-150 words each — this is a premium $9.99 product, depth is expected), remedy (a practical action, max 25 words), affirmation (an "I am..." statement, max 15 words).
+        1. Each section has: heading (max 4 words), body (2-3 rich paragraphs, ~100 words each), remedy (a practical action, max 20 words), affirmation (an "I am..." statement, max 12 words).
         2. Generate EXACTLY 6 sections.
         3. Title: Max 6 words, evocative.
         4. Summary: 2 sentences (max 40 words). Mystical hook.
         5. KeyInsight: One powerful closing sentence (max 20 words).
 
         TONE:
+        - Deep but accessible (Grade 7-8 English).
         - Psychologically grounded, not generic horoscope.
         - Reference SPECIFIC placements (e.g., "Your Venus in Scorpio in the 8th house...").
         - Warm, validating, empowering.
-        - NEVER use hedging language: "might suggest", "could indicate", "may potentially", "this placement sometimes". COMMIT to the insight.
-        - NEVER use "the native" — always "you" and "your".
-        - Present tense: "you feel" not "you may feel".
-        - Short paragraphs: MAX 4 sentences per paragraph. If longer, split.
-        - Every section must contain at least ONE "how does it KNOW" moment — a sentence so specific she stops and says "wait, how does it know this about me?"
-        ${await getPersonaDepthPrompt()}
 
         JSON Only.
 ${narrativeContext ? `
@@ -2901,23 +2861,23 @@ export const generateDeepPdfReport = async (profile, reportType, narrativeContex
         2. CORE MOTIF: One profound sentence capturing the soul's theme
         3. OVERVIEW: 4 paragraphs separated by \\n\\n — chart synthesis, internal tensions, unique gifts, life mission. ~400 words total.
         4. BIG THREE: Each of Sun, Moon, Rising gets:
-           - title (evocative, e.g., "The Depth You Carry" not "Moon in Scorpio")
-           - interpretation (3-4 paragraphs, ~300 words, deeply personal — this is a $9.99 report, depth is expected. Start with what she already knows about herself, name the pattern, explain the WHY through her chart, end with forward-looking insight)
-           - shadow (1 paragraph on the shadow side, ~80 words — specific, not generic)
+           - title (e.g., "Leo Sun: The Sacred Performer")
+           - interpretation (2-3 paragraphs, ~200 words, deeply personal)
+           - shadow (1 paragraph on the shadow side, ~60 words)
            - advice (1 practical sentence)
         5. PLANETS: 8 entries (Mercury, Venus, Mars, Jupiter, Saturn, Uranus, Neptune, Pluto):
-           - name, placement (sign + house), title (evocative — "Why You Love Like This" not "Venus in Virgo")
-           - interpretation: 3 paragraphs for Mercury-Saturn (~250 words each — include lived-experience patterns, not just descriptions), 2 paragraphs for Uranus-Pluto (house-focused, ~150 words each)
-           - advice (1-2 practical sentences)
+           - name, placement (sign + house), title (poetic)
+           - interpretation: 2 paragraphs for Mercury-Saturn, 1 paragraph for Uranus-Pluto (house-focused)
+           - advice (1 sentence)
         6. LIFE AREAS: 4 areas (love, career, purpose, challenge):
-           - theme (3-4 words), analysis (3-4 paragraphs ~300 words — include specific chart references), advice (1-2 sentences)
+           - theme (3-4 words), analysis (2-3 paragraphs ~200 words), advice (1 sentence)
         7. SOUL PATH:
-           - northNodeMessage: 3 paragraphs on evolutionary direction (~250 words)
-           - karmicPatterns: 2 paragraphs on South Node patterns (~150 words)
-           - giftToTheWorld: 1 inspiring paragraph (~80 words)
+           - northNodeMessage: 2 paragraphs on evolutionary direction
+           - karmicPatterns: 1-2 paragraphs on South Node patterns
+           - giftToTheWorld: 1 inspiring paragraph
         8. ELEMENTAL BALANCE:
-           - dominantElement, dominantModality, analysis (2-3 paragraphs)
-        9. CLOSING: 2-3 inspiring paragraphs weaving all themes (~200 words). End with a sentence she'd screenshot.
+           - dominantElement, dominantModality, analysis (2 paragraphs)
+        9. CLOSING: 2 inspiring paragraphs weaving all themes (~150 words)
 
         CRITICAL WRITING RULES:
         - EVERY sentence must reference SPECIFIC signs, houses, planets, degrees from their chart
@@ -2928,10 +2888,6 @@ export const generateDeepPdfReport = async (profile, reportType, narrativeContex
         - Note retrogrades when present
         - Reference house themes naturally
         - NO generic filler. Every paragraph must be uniquely theirs.
-        - NEVER hedge: "might suggest", "could indicate", "may potentially" — COMMIT to the insight.
-        - Always "you" and "your" — never "the native" or "individuals with this placement".
-        - MAX 4 sentences per paragraph. If longer, split.
-        - Every section needs ONE "how does it KNOW" moment — so specific she screenshots it.
 
         JSON Only.
 ${narrativeContext ? `

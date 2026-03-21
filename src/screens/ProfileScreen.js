@@ -18,6 +18,7 @@ import { getCosmicArchetype, getComboRarity } from '../services/cosmicIdentitySe
 import { getNotificationSettings, scheduleAllNotifications, cancelAllNotifications, requestNotificationPermission, hasNotificationPermission } from '../services/notificationService';
 import { generateNotificationContent, buildNotificationData } from '../services/notificationContentEngine';
 import { ForecastRepository } from '../services/database/rep_forecasts';
+import { ReportRepository } from '../services/database/rep_reports';
 import * as Notifications from 'expo-notifications';
 import { getCosmicSeason, getMoonDataForDate, getActiveCosmicWindows, calculateCosmicEnergy } from '../services/astrologyService';
 import { shareReferralLink, getReferralStats, getOrCreateReferralCode } from '../services/referralService';
@@ -490,6 +491,41 @@ export default function ProfileScreen({ navigation }) {
                       {isPro ? 'Switch to FREE' : 'Enable PRO'}
                     </Text>
                   </View>
+                </TouchableOpacity>
+
+                {/* Clear ALL Report + PDF Cache */}
+                <TouchableOpacity style={styles.devRow} activeOpacity={0.7}
+                  onPress={async () => {
+                    haptic.medium();
+                    try {
+                      const profileId = userProfile?.id || 'default';
+                      // 1. Clear SQLite report cache (both full_report and deep_pdf)
+                      await ReportRepository.deleteReportsForProfile(profileId);
+                      // 2. Clear SQLite deep report cache by wiping all report types
+                      const { getDB } = require('../services/database/client');
+                      const db = await getDB();
+                      await db.runAsync('DELETE FROM reports;');
+                      // 3. Clear PDF files from file system cache
+                      try {
+                        const { File, Paths } = require('expo-file-system/next');
+                        const cacheDir = new File(Paths.cache);
+                        if (cacheDir.exists) {
+                          const files = cacheDir.list ? cacheDir.list() : [];
+                          for (const f of files) {
+                            if (f.includes('celestia') && f.endsWith('.pdf')) {
+                              try { new File(Paths.cache, f).delete(); } catch (e) {}
+                            }
+                          }
+                        }
+                      } catch (e) {}
+                      Alert.alert('All Caches Cleared', 'Report content + PDF files wiped. Everything will regenerate fresh.');
+                    } catch (e) {
+                      Alert.alert('Error', e.message || 'Failed to clear caches');
+                    }
+                  }}>
+                  <View style={styles.devIcon}><Text style={{ fontSize: 14, color: T.gold }}>🗑</Text></View>
+                  <Text style={[styles.devLabel, textStyle]}>Clear All Report + PDF Cache</Text>
+                  <Text style={[styles.prowArr, { color: 'rgba(200,168,75,0.5)' }]}>›</Text>
                 </TouchableOpacity>
 
                 {/* Show Onboarding */}
