@@ -3,6 +3,7 @@ import { View, Text, ScrollView, TouchableOpacity, StyleSheet, Platform, StatusB
 import { T, FONTS } from '../constants/theme';
 import { useUserProfile } from '../contexts/UserProfileContext';
 import { JournalRepository } from '../services/database/rep_journal';
+import { useTheme } from '../contexts/ThemeContext';
 
 const MONTH_NAMES = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
 const DAY_LABELS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
@@ -48,6 +49,7 @@ const parseTags = (tagsStr) => {
 };
 
 export default function JournalHistoryScreen({ navigation }) {
+  const { colors, isDark } = useTheme();
   const { userProfile } = useUserProfile();
   const [entries, setEntries] = useState([]);
   const [selectedDate, setSelectedDate] = useState(null);
@@ -134,14 +136,14 @@ export default function JournalHistoryScreen({ navigation }) {
 
   // Render selected entry with cosmic snapshot
   const renderEntry = () => {
-    if (!selectedEntry) return <Text style={s.noEntry}>No journal entry for this day.</Text>;
+    if (!selectedEntry) return <Text style={[s.noEntry, { color: colors.textSecondary }]}>No journal entry for this day.</Text>;
 
     const meta = parseMeta(selectedEntry.prompt);
     const snapshot = parseSnapshot(selectedEntry.cosmic_snapshot);
     const tags = parseTags(selectedEntry.tags);
 
     return (
-      <View style={s.entryCard}>
+      <View style={[s.entryCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
         {/* Mood + Energy row */}
         {(meta.mood || meta.energy) && (
           <View style={s.entryMetaRow}>
@@ -180,13 +182,13 @@ export default function JournalHistoryScreen({ navigation }) {
         ) : null}
 
         {/* Content */}
-        <Text style={s.entryContent}>{selectedEntry.content}</Text>
+        <Text style={[s.entryContent, { color: colors.text }]}>{selectedEntry.content}</Text>
 
         {/* Cosmic Snapshot — "The Sky When You Wrote This" */}
         {snapshot && snapshot.moon && (
-          <View style={s.snapshotBox}>
-            <Text style={s.snapshotLabel}>THE SKY WHEN YOU WROTE THIS</Text>
-            <Text style={s.snapshotMoon}>
+          <View style={[s.snapshotBox, { borderTopColor: colors.border }]}>
+            <Text style={[s.snapshotLabel, { color: colors.textSecondary }]}>THE SKY WHEN YOU WROTE THIS</Text>
+            <Text style={[s.snapshotMoon, { color: colors.text }]}>
               {MOON_ICONS[snapshot.moon.phase] || '🌘'} {snapshot.moon.phase} in {snapshot.moon.sign}
               {snapshot.moon.illumination != null ? ` · ${Math.round(snapshot.moon.illumination)}%` : ''}
             </Text>
@@ -219,13 +221,13 @@ export default function JournalHistoryScreen({ navigation }) {
   };
 
   return (
-    <View style={{ flex: 1, backgroundColor: T.cream }}>
+    <View style={{ flex: 1, backgroundColor: colors.bg }}>
       {/* Header */}
-      <View style={s.header}>
-        <TouchableOpacity onPress={() => navigation.goBack()} style={s.backBtn}>
-          <Text style={s.backText}>‹</Text>
+      <View style={[s.header, { borderBottomColor: colors.border }]}>
+        <TouchableOpacity onPress={() => navigation.goBack()} style={[s.backBtn, { backgroundColor: colors.card, borderColor: colors.border }]}>
+          <Text style={[s.backText, { color: colors.heading }]}>‹</Text>
         </TouchableOpacity>
-        <Text style={s.headerTitle}>Cosmic Journal</Text>
+        <Text style={[s.headerTitle, { color: colors.heading }]}>Cosmic Journal</Text>
         <TouchableOpacity onPress={() => navigation.navigate('Journal')} style={s.writeBtn}>
           <Text style={s.writeText}>✍</Text>
         </TouchableOpacity>
@@ -234,28 +236,28 @@ export default function JournalHistoryScreen({ navigation }) {
       <ScrollView showsVerticalScrollIndicator={false}>
         {/* Stats row */}
         <View style={s.statsRow}>
-          <View style={s.statCard}>
-            <Text style={s.statNum}>{totalCount}</Text>
-            <Text style={s.statLbl}>Entries</Text>
+          <View style={[s.statCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
+            <Text style={[s.statNum, { color: colors.heading }]}>{totalCount}</Text>
+            <Text style={[s.statLbl, { color: colors.textSecondary }]}>Entries</Text>
           </View>
-          <View style={s.statCard}>
-            <Text style={s.statNum}>{journalStreak}</Text>
-            <Text style={s.statLbl}>Day Streak</Text>
+          <View style={[s.statCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
+            <Text style={[s.statNum, { color: colors.heading }]}>{journalStreak}</Text>
+            <Text style={[s.statLbl, { color: colors.textSecondary }]}>Day Streak</Text>
           </View>
-          <View style={s.statCard}>
-            <Text style={s.statNum}>{entries.length}</Text>
-            <Text style={s.statLbl}>This Month</Text>
+          <View style={[s.statCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
+            <Text style={[s.statNum, { color: colors.heading }]}>{entries.length}</Text>
+            <Text style={[s.statLbl, { color: colors.textSecondary }]}>This Month</Text>
           </View>
         </View>
 
         {/* Month navigation */}
         <View style={s.monthNav}>
-          <TouchableOpacity onPress={prevMonth} style={s.navBtn}>
-            <Text style={s.navBtnText}>‹</Text>
+          <TouchableOpacity onPress={prevMonth} style={[s.navBtn, { backgroundColor: colors.card, borderColor: colors.border }]}>
+            <Text style={[s.navBtnText, { color: colors.heading }]}>‹</Text>
           </TouchableOpacity>
-          <Text style={s.monthLabel}>{MONTH_NAMES[viewMonth - 1]} {viewYear}</Text>
-          <TouchableOpacity onPress={nextMonth} style={s.navBtn}>
-            <Text style={s.navBtnText}>›</Text>
+          <Text style={[s.monthLabel, { color: colors.heading }]}>{MONTH_NAMES[viewMonth - 1]} {viewYear}</Text>
+          <TouchableOpacity onPress={nextMonth} style={[s.navBtn, { backgroundColor: colors.card, borderColor: colors.border }]}>
+            <Text style={[s.navBtnText, { color: colors.heading }]}>›</Text>
           </TouchableOpacity>
         </View>
 
@@ -263,7 +265,7 @@ export default function JournalHistoryScreen({ navigation }) {
         <View style={s.dayLabels}>
           {DAY_LABELS.map((d, i) => (
             <View key={i} style={s.dayLabelCell}>
-              <Text style={s.dayLabel}>{d}</Text>
+              <Text style={[s.dayLabel, { color: colors.textSecondary }]}>{d}</Text>
             </View>
           ))}
         </View>
@@ -280,7 +282,7 @@ export default function JournalHistoryScreen({ navigation }) {
             return (
               <TouchableOpacity key={i} style={[s.calCell, isSelected && s.calCellSelected]}
                 activeOpacity={0.7} onPress={() => onDayPress(day)}>
-                <Text style={[s.calDay, isToday && s.calDayToday, isSelected && { color: T.navy, fontFamily: FONTS.sansSemiBold }]}>
+                <Text style={[s.calDay, { color: colors.text }, isToday && s.calDayToday, isSelected && { color: colors.heading, fontFamily: FONTS.sansSemiBold }]}>
                   {day}
                 </Text>
                 {hasEntry && <View style={[s.calDot, isSelected && { backgroundColor: T.gold }]} />}
@@ -292,7 +294,7 @@ export default function JournalHistoryScreen({ navigation }) {
         {/* Selected entry */}
         {selectedDate && (
           <View style={s.entrySection}>
-            <Text style={s.entryDate}>
+            <Text style={[s.entryDate, { color: colors.heading }]}>
               {new Date(selectedDate + 'T12:00:00').toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' })}
             </Text>
             {renderEntry()}
@@ -302,13 +304,13 @@ export default function JournalHistoryScreen({ navigation }) {
         {/* Recent entries list */}
         {!selectedDate && entries.length > 0 && (
           <View style={s.recentSection}>
-            <Text style={s.recentLabel}>RECENT ENTRIES</Text>
+            <Text style={[s.recentLabel, { color: colors.textSecondary }]}>RECENT ENTRIES</Text>
             {entries.slice(-10).reverse().map((entry, i) => {
               const meta = parseMeta(entry.prompt);
               const snapshot = parseSnapshot(entry.cosmic_snapshot);
               const tags = parseTags(entry.tags);
               return (
-                <TouchableOpacity key={i} style={s.recentCard} activeOpacity={0.7}
+                <TouchableOpacity key={i} style={[s.recentCard, { backgroundColor: colors.card, borderColor: colors.border }]} activeOpacity={0.7}
                   onPress={() => { setSelectedDate(entry.date); setSelectedEntry(entry); }}>
                   <View style={s.recentTop}>
                     <Text style={s.recentDate}>
@@ -316,7 +318,7 @@ export default function JournalHistoryScreen({ navigation }) {
                     </Text>
                     <View style={s.recentChips}>
                       {meta.mood && <Text style={{ fontSize: 14 }}>{MOOD_EMOJIS[meta.mood]}</Text>}
-                      {snapshot?.moon && <Text style={s.recentMoon}>{MOON_ICONS[snapshot.moon.phase] || '🌘'} {snapshot.moon.sign}</Text>}
+                      {snapshot?.moon && <Text style={[s.recentMoon, { color: colors.textSecondary }]}>{MOON_ICONS[snapshot.moon.phase] || '🌘'} {snapshot.moon.sign}</Text>}
                     </View>
                   </View>
                   {tags.length > 0 && (
@@ -326,7 +328,7 @@ export default function JournalHistoryScreen({ navigation }) {
                       ) : null)}
                     </View>
                   )}
-                  <Text style={s.recentPreview} numberOfLines={2}>{entry.content}</Text>
+                  <Text style={[s.recentPreview, { color: colors.text }]} numberOfLines={2}>{entry.content}</Text>
                 </TouchableOpacity>
               );
             })}

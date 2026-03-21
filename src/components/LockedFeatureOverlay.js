@@ -24,9 +24,9 @@ export default function LockedFeatureOverlay({ title, description, source, compa
                             <Text style={styles.compactIcon}>🔒</Text>
                         </View>
                         <View style={{ flex: 1 }}>
-                            <Text style={styles.compactTitle}>{title || 'Pro Feature'}</Text>
+                            <Text style={styles.compactTitle}>{title || 'Go Deeper'}</Text>
                             <Text style={styles.compactDesc} numberOfLines={2}>
-                                {description || 'Upgrade to unlock this deep insight.'}
+                                {description || 'Your full story is waiting — want to see it?'}
                             </Text>
                         </View>
                         <Text style={styles.compactArrow}>›</Text>
@@ -49,9 +49,9 @@ export default function LockedFeatureOverlay({ title, description, source, compa
                     <Text style={styles.icon}>🔒</Text>
                 </View>
 
-                <Text style={styles.title}>{title || 'Unlock Celestia Pro'}</Text>
+                <Text style={styles.title}>{title || 'See Your Full Story'}</Text>
                 <Text style={styles.description}>
-                    {description || 'This premium feature is part of Celestia Pro. Upgrade to unlock deeper insights into your cosmic path.'}
+                    {description || 'This is where it gets really personal. Your deeper patterns, your hidden connections — it\'s all here.'}
                 </Text>
 
                 <TouchableOpacity
@@ -63,7 +63,7 @@ export default function LockedFeatureOverlay({ title, description, source, compa
                         colors={[T.gold, '#8C6C18']}
                         style={styles.buttonGradient}
                     >
-                        <Text style={styles.buttonText}>UPGRADE TO PRO</Text>
+                        <Text style={styles.buttonText}>GO DEEPER</Text>
                     </LinearGradient>
                 </TouchableOpacity>
 

@@ -1751,6 +1751,70 @@ export const isMercuryRetrograde = (date = new Date()) => {
 };
 
 /**
+ * Check if Mercury retrograde is approaching within N days.
+ * Returns { daysUntil, isApproaching } or null.
+ * Works by checking if Mercury is retrograde on future dates.
+ */
+export const getMercuryRetrogradeProximity = (date = new Date()) => {
+    // If already retrograde, not "approaching"
+    if (isMercuryRetrograde(date)) return null;
+    // Check next 5 days
+    for (let i = 1; i <= 5; i++) {
+        const futureDate = new Date(date);
+        futureDate.setDate(futureDate.getDate() + i);
+        if (isMercuryRetrograde(futureDate)) {
+            return { daysUntil: i, isApproaching: true };
+        }
+    }
+    return null;
+};
+
+/**
+ * Get upcoming eclipse info — returns nearest eclipse within 14 days (before or after).
+ * Used for "Eclipse Season" banner on HomeScreen.
+ */
+export const getUpcomingEclipse = (date = new Date()) => {
+    try {
+        // Search for next lunar eclipse
+        const lunarResult = Astronomy.SearchLunarEclipse(date);
+        // Search for next solar eclipse
+        const solarResult = Astronomy.SearchGlobalSolarEclipse(date);
+
+        const eclipses = [];
+        if (lunarResult?.peak?.date) {
+            const peakDate = lunarResult.peak.date;
+            const daysUntil = Math.round((peakDate - date) / (1000 * 60 * 60 * 24));
+            if (daysUntil >= -3 && daysUntil <= 14) {
+                eclipses.push({
+                    type: 'lunar',
+                    kind: lunarResult.kind === 0 ? 'Penumbral' : lunarResult.kind === 1 ? 'Partial' : 'Total',
+                    date: peakDate,
+                    daysUntil,
+                    label: `${lunarResult.kind === 2 ? 'Total' : lunarResult.kind === 1 ? 'Partial' : 'Penumbral'} Lunar Eclipse`,
+                });
+            }
+        }
+        if (solarResult?.peak?.date) {
+            const peakDate = solarResult.peak.date;
+            const daysUntil = Math.round((peakDate - date) / (1000 * 60 * 60 * 24));
+            if (daysUntil >= -3 && daysUntil <= 14) {
+                eclipses.push({
+                    type: 'solar',
+                    kind: solarResult.kind === 1 ? 'Partial' : solarResult.kind === 2 ? 'Annular' : 'Total',
+                    date: peakDate,
+                    daysUntil,
+                    label: `${solarResult.kind === 3 ? 'Total' : solarResult.kind === 2 ? 'Annular' : 'Partial'} Solar Eclipse`,
+                });
+            }
+        }
+        // Return nearest eclipse
+        return eclipses.sort((a, b) => Math.abs(a.daysUntil) - Math.abs(b.daysUntil))[0] || null;
+    } catch (e) {
+        return null;
+    }
+};
+
+/**
  * Get the current "Cosmic Season" — the most significant slow-planet transit period.
  * Returns { planet, transitSign, natalTarget, description, estimatedEndDate, daysRemaining, progress }
  */

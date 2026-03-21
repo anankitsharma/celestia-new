@@ -5,8 +5,9 @@ import {
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { T, FONTS } from '../constants/theme';
+import { useTheme } from '../contexts/ThemeContext';
 import { useUserProfile } from '../contexts/UserProfileContext';
-import { getMoonDataForDate, getTransitPlanets, getActiveCosmicWindows, isMercuryRetrograde, getCosmicChangeToday, calculateTransitSignificance, getCosmicSeason } from '../services/astrologyService';
+import { getMoonDataForDate, getTransitPlanets, getActiveCosmicWindows, isMercuryRetrograde, getCosmicChangeToday, calculateTransitSignificance, getCosmicSeason, getUpcomingEclipse } from '../services/astrologyService';
 import { fetchExtendedForecast, generateMoonRitual, generateMonthlyRecap } from '../services/geminiService';
 import { useAnalytics, EVENTS } from '../services/analytics';
 import { ForecastRepository } from '../services/database/rep_forecasts';
@@ -79,6 +80,25 @@ const getTimeMode = () => {
   return 'latenight';                          // Comfort mode, no upsells, soft tone
 };
 
+// Hero gradient adapts to time of day — warm morning, deep evening, soft latenight
+const HERO_GRADIENTS = {
+  morning:   ['#0E0E22', '#1A1535', '#0F1628'],           // Default: balanced navy
+  afternoon: ['#0E0E22', '#1A1535', '#0F1628'],           // Same balanced navy
+  evening:   ['#0E0E22', '#1A1230', '#14102A'],           // Deeper, more intimate plum
+  latenight: ['#0C0C1C', '#110F24', '#0D0B1E'],           // Softest, most muted — comfort
+};
+
+// Greeting adapts to emotional context by time
+const getAdaptiveGreeting = (timeMode, firstName) => {
+  switch (timeMode) {
+    case 'morning':   return `Good morning`;
+    case 'afternoon': return `Good afternoon`;
+    case 'evening':   return `Good evening`;
+    case 'latenight': return `Hey, ${firstName}`;
+    default:          return `Good morning`;
+  }
+};
+
 const formatDateHeader = (date = new Date()) => {
   const days = ['SUNDAY', 'MONDAY', 'TUESDAY', 'WEDNESDAY', 'THURSDAY', 'FRIDAY', 'SATURDAY'];
   const months = ['JANUARY', 'FEBRUARY', 'MARCH', 'APRIL', 'MAY', 'JUNE', 'JULY', 'AUGUST', 'SEPTEMBER', 'OCTOBER', 'NOVEMBER', 'DECEMBER'];
@@ -87,6 +107,7 @@ const formatDateHeader = (date = new Date()) => {
 
 export default function HomeScreen({ navigation, route }) {
   const { isPro } = useRevenueCat();
+  const { colors, isDark } = useTheme();
   const { capture } = useAnalytics();
   const { userProfile, partnerProfiles, isLoading: profileLoading } = useUserProfile();
 
@@ -112,6 +133,7 @@ export default function HomeScreen({ navigation, route }) {
   // Cosmic windows & retrograde
   const [cosmicWindows, setCosmicWindows] = useState([]);
   const [mercuryRx, setMercuryRx] = useState(false);
+  const [upcomingEclipse, setUpcomingEclipse] = useState(null);
   const [cosmicWhisper, setCosmicWhisper] = useState(null);
   const [todayCosmicLine, setTodayCosmicLine] = useState(null);
   const [showStreakModal, setShowStreakModal] = useState(false);
@@ -221,6 +243,12 @@ export default function HomeScreen({ navigation, route }) {
       setCosmicWindows(windows.slice(0, 3));
       setMercuryRx(isMercuryRetrograde(today));
     } catch (e) { console.error('Cosmic windows error:', e); }
+
+    // Eclipse detection
+    try {
+      const eclipse = getUpcomingEclipse(today);
+      setUpcomingEclipse(eclipse);
+    } catch (e) { }
 
     // Cosmic change detection ("What's New Today" banner)
     try {
@@ -532,11 +560,7 @@ export default function HomeScreen({ navigation, route }) {
   };
 
   const openMoonRitual = async () => {
-    if (!isPro) {
-      haptic.medium();
-      navigation.navigate('Paywall', { source: 'strategy' });
-      return;
-    }
+    // Moon rituals are free — they build daily habit and emotional connection
     if (!moonData) return;
 
     const isNewMoon = moonData.phaseName === 'New Moon';
@@ -602,7 +626,7 @@ export default function HomeScreen({ navigation, route }) {
 
   if (profileLoading || !userProfile?.chart) {
     return (
-      <View style={{ flex: 1, backgroundColor: T.cream, alignItems: 'center', justifyContent: 'center' }}>
+      <View style={{ flex: 1, backgroundColor: colors.bg, alignItems: 'center', justifyContent: 'center' }}>
         <ActivityIndicator size="large" color={T.gold} />
       </View>
     );
@@ -613,6 +637,26 @@ export default function HomeScreen({ navigation, route }) {
   const moonIcon = MOON_PHASE_ICONS[moonPhase] || '🌘';
   const isEvening = new Date().getHours() >= 18;
   const timeMode = getTimeMode();
+
+  // Zodiac season detection — show banner when Sun enters new sign (first 3 days)
+  const currentZodiacSeason = (() => {
+    const sunTransit = transitPlanets.find(p => p.name === 'Sun');
+    if (!sunTransit?.sign) return null;
+    // Approximate season start dates (when Sun enters each sign)
+    const SEASON_STARTS = {
+      Aries: [3, 20], Taurus: [4, 19], Gemini: [5, 20], Cancer: [6, 20],
+      Leo: [7, 22], Virgo: [8, 22], Libra: [9, 22], Scorpio: [10, 22],
+      Sagittarius: [11, 21], Capricorn: [12, 21], Aquarius: [1, 19], Pisces: [2, 18],
+    };
+    const start = SEASON_STARTS[sunTransit.sign];
+    if (!start) return null;
+    const seasonStart = new Date(today.getFullYear(), start[0] - 1, start[1]);
+    const daysSinceStart = Math.floor((today - seasonStart) / (1000 * 60 * 60 * 24));
+    if (daysSinceStart >= 0 && daysSinceStart <= 3) {
+      return { sign: sunTransit.sign, daysIn: daysSinceStart };
+    }
+    return null;
+  })();
   const isLateNight = timeMode === 'latenight';
 
   // Planet strip
@@ -637,15 +681,15 @@ export default function HomeScreen({ navigation, route }) {
   };
 
   return (
-    <View style={{ flex: 1, backgroundColor: T.cream }}>
+    <View style={{ flex: 1, backgroundColor: colors.bg }}>
       <ScrollView ref={mainScrollRef} showsVerticalScrollIndicator={false} bounces={true}
         contentContainerStyle={{ paddingBottom: 110 }}
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={T.gold} colors={[T.gold]} />}>
         {/* ── HERO ── */}
-        <LinearGradient colors={['#0E0E22', '#1A1535', '#0F1628']} locations={[0, 0.5, 1]} style={styles.hero}>
+        <LinearGradient colors={HERO_GRADIENTS[timeMode] || HERO_GRADIENTS.morning} locations={[0, 0.5, 1]} style={styles.hero}>
           <View style={styles.heroGlow} />
           <Text style={styles.greeting}>
-            {getTimeOfDay()}{userProfile?.chart ? ` · ${getElementGreeting(userProfile.chart)}` : ''}
+            {getAdaptiveGreeting(timeMode, firstName)}{userProfile?.chart ? ` · ${getElementGreeting(userProfile.chart)}` : ''}
           </Text>
           <View style={styles.nameRow}>
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
@@ -695,18 +739,14 @@ export default function HomeScreen({ navigation, route }) {
           style={styles.tabStrip} contentContainerStyle={{ paddingHorizontal: 20, gap: 6 }}>
           {PERIOD_TABS.map((tab) => (
             <TouchableOpacity key={tab.key}
-              style={[styles.periodTab, activeTab === tab.key && styles.periodTabOn]}
+              style={[styles.periodTab, { backgroundColor: colors.card, borderColor: colors.border }, activeTab === tab.key && styles.periodTabOn]}
               onPress={() => {
-                if (tab.key !== 'today' && !isPro) {
-                  haptic.medium();
-                  navigation.navigate('Paywall', { source: 'strategy' });
-                  return;
-                }
+                // Weekly/Monthly tabs accessible to all — content adapts for free vs Pro
                 haptic.selection(); setActiveTab(tab.key); mainScrollRef.current?.scrollTo({ y: 0, animated: true });
               }} activeOpacity={0.7}>
               <Text style={[styles.periodTabText, activeTab === tab.key && styles.periodTabTextOn]}>
                 {tab.label}
-                {tab.key !== 'today' && !isPro && <Text style={{ fontSize: 10 }}> 🔒</Text>}
+                {tab.key !== 'today' && !isPro && <Text style={{ fontSize: 8, color: colors.textMuted }}> Preview</Text>}
               </Text>
             </TouchableOpacity>
           ))}
@@ -714,6 +754,43 @@ export default function HomeScreen({ navigation, route }) {
         </ScrollView>
 
         <View style={styles.content}>
+
+          {/* ── ZODIAC SEASON CHANGE BANNER ── */}
+          {activeTab === 'today' && currentZodiacSeason && (
+            <View style={{ backgroundColor: colors.cardAlt, borderWidth: 1, borderColor: colors.border, borderRadius: 14, padding: 14, marginBottom: 12, flexDirection: 'row', alignItems: 'center', gap: 12 }}>
+              <Text style={{ fontSize: 24 }}>✦</Text>
+              <View style={{ flex: 1 }}>
+                <Text style={{ fontFamily: FONTS.serif, fontSize: 15, color: colors.text }}>
+                  {currentZodiacSeason.daysIn === 0 ? `Welcome to ${currentZodiacSeason.sign} Season` : `${currentZodiacSeason.sign} Season is here`}
+                </Text>
+                <Text style={{ fontSize: 11, color: colors.textSecondary, lineHeight: 16, marginTop: 2 }}>
+                  {userProfile?.chart?.planets?.find(p => p.name === 'Sun')?.sign === currentZodiacSeason.sign
+                    ? `The Sun returns to your sign — this is YOUR season. Energy, confidence, and clarity peak now.`
+                    : `The Sun enters ${currentZodiacSeason.sign} — see how this season's energy activates your chart.`}
+                </Text>
+              </View>
+            </View>
+          )}
+
+          {/* ── ECLIPSE SEASON BANNER ── */}
+          {activeTab === 'today' && upcomingEclipse && (
+            <View style={{ backgroundColor: '#1A1535', borderWidth: 1, borderColor: 'rgba(155,142,196,0.2)', borderRadius: 14, padding: 14, marginBottom: 12, flexDirection: 'row', alignItems: 'center', gap: 12 }}>
+              <Text style={{ fontSize: 24 }}>{upcomingEclipse.type === 'solar' ? '🌑' : '🌕'}</Text>
+              <View style={{ flex: 1 }}>
+                <Text style={{ fontSize: 9, fontFamily: FONTS.sansSemiBold, letterSpacing: 1.5, color: '#9B8EC4', marginBottom: 3 }}>ECLIPSE SEASON</Text>
+                <Text style={{ fontFamily: FONTS.serif, fontSize: 14, color: T.cream }}>
+                  {upcomingEclipse.daysUntil <= 0
+                    ? `${upcomingEclipse.label} — happening now`
+                    : upcomingEclipse.daysUntil === 1
+                    ? `${upcomingEclipse.label} — tomorrow`
+                    : `${upcomingEclipse.label} in ${upcomingEclipse.daysUntil} days`}
+                </Text>
+                <Text style={{ fontSize: 10.5, color: 'rgba(250,248,242,0.45)', marginTop: 2, lineHeight: 15 }}>
+                  Eclipses accelerate change. Avoid starting major new things — let the cosmic dust settle first.
+                </Text>
+              </View>
+            </View>
+          )}
 
           {/* ── 1. NAVIGATOR BRIEFING CARD (unified) ── */}
           {activeTab === 'today' && forecast?.navigatorHeadline && (
@@ -723,7 +800,27 @@ export default function HomeScreen({ navigation, route }) {
                 colors={['#171428', '#14122A', '#0F1220']}
                 start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }}
                 style={styles.dailyHd}>
-                <Text style={styles.dailyDate}>{formatDateHeader()}</Text>
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 4 }}>
+                  <Text style={styles.dailyDate}>{formatDateHeader()}</Text>
+                  {forecast.contentType && (() => {
+                    const CONTENT_TYPE_META = {
+                      love: { icon: '♡', label: 'LOVE DAY', color: '#E85090' },
+                      career: { icon: '◆', label: 'CAREER DAY', color: '#5090E8' },
+                      energy: { icon: '✦', label: 'ENERGY DAY', color: '#50C878' },
+                      headsup: { icon: '⚡', label: 'HEADS UP', color: '#F5A623' },
+                      greenlight: { icon: '●', label: 'GREEN LIGHT', color: '#4CAF50' },
+                      reflection: { icon: '◎', label: 'REFLECTION', color: '#9B8EC4' },
+                    };
+                    const meta = CONTENT_TYPE_META[forecast.contentType];
+                    if (!meta) return null;
+                    return (
+                      <View style={{ backgroundColor: meta.color + '20', borderRadius: 100, paddingVertical: 2, paddingHorizontal: 8, flexDirection: 'row', alignItems: 'center', gap: 4 }}>
+                        <Text style={{ fontSize: 8, color: meta.color }}>{meta.icon}</Text>
+                        <Text style={{ fontSize: 8, fontFamily: FONTS.sansSemiBold, letterSpacing: 1, color: meta.color }}>{meta.label}</Text>
+                      </View>
+                    );
+                  })()}
+                </View>
                 <Text style={styles.dailyHeadline}>{forecast.navigatorHeadline}</Text>
                 {/* Chips row */}
                 <View style={styles.tchips}>
@@ -741,65 +838,107 @@ export default function HomeScreen({ navigation, route }) {
               </LinearGradient>
 
               {/* White body */}
-              <View style={styles.dailyBody}>
+              <View style={[styles.dailyBody, { backgroundColor: colors.card }]}>
                 {/* Summary */}
                 {forecast.navigatorSummary && (
-                  <Text style={[styles.dailyTxt, { marginBottom: 14 }]}>{forecast.navigatorSummary}</Text>
+                  <Text style={[styles.dailyTxt, { marginBottom: 14, color: colors.text }]}>{forecast.navigatorSummary}</Text>
                 )}
 
-                {/* Navigate Toward */}
+                {/* ── TODAY'S NUDGE — the screenshottable highlight box ── */}
                 {forecast.navigateToward && forecast.navigateToward.length > 0 && (
-                  <View style={{ marginBottom: 12 }}>
-                    <Text style={styles.navDoLabel}>NAVIGATE TOWARD</Text>
-                    {forecast.navigateToward.map((item, i) => (
-                      <View key={i} style={styles.navDoRow}>
-                        <Text style={styles.navDoIcon}>→</Text>
-                        <View style={{ flex: 1 }}>
-                          <Text style={styles.navDoAction}>{item.action}</Text>
-                          <Text style={styles.navDoReason}>{item.reason}</Text>
-                        </View>
-                      </View>
-                    ))}
+                  <View style={styles.nudgeBox}>
+                    <Text style={styles.nudgeLabel}>TODAY'S NUDGE</Text>
+                    <Text style={[styles.nudgeText, { color: colors.text }]}>
+                      {forecast.navigateToward[0].action}{forecast.navigateToward[0].reason ? ` — ${forecast.navigateToward[0].reason.toLowerCase()}` : ''}
+                    </Text>
                   </View>
                 )}
 
-                {/* Navigate Around */}
-                {forecast.navigateAround && forecast.navigateAround.length > 0 && (
-                  <View style={{ marginBottom: 6 }}>
-                    <Text style={styles.navAvoidLabel}>NAVIGATE AROUND</Text>
-                    {forecast.navigateAround.map((item, i) => (
-                      <View key={i} style={styles.navAvoidRow}>
-                        <Text style={styles.navAvoidIcon}>⊘</Text>
-                        <View style={{ flex: 1 }}>
-                          <Text style={styles.navAvoidAction}>{item.action}</Text>
-                          <Text style={styles.navAvoidReason}>{item.reason}</Text>
+                {/* Navigate Toward / Around — order adapts to time of day */}
+                {/* Morning/Afternoon: Toward first (action-focused). Evening/Latenight: Around first (reflective/protective) */}
+                {(() => {
+                  const towardSection = forecast.navigateToward && forecast.navigateToward.length > 0 && (
+                    <View style={{ marginBottom: 12 }}>
+                      <Text style={styles.navDoLabel}>NAVIGATE TOWARD</Text>
+                      {forecast.navigateToward.map((item, i) => (
+                        <View key={`toward-${i}`} style={styles.navDoRow}>
+                          <Text style={styles.navDoIcon}>→</Text>
+                          <View style={{ flex: 1 }}>
+                            <Text style={[styles.navDoAction, { color: colors.text }]}>{item.action}</Text>
+                            <Text style={[styles.navDoReason, { color: colors.textSecondary }]}>{item.reason}</Text>
+                          </View>
                         </View>
-                      </View>
-                    ))}
-                  </View>
-                )}
+                      ))}
+                    </View>
+                  );
+                  const aroundSection = forecast.navigateAround && forecast.navigateAround.length > 0 && (
+                    <View style={{ marginBottom: 12 }}>
+                      <Text style={styles.navAvoidLabel}>NAVIGATE AROUND</Text>
+                      {forecast.navigateAround.map((item, i) => (
+                        <View key={`around-${i}`} style={styles.navAvoidRow}>
+                          <Text style={styles.navAvoidIcon}>⊘</Text>
+                          <View style={{ flex: 1 }}>
+                            <Text style={[styles.navAvoidAction, { color: colors.text }]}>{item.action}</Text>
+                            <Text style={[styles.navAvoidReason, { color: colors.textSecondary }]}>{item.reason}</Text>
+                          </View>
+                        </View>
+                      ))}
+                    </View>
+                  );
+                  // Evening/latenight: show "Around" first — protect her energy
+                  if (timeMode === 'evening' || timeMode === 'latenight') {
+                    return <>{aroundSection}{towardSection}</>;
+                  }
+                  return <>{towardSection}{aroundSection}</>;
+                })()}
 
                 {/* Deep Dive */}
-                <TouchableOpacity style={styles.briefingMoreBtn} activeOpacity={0.7}
-                  onPress={() => {
-                    if (!isPro) {
-                      haptic.medium();
-                      navigation.navigate('Paywall', { source: 'natal' });
-                      return;
-                    }
-                    haptic.light();
-                    setShowBriefing(true);
-                    completeQuestAction('forecast_read').then(r => {
-                      if (r) { setQuestData(prev => prev ? { ...prev, quests: r.quests, allComplete: r.allComplete } : prev); }
-                      if (r?.justCompleted) {
-                        trackEvent('quest_complete').catch(() => { });
-                        awardXP(userProfile?.id || 'default', 'quest_bonus').then(xp => { if (xp) showXPGain(xp.amount); }).catch(() => { });
-                      }
-                    }).catch(() => { });
-                  }}>
-                  <Text style={styles.briefingMoreText}>Deep Dive</Text>
-                  <Text style={styles.briefingMoreArrow}>→</Text>
-                </TouchableOpacity>
+                <View style={{ flexDirection: 'row', gap: 8 }}>
+                  <TouchableOpacity style={[styles.briefingMoreBtn, { flex: 1 }]} activeOpacity={0.7}
+                    onPress={() => {
+                      haptic.light();
+                      setShowBriefing(true);
+                      completeQuestAction('forecast_read').then(r => {
+                        if (r) { setQuestData(prev => prev ? { ...prev, quests: r.quests, allComplete: r.allComplete } : prev); }
+                        if (r?.justCompleted) {
+                          trackEvent('quest_complete').catch(() => { });
+                          awardXP(userProfile?.id || 'default', 'quest_bonus').then(xp => { if (xp) showXPGain(xp.amount); }).catch(() => { });
+                        }
+                      }).catch(() => { });
+                    }}>
+                    <Text style={styles.briefingMoreText}>Deep Dive</Text>
+                    <Text style={styles.briefingMoreArrow}>→</Text>
+                  </TouchableOpacity>
+                  {/* ── BRIDGE: Daily Insight → Chat ── */}
+                  <TouchableOpacity
+                    style={[styles.briefingMoreBtn, { flex: 1, backgroundColor: 'rgba(200,168,75,0.08)', borderColor: 'rgba(200,168,75,0.2)' }]}
+                    activeOpacity={0.7}
+                    onPress={() => {
+                      haptic.light();
+                      const msg = timeMode === 'latenight'
+                        ? `I'm up late thinking about things. Based on today's energy (${forecast?.navigatorHeadline || 'current transits'}), can you help me process what I'm feeling?`
+                        : timeMode === 'evening'
+                        ? `I'm reflecting on today. The reading said "${forecast?.navigatorHeadline || 'today has been intense'}". How did that play out and what should I take from it?`
+                        : `Tell me more about today's energy. "${forecast?.navigatorHeadline || ''}" — what does this mean for me specifically?`;
+                      navigation.navigate('AskAI', { initialMessage: msg });
+                    }}>
+                    <Text style={[styles.briefingMoreText, { color: T.gold }]}>Ask Celestia</Text>
+                    <Text style={[styles.briefingMoreArrow, { color: T.gold }]}>→</Text>
+                  </TouchableOpacity>
+                  {/* ── Share to Stories — daily viral loop ── */}
+                  <TouchableOpacity
+                    style={[styles.briefingMoreBtn, { paddingHorizontal: 14, backgroundColor: 'rgba(193,127,89,0.08)', borderColor: 'rgba(193,127,89,0.18)' }]}
+                    activeOpacity={0.7}
+                    onPress={async () => {
+                      haptic.light();
+                      const sunSign = userProfile?.chart?.planets?.find(p => p.name === 'Sun')?.sign || '';
+                      await shareStory(`${forecast?.navigatorHeadline || 'My daily insight'} — ${sunSign} Sun ✦ Celestia`);
+                      trackEvent('share').catch(() => { });
+                      awardXP(userProfile?.id || 'default', 'share').catch(() => { });
+                    }}>
+                    <Text style={[styles.briefingMoreText, { color: '#C17F59' }]}>Share ↗</Text>
+                  </TouchableOpacity>
+                </View>
               </View>
             </View>
           )}
@@ -833,7 +972,7 @@ export default function HomeScreen({ navigation, route }) {
                   <Text style={styles.dailyHeadline}>{forecast?.header || (activeTab === 'weekly' ? 'Your Weekly Overview' : 'Your Monthly Overview')}</Text>
                 )}
               </LinearGradient>
-              <View style={styles.dailyBody}>
+              <View style={[styles.dailyBody, { backgroundColor: colors.card }]}>
                 {forecastLoading ? (
                   <View style={{ gap: 12, paddingVertical: 8 }}>
                     <View style={[styles.skeletonBodyLine, { width: '90%' }]} />
@@ -852,7 +991,7 @@ export default function HomeScreen({ navigation, route }) {
                         {getParaLabels()[i] && (
                           <Text style={styles.paraLabel}>{getParaLabels()[i]}</Text>
                         )}
-                        <AstroText text={p} style={styles.dailyTxt} />
+                        <AstroText text={p} style={[styles.dailyTxt, { color: colors.text }]} />
                       </View>
                     ))}
                     {actionItems.length > 0 && (
@@ -873,7 +1012,7 @@ export default function HomeScreen({ navigation, route }) {
           )}
 
           {/* ── 4. LIFE AREA NAVIGATOR (today only) ── */}
-          {activeTab === 'today' && <Text style={styles.sectionLabel}>LIFE AREA NAVIGATOR</Text>}
+          {activeTab === 'today' && <Text style={[styles.sectionLabel, { color: colors.textSecondary }]}>LIFE AREA NAVIGATOR</Text>}
           {activeTab === 'today' &&
             <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: 16 }}
               contentContainerStyle={{ paddingHorizontal: 20, gap: 12 }}>
@@ -886,36 +1025,31 @@ export default function HomeScreen({ navigation, route }) {
               ].map((area) => {
                 const data = forecast?.lifeAreas?.[area.key];
                 return (
-                  <TouchableOpacity key={area.key} style={[styles.lifeAreaCard, { borderTopColor: area.color }]}
+                  <TouchableOpacity key={area.key} style={[styles.lifeAreaCard, { borderTopColor: area.color, backgroundColor: colors.card, borderColor: colors.border }]}
                     activeOpacity={0.7}
                     onPress={() => {
-                      if (!isPro) {
-                        haptic.medium();
-                        navigation.navigate('Paywall', { source: `life_area_${area.key}` });
-                        return;
-                      }
                       haptic.light();
                       setLifeAreaModal(area.key);
                     }}>
                     <View style={styles.lifeAreaHeader}>
                       <Text style={[styles.lifeAreaIcon, { color: area.color }]}>{area.icon}</Text>
                       <View style={{ flex: 1 }}>
-                        <Text style={styles.lifeAreaTitle}>{area.title}</Text>
-                        <Text style={styles.lifeAreaSubtitle}>{area.subtitle}</Text>
+                        <Text style={[styles.lifeAreaTitle, { color: colors.text }]}>{area.title}</Text>
+                        <Text style={[styles.lifeAreaSubtitle, { color: colors.textSecondary }]}>{area.subtitle}</Text>
                       </View>
                       <View style={[styles.lifeAreaEnergyBadge, { backgroundColor: area.color + '18' }]}>
                         <Text style={[styles.lifeAreaEnergyText, { color: area.color }]}>{data?.energy || 'Steady'}</Text>
                       </View>
                     </View>
                     {data?.planetaryReason && (
-                      <Text style={styles.lifeAreaPlanetReason}>{data.planetaryReason}</Text>
+                      <Text style={[styles.lifeAreaPlanetReason, { color: colors.textSecondary }]}>{data.planetaryReason}</Text>
                     )}
                     {data?.doItems && data.doItems.length > 0 && (
                       <View style={styles.lifeAreaDoSection}>
                         {data.doItems.slice(0, 2).map((item, i) => (
                           <View key={i} style={styles.lifeAreaDoRow}>
                             <Text style={[styles.lifeAreaDoIcon, { color: area.color }]}>→</Text>
-                            <Text style={styles.lifeAreaDoText}>{item}</Text>
+                            <Text style={[styles.lifeAreaDoText, { color: colors.text }]}>{item}</Text>
                           </View>
                         ))}
                       </View>
@@ -925,13 +1059,13 @@ export default function HomeScreen({ navigation, route }) {
                         {data.avoidItems.slice(0, 1).map((item, i) => (
                           <View key={i} style={styles.lifeAreaAvoidRow}>
                             <Text style={styles.lifeAreaAvoidIcon}>⊘</Text>
-                            <Text style={styles.lifeAreaAvoidText}>{item}</Text>
+                            <Text style={[styles.lifeAreaAvoidText, { color: colors.textSecondary }]}>{item}</Text>
                           </View>
                         ))}
                       </View>
                     )}
                     {data?.navigatorNote && (
-                      <Text style={styles.lifeAreaNote}>"{data.navigatorNote}"</Text>
+                      <Text style={[styles.lifeAreaNote, { color: colors.text }]}>"{data.navigatorNote}"</Text>
                     )}
                     <Text style={[styles.lifeAreaCta, { color: area.color }]}>Deep Dive →</Text>
                   </TouchableOpacity>
@@ -939,6 +1073,76 @@ export default function HomeScreen({ navigation, route }) {
               })}
             </ScrollView>}
 
+          {/* ── MONDAY WEEKLY REPORT TEASE (free users on Mondays) ── */}
+          {activeTab === 'today' && !isPro && today.getDay() === 1 && (
+            <TouchableOpacity
+              style={{
+                marginBottom: 14, borderRadius: 16, overflow: 'hidden',
+                borderWidth: 1, borderColor: 'rgba(200,168,75,0.15)',
+              }}
+              activeOpacity={0.8}
+              onPress={() => {
+                haptic.medium();
+                navigation.navigate('Paywall', { source: 'monday_weekly_tease' });
+              }}>
+              <LinearGradient colors={['#171428', '#14122A', '#0F1220']}
+                start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }}
+                style={{ padding: 18 }}>
+                <Text style={{ fontSize: 9, fontFamily: FONTS.sansSemiBold, letterSpacing: 2, color: T.gold, marginBottom: 8 }}>YOUR WEEK AHEAD</Text>
+                <Text style={{ fontFamily: FONTS.serif, fontSize: 18, color: T.cream, marginBottom: 6 }}>Your weekly transit report is ready</Text>
+                <Text style={{ fontSize: 12, color: 'rgba(250,248,242,0.45)', lineHeight: 18, marginBottom: 12 }}>See your love, career, and energy forecast for the full week — with specific days to watch and moves to make.</Text>
+                {/* Blurred preview effect */}
+                <View style={{ backgroundColor: 'rgba(255,255,255,0.03)', borderRadius: 10, padding: 12, marginBottom: 12 }}>
+                  <View style={{ height: 10, width: '80%', backgroundColor: 'rgba(255,255,255,0.06)', borderRadius: 4, marginBottom: 6 }} />
+                  <View style={{ height: 10, width: '60%', backgroundColor: 'rgba(255,255,255,0.04)', borderRadius: 4, marginBottom: 6 }} />
+                  <View style={{ height: 10, width: '70%', backgroundColor: 'rgba(255,255,255,0.03)', borderRadius: 4 }} />
+                </View>
+                <View style={{ alignSelf: 'center', backgroundColor: 'rgba(200,168,75,0.15)', borderWidth: 1, borderColor: 'rgba(200,168,75,0.3)', borderRadius: 100, paddingVertical: 8, paddingHorizontal: 20 }}>
+                  <Text style={{ fontSize: 12, fontFamily: FONTS.sansMedium, color: T.gold }}>See Your Week Ahead →</Text>
+                </View>
+              </LinearGradient>
+            </TouchableOpacity>
+          )}
+
+          {/* ── BIRTHDAY / SOLAR RETURN special card ── */}
+          {activeTab === 'today' && (() => {
+            if (!userProfile?.birthDate) return false;
+            const parts = userProfile.birthDate.split('-');
+            const birthMonth = parseInt(parts[1], 10);
+            const birthDay = parseInt(parts[2], 10);
+            const todayMonth = today.getMonth() + 1;
+            const todayDay = today.getDate();
+            // Show within 3 days before/after birthday
+            const bDate = new Date(today.getFullYear(), birthMonth - 1, birthDay);
+            const diff = Math.abs(today - bDate) / (1000 * 60 * 60 * 24);
+            return diff <= 3;
+          })() && (
+            <TouchableOpacity
+              style={{
+                marginBottom: 14, borderRadius: 16, overflow: 'hidden',
+                borderWidth: 1, borderColor: 'rgba(200,168,75,0.25)',
+              }}
+              activeOpacity={0.8}
+              onPress={() => {
+                haptic.light();
+                navigation.navigate('Reports');
+              }}>
+              <LinearGradient colors={['#1A1535', '#201540', '#14102A']}
+                start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }}
+                style={{ padding: 20, alignItems: 'center' }}>
+                <Text style={{ fontSize: 28, marginBottom: 8 }}>✦</Text>
+                <Text style={{ fontFamily: FONTS.serif, fontSize: 20, color: T.cream, textAlign: 'center', marginBottom: 4 }}>
+                  Happy Solar Return, {firstName} ✦
+                </Text>
+                <Text style={{ fontSize: 12, color: 'rgba(250,248,242,0.5)', textAlign: 'center', lineHeight: 18, marginBottom: 14, maxWidth: 280 }}>
+                  Your cosmic year resets. See what the stars have planned for your next chapter.
+                </Text>
+                <View style={{ backgroundColor: 'rgba(200,168,75,0.15)', borderWidth: 1, borderColor: 'rgba(200,168,75,0.3)', borderRadius: 100, paddingVertical: 8, paddingHorizontal: 20 }}>
+                  <Text style={{ fontSize: 12, fontFamily: FONTS.sansMedium, color: T.gold }}>Read Your Year-Ahead Report →</Text>
+                </View>
+              </LinearGradient>
+            </TouchableOpacity>
+          )}
 
           {/* ── TODAY'S SKY — personalized card ── */}
           {activeTab === 'today' && (
@@ -1040,9 +1244,9 @@ export default function HomeScreen({ navigation, route }) {
 
           {/* ── PREVIOUSLY ON (today only) ── */}
           {activeTab === 'today' && narrativeCtx?.yesterday && (narrativeCtx.yesterday.forecastHeader || narrativeCtx.yesterday.journalText) && (
-            <View style={styles.previouslyCard}>
-              <Text style={styles.previouslyLabel}>PREVIOUSLY</Text>
-              <Text style={styles.previouslyText}>
+            <View style={[styles.previouslyCard, { backgroundColor: colors.cardAlt }]}>
+              <Text style={[styles.previouslyLabel, { color: colors.textSecondary }]}>PREVIOUSLY</Text>
+              <Text style={[styles.previouslyText, { color: colors.text }]}>
                 {narrativeCtx.yesterday.forecastHeader ? `"${narrativeCtx.yesterday.forecastHeader}"` : ''}
                 {narrativeCtx.yesterday.forecastHeader && narrativeCtx.yesterday.journalText ? ' — ' : ''}
                 {narrativeCtx.yesterday.journalText ? `you wrote about ${narrativeCtx.yesterday.journalText.substring(0, 60).toLowerCase()}${narrativeCtx.yesterday.journalText.length > 60 ? '...' : ''}` : ''}
@@ -1052,30 +1256,30 @@ export default function HomeScreen({ navigation, route }) {
           )}
 
           {/* ── COSMIC JOURNAL (today only) ── */}
-          {activeTab === 'today' && <TouchableOpacity style={styles.journalCard} activeOpacity={0.85}
+          {activeTab === 'today' && <TouchableOpacity style={[styles.journalCard, { backgroundColor: colors.card, borderColor: colors.border }]} activeOpacity={0.85}
             onPress={() => navigation.navigate('Journal', { mantra: forecast?.mantra })}>
             <View style={styles.jcardHeader}>
-              <Text style={styles.jcardTitle}>YOUR COSMIC JOURNAL</Text>
-              <View style={[styles.jcardBadge, journalSaved && { backgroundColor: '#D8F0D0' }]}>
+              <Text style={[styles.jcardTitle, { color: colors.textSecondary }]}>YOUR COSMIC JOURNAL</Text>
+              <View style={[styles.jcardBadge, { backgroundColor: isDark ? colors.cardAlt : '#F0E8D6' }, journalSaved && { backgroundColor: isDark ? 'rgba(76,175,80,0.15)' : '#D8F0D0' }]}>
                 <Text style={styles.jcardBadgeText}>{journalSaved ? 'Saved' : 'Today'}</Text>
               </View>
             </View>
-            <Text style={styles.jcardPrompt}>
+            <Text style={[styles.jcardPrompt, { color: colors.heading }]}>
               {forecast?.mantra
                 ? `"${forecast.mantra}"`
                 : '"What is the universe trying to teach you right now?"'}
             </Text>
-            <View style={styles.jcardFooter}>
-              <Text style={styles.jcardCta}>{journalSaved ? '📖 Read Today\'s Page' : '✍ Write Today\'s Page'}</Text>
+            <View style={[styles.jcardFooter, { backgroundColor: colors.cardAlt }]}>
+              <Text style={[styles.jcardCta, { color: colors.text }]}>{journalSaved ? '📖 Read Today\'s Page' : '✍ Write Today\'s Page'}</Text>
               <Text style={styles.jcardArrow}>→</Text>
             </View>
           </TouchableOpacity>}
 
           {/* ── EVENING REFLECTION (after 6 PM, today only) ── */}
           {activeTab === 'today' && isEvening && (
-            <View style={styles.eveningCard}>
+            <View style={[styles.eveningCard, { backgroundColor: colors.cardAlt, borderColor: colors.border }]}>
               <Text style={styles.eveningLabel}>EVENING REFLECTION</Text>
-              <Text style={styles.eveningPrompt}>How did your day match the navigator's reading?</Text>
+              <Text style={[styles.eveningPrompt, { color: colors.heading }]}>How did your day match the navigator's reading?</Text>
               <View style={styles.eveningMoodRow}>
                 {[
                   { emoji: '😔', label: 'Off', value: 1 },
@@ -1093,14 +1297,51 @@ export default function HomeScreen({ navigation, route }) {
                 ))}
               </View>
               {eveningMood && (
-                <Text style={styles.eveningMoodSaved}>
+                <Text style={[styles.eveningMoodSaved, { color: colors.textSecondary }]}>
                   {eveningMood >= 4 ? 'The cosmos aligned today.' : eveningMood >= 3 ? 'Noted. Tomorrow brings fresh energy.' : 'Some days are like that. Tomorrow shifts.'}
                 </Text>
               )}
-              <TouchableOpacity style={styles.eveningBtn} activeOpacity={0.7}
+              <TouchableOpacity style={[styles.eveningBtn, { backgroundColor: colors.cardAlt }]} activeOpacity={0.7}
                 onPress={() => navigation.navigate('Journal', { mantra: forecast?.mantra })}>
-                <Text style={styles.eveningBtnText}>Reflect in Journal →</Text>
+                <Text style={[styles.eveningBtnText, { color: colors.text }]}>Reflect in Journal →</Text>
               </TouchableOpacity>
+            </View>
+          )}
+
+          {/* ── SUNDAY WEEK REFLECTION (Sundays only) ── */}
+          {activeTab === 'today' && today.getDay() === 0 && (
+            <View style={[styles.sundayCard, { backgroundColor: isDark ? 'rgba(155,142,196,0.1)' : '#F3EEF8', borderColor: isDark ? 'rgba(155,142,196,0.2)' : '#E2DAEF' }]}>
+              <Text style={styles.sundayLabel}>WEEK IN REVIEW</Text>
+              <Text style={[styles.sundayTitle, { color: colors.heading }]}>What did this week teach you?</Text>
+              <Text style={[styles.sundaySub, { color: colors.textSecondary }]}>
+                {narrativeCtx?.season
+                  ? `You're ${narrativeCtx.season.progress}% through your ${narrativeCtx.season.description?.toLowerCase() || 'current cosmic season'}. Take a moment to notice how far you've come.`
+                  : 'Sunday is for looking back before moving forward. What patterns showed up this week?'}
+              </Text>
+              <View style={{ flexDirection: 'row', gap: 8, marginTop: 12 }}>
+                <TouchableOpacity style={[styles.sundayBtn, { flex: 1, backgroundColor: colors.cardAlt, borderColor: colors.border }]} activeOpacity={0.7}
+                  onPress={() => navigation.navigate('Journal', { mantra: 'What did this week teach me?' })}>
+                  <Text style={[styles.sundayBtnText, { color: colors.text }]}>Reflect in Journal →</Text>
+                </TouchableOpacity>
+                <TouchableOpacity style={[styles.sundayBtn, { flex: 1, backgroundColor: 'rgba(200,168,75,0.08)', borderColor: 'rgba(200,168,75,0.2)' }]} activeOpacity={0.7}
+                  onPress={() => navigation.navigate('AskAI', { initialMessage: "Help me reflect on my week. What patterns should I notice based on what's been happening in my chart?" })}>
+                  <Text style={[styles.sundayBtnText, { color: T.gold }]}>Talk to Celestia →</Text>
+                </TouchableOpacity>
+              </View>
+              {/* Next week preview teaser */}
+              {!isPro && (
+                <TouchableOpacity style={styles.sundayNextWeek} activeOpacity={0.7}
+                  onPress={() => navigation.navigate('Paywall', { source: 'sunday_next_week' })}>
+                  <Text style={styles.sundayNextWeekText}>See what's coming next week →</Text>
+                  <Text style={{ fontSize: 10, color: colors.textSecondary }}>🔒 Premium</Text>
+                </TouchableOpacity>
+              )}
+              {isPro && (
+                <TouchableOpacity style={styles.sundayNextWeek} activeOpacity={0.7}
+                  onPress={() => { setActiveTab('weekly'); mainScrollRef.current?.scrollTo({ y: 0, animated: true }); }}>
+                  <Text style={[styles.sundayNextWeekText, { color: T.gold }]}>Preview next week's energy →</Text>
+                </TouchableOpacity>
+              )}
             </View>
           )}
 
@@ -1109,8 +1350,8 @@ export default function HomeScreen({ navigation, route }) {
           {/* ═══════════════════════════════════════════════ */}
 
           {activeTab === 'today' && (todayCosmicLine || todayUnlock || monthlyRecap || questData?.quests || nextBadge || cosmicWhisper) && (
-            <View style={{ marginTop: 12, marginBottom: 4, paddingTop: 14, borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: 'rgba(0,0,0,0.06)' }}>
-              <Text style={{ fontSize: 9, fontFamily: FONTS.sansSemiBold, letterSpacing: 2, color: T.stone, paddingHorizontal: 20 }}>YOUR COSMIC STORY</Text>
+            <View style={{ marginTop: 12, marginBottom: 4, paddingTop: 14, borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: colors.divider }}>
+              <Text style={{ fontSize: 9, fontFamily: FONTS.sansSemiBold, letterSpacing: 2, color: colors.textSecondary, paddingHorizontal: 20 }}>YOUR COSMIC STORY</Text>
             </View>
           )}
 
@@ -1180,26 +1421,26 @@ export default function HomeScreen({ navigation, route }) {
 
           {/* ── NEXT BADGE PROGRESS ── */}
           {activeTab === 'today' && nextBadge && (
-            <View style={styles.nextBadgeCard}>
+            <View style={[styles.nextBadgeCard, { backgroundColor: colors.card, borderColor: isDark ? 'rgba(200,168,75,0.15)' : 'rgba(200,168,75,0.2)' }]}>
               <View style={styles.nextBadgeHeader}>
                 <Text style={styles.nextBadgeIcon}>{nextBadge.badge.icon}</Text>
                 <View style={{ flex: 1 }}>
-                  <Text style={styles.nextBadgeLabel}>YOUR NEXT CHAPTER</Text>
-                  <Text style={styles.nextBadgeName}>{nextBadge.badge.name}</Text>
+                  <Text style={[styles.nextBadgeLabel, { color: colors.textSecondary }]}>YOUR NEXT CHAPTER</Text>
+                  <Text style={[styles.nextBadgeName, { color: colors.heading }]}>{nextBadge.badge.name}</Text>
                 </View>
                 <Text style={styles.nextBadgeCount}>{nextBadge.current}/{nextBadge.target}</Text>
               </View>
-              <View style={styles.nextBadgeBarBg}>
+              <View style={[styles.nextBadgeBarBg, { backgroundColor: isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.06)' }]}>
                 <View style={[styles.nextBadgeBarFill, { width: `${(nextBadge.progress * 100).toFixed(0)}%` }]} />
               </View>
-              <Text style={styles.nextBadgeSub}>{nextBadge.remaining} more to unlock this chapter</Text>
+              <Text style={[styles.nextBadgeSub, { color: colors.textSecondary }]}>{nextBadge.remaining} more to unlock this chapter</Text>
             </View>
           )}
 
           {/* ── COSMIC WHISPER (Easter egg) — tap to share ── */}
           {activeTab === 'today' && cosmicWhisper && (
             <TouchableOpacity
-              style={[styles.whisperCard, whisperRarity && styles.whisperCardRare]}
+              style={[styles.whisperCard, whisperRarity && styles.whisperCardRare, { backgroundColor: isDark ? 'rgba(200,168,75,0.08)' : 'rgba(200,168,75,0.06)', borderColor: isDark ? 'rgba(200,168,75,0.12)' : 'rgba(200,168,75,0.15)' }]}
               activeOpacity={0.75}
               onPress={async () => {
                 haptic.medium();
@@ -1209,23 +1450,24 @@ export default function HomeScreen({ navigation, route }) {
               }}>
               <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
                 <Text style={styles.whisperLabel}>COSMIC WHISPER</Text>
+                <Text style={{ fontSize: 9, color: 'rgba(200,168,75,0.4)', fontStyle: 'italic' }}>A rare message from the cosmos</Text>
                 {whisperRarity && (
                   <View style={styles.whisperRarityBadge}>
                     <Text style={styles.whisperRarityText}>{whisperRarity.toUpperCase()}</Text>
                   </View>
                 )}
               </View>
-              <Text style={styles.whisperText}>✧ {cosmicWhisper}</Text>
+              <Text style={[styles.whisperText, { color: isDark ? colors.gold : '#8B6A28' }]}>✧ {cosmicWhisper}</Text>
               <Text style={{ fontSize: 10, color: 'rgba(200,168,75,0.4)', marginTop: 6 }}>Tap to share ↗</Text>
             </TouchableOpacity>
           )}
 
           {/* ── YOUR CIRCLE ── */}
           {partnerProfiles && partnerProfiles.length > 0 && (
-            <TouchableOpacity style={styles.circleWidget} activeOpacity={0.7}
+            <TouchableOpacity style={[styles.circleWidget, { backgroundColor: colors.card, borderColor: colors.border }]} activeOpacity={0.7}
               onPress={() => navigation.navigate('Circle')}>
               <View style={styles.circleWidgetLeft}>
-                <Text style={styles.circleWidgetTitle}>YOUR CIRCLE</Text>
+                <Text style={[styles.circleWidgetTitle, { color: colors.textSecondary }]}>YOUR CIRCLE</Text>
                 <View style={styles.circleWidgetOrbs}>
                   {partnerProfiles.slice(0, 5).map((p, i) => {
                     const role = p.relationshipType || 'other';
@@ -1260,7 +1502,7 @@ export default function HomeScreen({ navigation, route }) {
                     </View>
                   )}
                 </View>
-                <Text style={styles.circleWidgetSub}>
+                <Text style={[styles.circleWidgetSub, { color: colors.textSecondary }]}>
                   {(() => {
                     const counts = {};
                     partnerProfiles.forEach(p => { const r = p.relationshipType || 'other'; counts[r] = (counts[r] || 0) + 1; });
@@ -1276,77 +1518,100 @@ export default function HomeScreen({ navigation, route }) {
                   })()}
                 </Text>
               </View>
-              <Text style={{ fontSize: 16, color: T.stone }}>›</Text>
+              <Text style={{ fontSize: 16, color: colors.textSecondary }}>›</Text>
             </TouchableOpacity>
           )}
 
-          {/* ── TIME-ADAPTIVE PROMPT ── */}
+          {/* ── TIME-ADAPTIVE PROMPTS — each time mode gets a different emotional entry point ── */}
           {activeTab === 'today' && timeMode === 'morning' && (
-            <TouchableOpacity style={styles.timePromptCard} activeOpacity={0.7}
+            <TouchableOpacity style={[styles.timePromptCard, { backgroundColor: isDark ? colors.card : 'rgba(200,168,75,0.06)', borderColor: isDark ? colors.border : 'rgba(200,168,75,0.12)' }]} activeOpacity={0.7}
               onPress={() => navigation.navigate('AskAI', { initialMessage: "What should I focus on today?" })}>
               <Text style={styles.timePromptIcon}>☉</Text>
               <View style={{ flex: 1 }}>
-                <Text style={styles.timePromptTitle}>Start your day with intention</Text>
-                <Text style={styles.timePromptSub}>Ask Celestia what to focus on today →</Text>
+                <Text style={[styles.timePromptTitle, { color: colors.text }]}>Start your day with intention</Text>
+                <Text style={[styles.timePromptSub, { color: colors.textSecondary }]}>Ask Celestia what to focus on today →</Text>
               </View>
             </TouchableOpacity>
           )}
           {activeTab === 'today' && timeMode === 'afternoon' && (
-            <TouchableOpacity style={styles.timePromptCard} activeOpacity={0.7}
+            <TouchableOpacity style={[styles.timePromptCard, { backgroundColor: isDark ? colors.card : 'rgba(200,168,75,0.06)', borderColor: isDark ? colors.border : 'rgba(200,168,75,0.12)' }]} activeOpacity={0.7}
               onPress={() => navigation.navigate('AskAI')}>
               <Text style={styles.timePromptIcon}>☿</Text>
               <View style={{ flex: 1 }}>
-                <Text style={styles.timePromptTitle}>Quick cosmic check-in</Text>
-                <Text style={styles.timePromptSub}>Anything on your mind? →</Text>
+                <Text style={[styles.timePromptTitle, { color: colors.text }]}>Quick cosmic check-in</Text>
+                <Text style={[styles.timePromptSub, { color: colors.textSecondary }]}>Anything on your mind? →</Text>
+              </View>
+            </TouchableOpacity>
+          )}
+          {activeTab === 'today' && timeMode === 'evening' && !isLateNight && (
+            <TouchableOpacity style={[styles.timePromptCard, { backgroundColor: isDark ? 'rgba(155,142,196,0.1)' : '#F3EEF8', borderColor: isDark ? 'rgba(155,142,196,0.2)' : '#E2DAEF' }]} activeOpacity={0.7}
+              onPress={() => navigation.navigate('AskAI', { initialMessage: "I'm winding down. What should I reflect on from today?" })}>
+              <Text style={styles.timePromptIcon}>☾</Text>
+              <View style={{ flex: 1 }}>
+                <Text style={[styles.timePromptTitle, { color: colors.text }]}>Evening wind-down</Text>
+                <Text style={[styles.timePromptSub, { color: colors.textSecondary }]}>Process your day with Celestia →</Text>
               </View>
             </TouchableOpacity>
           )}
           {activeTab === 'today' && isLateNight && (
-            <TouchableOpacity style={[styles.timePromptCard, { backgroundColor: '#F5F0E8', borderColor: '#E8E0D0' }]} activeOpacity={0.7}
-              onPress={() => navigation.navigate('AskAI', { initialMessage: "I can't sleep and I'm feeling a lot right now. Can you help me make sense of it?" })}>
-              <Text style={styles.timePromptIcon}>☽</Text>
-              <View style={{ flex: 1 }}>
-                <Text style={styles.timePromptTitle}>Can't sleep?</Text>
-                <Text style={styles.timePromptSub}>Talk it through with Celestia →</Text>
-              </View>
-            </TouchableOpacity>
+            <View>
+              <TouchableOpacity style={[styles.timePromptCard, { backgroundColor: isDark ? colors.cardAlt : '#F5F0E8', borderColor: isDark ? colors.border : '#E8E0D0' }]} activeOpacity={0.7}
+                onPress={() => navigation.navigate('AskAI', { initialMessage: "I can't sleep and I'm feeling a lot right now. Can you help me make sense of it?" })}>
+                <Text style={styles.timePromptIcon}>☽</Text>
+                <View style={{ flex: 1 }}>
+                  <Text style={[styles.timePromptTitle, { color: colors.text }]}>Can't sleep?</Text>
+                  <Text style={[styles.timePromptSub, { color: colors.textSecondary }]}>Talk it through with Celestia →</Text>
+                </View>
+              </TouchableOpacity>
+              {/* Extra gentle prompts for late night — emotional safety net */}
+              <TouchableOpacity style={[styles.timePromptCard, { backgroundColor: isDark ? colors.cardAlt : '#F0EDE8', borderColor: isDark ? colors.border : '#E5E0D6', marginTop: 0 }]} activeOpacity={0.7}
+                onPress={() => navigation.navigate('AskAI', { initialMessage: "Why am I feeling off tonight? What's happening in my chart right now?" })}>
+                <Text style={styles.timePromptIcon}>✧</Text>
+                <View style={{ flex: 1 }}>
+                  <Text style={[styles.timePromptTitle, { color: colors.text }]}>Feeling off?</Text>
+                  <Text style={[styles.timePromptSub, { color: colors.textSecondary }]}>Let's look at what's happening in your chart →</Text>
+                </View>
+              </TouchableOpacity>
+            </View>
           )}
 
           {/* ── QUICK ACTIONS ── */}
-          <Text style={styles.sectionLabel}>CONTINUE YOUR STORY</Text>
+          <Text style={[styles.sectionLabel, { color: colors.textSecondary }]}>CONTINUE YOUR STORY</Text>
           <View style={styles.quickRow}>
-            <TouchableOpacity style={styles.quickCard} activeOpacity={0.7}
+            <TouchableOpacity style={[styles.quickCard, { backgroundColor: colors.card, borderColor: colors.border }]} activeOpacity={0.7}
               onPress={() => navigation.navigate('Chart')}>
               <Text style={styles.quickIcon}>◎</Text>
-              <Text style={styles.quickLabel}>Explore Chart</Text>
+              <Text style={[styles.quickLabel, { color: colors.text }]}>Explore Chart</Text>
             </TouchableOpacity>
-            <TouchableOpacity style={styles.quickCard} activeOpacity={0.7}
+            <TouchableOpacity style={[styles.quickCard, { backgroundColor: colors.card, borderColor: colors.border }]} activeOpacity={0.7}
               onPress={() => navigation.navigate('AskAI')}>
               <Text style={styles.quickIcon}>☽</Text>
-              <Text style={styles.quickLabel}>Ask Celestia</Text>
+              <Text style={[styles.quickLabel, { color: colors.text }]}>Ask Celestia</Text>
             </TouchableOpacity>
-            <TouchableOpacity style={styles.quickCard} activeOpacity={0.7}
+            <TouchableOpacity style={[styles.quickCard, { backgroundColor: colors.card, borderColor: colors.border }]} activeOpacity={0.7}
               onPress={() => navigation.navigate('QuickChart')}>
               <Text style={styles.quickIcon}>★</Text>
-              <Text style={styles.quickLabel}>Quick Chart</Text>
+              <Text style={[styles.quickLabel, { color: colors.text }]}>Quick Chart</Text>
             </TouchableOpacity>
-            <TouchableOpacity style={styles.quickCard} activeOpacity={0.7}
+            <TouchableOpacity style={[styles.quickCard, { backgroundColor: colors.card, borderColor: colors.border }]} activeOpacity={0.7}
               onPress={() => navigation.navigate('Circle')}>
               <Text style={styles.quickIcon}>♡</Text>
-              <Text style={styles.quickLabel}>Your Circle</Text>
+              <Text style={[styles.quickLabel, { color: colors.text }]}>Your Circle</Text>
             </TouchableOpacity>
           </View>
 
-          {/* ── PROMO ── */}
-          <TouchableOpacity activeOpacity={0.85} onPress={() => navigation.navigate('Reports')}>
-            <LinearGradient colors={['#1A1530', '#14112A', '#101320']}
-              start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={styles.promo}>
-              <Text style={styles.promoLbl}>REPORTS</Text>
-              <Text style={styles.promoTitle}>Your Cosmic Deep Dives</Text>
-              <Text style={styles.promoSub}>Love, Career, Purpose — chapters written for this moment in your journey</Text>
-              <View style={styles.promoCta}><Text style={styles.promoCtaText}>Open Your Reports →</Text></View>
-            </LinearGradient>
-          </TouchableOpacity>
+          {/* ── PROMO (hidden in latenight comfort mode — no selling when she's vulnerable) ── */}
+          {timeMode !== 'latenight' && (
+            <TouchableOpacity activeOpacity={0.85} onPress={() => navigation.navigate('Reports')}>
+              <LinearGradient colors={['#1A1530', '#14112A', '#101320']}
+                start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={styles.promo}>
+                <Text style={styles.promoLbl}>REPORTS</Text>
+                <Text style={styles.promoTitle}>Your Cosmic Deep Dives</Text>
+                <Text style={styles.promoSub}>Love, Career, Purpose — chapters written for this moment in your journey</Text>
+                <View style={styles.promoCta}><Text style={styles.promoCtaText}>Open Your Reports →</Text></View>
+              </LinearGradient>
+            </TouchableOpacity>
+          )}
 
           <View style={{ height: 20 }} />
         </View>
@@ -1354,7 +1619,7 @@ export default function HomeScreen({ navigation, route }) {
 
       {/* ── DEEP DIVE MODAL ── */}
       <Modal visible={showBriefing} animationType="slide" presentationStyle="pageSheet">
-        <View style={{ flex: 1, backgroundColor: T.cream }}>
+        <View style={{ flex: 1, backgroundColor: colors.bg }}>
           <ScrollView style={{ flex: 1 }} contentContainerStyle={{ paddingBottom: 50 }} showsVerticalScrollIndicator={false}>
             {/* ── Hero: same headline as card for continuity ── */}
             <LinearGradient colors={['#171428', '#14122A', '#0F1220']}
@@ -1393,13 +1658,13 @@ export default function HomeScreen({ navigation, route }) {
             {/* ── 1. THE READING — full horoscope paragraphs ── */}
             {paragraphs.length > 0 && (
               <View style={styles.ddSection}>
-                <Text style={styles.ddSectionLabel}>YOUR READING</Text>
+                <Text style={[styles.ddSectionLabel, { color: colors.textSecondary }]}>YOUR READING</Text>
                 {paragraphs.map((p, i) => (
                   <View key={i} style={styles.ddParaBlock}>
                     {getParaLabels()[i] && (
                       <Text style={styles.ddParaLabel}>{getParaLabels()[i]}</Text>
                     )}
-                    <AstroText text={p} style={styles.ddParaText} />
+                    <AstroText text={p} style={[styles.ddParaText, { color: colors.text }]} />
                   </View>
                 ))}
               </View>
@@ -1408,13 +1673,13 @@ export default function HomeScreen({ navigation, route }) {
             {/* ── 2. PLANET INFLUENCES — why you feel this way ── */}
             {forecast?.planetInfluences && forecast.planetInfluences.length > 0 && (
               <View style={styles.ddSection}>
-                <Text style={styles.ddSectionLabel}>WHAT'S DRIVING TODAY</Text>
+                <Text style={[styles.ddSectionLabel, { color: colors.textSecondary }]}>WHAT'S DRIVING TODAY</Text>
                 {forecast.planetInfluences.map((inf, i) => (
-                  <View key={i} style={styles.ddInfluenceCard}>
+                  <View key={i} style={[styles.ddInfluenceCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
                     <Text style={styles.ddInfluenceGlyph}>{inf.glyph}</Text>
                     <View style={{ flex: 1 }}>
-                      <Text style={styles.ddInfluenceTag}>{inf.tag}</Text>
-                      <Text style={styles.ddInfluenceEffect}>{inf.effect}</Text>
+                      <Text style={[styles.ddInfluenceTag, { color: colors.heading }]}>{inf.tag}</Text>
+                      <Text style={[styles.ddInfluenceEffect, { color: colors.textSecondary }]}>{inf.effect}</Text>
                     </View>
                   </View>
                 ))}
@@ -1424,7 +1689,7 @@ export default function HomeScreen({ navigation, route }) {
             {/* ── 3. LIFE AREAS — deep per-area breakdown ── */}
             {forecast?.lifeAreas && (
               <View style={styles.ddSection}>
-                <Text style={styles.ddSectionLabel}>LIFE AREAS</Text>
+                <Text style={[styles.ddSectionLabel, { color: colors.textSecondary }]}>LIFE AREAS</Text>
                 {[
                   { key: 'love', icon: '♡', title: 'Love', sub: 'Relationships & Intimacy', color: '#E85090' },
                   { key: 'career', icon: '◆', title: 'Career', sub: 'Work & Finances', color: '#5090E8' },
@@ -1436,7 +1701,7 @@ export default function HomeScreen({ navigation, route }) {
                   if (!data) return null;
                   const intensityVal = Math.min(10, Math.max(1, data.intensity || 3));
                   return (
-                    <View key={area.key} style={styles.laCard}>
+                    <View key={area.key} style={[styles.laCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
                       {/* ── Header: icon, title, archetype, energy badge ── */}
                       <View style={[styles.laHeader, { borderLeftColor: area.color }]}>
                         <View style={styles.laHeaderLeft}>
@@ -1467,7 +1732,7 @@ export default function HomeScreen({ navigation, route }) {
                             </View>
                           ) : null}
                           {data.drivingPlanet ? (
-                            <View style={[styles.laChip, { backgroundColor: '#F5F3EE' }]}>
+                            <View style={[styles.laChip, { backgroundColor: colors.cardAlt }]}>
                               <Text style={styles.laChipTextMuted}>{data.drivingPlanet}</Text>
                             </View>
                           ) : null}
@@ -1506,7 +1771,7 @@ export default function HomeScreen({ navigation, route }) {
                           {data.avoidItems.map((item, i) => (
                             <View key={i} style={styles.laDoRow}>
                               <Text style={styles.laAvoidIcon}>⊘</Text>
-                              <Text style={[styles.laDoText, { color: T.stone }]}>{item}</Text>
+                              <Text style={[styles.laDoText, { color: colors.textSecondary }]}>{item}</Text>
                             </View>
                           ))}
                         </View>
@@ -1548,14 +1813,14 @@ export default function HomeScreen({ navigation, route }) {
             {/* ── 4. POWER MOVES — action items ── */}
             {actionItems.length > 0 && (
               <View style={styles.ddSection}>
-                <Text style={styles.ddSectionLabel}>POWER MOVES</Text>
-                <View style={styles.ddActionCard}>
+                <Text style={[styles.ddSectionLabel, { color: colors.textSecondary }]}>POWER MOVES</Text>
+                <View style={[styles.ddActionCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
                   {actionItems.map((item, i) => (
                     <View key={i} style={styles.ddActionRow}>
                       <View style={styles.ddActionNum}>
                         <Text style={styles.ddActionNumText}>{i + 1}</Text>
                       </View>
-                      <Text style={styles.ddActionText}>{item}</Text>
+                      <Text style={[styles.ddActionText, { color: colors.text }]}>{item}</Text>
                     </View>
                   ))}
                 </View>
@@ -1567,47 +1832,47 @@ export default function HomeScreen({ navigation, route }) {
               <View style={styles.ddSection}>
                 <View style={styles.ddRitualCard}>
                   <Text style={styles.ddRitualLabel}>TODAY'S RITUAL</Text>
-                  <Text style={styles.ddRitualText}>✧ {forecast.dailyRitual}</Text>
+                  <Text style={[styles.ddRitualText, { color: colors.text }]}>✧ {forecast.dailyRitual}</Text>
                 </View>
               </View>
             )}
 
             {/* ── 6. DAY AT A GLANCE — cosmic stats ── */}
             <View style={styles.ddSection}>
-              <Text style={styles.ddSectionLabel}>COSMIC STATS</Text>
-              <View style={styles.ddStatsCard}>
+              <Text style={[styles.ddSectionLabel, { color: colors.textSecondary }]}>COSMIC STATS</Text>
+              <View style={[styles.ddStatsCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
                 <View style={styles.ddStatRow}>
-                  <Text style={styles.ddStatLabel}>Moon</Text>
-                  <Text style={styles.ddStatValue}>{moonIcon} {moonPhase} in {moonSign}</Text>
+                  <Text style={[styles.ddStatLabel, { color: colors.textSecondary }]}>Moon</Text>
+                  <Text style={[styles.ddStatValue, { color: colors.heading }]}>{moonIcon} {moonPhase} in {moonSign}</Text>
                 </View>
                 <View style={styles.ddStatDivider} />
                 <View style={styles.ddStatRow}>
-                  <Text style={styles.ddStatLabel}>Energy</Text>
-                  <Text style={styles.ddStatValue}>{forecast?.powerCosmic || 'Balanced'}</Text>
+                  <Text style={[styles.ddStatLabel, { color: colors.textSecondary }]}>Energy</Text>
+                  <Text style={[styles.ddStatValue, { color: colors.heading }]}>{forecast?.powerCosmic || 'Balanced'}</Text>
                 </View>
                 {forecast?.luckyStats && (
                   <>
                     <View style={styles.ddStatDivider} />
                     <View style={styles.ddStatRow}>
-                      <Text style={styles.ddStatLabel}>Power Number</Text>
-                      <Text style={[styles.ddStatValue, { fontFamily: FONTS.serif, fontSize: 18 }]}>{forecast.luckyStats.number}</Text>
+                      <Text style={[styles.ddStatLabel, { color: colors.textSecondary }]}>Power Number</Text>
+                      <Text style={[styles.ddStatValue, { fontFamily: FONTS.serif, fontSize: 18, color: colors.heading }]}>{forecast.luckyStats.number}</Text>
                     </View>
                     <View style={styles.ddStatDivider} />
                     <View style={styles.ddStatRow}>
-                      <Text style={styles.ddStatLabel}>Power Color</Text>
+                      <Text style={[styles.ddStatLabel, { color: colors.textSecondary }]}>Power Color</Text>
                       <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
                         {forecast.luckyStats.colorHex && (
                           <View style={{ width: 10, height: 10, borderRadius: 5, backgroundColor: forecast.luckyStats.colorHex }} />
                         )}
-                        <Text style={styles.ddStatValue}>{forecast.luckyStats.color}</Text>
+                        <Text style={[styles.ddStatValue, { color: colors.heading }]}>{forecast.luckyStats.color}</Text>
                       </View>
                     </View>
                     {forecast.luckyStats.crystal && (
                       <>
                         <View style={styles.ddStatDivider} />
                         <View style={styles.ddStatRow}>
-                          <Text style={styles.ddStatLabel}>Crystal</Text>
-                          <Text style={styles.ddStatValue}>✧ {forecast.luckyStats.crystal}</Text>
+                          <Text style={[styles.ddStatLabel, { color: colors.textSecondary }]}>Crystal</Text>
+                          <Text style={[styles.ddStatValue, { color: colors.heading }]}>✧ {forecast.luckyStats.crystal}</Text>
                         </View>
                       </>
                     )}
@@ -1621,7 +1886,7 @@ export default function HomeScreen({ navigation, route }) {
               <View style={styles.ddSection}>
                 <View style={styles.ddMantraCard}>
                   <Text style={styles.ddMantraLabel}>TODAY'S MANTRA</Text>
-                  <Text style={styles.ddMantraText}>"{forecast.mantra}"</Text>
+                  <Text style={[styles.ddMantraText, { color: colors.heading }]}>"{forecast.mantra}"</Text>
                 </View>
               </View>
             )}
@@ -1669,7 +1934,7 @@ export default function HomeScreen({ navigation, route }) {
           const marketTiming = lifeAreaModal === 'career' ? forecast?.marketTiming : null;
 
           return (
-            <View style={{ flex: 1, backgroundColor: T.cream }}>
+            <View style={{ flex: 1, backgroundColor: colors.bg }}>
               <ScrollView style={{ flex: 1 }} showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 50 }}>
                 {/* ── Hero ── */}
                 <LinearGradient colors={meta.gradient} style={styles.lamHero}>
@@ -1732,11 +1997,11 @@ export default function HomeScreen({ navigation, route }) {
 
                   {/* ── 2. Full Horoscope Reading ── */}
                   {(areaData?.horoscope || relatedHoroscope) ? (
-                    <View style={styles.lamReadingBox}>
+                    <View style={[styles.lamReadingBox, { backgroundColor: colors.card, borderColor: colors.border }]}>
                       <Text style={styles.lamSectionLabel}>YOUR READING</Text>
-                      <Text style={styles.lamReadingText}>{areaData?.horoscope || ''}</Text>
+                      <Text style={[styles.lamReadingText, { color: colors.text }]}>{areaData?.horoscope || ''}</Text>
                       {relatedHoroscope && relatedHoroscope !== areaData?.horoscope ? (
-                        <Text style={[styles.lamReadingText, { marginTop: 10 }]}>{relatedHoroscope}</Text>
+                        <Text style={[styles.lamReadingText, { marginTop: 10, color: colors.text }]}>{relatedHoroscope}</Text>
                       ) : null}
                     </View>
                   ) : null}
@@ -1745,7 +2010,7 @@ export default function HomeScreen({ navigation, route }) {
                   {relatedVibe ? (
                     <View style={[styles.lamVibeBox, { borderLeftColor: meta.color }]}>
                       <Text style={[styles.lamVibeLabel, { color: meta.color }]}>TODAY'S VIBE</Text>
-                      <Text style={styles.lamVibeText}>{relatedVibe}</Text>
+                      <Text style={[styles.lamVibeText, { color: colors.text }]}>{relatedVibe}</Text>
                     </View>
                   ) : null}
 
@@ -1756,7 +2021,7 @@ export default function HomeScreen({ navigation, route }) {
                       {areaData.doItems.map((item, i) => (
                         <View key={i} style={styles.lamDoRow}>
                           <View style={[styles.lamDoDot, { backgroundColor: meta.color }]} />
-                          <Text style={styles.lamDoText}>{item}</Text>
+                          <Text style={[styles.lamDoText, { color: colors.text }]}>{item}</Text>
                         </View>
                       ))}
                     </View>
@@ -1769,7 +2034,7 @@ export default function HomeScreen({ navigation, route }) {
                       {relatedActions.map((item, i) => (
                         <View key={i} style={styles.lamDoRow}>
                           <Text style={[styles.lamDoArrow, { color: meta.color }]}>→</Text>
-                          <Text style={styles.lamDoText}>{item}</Text>
+                          <Text style={[styles.lamDoText, { color: colors.text }]}>{item}</Text>
                         </View>
                       ))}
                     </View>
@@ -1782,7 +2047,7 @@ export default function HomeScreen({ navigation, route }) {
                       {areaData.avoidItems.map((item, i) => (
                         <View key={i} style={styles.lamDoRow}>
                           <Text style={styles.lamAvoidIcon}>⊘</Text>
-                          <Text style={[styles.lamDoText, { color: T.stone }]}>{item}</Text>
+                          <Text style={[styles.lamDoText, { color: colors.textSecondary }]}>{item}</Text>
                         </View>
                       ))}
                     </View>
@@ -1790,23 +2055,23 @@ export default function HomeScreen({ navigation, route }) {
 
                   {/* ── 7. Career extras: Power Source, Wealth Flow, Market Timing ── */}
                   {(careerPower || wealthFlow || marketTiming) ? (
-                    <View style={styles.lamCareerExtras}>
+                    <View style={[styles.lamCareerExtras, { backgroundColor: colors.card, borderColor: colors.border }]}>
                       {careerPower ? (
                         <View style={styles.lamCareerRow}>
                           <Text style={styles.lamCareerRowLabel}>POWER SOURCE</Text>
-                          <Text style={styles.lamCareerRowText}>{careerPower}</Text>
+                          <Text style={[styles.lamCareerRowText, { color: colors.text }]}>{careerPower}</Text>
                         </View>
                       ) : null}
                       {wealthFlow ? (
                         <View style={styles.lamCareerRow}>
                           <Text style={styles.lamCareerRowLabel}>WEALTH FLOW</Text>
-                          <Text style={styles.lamCareerRowText}>{wealthFlow}</Text>
+                          <Text style={[styles.lamCareerRowText, { color: colors.text }]}>{wealthFlow}</Text>
                         </View>
                       ) : null}
                       {marketTiming ? (
                         <View style={styles.lamCareerRow}>
                           <Text style={styles.lamCareerRowLabel}>TIMING</Text>
-                          <Text style={styles.lamCareerRowText}>{marketTiming}</Text>
+                          <Text style={[styles.lamCareerRowText, { color: colors.text }]}>{marketTiming}</Text>
                         </View>
                       ) : null}
                     </View>
@@ -1814,11 +2079,11 @@ export default function HomeScreen({ navigation, route }) {
 
                   {/* ── 8. Timing ── */}
                   {areaData?.timing ? (
-                    <View style={styles.lamTimingRow}>
+                    <View style={[styles.lamTimingRow, { backgroundColor: colors.cardAlt }]}>
                       <Text style={styles.lamTimingIcon}>◷</Text>
                       <View style={{ flex: 1 }}>
                         <Text style={styles.lamTimingLabel}>BEST WINDOW</Text>
-                        <Text style={styles.lamTimingText}>{areaData.timing}</Text>
+                        <Text style={[styles.lamTimingText, { color: colors.text }]}>{areaData.timing}</Text>
                       </View>
                     </View>
                   ) : null}
@@ -1827,13 +2092,13 @@ export default function HomeScreen({ navigation, route }) {
                   {areaData?.ritual ? (
                     <View style={[styles.lamRitualBox, { borderLeftColor: meta.color }]}>
                       <Text style={[styles.lamRitualLabel, { color: meta.color }]}>TODAY'S PRACTICE</Text>
-                      <Text style={styles.lamRitualText}>{areaData.ritual}</Text>
+                      <Text style={[styles.lamRitualText, { color: colors.text }]}>{areaData.ritual}</Text>
                     </View>
                   ) : null}
 
                   {/* ── 10. Affirmation ── */}
                   {areaData?.affirmation ? (
-                    <View style={styles.lamAffirmationBox}>
+                    <View style={[styles.lamAffirmationBox, { backgroundColor: isDark ? colors.card : '#FBF9F3', borderColor: isDark ? colors.border : 'rgba(200,168,75,0.15)' }]}>
                       <Text style={styles.lamAffirmationText}>"{areaData.affirmation}"</Text>
                     </View>
                   ) : null}
@@ -1841,23 +2106,30 @@ export default function HomeScreen({ navigation, route }) {
                   {/* ── 11. Navigator Note ── */}
                   {areaData?.navigatorNote ? (
                     <View style={styles.lamNoteBox}>
-                      <Text style={styles.lamNoteText}>— {areaData.navigatorNote}</Text>
+                      <Text style={[styles.lamNoteText, { color: colors.textSecondary }]}>— {areaData.navigatorNote}</Text>
                     </View>
                   ) : null}
 
-                  {/* ── 12. Ask AI for more ── */}
+                  {/* ── 12. Ask Celestia bridge ── */}
                   <TouchableOpacity
-                    style={[styles.lamAskAI, { backgroundColor: meta.color }]}
-                    activeOpacity={0.8}
+                    style={styles.lamAskCelestiaBridge}
+                    activeOpacity={0.7}
                     onPress={() => {
+                      const areaMessages = {
+                        love: 'Tell me more about my love and relationship energy today. What should I focus on based on my chart and current transits?',
+                        career: 'What does my chart say about career opportunities right now? How can I make the most of today\'s energy?',
+                        vitality: 'How should I manage my energy and wellness today? What do the transits suggest for my physical and mental rhythm?',
+                        growth: 'What growth lessons is the universe showing me right now? How can I best use this energy for inner transformation?',
+                        social: 'Tell me about my social and communication energy today. What connections should I nurture based on my chart?',
+                      };
+                      const msg = areaMessages[lifeAreaModal] || `Tell me more about my ${meta.title.toLowerCase()} energy today.`;
                       setLifeAreaModal(null);
                       setTimeout(() => {
-                        navigation.navigate('AskAI', {
-                          initialMessage: `Tell me more about my ${meta.title.toLowerCase()} energy today. What should I know based on my chart and current transits?`
-                        });
+                        navigation.navigate('AskAI', { initialMessage: msg });
                       }, 300);
                     }}>
-                    <Text style={styles.lamAskAIText}>Go Deeper with AI</Text>
+                    <Text style={styles.lamAskCelestiaText}>Ask Celestia about your {lifeAreaModal} energy today</Text>
+                    <Text style={styles.lamAskCelestiaArrow}>{' →'}</Text>
                   </TouchableOpacity>
 
                 </View>
@@ -1957,23 +2229,23 @@ export default function HomeScreen({ navigation, route }) {
       {/* ── STREAK DETAIL MODAL ── */}
       <Modal visible={showStreakModal} animationType="slide" transparent>
         <TouchableOpacity style={styles.streakOverlay} activeOpacity={1} onPress={() => setShowStreakModal(false)}>
-          <View style={styles.streakSheet} onStartShouldSetResponder={() => true}>
+          <View style={[styles.streakSheet, { backgroundColor: colors.bg }]} onStartShouldSetResponder={() => true}>
             <View style={styles.streakHandle} />
             <View style={styles.streakCardsRow}>
-              <View style={styles.streakCard}>
+              <View style={[styles.streakCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
                 <Text style={styles.streakCardEmoji}>{getStreakEmoji(streakData?.current_streak || 0)}</Text>
-                <Text style={styles.streakCardNum}>{streakData?.current_streak || 0}</Text>
-                <Text style={styles.streakCardLbl}>Day Streak</Text>
+                <Text style={[styles.streakCardNum, { color: colors.heading }]}>{streakData?.current_streak || 0}</Text>
+                <Text style={[styles.streakCardLbl, { color: colors.textSecondary }]}>Day Streak</Text>
               </View>
-              <View style={styles.streakCard}>
+              <View style={[styles.streakCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
                 <Text style={styles.streakCardEmoji}>🏆</Text>
-                <Text style={styles.streakCardNum}>{streakData?.longest_streak || 0}</Text>
-                <Text style={styles.streakCardLbl}>Longest</Text>
+                <Text style={[styles.streakCardNum, { color: colors.heading }]}>{streakData?.longest_streak || 0}</Text>
+                <Text style={[styles.streakCardLbl, { color: colors.textSecondary }]}>Longest</Text>
               </View>
-              <View style={styles.streakCard}>
+              <View style={[styles.streakCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
                 <Text style={styles.streakCardEmoji}>📅</Text>
-                <Text style={styles.streakCardNum}>{streakData?.total_check_ins || 0}</Text>
-                <Text style={styles.streakCardLbl}>Total Days</Text>
+                <Text style={[styles.streakCardNum, { color: colors.heading }]}>{streakData?.total_check_ins || 0}</Text>
+                <Text style={[styles.streakCardLbl, { color: colors.textSecondary }]}>Total Days</Text>
               </View>
             </View>
             {(() => {
@@ -1981,12 +2253,12 @@ export default function HomeScreen({ navigation, route }) {
               const next = [3, 7, 14, 30, 50, 100, 365].find(v => v > current);
               if (!next) return null;
               return (
-                <View style={styles.streakNextBox}>
-                  <Text style={styles.streakNextLbl}>Next: {getMilestoneMessage(next)}</Text>
+                <View style={[styles.streakNextBox, { backgroundColor: colors.card, borderColor: colors.border }]}>
+                  <Text style={[styles.streakNextLbl, { color: colors.heading }]}>Next: {getMilestoneMessage(next)}</Text>
                   <View style={styles.streakNextBarBg}>
                     <View style={[styles.streakNextBarFill, { width: `${(current / next) * 100}%` }]} />
                   </View>
-                  <Text style={styles.streakNextDays}>{next - current} days to go</Text>
+                  <Text style={[styles.streakNextDays, { color: colors.textSecondary }]}>{next - current} days to go</Text>
                 </View>
               );
             })()}
@@ -2016,16 +2288,16 @@ export default function HomeScreen({ navigation, route }) {
 
       {/* ── JOURNAL MODAL ── */}
       <Modal visible={showJournal} animationType="slide" presentationStyle="pageSheet">
-        <View style={styles.journalModal}>
-          <View style={styles.journalModalHeader}>
-            <Text style={styles.journalModalTitle}>Cosmic Journal</Text>
+        <View style={[styles.journalModal, { backgroundColor: colors.bg }]}>
+          <View style={[styles.journalModalHeader, { borderBottomColor: colors.divider }]}>
+            <Text style={[styles.journalModalTitle, { color: colors.heading }]}>Cosmic Journal</Text>
             <TouchableOpacity onPress={() => setShowJournal(false)}>
-              <Text style={{ fontSize: 18, color: T.stone, padding: 4 }}>✕</Text>
+              <Text style={{ fontSize: 18, color: colors.textSecondary, padding: 4 }}>✕</Text>
             </TouchableOpacity>
           </View>
           <ScrollView style={styles.journalModalBody} showsVerticalScrollIndicator={false}>
-            <Text style={styles.journalDateLabel}>{formatDateHeader()}</Text>
-            <Text style={styles.journalPromptLabel}>
+            <Text style={[styles.journalDateLabel, { color: colors.textSecondary }]}>{formatDateHeader()}</Text>
+            <Text style={[styles.journalPromptLabel, { color: colors.heading }]}>
               {forecast?.mantra ? `"${forecast.mantra}"` : '"What is the universe trying to teach you?"'}
             </Text>
 
@@ -2043,7 +2315,7 @@ export default function HomeScreen({ navigation, route }) {
                   style={[styles.moodChip, journalMood === m.key && styles.moodChipActive]}
                   onPress={() => setJournalMood(m.key)}>
                   <Text style={{ fontSize: 20, marginBottom: 2 }}>{m.emoji}</Text>
-                  <Text style={[styles.moodChipText, journalMood === m.key && { color: T.navy }]}>{m.label}</Text>
+                  <Text style={[styles.moodChipText, { color: colors.textSecondary }, journalMood === m.key && { color: colors.heading }]}>{m.label}</Text>
                 </TouchableOpacity>
               ))}
             </View>
@@ -2061,8 +2333,8 @@ export default function HomeScreen({ navigation, route }) {
               <Text style={styles.energyNum}>{journalEnergy}/10</Text>
             </View>
 
-            <TextInput style={styles.journalInput} multiline placeholder="Let your thoughts flow..."
-              placeholderTextColor="#B0A898" value={journalText} onChangeText={setJournalText}
+            <TextInput style={[styles.journalInput, { backgroundColor: colors.inputBg, borderColor: colors.inputBorder, color: colors.text }]} multiline placeholder="Let your thoughts flow..."
+              placeholderTextColor={colors.inputPlaceholder} value={journalText} onChangeText={setJournalText}
               textAlignVertical="top" />
             <TouchableOpacity style={[styles.journalSaveBtn, !journalText.trim() && { opacity: 0.5 }]}
               onPress={saveJournalEntry} disabled={!journalText.trim()}>
@@ -2075,68 +2347,73 @@ export default function HomeScreen({ navigation, route }) {
 
       {/* ── MOON RITUAL MODAL ── */}
       <Modal visible={showMoonRitual} animationType="slide" presentationStyle="pageSheet">
-        <View style={{ flex: 1, backgroundColor: T.cream }}>
-          <View style={styles.journalModalHeader}>
-            <Text style={styles.journalModalTitle}>
-              {moonData?.phaseName === 'New Moon' ? '🌑 New Moon Ritual' : '🌕 Full Moon Ritual'}
-            </Text>
+        <View style={{ flex: 1, backgroundColor: colors.bg }}>
+          <View style={[styles.journalModalHeader, { borderBottomColor: colors.divider }]}>
+            <View>
+              <Text style={[styles.journalModalTitle, { color: colors.heading }]}>
+                {moonData?.phaseName === 'New Moon' ? '🌑 New Moon Ritual' : '🌕 Full Moon Ritual'}
+              </Text>
+              <Text style={{ fontSize: 11, color: colors.textSecondary, fontStyle: 'italic', marginTop: 2 }}>
+                {moonData?.phaseName === 'New Moon' ? 'Set intentions with tonight\'s lunar energy' : 'Release what no longer serves you under tonight\'s light'}
+              </Text>
+            </View>
             <TouchableOpacity onPress={() => setShowMoonRitual(false)}>
-              <Text style={{ fontSize: 18, color: T.stone, padding: 4 }}>✕</Text>
+              <Text style={{ fontSize: 18, color: colors.textSecondary, padding: 4 }}>✕</Text>
             </TouchableOpacity>
           </View>
 
           {moonRitualLoading ? (
             <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>
               <ActivityIndicator size="large" color={T.gold} />
-              <Text style={{ fontSize: 14, color: T.stone, marginTop: 12 }}>Preparing your ritual...</Text>
+              <Text style={{ fontSize: 14, color: colors.textSecondary, marginTop: 12 }}>Preparing your ritual...</Text>
             </View>
           ) : moonRitual ? (
             <ScrollView style={{ flex: 1, padding: 20 }} showsVerticalScrollIndicator={false}>
-              <Text style={{ fontFamily: FONTS.serif, fontSize: 24, color: T.navy, marginBottom: 8 }}>{moonRitual.title}</Text>
-              <Text style={{ fontSize: 12, color: T.stone, marginBottom: 16 }}>
+              <Text style={{ fontFamily: FONTS.serif, fontSize: 24, color: colors.heading, marginBottom: 8 }}>{moonRitual.title}</Text>
+              <Text style={{ fontSize: 12, color: colors.textSecondary, marginBottom: 16 }}>
                 {moonData?.phaseName} in {moonData?.sign} · {moonData?.illumination}% illumination
               </Text>
-              <Text style={{ fontSize: 15, color: T.ink, lineHeight: 24, marginBottom: 20 }}>{moonRitual.opening}</Text>
+              <Text style={{ fontSize: 15, color: colors.text, lineHeight: 24, marginBottom: 20 }}>{moonRitual.opening}</Text>
 
-              <View style={{ backgroundColor: T.warm, borderRadius: 16, padding: 16, marginBottom: 20 }}>
+              <View style={{ backgroundColor: colors.cardAlt, borderRadius: 16, padding: 16, marginBottom: 20 }}>
                 <Text style={{ fontSize: 10, fontFamily: FONTS.sansSemiBold, letterSpacing: 2, color: T.gold, marginBottom: 12 }}>
                   {moonData?.phaseName === 'New Moon' ? 'INTENTION PROMPTS' : 'REFLECTION PROMPTS'}
                 </Text>
                 {moonRitual.prompts?.map((p, i) => (
-                  <Text key={i} style={{ fontSize: 14, color: T.navy, lineHeight: 22, marginBottom: 8, fontFamily: FONTS.sansMedium }}>
+                  <Text key={i} style={{ fontSize: 14, color: colors.heading, lineHeight: 22, marginBottom: 8, fontFamily: FONTS.sansMedium }}>
                     {i + 1}. {p}
                   </Text>
                 ))}
               </View>
 
-              <View style={{ backgroundColor: 'white', borderWidth: 1, borderColor: T.border, borderRadius: 16, padding: 16, marginBottom: 20 }}>
+              <View style={{ backgroundColor: colors.card, borderWidth: 1, borderColor: colors.border, borderRadius: 16, padding: 16, marginBottom: 20 }}>
                 <Text style={{ fontSize: 10, fontFamily: FONTS.sansSemiBold, letterSpacing: 2, color: T.gold, marginBottom: 8 }}>AFFIRMATION</Text>
-                <Text style={{ fontFamily: FONTS.serif, fontSize: 17, color: T.navy, lineHeight: 24, fontStyle: 'italic' }}>
+                <Text style={{ fontFamily: FONTS.serif, fontSize: 17, color: colors.heading, lineHeight: 24, fontStyle: 'italic' }}>
                   "{moonRitual.affirmation}"
                 </Text>
               </View>
 
-              <View style={{ backgroundColor: '#F0EBF8', borderRadius: 16, padding: 16, marginBottom: 20 }}>
-                <Text style={{ fontSize: 10, fontFamily: FONTS.sansSemiBold, letterSpacing: 2, color: '#6B5CA5', marginBottom: 8 }}>CLOSING RITUAL</Text>
-                <Text style={{ fontSize: 14, color: '#3D2E6B', lineHeight: 22 }}>{moonRitual.closingRitual}</Text>
+              <View style={{ backgroundColor: isDark ? 'rgba(155,142,196,0.1)' : '#F0EBF8', borderRadius: 16, padding: 16, marginBottom: 20 }}>
+                <Text style={{ fontSize: 10, fontFamily: FONTS.sansSemiBold, letterSpacing: 2, color: isDark ? colors.lavender : '#6B5CA5', marginBottom: 8 }}>CLOSING RITUAL</Text>
+                <Text style={{ fontSize: 14, color: isDark ? colors.text : '#3D2E6B', lineHeight: 22 }}>{moonRitual.closingRitual}</Text>
               </View>
 
-              <Text style={{ fontSize: 10, fontFamily: FONTS.sansSemiBold, letterSpacing: 2, color: T.stone, marginBottom: 8 }}>
+              <Text style={{ fontSize: 10, fontFamily: FONTS.sansSemiBold, letterSpacing: 2, color: colors.textSecondary, marginBottom: 8 }}>
                 {moonData?.phaseName === 'New Moon' ? 'MY INTENTION' : 'MY REFLECTION'}
               </Text>
               <TextInput
-                style={[styles.journalInput, { minHeight: 100 }]}
+                style={[styles.journalInput, { minHeight: 100, backgroundColor: colors.inputBg, borderColor: colors.inputBorder, color: colors.text }]}
                 multiline
                 placeholder={moonData?.phaseName === 'New Moon' ? 'I am calling in...' : 'I am releasing...'}
-                placeholderTextColor="#B0A898"
+                placeholderTextColor={colors.inputPlaceholder}
                 value={ritualIntention}
                 onChangeText={setRitualIntention}
                 textAlignVertical="top"
                 editable={!ritualSaved}
               />
               {ritualSaved ? (
-                <View style={[styles.journalSaveBtn, { backgroundColor: '#E8F5E9' }]}>
-                  <Text style={[styles.journalSaveBtnText, { color: '#2E7D32' }]}>Intention Saved</Text>
+                <View style={[styles.journalSaveBtn, { backgroundColor: isDark ? 'rgba(76,175,80,0.15)' : '#E8F5E9' }]}>
+                  <Text style={[styles.journalSaveBtnText, { color: isDark ? colors.success : '#2E7D32' }]}>Intention Saved</Text>
                 </View>
               ) : (
                 <TouchableOpacity style={[styles.journalSaveBtn, !ritualIntention.trim() && { opacity: 0.5 }]}
@@ -2150,7 +2427,7 @@ export default function HomeScreen({ navigation, route }) {
             </ScrollView>
           ) : (
             <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 40 }}>
-              <Text style={{ fontFamily: FONTS.serif, fontSize: 18, color: T.stone, textAlign: 'center' }}>
+              <Text style={{ fontFamily: FONTS.serif, fontSize: 18, color: colors.textSecondary, textAlign: 'center' }}>
                 Unable to generate your ritual. Try again later.
               </Text>
             </View>
@@ -2203,6 +2480,9 @@ const styles = StyleSheet.create({
   tchipText: { fontSize: 10, fontFamily: FONTS.sansMedium, color: 'rgba(200,168,75,0.9)', letterSpacing: 0.3 },
   dailyBody: { backgroundColor: 'white', padding: 17, paddingHorizontal: 21, paddingBottom: 19 },
   mantraBox: { backgroundColor: 'rgba(200,168,75,0.06)', borderRadius: 12, padding: 12, marginBottom: 12, borderLeftWidth: 3, borderLeftColor: T.gold },
+  nudgeBox: { backgroundColor: 'rgba(193,127,89,0.06)', borderWidth: 1, borderColor: 'rgba(193,127,89,0.15)', borderRadius: 14, padding: 14, marginBottom: 16, borderLeftWidth: 3, borderLeftColor: '#C17F59' },
+  nudgeLabel: { fontSize: 9, fontFamily: FONTS.sansSemiBold, letterSpacing: 2, color: '#C17F59', marginBottom: 6 },
+  nudgeText: { fontFamily: FONTS.serifItalic || FONTS.serif, fontSize: 15, color: T.ink, lineHeight: 22, fontStyle: 'italic' },
   mantraText: { fontFamily: FONTS.serifItalic || FONTS.serif, fontSize: 14.5, color: '#8B6214', lineHeight: 21, fontStyle: 'italic' },
   paraBlock: { marginBottom: 12 },
   paraLabel: { fontSize: 9, fontFamily: FONTS.sansSemiBold, letterSpacing: 1.5, color: T.gold, marginBottom: 4 },
@@ -2236,6 +2516,16 @@ const styles = StyleSheet.create({
   eveningMoodSaved: { fontSize: 12, fontFamily: FONTS.serifItalic || FONTS.serif, fontStyle: 'italic', color: T.stone, textAlign: 'center', marginBottom: 10 },
   eveningBtn: { backgroundColor: T.warm, borderRadius: 10, paddingVertical: 10, alignItems: 'center' },
   eveningBtnText: { fontSize: 12, fontFamily: FONTS.sansMedium, color: T.ink },
+
+  // Sunday Reflection
+  sundayCard: { backgroundColor: '#F3EEF8', borderWidth: 1, borderColor: '#E2DAEF', borderRadius: 16, padding: 18, marginBottom: 15 },
+  sundayLabel: { fontSize: 9, fontFamily: FONTS.sansSemiBold, letterSpacing: 2, color: '#9B8EC4', marginBottom: 6 },
+  sundayTitle: { fontFamily: FONTS.serif, fontSize: 18, color: T.navy, marginBottom: 6 },
+  sundaySub: { fontSize: 12.5, color: T.stone, lineHeight: 19 },
+  sundayBtn: { backgroundColor: T.warm, borderWidth: 1, borderColor: T.border, borderRadius: 10, paddingVertical: 10, alignItems: 'center' },
+  sundayBtnText: { fontSize: 12, fontFamily: FONTS.sansMedium, color: T.ink },
+  sundayNextWeek: { marginTop: 10, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, paddingVertical: 8 },
+  sundayNextWeekText: { fontSize: 12, fontFamily: FONTS.sansMedium, color: T.stone },
 
   // What's New Today banner
   changeBanner: { flexDirection: 'row', alignItems: 'center', gap: 10, backgroundColor: '#EEF0FF', borderWidth: 1, borderColor: '#D8DCFF', borderRadius: 14, padding: 13, marginBottom: 12 },
@@ -2394,8 +2684,9 @@ const styles = StyleSheet.create({
   lamAffirmationText: { fontFamily: FONTS.serifItalic || FONTS.serif, fontSize: 15, color: T.gold, textAlign: 'center', lineHeight: 24 },
   lamNoteBox: { marginBottom: 20 },
   lamNoteText: { fontFamily: FONTS.sans, fontSize: 13, color: T.stone, fontStyle: 'italic', lineHeight: 20 },
-  lamAskAI: { borderRadius: 14, paddingVertical: 16, alignItems: 'center', marginBottom: 8 },
-  lamAskAIText: { fontFamily: FONTS.sansSemiBold, fontSize: 15, color: '#FFFFFF' },
+  lamAskCelestiaBridge: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', marginTop: 8, marginBottom: 12, paddingVertical: 14, backgroundColor: 'rgba(200,168,75,0.08)', borderRadius: 12, borderWidth: 1, borderColor: 'rgba(200,168,75,0.18)' },
+  lamAskCelestiaText: { fontFamily: FONTS.sansMedium, fontSize: 14, color: T.gold },
+  lamAskCelestiaArrow: { fontFamily: FONTS.sansMedium, fontSize: 15, color: T.gold },
 
   // Influence overlay (shared with planet influence modal)
 

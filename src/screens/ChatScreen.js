@@ -1,10 +1,12 @@
 import React, { useState, useRef, useEffect } from 'react';
 import {
   View, Text, ScrollView, TouchableOpacity, StyleSheet,
-  TextInput, Platform, ActivityIndicator, Keyboard, Animated, Share, Alert
+  TextInput, Platform, ActivityIndicator, Keyboard, Share, Alert, KeyboardAvoidingView
 } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
 import { T, FONTS } from '../constants/theme';
+import { useTheme } from '../contexts/ThemeContext';
 import { useUserProfile } from '../contexts/UserProfileContext';
 import { createChatSession, sendChatMessage } from '../services/geminiService';
 import { ChatRepository } from '../services/database/rep_chats';
@@ -87,9 +89,50 @@ const Q_GENERIC_FOLLOWUP = [
   "What would you suggest I do about it?",
 ];
 
+// Time-of-day specific prompts (Plan Section 05)
+const Q_MORNING = [
+  "What should I focus on today?",
+  "Is today a good day for a hard conversation?",
+  "What energy am I working with today?",
+  "Give me one thing to remember today",
+  "What's the best time of day for me today?",
+];
+
+const Q_EVENING = [
+  "Why do I keep attracting the same type?",
+  "What's my biggest blind spot in relationships?",
+  "Why am I so anxious lately?",
+  "Is this the right career for me?",
+  "Why do I feel like something big is about to change?",
+  "What does this month look like for me?",
+];
+
+const Q_FUN = [
+  "What's my biggest red flag? 😈",
+  "Roast my chart",
+  "What sign should I NEVER date?",
+  "What's my secret superpower?",
+  "Why are {randomSign}s like that?",
+  "What do people assume about me that's wrong?",
+];
+
+// Transit-triggered prompts (injected when transit is active)
+const Q_TRANSIT_MERCURY_RX = [
+  "Mercury retrograde is happening — what should I watch for?",
+  "Is Mercury retrograde why everything feels off?",
+];
+const Q_TRANSIT_FULL_MOON = [
+  "Full moon tonight — how does it affect me?",
+  "What should I release this full moon?",
+];
+const Q_TRANSIT_NEW_MOON = [
+  "New moon today — what should I set intentions for?",
+  "What new beginning is the new moon activating for me?",
+];
+
 const RANDOM_SIGNS = ['Aries', 'Taurus', 'Gemini', 'Cancer', 'Leo', 'Virgo', 'Libra', 'Scorpio', 'Sagittarius', 'Capricorn', 'Aquarius', 'Pisces'];
 
-function pickSuggestions(messages, userProfile, theme = 'open') {
+function pickSuggestions(messages, userProfile, theme = 'open', transitCtx = null) {
   const msgCount = messages.filter(m => m.role === 'user').length;
   const lastAiText = [...messages].reverse().find(m => m.role === 'model')?.text?.toLowerCase() || '';
   const lastUserText = [...messages].reverse().find(m => m.role === 'user')?.text?.toLowerCase() || '';
@@ -103,7 +146,22 @@ function pickSuggestions(messages, userProfile, theme = 'open') {
     else if (theme === 'career') pool = Q_AFTER_CAREER;
     else if (theme === 'growth') pool = Q_AFTER_SELF;
     else if (theme === 'today') pool = Q_AFTER_TRANSIT;
-    else pool = Q_INITIAL;
+    else {
+      // Time-of-day aware initial pool
+      const hour = new Date().getHours();
+      if (hour >= 7 && hour < 10) {
+        pool = [...Q_MORNING, ...Q_INITIAL.slice(0, 4)];
+      } else if (hour >= 20 || hour < 3) {
+        pool = [...Q_EVENING, ...Q_INITIAL.slice(0, 3)];
+      } else {
+        pool = [...Q_INITIAL, ...Q_FUN.slice(0, 2)];
+      }
+    }
+
+    // Inject 1-2 transit-triggered prompts when relevant
+    if (transitCtx?.mercuryRx) pool = [...Q_TRANSIT_MERCURY_RX.slice(0, 1), ...pool];
+    if (transitCtx?.moonPhase === 'Full Moon') pool = [...Q_TRANSIT_FULL_MOON.slice(0, 1), ...pool];
+    if (transitCtx?.moonPhase === 'New Moon') pool = [...Q_TRANSIT_NEW_MOON.slice(0, 1), ...pool];
   } else {
     // Detect topic from recent messages
     const isLove = /love|relationship|partner|dating|compatibility|crush|ex |breakup|attract|attachment|situationship|venus|commit/.test(combined);
@@ -212,7 +270,11 @@ const CHAT_THEMES = [
 
 export default function ChatScreen({ navigation, route }) {
   const { isPro } = useRevenueCat();
+  const insets = useSafeAreaInsets();
+  // Tab bar offset: floating tab bar sits at bottom: insets.bottom + 14, height ~72px, plus 8px gap
+  const tabBarClearance = Math.max(insets.bottom, 10) + 14 + 72 + 8;
   const { capture } = useAnalytics();
+  const { colors, isDark } = useTheme();
 
   const { userProfile } = useUserProfile();
   const [messages, setMessages] = useState([]);
@@ -220,9 +282,18 @@ export default function ChatScreen({ navigation, route }) {
   const [sending, setSending] = useState(false);
   const [session, setSession] = useState(null); // full session object from createChatSession
   const [suggestions, setSuggestions] = useState([]);
-  const [kbVisible, setKbVisible] = useState(false);
   const [chatTheme, setChatTheme] = useState('open');
   const [remainingMsgs, setRemainingMsgs] = useState(null); // null = pro or unchecked
+  const [limitReached, setLimitReached] = useState(false);
+  const [keyboardVisible, setKeyboardVisible] = useState(false);
+
+  useEffect(() => {
+    const showEvent = Platform.OS === 'ios' ? 'keyboardWillShow' : 'keyboardDidShow';
+    const hideEvent = Platform.OS === 'ios' ? 'keyboardWillHide' : 'keyboardDidHide';
+    const subShow = Keyboard.addListener(showEvent, () => setKeyboardVisible(true));
+    const subHide = Keyboard.addListener(hideEvent, () => setKeyboardVisible(false));
+    return () => { subShow.remove(); subHide.remove(); };
+  }, []);
 
   // Share an AI response
   const shareResponse = async (text) => {
@@ -233,7 +304,6 @@ export default function ChatScreen({ navigation, route }) {
       });
     } catch (e) { }
   };
-  const kbHeight = useRef(new Animated.Value(0)).current;
   const scrollRef = useRef(null);
   const initialMessageSent = useRef(false);
 
@@ -279,37 +349,23 @@ export default function ChatScreen({ navigation, route }) {
     timestamp: Date.now()
   });
 
-  // Track keyboard with animated height for smooth transitions
-  useEffect(() => {
-    const showEvent = Platform.OS === 'ios' ? 'keyboardWillShow' : 'keyboardDidShow';
-    const hideEvent = Platform.OS === 'ios' ? 'keyboardWillHide' : 'keyboardDidHide';
-    const subShow = Keyboard.addListener(showEvent, (e) => {
-      setKbVisible(true);
-      if (Platform.OS === 'ios') {
-        Animated.timing(kbHeight, {
-          toValue: e.endCoordinates.height,
-          duration: e.duration || 250,
-          useNativeDriver: false,
-        }).start();
-      }
-    });
-    const subHide = Keyboard.addListener(hideEvent, (e) => {
-      setKbVisible(false);
-      if (Platform.OS === 'ios') {
-        Animated.timing(kbHeight, {
-          toValue: 0,
-          duration: e.duration || 250,
-          useNativeDriver: false,
-        }).start();
-      }
-    });
-    return () => { subShow.remove(); subHide.remove(); };
-  }, []);
+  // Keyboard handling: react-native-keyboard-controller's KeyboardStickyView
+  // handles positioning automatically — no manual listeners needed
 
   // Initialize: load latest session history OR start fresh, then create AI session
   useEffect(() => {
     if (!userProfile) return;
-    setSuggestions(pickSuggestions([], userProfile, chatTheme));
+    // Build transit context for prompt suggestions
+    let transitCtx = null;
+    try {
+      const moonNow = getMoonDataForDate(new Date());
+      transitCtx = {
+        mercuryRx: false, // will be updated from narrative context
+        moonPhase: moonNow?.phaseName || null,
+      };
+    } catch (e) { }
+
+    setSuggestions(pickSuggestions([], userProfile, chatTheme, transitCtx));
 
     // Load narrative context, then init chat with it
     getNarrativeContext(userProfile?.id || 'default', userProfile.chart)
@@ -373,7 +429,7 @@ export default function ChatScreen({ navigation, route }) {
 
     // Create the AI session object (with full chart context in system instruction)
     try {
-      const chatSession = await createChatSession(userProfile, null, loadedSessionId, ctx);
+      const chatSession = await createChatSession(userProfile, null, loadedSessionId, ctx, isPro);
       setSession(chatSession);
     } catch (e) {
       console.error('Failed to create chat session:', e);
@@ -406,7 +462,7 @@ export default function ChatScreen({ navigation, route }) {
     initialMessageSent.current = false;
 
     try {
-      const chatSession = await createChatSession(userProfile, null, null, narrativeCtx);
+      const chatSession = await createChatSession(userProfile, null, null, narrativeCtx, isPro);
       // Inject theme context into session
       if (activeTheme !== 'open' && chatSession?.systemInstruction) {
         const themePrompts = {
@@ -428,7 +484,7 @@ export default function ChatScreen({ navigation, route }) {
     const text = (textOverride || inputText || '').trim();
     if (!text || sending) return;
 
-    // Check message limit for free users — soft counter with gentle upgrade
+    // Check message limit for free users — gentle inline upgrade, NOT hard block
     const FREE_DAILY_LIMIT = 5;
     if (!isPro) {
       try {
@@ -436,15 +492,8 @@ export default function ChatScreen({ navigation, route }) {
         const remaining = Math.max(0, FREE_DAILY_LIMIT - count);
         setRemainingMsgs(remaining);
         if (count >= FREE_DAILY_LIMIT) {
-          haptic.medium();
-          Alert.alert(
-            'Daily limit reached',
-            'You\'ve used your 5 free messages today. They reset at midnight.\n\nUnlock unlimited conversations with Celestia Pro.',
-            [
-              { text: 'Maybe Tomorrow', style: 'cancel' },
-              { text: 'Unlock Unlimited', onPress: () => navigation.navigate('Paywall', { source: 'chat_limit' }) },
-            ]
-          );
+          haptic.light();
+          setLimitReached(true);
           return;
         }
       } catch (e) {
@@ -465,7 +514,7 @@ export default function ChatScreen({ navigation, route }) {
       // Ensure we have a session
       let currentSession = session;
       if (!currentSession && userProfile) {
-        currentSession = await createChatSession(userProfile, null, null);
+        currentSession = await createChatSession(userProfile, null, null, null, isPro);
         setSession(currentSession);
       }
 
@@ -519,26 +568,29 @@ export default function ChatScreen({ navigation, route }) {
   };
 
   return (
-    <View style={styles.wrap}>
+    <KeyboardAvoidingView
+      style={[styles.wrap, { backgroundColor: colors.bg }]}
+      behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+    >
       {/* Header */}
-      <View style={styles.header}>
+      <View style={[styles.header, { backgroundColor: colors.headerBg, borderBottomColor: colors.border, paddingTop: insets.top + 12 }]}>
         <View style={styles.aiRow}>
           <LinearGradient colors={['#0E0E22', '#1A1060']} style={styles.chatOrb}>
             <Text style={{ fontSize: 22, color: '#C8A84B' }}>☽</Text>
-            <View style={styles.orbDot} />
+            <View style={[styles.orbDot, { borderColor: colors.headerBg }]} />
           </LinearGradient>
           <View>
-            <Text style={styles.aiName}>Ask Celestia</Text>
-            <Text style={styles.aiSub}>Your cosmic guide</Text>
+            <Text style={[styles.aiName, { color: colors.heading }]}>Ask Celestia</Text>
+            <Text style={[styles.aiSub, { color: colors.textSecondary }]}>Your cosmic guide</Text>
           </View>
-          <TouchableOpacity style={styles.newChatBtn} onPress={startNewSession}>
-            <Text style={styles.newChatBtnText}>New Chat</Text>
+          <TouchableOpacity style={[styles.newChatBtn, { backgroundColor: colors.cardAlt, borderColor: colors.border }]} onPress={startNewSession}>
+            <Text style={[styles.newChatBtnText, { color: colors.text }]}>New Chat</Text>
           </TouchableOpacity>
         </View>
         {ctxChips.length > 0 && (
           <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.ctxBar}>
             {ctxChips.map((c, i) => (
-              <View key={i} style={styles.ctxChip}><Text style={styles.ctxChipText}>{c}</Text></View>
+              <View key={i} style={[styles.ctxChip, { backgroundColor: colors.cardAlt }]}><Text style={[styles.ctxChipText, { color: colors.textSecondary }]}>{c}</Text></View>
             ))}
           </ScrollView>
         )}
@@ -546,18 +598,18 @@ export default function ChatScreen({ navigation, route }) {
 
       {/* Theme selector — only shown at start of conversation */}
       {messages.filter(m => m.role === 'user').length === 0 && (
-        <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.themeStrip} contentContainerStyle={{ paddingHorizontal: 17, gap: 7 }}>
+        <ScrollView horizontal showsHorizontalScrollIndicator={false} style={[styles.themeStrip, { borderBottomColor: colors.border, backgroundColor: colors.bg }]} contentContainerStyle={{ paddingHorizontal: 17, gap: 7 }}>
           {CHAT_THEMES.map(t => (
             <TouchableOpacity
               key={t.key}
-              style={[styles.themePill, chatTheme === t.key && styles.themePillActive]}
+              style={[styles.themePill, { backgroundColor: colors.card, borderColor: colors.border }, chatTheme === t.key && styles.themePillActive]}
               activeOpacity={0.7}
               onPress={() => {
                 if (t.key !== chatTheme) startNewSession(t.key);
               }}
             >
               <Text style={styles.themePillIcon}>{t.icon}</Text>
-              <Text style={[styles.themePillText, chatTheme === t.key && styles.themePillTextActive]}>{t.label}</Text>
+              <Text style={[styles.themePillText, { color: colors.text }, chatTheme === t.key && styles.themePillTextActive]}>{t.label}</Text>
             </TouchableOpacity>
           ))}
         </ScrollView>
@@ -567,23 +619,23 @@ export default function ChatScreen({ navigation, route }) {
       <ScrollView
         ref={scrollRef}
         style={styles.msgs}
-        contentContainerStyle={{ paddingVertical: 17, paddingHorizontal: 17, gap: 15 }}
+        contentContainerStyle={{ paddingTop: 17, paddingBottom: tabBarClearance + 100, paddingHorizontal: 17, gap: 15 }}
         keyboardDismissMode="interactive"
         keyboardShouldPersistTaps="handled"
       >
         {/* Proactive Insight Card */}
         {proactiveInsight && messages.length <= 2 && (
           <TouchableOpacity
-            style={styles.proactiveCard}
+            style={[styles.proactiveCard, isDark && { backgroundColor: 'rgba(107,92,165,0.12)', borderColor: 'rgba(107,92,165,0.25)' }]}
             activeOpacity={0.8}
             onPress={() => {
               setProactiveInsight(null);
               handleSend(proactiveInsight.question);
             }}>
-            <Text style={styles.proactiveLabel}>COSMIC INSIGHT</Text>
-            <Text style={styles.proactiveTitle}>{proactiveInsight.title}</Text>
-            <Text style={styles.proactiveBody}>{proactiveInsight.body}</Text>
-            <Text style={styles.proactiveCTA}>Tap to ask →</Text>
+            <Text style={[styles.proactiveLabel, isDark && { color: colors.lavender }]}>COSMIC INSIGHT</Text>
+            <Text style={[styles.proactiveTitle, isDark && { color: colors.heading }]}>{proactiveInsight.title}</Text>
+            <Text style={[styles.proactiveBody, isDark && { color: colors.textSecondary }]}>{proactiveInsight.body}</Text>
+            <Text style={[styles.proactiveCTA, isDark && { color: colors.lavender }]}>Tap to ask →</Text>
           </TouchableOpacity>
         )}
 
@@ -596,16 +648,16 @@ export default function ChatScreen({ navigation, route }) {
               >
                 <Text style={{ fontSize: 13, color: m.role === 'model' ? '#C8A84B' : 'white' }}>{m.role === 'model' ? '☽' : name[0]?.toUpperCase()}</Text>
               </LinearGradient>
-              <View style={[styles.mbub, m.role === 'model' ? styles.mbubAi : styles.mbubUser]}>
-                <Text style={[styles.mbubText, m.role === 'user' && { color: T.cream }]}>
+              <View style={[styles.mbub, m.role === 'model' ? [styles.mbubAi, { backgroundColor: colors.card, shadowOpacity: isDark ? 0 : 0.07 }] : styles.mbubUser]}>
+                <Text style={[styles.mbubText, { color: colors.text }, m.role === 'user' && { color: T.cream }]}>
                   {m.role === 'model'
-                    ? renderMarkdown(m.text, [styles.mbubText])
+                    ? renderMarkdown(m.text, [styles.mbubText, { color: colors.text }])
                     : m.text}
                 </Text>
               </View>
             </View>
             <View style={[styles.mtimeRow, m.role === 'user' && { flexDirection: 'row-reverse' }]}>
-              <Text style={styles.mtime}>{formatTime(m.timestamp)}</Text>
+              <Text style={[styles.mtime, { color: colors.textMuted }]}>{formatTime(m.timestamp)}</Text>
               {m.role === 'model' && m.id !== 'greeting' && m.id !== 'greeting_new' && (
                 <TouchableOpacity style={styles.shareBtn} activeOpacity={0.7} onPress={() => shareResponse(m.text)}>
                   <Text style={styles.shareBtnText}>Share ↗</Text>
@@ -620,58 +672,72 @@ export default function ChatScreen({ navigation, route }) {
             <LinearGradient colors={['#0E0E22', '#1A1060']} style={styles.morb}>
               <Text style={{ fontSize: 13, color: '#C8A84B' }}>☽</Text>
             </LinearGradient>
-            <View style={styles.typingWrap}>
-              <ActivityIndicator size="small" color={T.stone} />
+            <View style={[styles.typingWrap, { backgroundColor: colors.card, shadowOpacity: isDark ? 0 : 0.07 }]}>
+              <ActivityIndicator size="small" color={colors.textSecondary} />
             </View>
           </View>
         )}
       </ScrollView>
 
-      {/* Suggestions — hidden when keyboard is up */}
-      {!kbVisible && (
-        <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.suggestStrip} contentContainerStyle={{ paddingHorizontal: 17, gap: 7 }}>
+      <View style={{ paddingBottom: keyboardVisible ? (Platform.OS === 'ios' ? 10 : 0) : tabBarClearance, backgroundColor: colors.bg, zIndex: 100 }}>
+        {/* Suggestions */}
+        <ScrollView horizontal showsHorizontalScrollIndicator={false} style={[styles.suggestStrip, { backgroundColor: colors.bg }]} contentContainerStyle={{ paddingHorizontal: 17, gap: 7 }}>
           {suggestions.map((s, i) => (
-            <TouchableOpacity key={`${s}_${i}`} style={styles.schip} activeOpacity={0.7} onPress={() => handleSend(s)}>
-              <Text style={styles.schipText}>{s}</Text>
+            <TouchableOpacity key={`${s}_${i}`} style={[styles.schip, { backgroundColor: colors.card, borderColor: colors.border }]} activeOpacity={0.7} onPress={() => { setInputText(s); haptic.light(); }}>
+              <Text style={[styles.schipText, { color: colors.text }]}>{s}</Text>
             </TouchableOpacity>
           ))}
         </ScrollView>
-      )}
 
-      {/* Remaining messages counter (free users only) */}
-      {!isPro && remainingMsgs !== null && remainingMsgs <= 3 && remainingMsgs > 0 && (
-        <View style={styles.limitBanner}>
-          <Text style={styles.limitText}>{remainingMsgs} {remainingMsgs === 1 ? 'message' : 'messages'} left today</Text>
-          <TouchableOpacity onPress={() => navigation.navigate('Paywall', { source: 'chat_soft' })}>
-            <Text style={styles.limitLink}>Go unlimited →</Text>
-          </TouchableOpacity>
-        </View>
-      )}
+        {/* Remaining messages counter (free users only) */}
+        {!isPro && remainingMsgs !== null && remainingMsgs <= 3 && remainingMsgs > 0 && (
+          <View style={[styles.limitBanner, { backgroundColor: colors.goldDim, borderTopColor: isDark ? 'rgba(200,168,75,0.15)' : 'rgba(200,168,75,0.12)' }]}>
+            <Text style={[styles.limitText, { color: colors.textSecondary }]}>{remainingMsgs} {remainingMsgs === 1 ? 'message' : 'messages'} left today</Text>
+            <TouchableOpacity onPress={() => navigation.navigate('Paywall', { source: 'chat_soft' })}>
+              <Text style={styles.limitLink}>Go unlimited →</Text>
+            </TouchableOpacity>
+          </View>
+        )}
 
-      {/* Input */}
-      <View style={[styles.inputBar, { paddingBottom: kbVisible ? (Platform.OS === 'android' ? 8 : 28) : 110 }]}>
-        <View style={styles.inputField}>
-          <TextInput
-            style={styles.inputText}
-            value={inputText}
-            onChangeText={setInputText}
-            placeholder="Ask the cosmos anything..."
-            placeholderTextColor="#B0A898"
-            multiline
-            maxLength={500}
-            onSubmitEditing={() => handleSend()}
-          />
-        </View>
-        <TouchableOpacity activeOpacity={0.7} onPress={() => handleSend()} disabled={sending || !inputText.trim()}>
-          <LinearGradient colors={[T.navy, T.navy]} style={[styles.sendBtn, (!inputText.trim() || sending) && { opacity: 0.5 }]}>
-            <Text style={{ fontSize: 17, color: 'white' }}>↑</Text>
-          </LinearGradient>
-        </TouchableOpacity>
+        {/* Input — or gentle upgrade prompt when limit reached */}
+        {limitReached ? (
+          <View style={[styles.inputBar, { flexDirection: 'column', alignItems: 'center', gap: 10, paddingVertical: 16, backgroundColor: colors.bg, borderTopColor: colors.border }]}>
+            <Text style={{ fontFamily: FONTS.serif, fontSize: 15, color: colors.heading, textAlign: 'center' }}>
+              You've explored 5 conversations today
+            </Text>
+            <Text style={{ fontSize: 12, color: colors.textSecondary, textAlign: 'center', lineHeight: 18, paddingHorizontal: 20 }}>
+              They reset at midnight. Or keep the conversation going now.
+            </Text>
+            <TouchableOpacity
+              style={{ backgroundColor: T.navy, borderRadius: 100, paddingVertical: 11, paddingHorizontal: 28, marginTop: 4 }}
+              activeOpacity={0.8}
+              onPress={() => navigation.navigate('Paywall', { source: 'chat_limit' })}>
+              <Text style={{ fontFamily: FONTS.sansMedium, fontSize: 13, color: T.cream }}>Keep Chatting →</Text>
+            </TouchableOpacity>
+          </View>
+        ) : (
+          <View style={[styles.inputBar, { backgroundColor: colors.bg, borderTopColor: colors.border }]}>
+            <View style={[styles.inputField, { backgroundColor: colors.inputBg, borderColor: colors.inputBorder }]}>
+              <TextInput
+                style={[styles.inputText, { color: colors.text }]}
+                value={inputText}
+                onChangeText={setInputText}
+                placeholder="Ask the cosmos anything..."
+                placeholderTextColor={colors.inputPlaceholder}
+                multiline
+                maxLength={500}
+                onSubmitEditing={() => handleSend()}
+              />
+            </View>
+            <TouchableOpacity activeOpacity={0.7} onPress={() => handleSend()} disabled={sending || !inputText.trim()}>
+              <LinearGradient colors={[T.navy, T.navy]} style={[styles.sendBtn, (!inputText.trim() || sending) && { opacity: 0.5 }]}>
+                <Text style={{ fontSize: 17, color: 'white' }}>↑</Text>
+              </LinearGradient>
+            </TouchableOpacity>
+          </View>
+        )}
       </View>
-
-      {/* Animated spacer — pushes input above keyboard */}
-      <Animated.View style={{ height: kbHeight }} />
-    </View>
+    </KeyboardAvoidingView>
   );
 }
 

@@ -108,7 +108,7 @@ export default function PaywallScreen({ navigation, route }) {
     const { user } = useAuth();
     const { capture } = useAnalytics();
     const [selectedPlan, setSelectedPlan] = useState('annual');
-    const [showClose, setShowClose] = useState(false);
+    const [showClose, setShowClose] = useState(true); // No dark patterns — close button visible immediately
     const [isLoading, setIsLoading] = useState(false);
     const insets = useSafeAreaInsets();
 
@@ -141,16 +141,15 @@ export default function PaywallScreen({ navigation, route }) {
     const annualPackage = packages.find(p => p.packageType === PACKAGE_TYPE.ANNUAL);
     const monthlyPackage = packages.find(p => p.packageType === PACKAGE_TYPE.MONTHLY);
 
-    const annualPriceStr = annualPackage?.product.priceString || "$59.99";
-    const annualPriceVal = annualPackage?.product.price || 59.99;
+    const annualPriceStr = annualPackage?.product.priceString || "$49.99";
+    const annualPriceVal = annualPackage?.product.price || 49.99;
     const weeklyPrice = (annualPriceVal / 52).toFixed(2);
     const currencySymbol = annualPriceStr?.replace(/[\d.,\s]+/g, "") || "$";
-    const monthlyPriceStr = monthlyPackage?.product.priceString || "$9.99";
+    const monthlyPriceStr = monthlyPackage?.product.priceString || "$6.99";
 
     useEffect(() => {
         capture(EVENTS.PAYWALL_VIEWED, { source, variant: variantKey });
-        const timer = setTimeout(() => setShowClose(true), 2500);
-        return () => clearTimeout(timer);
+        // Close button shown immediately — no dark patterns
     }, []);
 
     useEffect(() => {
@@ -175,7 +174,7 @@ export default function PaywallScreen({ navigation, route }) {
         try {
             const pkgToPurchase = selectedPlan === 'annual' ? annualPackage : monthlyPackage;
             if (!pkgToPurchase) {
-                Alert.alert("Store Error", "Unable to find the selected package. Please try again later.");
+                Alert.alert("Hmm, something's off", "We couldn't load the plans right now. Give it a second and try again?");
                 return;
             }
             await purchasePackage(pkgToPurchase);
@@ -199,7 +198,7 @@ export default function PaywallScreen({ navigation, route }) {
                 capture(EVENTS.PURCHASE_CANCELLED, { plan: selectedPlan, source });
             } else {
                 capture(EVENTS.PURCHASE_FAILED, { plan: selectedPlan, source, error: e.message });
-                Alert.alert("Purchase Failed", e.message || "Something went wrong.");
+                Alert.alert("Oops", e.message || "Something went wrong.");
             }
         } finally {
             setIsLoading(false);
@@ -218,10 +217,10 @@ export default function PaywallScreen({ navigation, route }) {
                 ]);
             } else {
                 capture(EVENTS.RESTORE_COMPLETED, { success: false });
-                Alert.alert("Notice", "No active subscriptions found.");
+                Alert.alert("Notice", "Looks like you don't have an active plan yet.");
             }
         } catch (e) {
-            Alert.alert("Failed", e.message || "Unable to restore purchases.");
+            Alert.alert("Couldn't Restore", e.message || "Check your connection and try again. If you're stuck, reach out to us.");
         } finally {
             setIsLoading(false);
         }

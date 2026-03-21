@@ -3,6 +3,7 @@ import { View, Text, ScrollView, TouchableOpacity, StyleSheet, ActivityIndicator
 import { LinearGradient } from 'expo-linear-gradient';
 import { T, FONTS } from '../constants/theme';
 import { useUserProfile } from '../contexts/UserProfileContext';
+import { useTheme } from '../contexts/ThemeContext';
 import { getTransitPlanets, getUpcomingEvents, isMercuryRetrograde, getActiveCosmicWindows, getCosmicSeason } from '../services/astrologyService';
 import { generateTransitInsight, generateMercuryRxInsight } from '../services/geminiService';
 import { trackEvent } from '../services/achievementService';
@@ -39,6 +40,7 @@ const getIntensity = (orb, aspectType) => {
 };
 
 export default function TransitsScreen({ navigation, route }) {
+  const { colors, isDark } = useTheme();
   const { isPro } = useRevenueCat();
   const { userProfile } = useUserProfile();
   const [expanded, setExpanded] = useState(0);
@@ -254,7 +256,7 @@ export default function TransitsScreen({ navigation, route }) {
   };
 
   return (
-    <View style={{ flex: 1, backgroundColor: T.cream }}>
+    <View style={{ flex: 1, backgroundColor: colors.bg }}>
       <ScrollView showsVerticalScrollIndicator={false}>
         <LinearGradient colors={['#0E0E22', '#161230', '#101420']} locations={[0, 0.5, 1]} style={styles.hero}>
           <View style={styles.heroGlow} />
@@ -301,19 +303,19 @@ export default function TransitsScreen({ navigation, route }) {
         {mercuryRxData && (
           <TouchableOpacity
             ref={rxScrollRef}
-            style={styles.rxCompact}
+            style={[styles.rxCompact, { backgroundColor: isDark ? 'rgba(208,128,32,0.1)' : '#FFF8EE', borderColor: isDark ? 'rgba(208,128,32,0.2)' : 'rgba(232,160,64,0.2)' }]}
             activeOpacity={0.8}
             onPress={() => navigation.navigate('Main', { screen: 'AskAI', params: { initialMessage: `Mercury is retrograde in ${mercuryRxData.sign} right now. How does this affect my specific birth chart? What should I watch out for?` } })}>
             <View style={styles.rxCompactLeft}>
               <Text style={styles.rxCompactGlyph}>☿</Text>
               <View style={{ flex: 1 }}>
                 <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-                  <Text style={styles.rxCompactTitle}>Mercury Retrograde</Text>
+                  <Text style={[styles.rxCompactTitle, { color: isDark ? '#E8A840' : '#8B6A28' }]}>Mercury Retrograde</Text>
                   <View style={styles.rxCompactBadge}>
                     <Text style={styles.rxCompactBadgeText}>℞</Text>
                   </View>
                 </View>
-                <Text style={styles.rxCompactSub}>
+                <Text style={[styles.rxCompactSub, { color: colors.textSecondary }]}>
                   {rxInsight?.headline || `Mercury in ${mercuryRxData.sign} ${mercuryRxData.degree.toFixed(0)}° — review & reflect period`}
                 </Text>
               </View>
@@ -328,34 +330,34 @@ export default function TransitsScreen({ navigation, route }) {
           </View>
         ) : transits.length === 0 ? (
           <View style={{ paddingVertical: 60, alignItems: 'center', paddingHorizontal: 40 }}>
-            <Text style={{ fontFamily: FONTS.serif, fontSize: 20, color: T.navy, textAlign: 'center', marginBottom: 8 }}>
+            <Text style={{ fontFamily: FONTS.serif, fontSize: 20, color: colors.heading, textAlign: 'center', marginBottom: 8 }}>
               No strong transits today
             </Text>
-            <Text style={{ fontFamily: FONTS.sansLight, fontSize: 13, color: T.stone, textAlign: 'center' }}>
+            <Text style={{ fontFamily: FONTS.sansLight, fontSize: 13, color: colors.textSecondary, textAlign: 'center' }}>
               {userProfile?.chart ? 'The sky is quiet for your chart today.' : 'Complete onboarding to see your transits.'}
             </Text>
           </View>
         ) : (
           <View style={styles.list}>
             {transits.map((t, i) => (
-              <View key={i} style={styles.tcard}>
+              <View key={i} style={[styles.tcard, { backgroundColor: colors.card, borderColor: colors.border }]}>
                 <TouchableOpacity style={styles.tcardHead} activeOpacity={0.7} onPress={() => handleExpand(i)}>
                   <View style={styles.ticons}>
                     {t.icons.map((ic, j) => (
-                      <View key={j} style={[styles.ticon, j > 0 && { marginLeft: -9, backgroundColor: '#EDE6D4' }]}>
+                      <View key={j} style={[styles.ticon, { backgroundColor: colors.cardAlt }, j > 0 && { marginLeft: -9 }]}>
                         <Text style={{ fontSize: 16 }}>{ic}</Text>
                       </View>
                     ))}
                   </View>
                   <View style={{ flex: 1 }}>
-                    <Text style={styles.taspect}>{t.aspect}</Text>
-                    <Text style={styles.tplanets}>{t.planets}</Text>
+                    <Text style={[styles.taspect, { color: colors.heading }]}>{t.aspect}</Text>
+                    <Text style={[styles.tplanets, { color: colors.textSecondary }]}>{t.planets}</Text>
                   </View>
                   <View style={{ alignItems: 'center' }}>
                     <View style={[styles.torb, { borderColor: t.color + '60' }]}>
                       <Text style={[styles.torbText, { color: t.color }]}>{t.orb}</Text>
                     </View>
-                    <Text style={{ fontSize: 10, color: '#97907F', fontFamily: FONTS.sans, marginTop: 2 }}>
+                    <Text style={{ fontSize: 10, color: colors.textSecondary, fontFamily: FONTS.sans, marginTop: 2 }}>
                       {parseFloat(t.orb) < 0.5 ? 'Exact now' : parseFloat(t.orb) < 2 ? 'Building \u00B7 peaks soon' : 'Separating \u00B7 integrating'}
                     </Text>
                   </View>
@@ -365,58 +367,58 @@ export default function TransitsScreen({ navigation, route }) {
 
                 <View style={styles.tintensity}>
                   {[1, 2, 3, 4, 5].map(d => (
-                    <View key={d} style={[styles.tidot, d <= t.intensity ? { backgroundColor: t.color } : styles.tidotOff]} />
+                    <View key={d} style={[styles.tidot, d <= t.intensity ? { backgroundColor: t.color } : { backgroundColor: isDark ? '#2A2740' : '#E8E0D0' }]} />
                   ))}
                 </View>
 
                 {expanded === i && (
-                  <View style={styles.tcardBody}>
+                  <View style={[styles.tcardBody, { borderTopColor: colors.divider, backgroundColor: isDark ? colors.cardAlt : '#FDFAF6' }]}>
                     {/* Natal context chip */}
                     {t.natalHouse && (
-                      <View style={styles.tnatalChip}>
-                        <Text style={styles.tnatalChipText}>
+                      <View style={[styles.tnatalChip, { backgroundColor: colors.cardAlt }]}>
+                        <Text style={[styles.tnatalChipText, { color: colors.textSecondary }]}>
                           Activating House {t.natalHouse} · {t.natalSign} {t.natalPlanet}
                         </Text>
                       </View>
                     )}
 
-                    <AstroText text={t.body} style={styles.tbodyTxt} />
+                    <AstroText text={t.body} style={[styles.tbodyTxt, { color: colors.text }]} />
 
                     {/* AI personalized insight */}
                     {aiLoading[i] && (
                       <View style={styles.taiLoadingRow}>
                         <ActivityIndicator size="small" color={T.gold} />
-                        <Text style={styles.taiLoadingText}>Reading your chart...</Text>
+                        <Text style={[styles.taiLoadingText, { color: colors.textSecondary }]}>Reading your chart...</Text>
                       </View>
                     )}
                     {!isPro ? (
                       <View style={{ marginTop: 10 }}>
                         <LockedFeatureOverlay
-                          title="Personalized Insights Locked"
-                          description="Unlock Celestia Pro to see how this transit specifically activates your birth chart."
+                          title="See How This Hits Your Chart"
+                          description="Want to know exactly what this means for you? That's the deeper dive."
                           compact
                         />
                       </View>
                     ) : (
                       aiInsights[i] && (
-                        <View style={styles.taiSection}>
+                        <View style={[styles.taiSection, { borderTopColor: colors.divider }]}>
                           <Text style={styles.taiLabel}>PERSONALIZED FOR YOUR CHART</Text>
-                          <AstroText text={aiInsights[i].personalMeaning} style={styles.taiText} />
+                          <AstroText text={aiInsights[i].personalMeaning} style={[styles.taiText, { color: colors.text }]} />
 
                           {aiInsights[i].houseActivation && (
                             <View style={styles.taiHouseBox}>
-                              <Text style={styles.taiHouseText}>✦ {aiInsights[i].houseActivation}</Text>
+                              <Text style={[styles.taiHouseText, { color: colors.text }]}>✦ {aiInsights[i].houseActivation}</Text>
                             </View>
                           )}
 
                           <View style={styles.taiDoAvoid}>
-                            <View style={[styles.taiDoAvoidCard, { borderLeftColor: '#7EC8A0' }]}>
+                            <View style={[styles.taiDoAvoidCard, { borderLeftColor: '#7EC8A0', backgroundColor: colors.card, borderColor: colors.border }]}>
                               <Text style={[styles.taiDoAvoidLabel, { color: '#7EC8A0' }]}>DO THIS</Text>
-                              <Text style={styles.taiDoAvoidText}>{aiInsights[i].doThis}</Text>
+                              <Text style={[styles.taiDoAvoidText, { color: colors.text }]}>{aiInsights[i].doThis}</Text>
                             </View>
-                            <View style={[styles.taiDoAvoidCard, { borderLeftColor: '#E8A060' }]}>
+                            <View style={[styles.taiDoAvoidCard, { borderLeftColor: '#E8A060', backgroundColor: colors.card, borderColor: colors.border }]}>
                               <Text style={[styles.taiDoAvoidLabel, { color: '#E8A060' }]}>WATCH FOR</Text>
-                              <Text style={styles.taiDoAvoidText}>{aiInsights[i].avoidThis}</Text>
+                              <Text style={[styles.taiDoAvoidText, { color: colors.text }]}>{aiInsights[i].avoidThis}</Text>
                             </View>
                           </View>
 
@@ -427,7 +429,7 @@ export default function TransitsScreen({ navigation, route }) {
                                 {aiInsights[i].ritualDuration && (
                                   <Text style={styles.taiRitualDuration}>{aiInsights[i].ritualDuration}</Text>
                                 )}</View>
-                              <Text style={styles.taiRitualText}>✧ {aiInsights[i].ritual}</Text>
+                              <Text style={[styles.taiRitualText, { color: colors.text }]}>✧ {aiInsights[i].ritual}</Text>
                             </View>
                           )}
                         </View>
@@ -435,7 +437,7 @@ export default function TransitsScreen({ navigation, route }) {
                     )}
 
                     <View style={styles.tbodyMeta}>
-                      <Text style={styles.tbodyDur}>{t.duration}</Text>
+                      <Text style={[styles.tbodyDur, { color: colors.textSecondary }]}>{t.duration}</Text>
                       <View style={{ flexDirection: 'row', gap: 6 }}>
                         <TouchableOpacity style={styles.tbodyShare} onPress={async () => {
                           haptic.light();
@@ -470,12 +472,12 @@ export default function TransitsScreen({ navigation, route }) {
 
         {/* ── BUILDING TOWARD ── */}
         {upcomingTransit && (
-          <View style={{ backgroundColor: '#F3EDE2', borderRadius: 14, padding: 16, marginTop: 12, marginHorizontal: 20, marginBottom: 14 }}>
+          <View style={{ backgroundColor: colors.cardAlt, borderRadius: 14, padding: 16, marginTop: 12, marginHorizontal: 20, marginBottom: 14 }}>
             <Text style={{ fontSize: 9, letterSpacing: 2, color: '#C8A84B', fontFamily: FONTS.sansSemiBold, marginBottom: 8 }}>{'\u2605'} BUILDING TOWARD</Text>
-            <Text style={{ fontSize: 15, color: '#2A2418', fontFamily: FONTS.serif, marginBottom: 4 }}>
+            <Text style={{ fontSize: 15, color: colors.heading, fontFamily: FONTS.serif, marginBottom: 4 }}>
               {upcomingTransit.description}
             </Text>
-            <Text style={{ fontSize: 12, color: '#97907F', fontFamily: FONTS.sans }}>
+            <Text style={{ fontSize: 12, color: colors.textSecondary, fontFamily: FONTS.sans }}>
               Arriving ~{upcomingTransit.arrivalDate} {'\u00B7'} {upcomingTransit.daysAway} days away
             </Text>
           </View>
@@ -484,24 +486,24 @@ export default function TransitsScreen({ navigation, route }) {
         {/* ── UPCOMING EVENTS TIMELINE ── */}
         {upcomingEvents.length > 0 && (
           <View style={styles.timelineSection}>
-            <Text style={styles.timelineTitle}>Coming Up</Text>
-            <Text style={styles.timelineSub}>Key cosmic events in the next 2 weeks</Text>
+            <Text style={[styles.timelineTitle, { color: colors.heading }]}>Coming Up</Text>
+            <Text style={[styles.timelineSub, { color: colors.textSecondary }]}>Key cosmic events in the next 2 weeks</Text>
             <View style={styles.timeline}>
               {upcomingEvents.map((ev, i) => (
                 <View key={i} style={styles.tlRow}>
                   <View style={styles.tlLeft}>
-                    <Text style={styles.tlDate}>{ev.date}</Text>
+                    <Text style={[styles.tlDate, { color: colors.textSecondary }]}>{ev.date}</Text>
                     <View style={styles.tlLine}>
                       <View style={[styles.tlDot, ev.type === 'lunation' && styles.tlDotLunation, ev.type === 'retrograde' && styles.tlDotRetro]} />
-                      {i < upcomingEvents.length - 1 && <View style={styles.tlConnector} />}
+                      {i < upcomingEvents.length - 1 && <View style={[styles.tlConnector, { backgroundColor: isDark ? '#2A2740' : '#E8E0D0' }]} />}
                     </View>
                   </View>
-                  <View style={styles.tlCard}>
+                  <View style={[styles.tlCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
                     <View style={styles.tlCardHeader}>
                       <Text style={styles.tlIcon}>{ev.icon}</Text>
-                      <Text style={styles.tlCardTitle}>{ev.title}</Text>
+                      <Text style={[styles.tlCardTitle, { color: colors.heading }]}>{ev.title}</Text>
                     </View>
-                    <Text style={styles.tlCardDesc}>{ev.description}</Text>
+                    <Text style={[styles.tlCardDesc, { color: colors.textSecondary }]}>{ev.description}</Text>
                   </View>
                 </View>
               ))}

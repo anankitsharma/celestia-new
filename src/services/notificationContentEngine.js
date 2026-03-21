@@ -1,5 +1,5 @@
 import { HOUSE_THEMES } from '../constants/AstrologyCore';
-import { isMercuryRetrograde } from './astrologyService';
+import { isMercuryRetrograde, getMercuryRetrogradeProximity } from './astrologyService';
 
 // ── TEMPLATE CATALOG ────────────────────────────────────────
 
@@ -9,20 +9,26 @@ const TEMPLATES = {
       id: 'cm_navigator_excerpt',
       requires: ['forecast'],
       weight: (d) => d.forecast?.navigatorHeadline ? 10 : 0,
-      generate: (d) => ({
-        title: d.forecast.navigatorHeadline,
-        body: d.forecast.notificationExcerpt?.body || d.forecast.navigatorSummary || 'Your daily navigator briefing is ready.',
-        lifeArea: d.forecast.notificationExcerpt?.lifeArea || null,
-      }),
+      generate: (d) => {
+        const body = d.forecast.notificationExcerpt?.body || d.forecast.navigatorSummary || 'Your daily navigator briefing is ready.';
+        return {
+          title: d.forecast.navigatorHeadline,
+          body: body.endsWith('.') || body.endsWith('→') ? `${body} Open for your full insight →` : `${body}. Open for your full insight →`,
+          lifeArea: d.forecast.notificationExcerpt?.lifeArea || null,
+        };
+      },
     },
     {
       id: 'cm_navigator_headline',
       requires: ['forecast'],
       weight: (d) => d.forecast?.navigatorHeadline ? 8 : 0,
-      generate: (d) => ({
-        title: d.forecast.navigatorHeadline,
-        body: d.forecast.navigatorSummary || 'Your daily navigator briefing is ready.',
-      }),
+      generate: (d) => {
+        const body = d.forecast.navigatorSummary || 'Your daily navigator briefing is ready.';
+        return {
+          title: d.forecast.navigatorHeadline,
+          body: body.endsWith('.') || body.endsWith('→') ? `${body} See your full day →` : `${body}. See your full day →`,
+        };
+      },
     },
     {
       id: 'cm_moon_sign',
@@ -31,8 +37,8 @@ const TEMPLATES = {
       generate: (d) => ({
         title: `Moon enters ${d.moonData.sign} today`,
         body: d.userMoonSign
-          ? `Your emotional frequency shifts. As a ${d.userMoonSign} Moon, you'll feel this more than most.`
-          : `The emotional tide shifts today. See how it lands in your chart.`,
+          ? `Your emotional frequency shifts. As a ${d.userMoonSign} Moon, you'll feel this more than most. Open for details →`
+          : `The emotional tide shifts today. See how it lands in your chart →`,
       }),
     },
     {
@@ -76,9 +82,27 @@ const TEMPLATES = {
       generate: (d) => ({
         title: 'Mercury Retrograde is active',
         body: d.userMercurySign
-          ? `As a ${d.userMercurySign} Mercury, double-check everything today.`
-          : `Communication and tech may be disrupted. Tap for your survival guide.`,
+          ? `As a ${d.userMercurySign} Mercury, double-check everything today. Open for your survival guide →`
+          : `Communication and tech may be disrupted. Open for your survival guide →`,
       }),
+    },
+    {
+      id: 'cm_pre_retrograde',
+      requires: ['retrogradeProximity'],
+      weight: (d) => d.retrogradeProximity?.daysUntil === 1 ? 9 : d.retrogradeProximity?.daysUntil <= 3 ? 7 : 0,
+      generate: (d) => {
+        const days = d.retrogradeProximity.daysUntil;
+        if (days === 1) return {
+          title: 'Mercury Retrograde starts tomorrow',
+          body: d.userMercurySign
+            ? `Back up your phone. Finish pending texts. As a ${d.userMercurySign} Mercury, you'll feel this. Open for your survival plan →`
+            : `Back up your phone. Finish pending conversations. Your pre-retrograde checklist is ready →`,
+        };
+        return {
+          title: `Mercury Retrograde in ${days} days`,
+          body: `It's coming. Don't panic — but wrap up big decisions and double-check plans. Your chart-specific guide is ready →`,
+        };
+      },
     },
     {
       id: 'cm_moon_phase',
@@ -516,7 +540,9 @@ export function buildNotificationData(userProfile, forecast, moonData, energyDat
   const mercury = chart?.planets?.find(p => p.name === 'Mercury');
 
   let mercuryRx = false;
+  let retrogradeProximity = null;
   try { mercuryRx = isMercuryRetrograde(); } catch {}
+  try { retrogradeProximity = getMercuryRetrogradeProximity(); } catch {}
 
   return {
     userName: userProfile?.name?.split(' ')[0] || 'Stargazer',
@@ -533,6 +559,7 @@ export function buildNotificationData(userProfile, forecast, moonData, energyDat
     yesterdayForecast: yesterdayForecast || null,
     yesterdayJournal: yesterdayJournal || null,
     mercuryRx,
+    retrogradeProximity,
   };
 }
 

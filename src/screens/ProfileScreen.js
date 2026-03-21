@@ -4,6 +4,8 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { T, FONTS } from '../constants/theme';
 import { useUserProfile } from '../contexts/UserProfileContext';
 import { loadObject, saveObject, StorageKeys } from '../services/storage';
+import { invalidatePersonaCache } from '../services/geminiService';
+import { useTheme } from '../contexts/ThemeContext';
 import { getStreakData, getStreakEmoji } from '../services/streakService';
 import { getXPStatus, awardXP } from '../services/xpService';
 import { getAllBadges, trackEvent } from '../services/achievementService';
@@ -40,9 +42,11 @@ export default function ProfileScreen({ navigation }) {
   const { userProfile, setUserProfile } = useUserProfile();
   const { user, signOut: authSignOut, deleteAccount } = useAuth();
   const { customerInfo, isPro } = useRevenueCat();
+  const { preference: themePref, setThemePreference } = useTheme();
   const [settings, setSettings] = useState({ voice: 'Poetic', depth: 'Intermediate' });
   const [showVoicePicker, setShowVoicePicker] = useState(false);
   const [showDepthPicker, setShowDepthPicker] = useState(false);
+  const [showAppearancePicker, setShowAppearancePicker] = useState(false);
   const [streakInfo, setStreakInfo] = useState(null);
   const [xpInfo, setXpInfo] = useState(null);
   const [badges, setBadges] = useState([]);
@@ -104,6 +108,8 @@ export default function ProfileScreen({ navigation }) {
     const updated = { ...settings, [key]: value };
     setSettings(updated);
     await saveObject(StorageKeys.SETTINGS, updated);
+    // Invalidate cached persona so next AI call picks up new settings
+    invalidatePersonaCache();
   };
 
   const chart = userProfile?.chart;
@@ -186,10 +192,12 @@ export default function ProfileScreen({ navigation }) {
     );
   };
 
+  const APPEARANCE_LABELS = { light: 'Light', dark: 'Dark', system: 'System' };
   const SETTINGS_LIST = [
     { icon: '🔔', bg: '#F0EAF8', label: 'Notifications', val: notifSummary, onPress: () => navigation.navigate('NotificationSettings') },
     { icon: '✨', bg: '#FFF2E4', label: 'Reading Voice', val: settings.voice, onPress: () => setShowVoicePicker(true) },
     { icon: '📊', bg: '#EAF0F8', label: 'Depth Level', val: settings.depth, onPress: () => setShowDepthPicker(true) },
+    { icon: '🌗', bg: '#F0EEF4', label: 'Appearance', isToggle: true },
     { icon: '🌐', bg: '#F0F8F0', label: 'Time Zone', val: 'Auto', onPress: () => Alert.alert('Time Zone', 'Timezone is automatically detected from your device settings.') },
   ];
 
@@ -198,8 +206,17 @@ export default function ProfileScreen({ navigation }) {
     { icon: '❓', bg: '#FFF8E8', label: 'Help & Support', onPress: handleHelp },
   ];
 
+  const { colors, isDark } = useTheme();
+
+  // Dynamic card style — applied to all white cards in this screen
+  const cardStyle = { backgroundColor: colors.card, borderColor: colors.border };
+  const cardAltStyle = { backgroundColor: colors.cardAlt, borderColor: colors.border };
+  const textStyle = { color: colors.text };
+  const headingStyle = { color: colors.heading };
+  const subStyle = { color: colors.textSecondary };
+
   return (
-    <View style={{ flex: 1, backgroundColor: T.cream }}>
+    <View style={{ flex: 1, backgroundColor: colors.bg }}>
       <ScrollView showsVerticalScrollIndicator={false}>
         {/* Hero */}
         <LinearGradient colors={['#0E0E22', '#2A1A6E', '#0C2040']} start={{ x: 0.3, y: 0 }} end={{ x: 0.7, y: 1 }} style={styles.hero}>
@@ -234,233 +251,93 @@ export default function ProfileScreen({ navigation }) {
         )}
 
         <View style={styles.body}>
-          {/* Stats */}
-          <View style={styles.pstats}>
-            <View style={styles.pstat}>
-              <Text style={styles.pstatNum}>{chart?.aspects?.length || 0}</Text>
-              <Text style={styles.pstatLbl}>Aspects</Text>
-              <View style={styles.pstatTags}>
-                <View style={styles.miniTag}><Text style={styles.miniTagText}>Natal Chart</Text></View>
-              </View>
-            </View>
-            <View style={styles.pstat}>
-              <Text style={styles.pstatNum}>{chart?.planets?.length || 0}</Text>
-              <Text style={styles.pstatLbl}>Placements</Text>
-              <View style={styles.pstatTags}>
-                <View style={styles.miniTag}><Text style={styles.miniTagText}>Whole Sign</Text></View>
-              </View>
-            </View>
-          </View>
-
-          {/* Streak & XP Row */}
+          {/* Compact Streak/Level Strip */}
           {(streakInfo || xpInfo) && (
-            <View style={styles.engageRow}>
+            <TouchableOpacity style={[styles.journeyStrip, cardStyle]} activeOpacity={0.7} onPress={() => navigation.navigate('Journey')}>
               {streakInfo && streakInfo.current_streak > 0 && (
-                <View style={styles.engageCard}>
-                  <Text style={styles.engageEmoji}>{getStreakEmoji(streakInfo.current_streak)}</Text>
-                  <Text style={styles.engageNum}>{streakInfo.current_streak}</Text>
-                  <Text style={styles.engageLbl}>Day Streak</Text>
-                  <Text style={{ fontSize: 9, color: '#97907F', marginTop: 2, textAlign: 'center' }}>Your devotion to the cosmic practice</Text>
+                <View style={styles.journeyStripItem}>
+                  <Text style={{ fontSize: 14 }}>{getStreakEmoji(streakInfo.current_streak)}</Text>
+                  <Text style={[styles.journeyStripNum, headingStyle]}>{streakInfo.current_streak}</Text>
+                  <Text style={[styles.journeyStripLbl, subStyle]}>Streak</Text>
                 </View>
               )}
               {xpInfo?.levelInfo && (
-                <View style={styles.engageCard}>
-                  <Text style={styles.engageEmoji}>{'✦'}</Text>
-                  <Text style={styles.engageNum}>{xpInfo.total_xp || 0}</Text>
-                  <Text style={styles.engageLbl}>Chapter: {xpInfo.levelInfo.current.name}</Text>
-                  <View style={styles.xpBarBg}>
-                    <View style={[styles.xpBarFill, { width: `${(xpInfo.levelInfo.progress * 100).toFixed(0)}%` }]} />
-                  </View>
-                  {xpInfo.levelInfo.next && (
-                    <Text style={{ fontSize: 9, color: T.stone, marginTop: 3 }}>
-                      {xpInfo.levelInfo.next.threshold - xpInfo.total_xp} XP to {xpInfo.levelInfo.next.name}
-                    </Text>
-                  )}
+                <View style={[styles.journeyStripItem, { borderLeftWidth: 1, borderLeftColor: colors.divider }]}>
+                  <Text style={{ fontSize: 14 }}>✦</Text>
+                  <Text style={[styles.journeyStripNum, headingStyle]}>{xpInfo.total_xp || 0}</Text>
+                  <Text style={[styles.journeyStripLbl, subStyle]}>{xpInfo.levelInfo.current?.name || 'XP'}</Text>
                 </View>
               )}
-              {streakInfo && (
-                <View style={styles.engageCard}>
-                  <Text style={styles.engageEmoji}>{'📅'}</Text>
-                  <Text style={styles.engageNum}>{streakInfo.total_check_ins || 0}</Text>
-                  <Text style={styles.engageLbl}>Pages Written</Text>
+              {badges.length > 0 && (
+                <View style={[styles.journeyStripItem, { borderLeftWidth: 1, borderLeftColor: colors.divider }]}>
+                  <Text style={{ fontSize: 14 }}>🏅</Text>
+                  <Text style={[styles.journeyStripNum, headingStyle]}>{badges.filter(b => b.unlocked).length}/{badges.length}</Text>
+                  <Text style={[styles.journeyStripLbl, subStyle]}>Chapters</Text>
                 </View>
               )}
-            </View>
+              <Text style={{ fontSize: 16, color: colors.textMuted, marginLeft: 'auto' }}>›</Text>
+            </TouchableOpacity>
           )}
 
-          {/* Current Cosmic Arc */}
-          {cosmicSeason && (
-            <View style={{ backgroundColor: 'rgba(200,168,75,0.06)', borderRadius: 14, padding: 14, marginTop: 10, marginBottom: 4, borderWidth: 1, borderColor: 'rgba(200,168,75,0.12)' }}>
-              <Text style={{ fontSize: 9, letterSpacing: 2, color: '#97907F', fontFamily: FONTS.sansSemiBold, marginBottom: 6 }}>YOUR CURRENT ARC</Text>
-              <Text style={{ fontSize: 14, color: '#0E0E22', fontFamily: FONTS.serif, marginBottom: 4 }}>{cosmicSeason.description}</Text>
-              <View style={{ height: 3, backgroundColor: 'rgba(200,168,75,0.12)', borderRadius: 2, marginBottom: 4 }}>
-                <View style={{ height: 3, backgroundColor: '#C8A84B', borderRadius: 2, width: `${cosmicSeason.progress}%` }} />
-              </View>
-              <Text style={{ fontSize: 10, color: '#97907F' }}>{cosmicSeason.progress}% through · {cosmicSeason.daysRemaining} days remaining{cosmicSeason.isRetrograde ? ' · Retrograde' : ''}</Text>
-            </View>
-          )}
-
-          {/* Badges */}
-          {badges.length > 0 && (
-            <View style={styles.badgeSection}>
-              <Text style={styles.secLbl}>YOUR COSMIC JOURNEY ({badges.filter(b => b.unlocked).length}/{badges.length})</Text>
-              <View style={styles.badgeGrid}>
-                {badges.map((b) => (
-                  <View key={b.id} style={[styles.badgeItem, !b.unlocked && styles.badgeLocked]}>
-                    <Text style={[styles.badgeIcon, !b.unlocked && { opacity: 0.2 }]}>{b.icon}</Text>
-                    <Text style={[styles.badgeName, !b.unlocked && { color: '#C8C0B0' }]} numberOfLines={1}>{b.name}</Text>
-                  </View>
-                ))}
-              </View>
-            </View>
-          )}
-
-          {/* Level Rewards */}
-          {xpInfo?.levelInfo && (
-            <View style={styles.badgeSection}>
-              <Text style={styles.secLbl}>YOUR NEXT CHAPTERS</Text>
-              <View style={styles.roadmapCard}>
-                {[
-                  { level: 2, name: 'Constellation', xp: 75, reward: 'Customize your reading voice', icon: '✦' },
-                  { level: 3, name: 'Nebula', xp: 300, reward: 'Unlock past & future chapters', icon: '🌀' },
-                  { level: 4, name: 'Galaxy', xp: 1000, reward: 'Deep relationship story reports', icon: '🌌' },
-                  { level: 5, name: 'Cosmos', xp: 3000, reward: 'Your full Cosmic Identity revealed', icon: '👑' },
-                ].map((m, i) => {
-                  const reached = (xpInfo?.levelInfo?.current?.level || 1) >= m.level;
-                  return (
-                    <View key={i} style={styles.roadmapRow}>
-                      <View style={[styles.roadmapDot, reached && styles.roadmapDotActive]}>
-                        <Text style={{ fontSize: reached ? 14 : 10, opacity: reached ? 1 : 0.4 }}>{reached ? m.icon : '🔒'}</Text>
-                      </View>
-                      <View style={{ flex: 1 }}>
-                        <Text style={[styles.roadmapLabel, reached && { color: T.navy }]}>Lvl {m.level} — {m.name} ({m.xp} XP)</Text>
-                        <Text style={styles.roadmapReward}>{m.reward}</Text>
-                      </View>
-                      {reached && <Text style={{ fontSize: 11, color: '#4CAF50' }}>Unlocked</Text>}
-                    </View>
-                  );
-                })}
-              </View>
-            </View>
-          )}
-
-          {/* Streak Rewards Roadmap */}
-          {streakInfo && (
-            <View style={styles.badgeSection}>
-              <Text style={styles.secLbl}>DEVOTION MILESTONES</Text>
-              <View style={styles.roadmapCard}>
-                {[
-                  { day: 3, label: 'Cosmic Explorer', reward: '1.0x XP multiplier', icon: '⭐' },
-                  { day: 7, label: 'Stargazer', reward: '1.5x XP multiplier', icon: '🔥' },
-                  { day: 14, label: 'Constellation Keeper', reward: '2x XP multiplier', icon: '💫' },
-                  { day: 30, label: 'Moon Cycle Master', reward: '2.5x XP multiplier', icon: '✨' },
-                  { day: 50, label: 'Celestial Sage', reward: 'Cosmic endurance', icon: '🌟' },
-                  { day: 100, label: 'Cosmic Legend', reward: 'Legendary status', icon: '💎' },
-                ].map((m, i) => {
-                  const reached = (streakInfo?.current_streak || 0) >= m.day;
-                  return (
-                    <View key={i} style={styles.roadmapRow}>
-                      <View style={[styles.roadmapDot, reached && styles.roadmapDotActive]}>
-                        <Text style={{ fontSize: reached ? 14 : 10, opacity: reached ? 1 : 0.4 }}>{reached ? m.icon : '🔒'}</Text>
-                      </View>
-                      <View style={{ flex: 1 }}>
-                        <Text style={[styles.roadmapLabel, reached && { color: T.navy }]}>Day {m.day} — {m.label}</Text>
-                        <Text style={styles.roadmapReward}>{m.reward}</Text>
-                      </View>
-                      {reached && <Text style={{ fontSize: 11, color: '#4CAF50' }}>Unlocked</Text>}
-                    </View>
-                  );
-                })}
-              </View>
-            </View>
-          )}
-
-          {/* Cosmic ID Card */}
-          <View style={styles.cosmicIDWrap}>
-            <Text style={styles.secLbl}>YOUR COSMIC ID</Text>
-            <TouchableOpacity activeOpacity={0.85} onPress={() => {
+          {/* Share Identity — single tap shares her Big 3 */}
+          <TouchableOpacity
+            style={[styles.journeyStrip, cardStyle, { justifyContent: 'center', gap: 8, paddingVertical: 12 }]}
+            activeOpacity={0.7}
+            onPress={() => {
               haptic.medium();
               shareCosmicID(`My Celestial Identity\n\n${astroMain}\n${astroChips.join(' · ')}\n\n— Generated with Celestia`);
             }}>
-              <CosmicIDCard
-                innerRef={cosmicCardRef}
-                name={name}
-                sun={sun?.sign}
-                moon={moon?.sign}
-                rising={rising?.sign}
-                chips={astroChips}
-                levelName={xpInfo?.levelInfo?.current?.name}
-              />
-            </TouchableOpacity>
-            <Text style={styles.tapToShare}>Tap card to share</Text>
-          </View>
-
-          {/* Cosmic Rarity Card */}
-          {userProfile?.chart && (() => {
-            const arch = getCosmicArchetype(userProfile.chart);
-            const rarity = getComboRarity(userProfile.chart);
-            if (!arch) return null;
-            return (
-              <View style={styles.cosmicIDWrap}>
-                <Text style={styles.secLbl}>YOUR COSMIC RARITY</Text>
-                <TouchableOpacity activeOpacity={0.85} onPress={async () => {
-                  haptic.medium();
-                  await shareRarity(`${arch.name} — ${arch.tagline}\nBig Three: ${rarity?.text || ''} ${rarity?.label || ''}\n\n— Celestia`);
-                  trackEvent('share').catch(() => {});
-                  awardXP(userProfile?.id || 'default', 'share').catch(() => {});
-                }}>
-                  <CosmicRarityCard
-                    innerRef={rarityCardRef}
-                    archetype={arch}
-                    comboRarity={rarity}
-                  />
-                </TouchableOpacity>
-                <Text style={styles.tapToShare}>Tap card to share</Text>
-              </View>
-            );
-          })()}
-
-          {/* Referral */}
-          <View style={styles.referralCard}>
-            <LinearGradient colors={['#1A1228', '#14101E']} style={styles.referralGrad}>
-              <Text style={styles.referralTitle}>Invite Friends</Text>
-              <Text style={styles.referralSub}>You both earn 100 XP when they join</Text>
-              {referralStats?.totalReferred > 0 && (
-                <Text style={styles.referralStat}>{referralStats.totalReferred} friend{referralStats.totalReferred !== 1 ? 's' : ''} invited</Text>
-              )}
-              <TouchableOpacity
-                style={styles.referralBtn}
-                activeOpacity={0.7}
-                onPress={async () => {
-                  haptic.medium();
-                  await shareReferralLink(userProfile?.id || 'default', userProfile?.name);
-                }}
-              >
-                <Text style={styles.referralBtnText}>Share Invite Link ✉️</Text>
-              </TouchableOpacity>
-              {referralCode ? (
-                <Text style={styles.referralCode}>Your code: {referralCode}</Text>
-              ) : null}
-            </LinearGradient>
-          </View>
+            <Text style={{ fontSize: 14 }}>📸</Text>
+            <Text style={[{ fontSize: 13, fontFamily: FONTS.sansMedium }, headingStyle]}>Share My Cosmic ID</Text>
+            <Text style={[{ fontSize: 12 }, subStyle]}>↗</Text>
+          </TouchableOpacity>
 
           {/* Settings */}
-          <Text style={styles.secLbl}>PREFERENCES</Text>
-          <View style={styles.settingsCard}>
-            {SETTINGS_LIST.map((s, i) => (
-              <TouchableOpacity key={i} style={[styles.prow, i === SETTINGS_LIST.length - 1 && { borderBottomWidth: 0 }]}
-                activeOpacity={0.7} onPress={s.onPress}>
-                <View style={[styles.prowIcon, { backgroundColor: s.bg }]}><Text style={{ fontSize: 16 }}>{s.icon}</Text></View>
-                <Text style={styles.prowLabel}>{s.label}</Text>
-                {s.val ? <Text style={styles.prowVal}>{s.val}</Text> : null}
-                <Text style={styles.prowArr}>›</Text>
-              </TouchableOpacity>
-            ))}
+          <Text style={[styles.secLbl, subStyle]}>PREFERENCES</Text>
+          <View style={[styles.settingsCard, cardStyle]}>
+            {SETTINGS_LIST.map((s, i) => {
+              // Appearance row: inline 3-way toggle instead of modal
+              if (s.isToggle) {
+                return (
+                  <View key={i} style={[styles.prow, { borderBottomColor: colors.divider }, i === SETTINGS_LIST.length - 1 && { borderBottomWidth: 0 }]}>
+                    <View style={[styles.prowIcon, { backgroundColor: isDark ? 'rgba(155,142,196,0.12)' : s.bg }]}><Text style={{ fontSize: 16 }}>{s.icon}</Text></View>
+                    <Text style={[styles.prowLabel, textStyle, { marginRight: 'auto' }]}>{s.label}</Text>
+                    <View style={[styles.appearanceToggle, { backgroundColor: colors.cardAlt, borderColor: colors.border }]}>
+                      {[
+                        { key: 'light', icon: '☀️' },
+                        { key: 'system', icon: '⚙️' },
+                        { key: 'dark', icon: '🌙' },
+                      ].map((opt) => (
+                        <TouchableOpacity
+                          key={opt.key}
+                          style={[
+                            styles.appearanceOpt,
+                            themePref === opt.key && { backgroundColor: colors.card, shadowColor: '#000', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.1, shadowRadius: 4, elevation: 2 },
+                          ]}
+                          activeOpacity={0.7}
+                          onPress={() => { setThemePreference(opt.key); haptic.selection(); }}>
+                          <Text style={{ fontSize: 14 }}>{opt.icon}</Text>
+                        </TouchableOpacity>
+                      ))}
+                    </View>
+                  </View>
+                );
+              }
+              return (
+                <TouchableOpacity key={i} style={[styles.prow, { borderBottomColor: colors.divider }, i === SETTINGS_LIST.length - 1 && { borderBottomWidth: 0 }]}
+                  activeOpacity={0.7} onPress={s.onPress}>
+                  <View style={[styles.prowIcon, { backgroundColor: s.bg }]}><Text style={{ fontSize: 16 }}>{s.icon}</Text></View>
+                  <Text style={[styles.prowLabel, textStyle]}>{s.label}</Text>
+                  {s.val ? <Text style={[styles.prowVal, subStyle]}>{s.val}</Text> : null}
+                  <Text style={styles.prowArr}>›</Text>
+                </TouchableOpacity>
+              );
+            })}
           </View>
 
           {/* Subscription */}
-          <Text style={styles.secLbl}>SUBSCRIPTION</Text>
-          <View style={styles.settingsCard}>
+          <Text style={[styles.secLbl, subStyle]}>SUBSCRIPTION</Text>
+          <View style={[styles.settingsCard, cardStyle]}>
             {(() => {
               const entitlement = customerInfo?.entitlements?.active?.['Celestia Pro'];
               if (isPro && entitlement) {
@@ -484,10 +361,10 @@ export default function ProfileScreen({ navigation }) {
                   planLabel = diffDays > 35 ? 'Yearly' : 'Monthly';
                 }
                 return (
-                  <View style={[styles.prow, { borderBottomWidth: 0 }]}>
+                  <View style={[styles.prow, { borderBottomColor: colors.divider }, { borderBottomWidth: 0 }]}>
                     <View style={[styles.prowIcon, { backgroundColor: '#FFF8E1' }]}><Text style={{ fontSize: 16 }}>{'⭐'}</Text></View>
                     <View style={{ flex: 1 }}>
-                      <Text style={styles.prowLabel}>Celestia Pro{planLabel ? ` (${planLabel})` : ''}</Text>
+                      <Text style={[styles.prowLabel, textStyle]}>Celestia Pro{planLabel ? ` (${planLabel})` : ''}</Text>
                       {purchaseDate && (
                         <Text style={{ fontSize: 11, color: T.stone, marginTop: 1 }}>Purchased {purchaseDate.toLocaleDateString()}</Text>
                       )}
@@ -497,12 +374,12 @@ export default function ProfileScreen({ navigation }) {
                 );
               }
               return (
-                <TouchableOpacity style={[styles.prow, { borderBottomWidth: 0 }]} activeOpacity={0.7}
+                <TouchableOpacity style={[styles.prow, { borderBottomColor: colors.divider }, { borderBottomWidth: 0 }]} activeOpacity={0.7}
                   onPress={() => navigation.navigate('Paywall')}>
                   <View style={[styles.prowIcon, { backgroundColor: '#FFF8E1' }]}><Text style={{ fontSize: 16 }}>{'🔒'}</Text></View>
                   <View style={{ flex: 1 }}>
-                    <Text style={styles.prowLabel}>Free Plan</Text>
-                    <Text style={{ fontSize: 11, color: T.stone, marginTop: 1 }}>Upgrade to Celestia Pro</Text>
+                    <Text style={[styles.prowLabel, textStyle]}>Free Plan</Text>
+                    <Text style={{ fontSize: 11, color: T.stone, marginTop: 1 }}>Go deeper with Pro</Text>
                   </View>
                   <Text style={styles.prowArr}>›</Text>
                 </TouchableOpacity>
@@ -511,26 +388,26 @@ export default function ProfileScreen({ navigation }) {
           </View>
 
           {/* Account */}
-          <Text style={styles.secLbl}>ACCOUNT</Text>
-          <View style={styles.settingsCard}>
+          <Text style={[styles.secLbl, subStyle]}>ACCOUNT</Text>
+          <View style={[styles.settingsCard, cardStyle]}>
             {user ? (
               <>
-                <View style={[styles.prow, { borderBottomWidth: 1 }]}>
+                <View style={[styles.prow, { borderBottomColor: colors.divider }, { borderBottomWidth: 1 }]}>
                   <View style={[styles.prowIcon, { backgroundColor: '#E8F5E9' }]}><Text style={{ fontSize: 16 }}>{'✓'}</Text></View>
                   <View style={{ flex: 1 }}>
-                    <Text style={styles.prowLabel}>Signed In</Text>
+                    <Text style={[styles.prowLabel, textStyle]}>Signed In</Text>
                     <Text style={{ fontSize: 11, color: T.stone, marginTop: 1 }} numberOfLines={1}>{user.email}</Text>
                   </View>
                 </View>
-                <TouchableOpacity style={[styles.prow, { borderBottomWidth: 1 }]} activeOpacity={0.7}
+                <TouchableOpacity style={[styles.prow, { borderBottomColor: colors.divider }, { borderBottomWidth: 1 }]} activeOpacity={0.7}
                   onPress={() => Alert.alert('Sign Out', 'Your data is saved locally and will sync again when you sign back in.', [
                     { text: 'Cancel', style: 'cancel' },
                     { text: 'Sign Out', style: 'destructive', onPress: authSignOut },
                   ])}>
                   <View style={[styles.prowIcon, { backgroundColor: '#F0F0F0' }]}><Text style={{ fontSize: 16 }}>{'↪'}</Text></View>
-                  <Text style={styles.prowLabel}>Sign Out</Text>
+                  <Text style={[styles.prowLabel, textStyle]}>Sign Out</Text>
                 </TouchableOpacity>
-                <TouchableOpacity style={[styles.prow, { borderBottomWidth: 0 }]} activeOpacity={0.7}
+                <TouchableOpacity style={[styles.prow, { borderBottomColor: colors.divider }, { borderBottomWidth: 0 }]} activeOpacity={0.7}
                   onPress={() => Alert.alert(
                     'Delete Account',
                     'This will permanently delete your cloud data (journal entries, streaks, achievements) and sign you out. Your local data on this device will remain.\n\nThis cannot be undone.',
@@ -555,11 +432,11 @@ export default function ProfileScreen({ navigation }) {
                 </TouchableOpacity>
               </>
             ) : (
-              <TouchableOpacity style={[styles.prow, { borderBottomWidth: 0 }]} activeOpacity={0.7}
+              <TouchableOpacity style={[styles.prow, { borderBottomColor: colors.divider }, { borderBottomWidth: 0 }]} activeOpacity={0.7}
                 onPress={() => navigation.navigate('Auth')}>
                 <View style={[styles.prowIcon, { backgroundColor: '#F0EAF8' }]}><Text style={{ fontSize: 16 }}>{'☁'}</Text></View>
                 <View style={{ flex: 1 }}>
-                  <Text style={styles.prowLabel}>Sign In / Create Account</Text>
+                  <Text style={[styles.prowLabel, textStyle]}>Sign In / Create Account</Text>
                   <Text style={{ fontSize: 11, color: T.stone, marginTop: 1 }}>Sync your data across devices</Text>
                 </View>
                 <Text style={styles.prowArr}>{'›'}</Text>
@@ -567,13 +444,13 @@ export default function ProfileScreen({ navigation }) {
             )}
           </View>
 
-          <Text style={styles.secLbl}>GENERAL</Text>
-          <View style={styles.settingsCard}>
+          <Text style={[styles.secLbl, subStyle]}>GENERAL</Text>
+          <View style={[styles.settingsCard, cardStyle]}>
             {SETTINGS2_LIST.map((s, i) => (
-              <TouchableOpacity key={i} style={[styles.prow, i === SETTINGS2_LIST.length - 1 && { borderBottomWidth: 0 }]}
+              <TouchableOpacity key={i} style={[styles.prow, { borderBottomColor: colors.divider }, i === SETTINGS2_LIST.length - 1 && { borderBottomWidth: 0 }]}
                 activeOpacity={0.7} onPress={s.onPress}>
                 <View style={[styles.prowIcon, { backgroundColor: s.bg }]}><Text style={{ fontSize: 16 }}>{s.icon}</Text></View>
-                <Text style={styles.prowLabel}>{s.label}</Text>
+                <Text style={[styles.prowLabel, textStyle]}>{s.label}</Text>
                 <Text style={styles.prowArr}>›</Text>
               </TouchableOpacity>
             ))}
@@ -592,7 +469,7 @@ export default function ProfileScreen({ navigation }) {
                 <TouchableOpacity style={styles.devRow} activeOpacity={0.7}
                   onPress={() => navigation.navigate('OnboardingFlow')}>
                   <View style={styles.devIcon}><Text style={{ fontSize: 14, color: T.gold }}>✦</Text></View>
-                  <Text style={styles.devLabel}>Show Onboarding</Text>
+                  <Text style={[styles.devLabel, textStyle]}>Show Onboarding</Text>
                   <Text style={[styles.prowArr, { color: 'rgba(200,168,75,0.5)' }]}>›</Text>
                 </TouchableOpacity>
 
@@ -638,7 +515,7 @@ export default function ProfileScreen({ navigation }) {
                     } catch (e) { Alert.alert('Error', e.message); }
                   }}>
                   <View style={styles.devIcon}><Text style={{ fontSize: 14, color: T.gold }}>🔔</Text></View>
-                  <Text style={styles.devLabel}>Send Real Notification (2s)</Text>
+                  <Text style={[styles.devLabel, textStyle]}>Send Real Notification (2s)</Text>
                 </TouchableOpacity>
 
                 {/* Schedule All Notifications */}
@@ -660,7 +537,7 @@ export default function ProfileScreen({ navigation }) {
                     } catch (e) { Alert.alert('Error', e.message); }
                   }}>
                   <View style={styles.devIcon}><Text style={{ fontSize: 14, color: T.gold }}>📬</Text></View>
-                  <Text style={styles.devLabel}>Schedule All Notifications</Text>
+                  <Text style={[styles.devLabel, textStyle]}>Schedule All Notifications</Text>
                 </TouchableOpacity>
 
                 {/* Cancel All Notifications */}
@@ -670,7 +547,7 @@ export default function ProfileScreen({ navigation }) {
                     Alert.alert('Done', 'All scheduled notifications cancelled');
                   }}>
                   <View style={styles.devIcon}><Text style={{ fontSize: 14, color: T.gold }}>🚫</Text></View>
-                  <Text style={styles.devLabel}>Cancel All Notifications</Text>
+                  <Text style={[styles.devLabel, textStyle]}>Cancel All Notifications</Text>
                 </TouchableOpacity>
 
                 {/* Show Scheduled Notifications */}
@@ -705,7 +582,7 @@ export default function ProfileScreen({ navigation }) {
                     );
                   }}>
                   <View style={styles.devIcon}><Text style={{ fontSize: 14, color: T.gold }}>📋</Text></View>
-                  <Text style={styles.devLabel}>Show Scheduled Notifications</Text>
+                  <Text style={[styles.devLabel, textStyle]}>Show Scheduled Notifications</Text>
                 </TouchableOpacity>
 
                 {/* Show Notification Permission */}
@@ -715,7 +592,7 @@ export default function ProfileScreen({ navigation }) {
                     Alert.alert('Permission Status', JSON.stringify(perm.status, null, 2));
                   }}>
                   <View style={styles.devIcon}><Text style={{ fontSize: 14, color: T.gold }}>🔐</Text></View>
-                  <Text style={styles.devLabel}>Notification Permission</Text>
+                  <Text style={[styles.devLabel, textStyle]}>Notification Permission</Text>
                 </TouchableOpacity>
 
                 {/* Load & Show Forecast Data */}
@@ -735,7 +612,7 @@ export default function ProfileScreen({ navigation }) {
                     } catch (e) { Alert.alert('Error', e.message); }
                   }}>
                   <View style={styles.devIcon}><Text style={{ fontSize: 14, color: T.gold }}>📊</Text></View>
-                  <Text style={styles.devLabel}>Load Today's Forecast Data</Text>
+                  <Text style={[styles.devLabel, textStyle]}>Load Today's Forecast Data</Text>
                 </TouchableOpacity>
 
                 {/* Clear Forecast Cache */}
@@ -750,7 +627,7 @@ export default function ProfileScreen({ navigation }) {
                     ]);
                   }}>
                   <View style={styles.devIcon}><Text style={{ fontSize: 14, color: T.gold }}>🗑️</Text></View>
-                  <Text style={styles.devLabel}>Clear Cache & Reload Today</Text>
+                  <Text style={[styles.devLabel, textStyle]}>Clear Cache & Reload Today</Text>
                 </TouchableOpacity>
 
                 {/* Send Navigator Excerpt Notification */}
@@ -779,7 +656,7 @@ export default function ProfileScreen({ navigation }) {
                     } catch (e) { Alert.alert('Error', e.message); }
                   }}>
                   <View style={styles.devIcon}><Text style={{ fontSize: 14, color: T.gold }}>✉️</Text></View>
-                  <Text style={styles.devLabel}>Send Navigator Excerpt Notif</Text>
+                  <Text style={[styles.devLabel, textStyle]}>Send Navigator Excerpt Notif</Text>
                 </TouchableOpacity>
 
                 {/* Test Deep Link to Transits */}
@@ -788,7 +665,7 @@ export default function ProfileScreen({ navigation }) {
                     navigation.navigate('Main', { screen: 'Today', params: { scrollToSection: 'transits' } });
                   }}>
                   <View style={styles.devIcon}><Text style={{ fontSize: 14, color: T.gold }}>🔗</Text></View>
-                  <Text style={styles.devLabel}>Deep Link → Today Transits</Text>
+                  <Text style={[styles.devLabel, textStyle]}>Deep Link → Today Transits</Text>
                 </TouchableOpacity>
 
                 {/* Notification Settings Dump */}
@@ -798,7 +675,7 @@ export default function ProfileScreen({ navigation }) {
                     Alert.alert('Notification Settings', JSON.stringify(ns, null, 2));
                   }}>
                   <View style={styles.devIcon}><Text style={{ fontSize: 14, color: T.gold }}>⚙️</Text></View>
-                  <Text style={styles.devLabel}>Dump Notification Settings</Text>
+                  <Text style={[styles.devLabel, textStyle]}>Dump Notification Settings</Text>
                 </TouchableOpacity>
               </View>
 
@@ -891,7 +768,7 @@ export default function ProfileScreen({ navigation }) {
                       Alert.alert('Raw Forecast (truncated)', raw.slice(0, 1500) + (raw.length > 1500 ? '\n...' : ''));
                     }}>
                     <View style={styles.devIcon}><Text style={{ fontSize: 14, color: T.gold }}>{ '{}'}</Text></View>
-                    <Text style={styles.devLabel}>Show Raw JSON</Text>
+                    <Text style={[styles.devLabel, textStyle]}>Show Raw JSON</Text>
                   </TouchableOpacity>
                 </View>
               )}
@@ -905,9 +782,9 @@ export default function ProfileScreen({ navigation }) {
       {/* Voice Picker Modal */}
       <Modal visible={showVoicePicker} transparent animationType="fade">
         <TouchableOpacity style={styles.pickerOverlay} activeOpacity={1} onPress={() => setShowVoicePicker(false)}>
-          <View style={styles.pickerCard}>
-            <Text style={styles.pickerTitle}>Reading Voice</Text>
-            <Text style={styles.pickerSub}>Choose how Celestia speaks to you</Text>
+          <View style={[styles.pickerCard, cardStyle]}>
+            <Text style={[styles.pickerTitle, headingStyle]}>Reading Voice</Text>
+            <Text style={[styles.pickerSub, subStyle]}>Choose how Celestia speaks to you</Text>
             {VOICE_OPTIONS.map((v, i) => (
               <TouchableOpacity key={i} style={[styles.pickerOption, settings.voice === v && styles.pickerOptionOn]}
                 onPress={() => { updateSetting('voice', v); setShowVoicePicker(false); }}>
@@ -922,9 +799,9 @@ export default function ProfileScreen({ navigation }) {
       {/* Depth Picker Modal */}
       <Modal visible={showDepthPicker} transparent animationType="fade">
         <TouchableOpacity style={styles.pickerOverlay} activeOpacity={1} onPress={() => setShowDepthPicker(false)}>
-          <View style={styles.pickerCard}>
-            <Text style={styles.pickerTitle}>Depth Level</Text>
-            <Text style={styles.pickerSub}>Adjust the complexity of your readings</Text>
+          <View style={[styles.pickerCard, cardStyle]}>
+            <Text style={[styles.pickerTitle, headingStyle]}>Depth Level</Text>
+            <Text style={[styles.pickerSub, subStyle]}>Adjust the complexity of your readings</Text>
             {DEPTH_OPTIONS.map((d, i) => (
               <TouchableOpacity key={i} style={[styles.pickerOption, settings.depth === d && styles.pickerOptionOn]}
                 onPress={() => { updateSetting('depth', d); setShowDepthPicker(false); }}>
@@ -935,6 +812,8 @@ export default function ProfileScreen({ navigation }) {
           </View>
         </TouchableOpacity>
       </Modal>
+
+      {/* Appearance picker replaced with inline 3-way toggle in settings row */}
     </View>
   );
 }
@@ -955,7 +834,7 @@ const styles = StyleSheet.create({
   signBadgeText: { fontSize: 11, color: 'rgba(250,248,242,0.58)' },
   body: { paddingHorizontal: 19, paddingTop: 18 },
   pstats: { flexDirection: 'row', gap: 9, marginBottom: 18 },
-  pstat: { flex: 1, backgroundColor: 'white', borderRadius: 15, padding: 15, borderWidth: 1, borderColor: T.border },
+  pstat: { flex: 1, borderRadius: 15, padding: 15, borderWidth: 1 },
   pstatNum: { fontFamily: FONTS.serif, fontSize: 32, color: T.navy, lineHeight: 32 },
   pstatLbl: { fontSize: 11, color: T.stone, marginTop: 3 },
   pstatTags: { flexDirection: 'row', gap: 5, marginTop: 7, flexWrap: 'wrap' },
@@ -1004,6 +883,12 @@ const styles = StyleSheet.create({
   // Cosmic ID
   cosmicIDWrap: { marginBottom: 18, alignItems: 'center' },
   tapToShare: { fontSize: 11, color: T.stone, marginTop: 8, fontStyle: 'italic' },
+  appearanceToggle: { flexDirection: 'row', borderRadius: 12, padding: 3, borderWidth: 1, gap: 2 },
+  appearanceOpt: { paddingVertical: 6, paddingHorizontal: 12, borderRadius: 10, alignItems: 'center', justifyContent: 'center' },
+  journeyStrip: { flexDirection: 'row', alignItems: 'center', borderRadius: 16, padding: 14, marginBottom: 14, borderWidth: 1 },
+  journeyStripItem: { flex: 1, alignItems: 'center', gap: 2, paddingHorizontal: 8 },
+  journeyStripNum: { fontFamily: FONTS.serif, fontSize: 18 },
+  journeyStripLbl: { fontSize: 9, letterSpacing: 0.5 },
   // Referral section
   referralCard: { borderRadius: 20, overflow: 'hidden', marginBottom: 18 },
   referralGrad: { padding: 22, alignItems: 'center' },
@@ -1017,7 +902,7 @@ const styles = StyleSheet.create({
   devCard: { backgroundColor: 'rgba(200,168,75,0.06)', borderRadius: 17, borderWidth: 1, borderColor: 'rgba(200,168,75,0.18)', overflow: 'hidden', marginBottom: 18 },
   devRow: { flexDirection: 'row', alignItems: 'center', paddingVertical: 14, paddingHorizontal: 16 },
   devIcon: { width: 34, height: 34, borderRadius: 10, backgroundColor: 'rgba(200,168,75,0.12)', borderWidth: 1, borderColor: 'rgba(200,168,75,0.2)', alignItems: 'center', justifyContent: 'center', marginRight: 11 },
-  devLabel: { fontSize: 14, color: T.navy, flex: 1, fontFamily: FONTS.sansMedium },
+  devLabel: { fontSize: 14, flex: 1, fontFamily: FONTS.sansMedium },
   debugBlock: { paddingHorizontal: 16, paddingVertical: 8, borderBottomWidth: 1, borderBottomColor: 'rgba(200,168,75,0.1)' },
   debugKey: { fontSize: 10, letterSpacing: 1.5, color: T.gold, fontFamily: FONTS.sansSemiBold, marginBottom: 4, textTransform: 'uppercase' },
   debugVal: { fontSize: 12, color: T.ink, lineHeight: 18, marginBottom: 2 },

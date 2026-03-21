@@ -9,10 +9,12 @@ import ReAnimated, {
 } from 'react-native-reanimated';
 import { T, FONTS } from '../constants/theme';
 import { useAuth } from '../contexts/AuthContext';
+import { useTheme } from '../contexts/ThemeContext';
 
 const { width, height } = Dimensions.get('window');
 
 export default function AuthScreen({ navigation, route }) {
+  const { colors, isDark } = useTheme();
   const { onSignIn } = useAuth();
   const isOnboarding = route.params?.mode === 'onboarding';
   const [loading, setLoading] = useState(false);
@@ -91,8 +93,8 @@ export default function AuthScreen({ navigation, route }) {
   };
 
   return (
-    <View style={s.container}>
-      <StatusBar barStyle="dark-content" />
+    <View style={[s.container, { backgroundColor: colors.bg }]}>
+      <StatusBar barStyle={isDark ? 'light-content' : 'dark-content'} />
 
       {/* Hero header — matches app hero pattern */}
       <LinearGradient
@@ -154,17 +156,17 @@ export default function AuthScreen({ navigation, route }) {
           ].map((b, i) => (
             <View key={i} style={s.benefitRow}>
               <View style={s.benefitIcon}><Text style={{ fontSize: 14 }}>{b.icon}</Text></View>
-              <Text style={s.benefitText}>{b.text}</Text>
+              <Text style={[s.benefitText, { color: colors.text }]}>{b.text}</Text>
             </View>
           ))}
         </ReAnimated.View>
 
         {/* Sign-in card */}
-        <ReAnimated.View style={[s.card, cardStyle]}>
+        <ReAnimated.View style={[s.card, cardStyle, { backgroundColor: colors.card, borderColor: colors.border }]}>
           <View style={s.cardDivider}>
-            <View style={s.dividerLine} />
-            <Text style={s.cardLabel}>CONTINUE WITH</Text>
-            <View style={s.dividerLine} />
+            <View style={[s.dividerLine, { backgroundColor: colors.border }]} />
+            <Text style={[s.cardLabel, { color: colors.textSecondary }]}>CONTINUE WITH</Text>
+            <View style={[s.dividerLine, { backgroundColor: colors.border }]} />
           </View>
 
           {/* Google button */}
@@ -194,14 +196,14 @@ export default function AuthScreen({ navigation, route }) {
             ))}
           </View>
 
-          <Text style={s.secureText}>
+          <Text style={[s.secureText, { color: colors.textSecondary }]}>
             {'🔒'}  Your data is encrypted and secure
           </Text>
         </ReAnimated.View>
 
         {/* Legal */}
         <ReAnimated.View style={[s.legalArea, footerStyle]}>
-          <Text style={s.legalText}>
+          <Text style={[s.legalText, { color: colors.textSecondary }]}>
             By continuing, you agree to our{' '}
             <Text style={s.legalLink}>Terms of Service</Text>
             {' '}and{' '}

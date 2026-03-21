@@ -18,6 +18,20 @@ export const ROLE_DIMENSIONS = {
             stability: [[PlanetName.Saturn, PlanetName.Sun], [PlanetName.Saturn, PlanetName.Moon], [PlanetName.Jupiter, PlanetName.Saturn], [PlanetName.Saturn, PlanetName.Venus]],
         },
     },
+    ex: {
+        dims: [
+            { key: 'attraction', label: 'What Drew You In', color: '#E86050', icon: '♀' },
+            { key: 'emotional', label: 'Emotional Bond', color: '#E85090', icon: '☽' },
+            { key: 'tension', label: 'Where It Broke', color: '#C060E0', icon: '♂' },
+            { key: 'lesson', label: 'What You Learned', color: '#B080F0', icon: '♄' },
+        ],
+        planetPairs: {
+            attraction: [[PlanetName.Venus, PlanetName.Mars], [PlanetName.Venus, PlanetName.Sun], [PlanetName.Mars, PlanetName.Moon], [PlanetName.Venus, PlanetName.Ascendant]],
+            emotional: [[PlanetName.Moon, PlanetName.Moon], [PlanetName.Moon, PlanetName.Venus], [PlanetName.Moon, PlanetName.Sun], [PlanetName.Venus, PlanetName.Venus]],
+            tension: [[PlanetName.Mars, PlanetName.Mars], [PlanetName.Saturn, PlanetName.Venus], [PlanetName.Saturn, PlanetName.Moon], [PlanetName.Mars, PlanetName.Saturn]],
+            lesson: [[PlanetName.Saturn, PlanetName.Sun], [PlanetName.NorthNode, PlanetName.Sun], [PlanetName.NorthNode, PlanetName.Moon], [PlanetName.Jupiter, PlanetName.Saturn]],
+        },
+    },
     friend: {
         dims: [
             { key: 'trust', label: 'Trust', color: '#7EC8A0', icon: '♄' },
@@ -121,6 +135,7 @@ export const ROLE_DIMENSIONS = {
 // Orb colors by relationship type
 export const ROLE_COLORS = {
     partner: { bg: ['#E85090', '#C82870'], soft: 'rgba(232,80,144,0.12)' },
+    ex: { bg: ['#9B8EC4', '#7060A0'], soft: 'rgba(155,142,196,0.12)' },
     friend: { bg: ['#9060E0', '#6040B0'], soft: 'rgba(144,96,224,0.12)' },
     parent: { bg: ['#C8A84B', '#8C6C18'], soft: 'rgba(200,168,75,0.12)' },
     sibling: { bg: ['#E8A050', '#C07830'], soft: 'rgba(232,160,80,0.12)' },

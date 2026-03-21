@@ -19,6 +19,7 @@ import GenerationOverlay from '../components/GenerationOverlay';
 import { useRevenueCat } from '../contexts/RevenueCatContext';
 import { useNavigation } from '@react-navigation/native';
 import { useAnalytics, EVENTS } from '../services/analytics';
+import { useTheme } from '../contexts/ThemeContext';
 
 
 const { width: SCREEN_W, height: SCREEN_H } = Dimensions.get('window');
@@ -328,7 +329,7 @@ const generateDeepReportHTML = (report, profile, reportType) => {
   const genDate = new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
 
   const PLANET_GLYPHS = { Sun: '☉', Moon: '☽', Mercury: '☿', Venus: '♀', Mars: '♂', Jupiter: '♃', Saturn: '♄', Uranus: '♅', Neptune: '♆', Pluto: '♇', 'North Node': '☊', 'South Node': '☋', Ascendant: 'ASC', Midheaven: 'MC' };
-  const AREA_COLORS = { love: '#7D2645', career: '#1A3A6E', purpose: '#5C4A15', challenge: '#7A3520' };
+  const AREA_COLORS = { love: '#F5E8EC', career: '#E8EEF5', purpose: '#F5F0E4', challenge: '#F5EAE6' };
   const AREA_LABELS = { love: 'Love & Relationships', career: 'Career & Vocation', purpose: 'Life Purpose', challenge: 'Core Challenge' };
   const AREA_ICONS = { love: '♡', career: '◆', purpose: '✦', challenge: '△' };
   const EL_COLORS = { fire: '#DC2626', earth: '#16A34A', air: '#2563EB', water: '#7C3AED' };
@@ -487,35 +488,36 @@ body {
 /* ─── Utility ───────────────────────────────────────────────────── */
 .page-break { page-break-before: always; }
 
-/* ─── Page Header (navy band at top of every content page) ─────── */
+/* ─── Page Header (warm sand band at top of every content page) ── */
 .ph {
-  background: #0D1527;
-  padding: 13px 45px;
+  background: #F0E8DC;
+  padding: 13px 85px;
   display: flex;
   justify-content: space-between;
   align-items: center;
   font-family: Helvetica, Arial, sans-serif;
-  margin-bottom: 24px;
+  margin-bottom: 28px;
+  border-bottom: 1px solid #E0D8CC;
 }
 .ph-left {
-  font-size: 8px; font-weight: 700; color: #C49A2A;
+  font-size: 8px; font-weight: 700; color: #C17F59;
   letter-spacing: 3px; text-transform: uppercase;
 }
 .ph-right {
-  font-size: 7px; color: #F5E6A8; letter-spacing: 1.2px;
+  font-size: 7px; color: #97907F; letter-spacing: 1.2px;
 }
 
 /* ─── Page Footer ───────────────────────────────────────────────── */
 .pf {
   font-family: Helvetica, Arial, sans-serif;
   font-size: 7px; color: #9C9590; letter-spacing: 0.5px;
-  text-align: center; padding: 12px 45px;
+  text-align: center; padding: 12px 85px;
   border-top: 1px solid #E0DAD3;
   margin-top: auto;
 }
 
 /* ─── Page Content Area ─────────────────────────────────────────── */
-.pc { padding: 0 45px 20px; }
+.pc { padding: 0 85px 24px; }
 
 /* ─── Section Label + Rule ──────────────────────────────────────── */
 .sl {
@@ -528,8 +530,8 @@ body {
 
 /* ─── Body Text ─────────────────────────────────────────────────── */
 .body {
-  font-size: 10.5px; color: #1A1614; line-height: 1.85;
-  margin-bottom: 10px; text-align: justify;
+  font-size: 10.5px; color: #1A1614; line-height: 1.95;
+  margin-bottom: 14px; text-align: justify;
 }
 .body-sm { font-size: 9.5px; color: #5C5650; line-height: 1.7; margin-bottom: 8px; }
 
@@ -548,7 +550,7 @@ body {
 .cover {
   width: 100%;
   height: 100vh;
-  background: #0B0E1A;
+  background: #F5EDE3;
   page-break-after: always;
   position: relative;
   display: flex;
@@ -557,11 +559,11 @@ body {
   justify-content: center;
   padding: 60px 40px;
 }
-/* Gold inset border — simple solid */
+/* Terracotta inset border — warm solid */
 .cover-border {
   position: absolute;
   top: 30px; left: 30px; right: 30px; bottom: 30px;
-  border: 0.5px solid rgba(196,154,42,0.3);
+  border: 0.5px solid rgba(193,127,89,0.3);
 }
 .corner { display: none; }
 .cover-stars { display: none; }
@@ -591,10 +593,10 @@ body {
 /* Report type badge */
 .cover-type-badge {
   display: inline-block;
-  border: 0.5px solid rgba(196,154,42,0.4);
+  border: 0.5px solid rgba(193,127,89,0.4);
   border-radius: 2px;
   padding: 4px 16px;
-  font-size: 8px; color: #F5E6A8; letter-spacing: 3.5px;
+  font-size: 8px; color: #C17F59; letter-spacing: 3.5px;
   text-transform: uppercase;
   font-family: Helvetica, Arial, sans-serif;
   margin-bottom: 24px;
@@ -608,7 +610,7 @@ body {
 
 /* Person's name — big serif */
 .cover-name {
-  font-size: 42px; font-weight: 700; color: #FAF8F3;
+  font-size: 42px; font-weight: 700; color: #2A2418;
   letter-spacing: 1px; margin-bottom: 14px;
   line-height: 1.2;
 }
@@ -635,13 +637,13 @@ body {
 
 /* Birth details */
 .cover-meta {
-  font-size: 9px; color: rgba(250,248,243,0.45);
+  font-size: 9px; color: #97907F;
   letter-spacing: 1.5px; line-height: 1.8;
   font-family: Helvetica, Arial, sans-serif;
   margin-bottom: 20px;
 }
 .cover-meta-highlight {
-  color: rgba(250,248,243,0.65);
+  color: #5C5650;
 }
 
 /* Big Three pills row */
@@ -649,18 +651,18 @@ body {
   display: flex; gap: 12px; margin-bottom: 20px;
 }
 .cv-pill {
-  border: 0.5px solid rgba(196,154,42,0.35);
+  border: 0.5px solid rgba(193,127,89,0.3);
   border-radius: 3px;
   padding: 6px 14px;
   text-align: center;
-  background: rgba(196,154,42,0.04);
+  background: rgba(193,127,89,0.06);
 }
 .cv-pill-glyph {
-  font-size: 14px; color: #C49A2A;
+  font-size: 14px; color: #C17F59;
   display: block; margin-bottom: 3px;
 }
 .cv-pill-sign {
-  font-size: 11px; font-weight: 700; color: #FAF8F3;
+  font-size: 11px; font-weight: 700; color: #2A2418;
   margin-bottom: 2px;
 }
 .cv-pill-role {
@@ -683,7 +685,7 @@ body {
 }
 .cv-motif {
   font-size: 10.5px; font-style: italic;
-  color: rgba(250,248,243,0.5);
+  color: #97907F;
   line-height: 1.8; max-width: 340px;
 }
 
@@ -693,11 +695,11 @@ body {
   text-align: center; z-index: 2;
 }
 .cover-foot-text {
-  font-size: 7px; color: rgba(196,154,42,0.3);
+  font-size: 7px; color: rgba(193,127,89,0.4);
   letter-spacing: 2px; font-family: Helvetica, Arial, sans-serif;
 }
 .cover-foot-date {
-  font-size: 6.5px; color: rgba(250,248,243,0.2);
+  font-size: 6.5px; color: #B0A898;
   letter-spacing: 1px; margin-top: 3px;
   font-family: Helvetica, Arial, sans-serif;
 }
@@ -724,19 +726,19 @@ body {
    BIG THREE
    ═══════════════════════════════════════════════════════════════════ */
 .b3-band {
-  margin: 0 -45px; padding: 14px 45px;
+  margin: 0 -85px; padding: 14px 85px;
   display: flex; align-items: center;
   page-break-inside: avoid; page-break-after: avoid;
 }
 .b3-band-inner { display: flex; align-items: center; gap: 14px; }
-.b3-glyph { font-size: 22px; color: #C49A2A; min-width: 28px; text-align: center; }
+.b3-glyph { font-size: 22px; color: #C17F59; min-width: 28px; text-align: center; }
 .b3-band-text { }
 .b3-title {
-  font-size: 15px; font-weight: 700; color: #FAF8F3;
+  font-size: 15px; font-weight: 700; color: #2A2418;
   margin-bottom: 2px;
 }
 .b3-meta {
-  font-size: 9px; color: #F5E6A8;
+  font-size: 9px; color: #C17F59;
   font-family: Helvetica, Arial, sans-serif; letter-spacing: 0.5px;
 }
 .b3-content { padding: 16px 0 8px; }
@@ -775,15 +777,16 @@ body {
    PLANETS
    ═══════════════════════════════════════════════════════════════════ */
 .planet-band {
-  background: #162040; margin: 0 -45px; padding: 11px 45px;
+  background: #EDE3D5; margin: 0 -85px; padding: 11px 85px;
   display: flex; align-items: center; gap: 12px;
   page-break-inside: avoid; page-break-after: avoid;
+  border-bottom: 1px solid #E0D8CC;
 }
-.planet-glyph { font-size: 16px; color: #C49A2A; min-width: 22px; text-align: center; }
+.planet-glyph { font-size: 16px; color: #C17F59; min-width: 22px; text-align: center; }
 .planet-band-text { flex: 1; }
-.planet-title { font-size: 13px; font-weight: 700; color: #FAF8F3; margin-bottom: 1px; }
+.planet-title { font-size: 13px; font-weight: 700; color: #2A2418; margin-bottom: 1px; }
 .planet-placement {
-  font-size: 8.5px; color: #F5E6A8;
+  font-size: 8.5px; color: #C17F59;
   font-family: Helvetica, Arial, sans-serif; letter-spacing: 0.5px;
 }
 .planet-body { padding: 14px 0 6px; }
@@ -792,15 +795,16 @@ body {
    LIFE AREAS
    ═══════════════════════════════════════════════════════════════════ */
 .area-band {
-  margin: 0 -45px; padding: 13px 45px;
+  margin: 0 -85px; padding: 13px 85px;
   display: flex; align-items: center; gap: 12px;
   page-break-inside: avoid; page-break-after: avoid;
+  border-bottom: 1px solid #E0D8CC;
 }
-.area-icon { font-size: 16px; color: rgba(255,255,255,0.85); min-width: 20px; text-align: center; }
+.area-icon { font-size: 16px; min-width: 20px; text-align: center; }
 .area-band-text { flex: 1; }
-.area-title { font-size: 13px; font-weight: 700; color: #FFFFFF; margin-bottom: 2px; }
+.area-title { font-size: 13px; font-weight: 700; color: #2A2418; margin-bottom: 2px; }
 .area-theme {
-  font-size: 9px; color: rgba(255,255,255,0.75);
+  font-size: 9px; color: #97907F;
   font-family: Helvetica, Arial, sans-serif; font-style: italic;
 }
 .area-content { padding: 14px 0 6px; }
@@ -876,25 +880,26 @@ body {
    CLOSING PAGE
    ═══════════════════════════════════════════════════════════════════ */
 .closing {
-  background: #0D1527;
+  background: #F5EDE3;
   width: 100%; height: 100vh;
   padding: 0; page-break-before: always;
   display: flex; flex-direction: column;
   position: relative;
 }
 .closing-ph {
-  background: rgba(255,255,255,0.04);
-  padding: 13px 45px;
+  background: #F0E8DC;
+  padding: 13px 85px;
   display: flex; justify-content: space-between;
   align-items: center; font-family: Helvetica, Arial, sans-serif;
   margin-bottom: 32px; position: relative; z-index: 1;
+  border-bottom: 1px solid #E0D8CC;
 }
 .closing-content {
-  padding: 0 45px; flex: 1;
+  padding: 0 85px; flex: 1;
   position: relative; z-index: 1;
 }
 .closing-body {
-  font-size: 10.5px; color: #E8E4DF; line-height: 1.9;
+  font-size: 10.5px; color: #2A2418; line-height: 1.9;
   margin-bottom: 14px; text-align: justify;
 }
 .closing-ornament {
@@ -902,26 +907,26 @@ body {
   font-size: 12px; margin: 26px 0; opacity: 0.6;
 }
 .closing-affirm {
-  border: 1px solid rgba(196,154,42,0.6);
+  border: 1px solid rgba(193,127,89,0.4);
   border-radius: 6px; padding: 22px 30px;
   margin: 0 auto 36px; max-width: 400px;
-  text-align: center;
+  text-align: center; background: rgba(193,127,89,0.04);
 }
 .closing-affirm-text {
-  font-size: 13px; font-style: italic; color: #C49A2A;
+  font-size: 13px; font-style: italic; color: #C17F59;
   line-height: 1.8;
 }
 .closing-brand-section {
-  text-align: center; padding: 24px 45px 32px;
-  border-top: 1px solid rgba(196,154,42,0.2);
+  text-align: center; padding: 24px 85px 32px;
+  border-top: 1px solid rgba(193,127,89,0.2);
   position: relative; z-index: 1;
 }
 .closing-brand-name {
-  font-size: 18px; font-weight: 700; color: #C49A2A;
+  font-size: 18px; font-weight: 700; color: #C17F59;
   letter-spacing: 4px; margin-bottom: 6px;
 }
 .closing-tagline {
-  font-size: 10px; color: #F5E6A8;
+  font-size: 10px; color: #97907F;
   font-style: italic; margin-bottom: 6px;
 }
 .closing-url {
@@ -1055,6 +1060,41 @@ body {
 </div>
 <div class="pf">Celestia · ${escapeHTML(reportLabel)} Report · ${escapeHTML(firstName)}</div>
 
+<!-- ═══════════════ KEY ASPECTS — "The Patterns That Define You" ═══════════════ -->
+${(() => {
+  const PATTERN_LABELS = {
+    'Sun-Moon': { Square: 'Your mind and heart are in constant tension — that is where your growth lives.', Opposition: 'You are pulled between who you are and what you feel.', Conjunction: 'Your identity and emotions are fused. You feel everything as deeply personal.', Trine: 'Your head and heart agree more than most.' },
+    'Venus-Mars': { Conjunction: 'You love intensely and cannot do halfway. Passion is your default.', Square: 'What you want and what you attract do not always match — and that tension is magnetic.', Opposition: 'You are drawn to people who challenge you.', Trine: 'Desire and affection flow together naturally.' },
+    'Moon-Saturn': { Square: 'You never feel like enough, even when you are.', Conjunction: 'Emotions meet discipline. You carry a heaviness others do not see.', Opposition: 'You oscillate between needing comfort and pushing it away.' },
+    'Sun-Saturn': { Square: 'You hold yourself to impossible standards. The world respects you — but it costs you.', Conjunction: 'Discipline is woven into your identity.', Opposition: 'Authority figures trigger something deep.' },
+    'Moon-Pluto': { Square: 'Your emotions are volcanic. You feel everything at maximum intensity.', Conjunction: 'You transform through emotional crisis.', Opposition: 'Power dynamics in relationships are your core lesson.' },
+    'Venus-Saturn': { Square: 'Love feels hard-won for you. You do not trust easily — and that is protective, not broken.', Conjunction: 'You take love seriously. Casual does not exist in your vocabulary.' },
+    'Sun-Pluto': { Square: 'You are compelled to dig beneath surfaces. Superficial living is not an option.', Conjunction: 'You radiate intensity. People are drawn to you and intimidated simultaneously.' },
+  };
+  const aspects = (profile.chart?.aspects || []);
+  const patterns = [];
+  for (const a of aspects) {
+    const k1 = a.planet1 + '-' + a.planet2;
+    const k2 = a.planet2 + '-' + a.planet1;
+    const match = (PATTERN_LABELS[k1] && PATTERN_LABELS[k1][a.type]) || (PATTERN_LABELS[k2] && PATTERN_LABELS[k2][a.type]);
+    if (match) patterns.push({ label: a.planet1 + ' ' + a.type + ' ' + a.planet2, text: match, orb: a.orb });
+    if (patterns.length >= 4) break;
+  }
+  if (patterns.length === 0) return '';
+  return `<div class="page-break"></div>
+<div class="ph"><span class="ph-left">CELESTIA</span><span class="ph-right">${escapeHTML(name.toUpperCase())} · KEY ASPECTS</span></div>
+<div class="pc">
+  <div class="sl">The Patterns That Define You</div><div class="sr"></div>
+  <p class="body">These are the aspects in your chart that shape your deepest patterns — the ones you live every day but may have never been able to name. Understanding them is not about fixing anything. It is about finally seeing what has always been there.</p>
+  ${patterns.map(p => `
+  <div style="margin-bottom: 18px; padding: 14px 16px; background: rgba(193,127,89,0.04); border-left: 3px solid #C17F59; border-radius: 0 6px 6px 0;">
+    <div style="font-size: 9px; font-weight: 700; color: #C17F59; letter-spacing: 1.5px; text-transform: uppercase; font-family: Helvetica, Arial, sans-serif; margin-bottom: 4px;">${escapeHTML(p.label)} (${p.orb?.toFixed(1) || ''}°)</div>
+    <p style="font-size: 11px; color: #1A1614; line-height: 1.8; margin: 0;">${escapeHTML(p.text)}</p>
+  </div>`).join('')}
+</div>
+<div class="pf">Celestia · ${escapeHTML(reportLabel)} Report · ${escapeHTML(firstName)}</div>`;
+})()}
+
 <!-- ═══════════════ SOUL PATH ═══════════════ -->
 <div class="page-break"></div>
 <div class="ph"><span class="ph-left">CELESTIA</span><span class="ph-right">${escapeHTML(name.toUpperCase())} · SOUL PATH</span></div>
@@ -1151,6 +1191,7 @@ export default function ReportsScreen() {
   const { isPro } = useRevenueCat();
   const { capture } = useAnalytics();
   const { userProfile } = useUserProfile();
+  const { colors, isDark } = useTheme();
 
   const sunSign = userProfile?.chart?.planets?.find(p => p.name === 'Sun')?.sign;
 
@@ -1200,14 +1241,16 @@ export default function ReportsScreen() {
 
   const getReportDescription = (type) => {
     const defaults = {
-      love: 'Deep romantic insights based on your Venus & 7th house',
-      career: 'Professional destiny through your 10th house & Saturn',
-      lunar: 'Moon phase rituals aligned with your natal Moon',
-      purpose: 'North Node & soul path decoded for your chart',
-      solar_return: `Your complete ${CURRENT_YEAR} year ahead — every transit, season & lunar cycle`,
-      monthly: 'This month\'s cosmic forecast in detail',
-      yearly: `Your ${CURRENT_YEAR} roadmap — profections, transits & quarterly outlook`,
-      transit: 'Current planetary weather hitting your natal chart right now',
+      love: 'Venus, attachment style & why you love like this',
+      career: 'Midheaven, Saturn & your professional destiny',
+      lunar: 'Moon rituals aligned with your natal chart',
+      purpose: 'North Node decoded — where your soul is headed',
+      solar_return: 'Your complete year ahead from birthday to birthday',
+      monthly: 'This month\'s energy, themes & key dates',
+      yearly: 'Month-by-month roadmap for your year',
+      transit: 'Current planetary weather hitting your chart',
+      venus: 'Attachment patterns, love language & what you need',
+      saturn_return_guide: 'Ages 27–30 survival guide for everything changing',
     };
     if (!narrativeCtx) return defaults[type] || defaults.love;
 
@@ -1227,10 +1270,18 @@ export default function ReportsScreen() {
       return;
     }
 
-    // Selective Gating: Only 'monthly' is free
+    // Selective Gating: Only 'monthly' is free. Dual-path: subscribe OR buy single report.
     if (!isPro && r.type !== 'monthly') {
       haptic.medium();
-      navigation.navigate('Paywall', { source: 'reports', reportName: r.name });
+      Alert.alert(
+        `Get Your ${r.name}`,
+        'Choose how to access this report:',
+        [
+          { text: 'Cancel', style: 'cancel' },
+          { text: 'This Report — $9.99', onPress: () => navigation.navigate('Paywall', { source: `report_single_${r.type}`, reportName: r.name }) },
+          { text: 'All Reports (Subscribe)', onPress: () => navigation.navigate('Paywall', { source: 'reports', reportName: r.name }) },
+        ]
+      );
       return;
     }
 
@@ -1250,7 +1301,7 @@ export default function ReportsScreen() {
       awardXP(profileId, 'report_read').catch(() => { });
     } catch (e) {
       console.error('Report generation error:', e);
-      Alert.alert('Error', 'Failed to generate report. Please try again.');
+      Alert.alert('Hmm', 'The stars weren\'t quite ready. Give it another try?');
       setReportModal(false);
     } finally {
       setReportLoading(false);
@@ -1275,7 +1326,16 @@ export default function ReportsScreen() {
     // Allow 'monthly' reports to be downloaded even for free users
     if (!isPro && reportType !== 'monthly') {
       haptic.medium();
-      navigation.navigate('Paywall', { source: 'reports', reportName: theme.title });
+      const theme = REPORT_THEMES[reportType] || DEFAULT_THEME;
+      Alert.alert(
+        `Get Your ${theme.title}`,
+        'Choose how to access this report:',
+        [
+          { text: 'Cancel', style: 'cancel' },
+          { text: 'This Report — $9.99', onPress: () => navigation.navigate('Paywall', { source: `report_single_${reportType}`, reportName: theme.title }) },
+          { text: 'All Reports (Subscribe)', onPress: () => navigation.navigate('Paywall', { source: 'reports', reportName: theme.title }) },
+        ]
+      );
       return;
     }
     pdfCancelledRef.current = false;
@@ -1358,11 +1418,11 @@ export default function ReportsScreen() {
   };
 
   return (
-    <View style={{ flex: 1, backgroundColor: T.cream }}>
+    <View style={{ flex: 1, backgroundColor: colors.bg }}>
       <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 112 }}>
         <View style={styles.top}>
-          <Text style={styles.h1}>Reports</Text>
-          <Text style={styles.sub}>
+          <Text style={[styles.h1, { color: colors.heading }]}>Reports</Text>
+          <Text style={[styles.sub, { color: colors.textSecondary }]}>
             {sunSign
               ? `AI-powered reports written for your ${sunSign} Sun chart.`
               : 'Premium cosmic intelligence, written by AI using your exact birth chart.'}
@@ -1375,16 +1435,16 @@ export default function ReportsScreen() {
             <Text style={{ fontSize: 56, color: '#B388FF' }}>☽</Text>
             <View style={styles.featuredBadge}><Text style={styles.featuredBadgeText}>{MONTH_NAME.toUpperCase()}</Text></View>
           </LinearGradient>
-          <View style={styles.featuredBody}>
-            <Text style={styles.featuredTitle}>Your {MONTH_NAME} Forecast</Text>
-            <Text style={styles.featuredDesc}>
+          <View style={[styles.featuredBody, { backgroundColor: colors.card }]}>
+            <Text style={[styles.featuredTitle, { color: colors.heading }]}>Your {MONTH_NAME} Forecast</Text>
+            <Text style={[styles.featuredDesc, { color: colors.textSecondary }]}>
               {sunSign
                 ? `${MONTH_ZODIAC_ENERGY[CURRENT_MONTH]} See how it hits your ${sunSign} chart week by week.`
                 : `${MONTH_ZODIAC_ENERGY[CURRENT_MONTH]} Your personalized week-by-week cosmic guide.`}
             </Text>
             <View style={styles.featuredFoot}>
               <View style={{ flexDirection: 'row', alignItems: 'baseline' }}>
-                <Text style={styles.featuredPrice}>Free</Text>
+                <Text style={[styles.featuredPrice, { color: colors.heading }]}>Free</Text>
                 <Text style={styles.featuredWas}>$12</Text>
               </View>
               <TouchableOpacity activeOpacity={0.85} onPress={handleMonthlyReport}>
@@ -1406,11 +1466,11 @@ export default function ReportsScreen() {
                 const typeIcons = { love: '♀', career: '♄', lunar: '☽', purpose: '☊', solar_return: '☉', yearly: '♃', transit: '☿', monthly: '☽', venus: '♀', saturn_return_guide: '♄' };
                 const subtype = r.id?.split('_report_')[1] || r.subtype || '';
                 return (
-                  <TouchableOpacity key={i} style={styles.savedChip} activeOpacity={0.7}
+                  <TouchableOpacity key={i} style={[styles.savedChip, { backgroundColor: colors.card, borderColor: colors.border }]} activeOpacity={0.7}
                     onPress={() => handleReport({ name: typeLabels[subtype] || subtype, type: subtype })}>
                     <Text style={styles.savedChipIcon}>{typeIcons[subtype] || '✦'}</Text>
-                    <Text style={styles.savedChipText}>{typeLabels[subtype] || 'Report'}</Text>
-                    <Text style={styles.savedChipDate}>{r.created_at ? new Date(r.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) : ''}</Text>
+                    <Text style={[styles.savedChipText, { color: colors.heading }]}>{typeLabels[subtype] || 'Report'}</Text>
+                    <Text style={[styles.savedChipDate, { color: colors.textSecondary }]}>{r.created_at ? new Date(r.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) : ''}</Text>
                   </TouchableOpacity>
                 );
               })}
@@ -1421,7 +1481,7 @@ export default function ReportsScreen() {
         {/* Report Grid */}
         <View style={styles.grid}>
           {REPORTS.map((r, i) => (
-            <TouchableOpacity key={i} style={styles.rtile} activeOpacity={0.8} onPress={() => handleReport(r)}>
+            <TouchableOpacity key={i} style={[styles.rtile, { backgroundColor: colors.card, borderColor: colors.border }]} activeOpacity={0.8} onPress={() => handleReport(r)}>
               <LinearGradient colors={r.bg} style={styles.rtileColor}>
                 <Text style={{ fontSize: 32, color: r.accent }}>{r.icon}</Text>
                 {!isPro && r.type !== 'monthly' && (
@@ -1429,10 +1489,10 @@ export default function ReportsScreen() {
                 )}
               </LinearGradient>
               <View style={styles.rtileBody}>
-                <Text style={styles.rtileName}>{r.name}</Text>
-                <Text style={styles.rtileDesc}>{getReportDescription(r.type)}</Text>
-                <Text style={[styles.rtilePrice, !isPro && r.type !== 'monthly' && { color: T.gold, fontSize: 14 }]}>
-                  {(!isPro && r.type !== 'monthly') ? 'In Pro' : 'Free'}
+                <Text style={[styles.rtileName, { color: colors.heading }]}>{r.name}</Text>
+                <Text style={[styles.rtileDesc, { color: colors.textSecondary }]}>{getReportDescription(r.type)}</Text>
+                <Text style={[styles.rtilePrice, { color: colors.heading }, !isPro && r.type !== 'monthly' && { color: colors.gold, fontSize: 14 }]}>
+                  {(!isPro && r.type !== 'monthly') ? '$9.99' : 'Free'}
                 </Text>
               </View>
             </TouchableOpacity>
@@ -1444,19 +1504,19 @@ export default function ReportsScreen() {
 
       {/* Report Display Modal */}
       <Modal visible={reportModal} animationType="slide" presentationStyle="pageSheet">
-        <View style={styles.modal}>
-          <View style={styles.modalHeader}>
-            <Text style={styles.modalTitle} numberOfLines={1}>{reportData?.title || reportTitle}</Text>
+        <View style={[styles.modal, { backgroundColor: colors.modalBg }]}>
+          <View style={[styles.modalHeader, { borderBottomColor: colors.divider }]}>
+            <Text style={[styles.modalTitle, { color: colors.heading }]} numberOfLines={1}>{reportData?.title || reportTitle}</Text>
             <TouchableOpacity onPress={() => setReportModal(false)}>
-              <Text style={styles.modalClose}>✕</Text>
+              <Text style={[styles.modalClose, { color: colors.textSecondary }]}>✕</Text>
             </TouchableOpacity>
           </View>
 
           {reportLoading ? (
             <View style={styles.loadingWrap}>
-              <ActivityIndicator size="large" color={T.gold} />
-              <Text style={styles.loadingText}>Consulting the stars...</Text>
-              <Text style={styles.loadingSubtext}>Generating your personalized report</Text>
+              <ActivityIndicator size="large" color={colors.gold} />
+              <Text style={[styles.loadingText, { color: colors.heading }]}>Consulting the stars...</Text>
+              <Text style={[styles.loadingSubtext, { color: colors.textSecondary }]}>Generating your personalized report</Text>
             </View>
           ) : reportData ? (
             <>
@@ -1468,30 +1528,30 @@ export default function ReportsScreen() {
 
                 {/* Sections */}
                 {reportData.sections?.map((section, i) => (
-                  <View key={i} style={styles.sectionCard}>
+                  <View key={i} style={[styles.sectionCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
                     <View style={styles.sectionHeader}>
                       <View style={styles.sectionNum}>
                         <Text style={styles.sectionNumText}>{i + 1}</Text>
                       </View>
-                      <Text style={styles.sectionHeading}>{section.heading}</Text>
+                      <Text style={[styles.sectionHeading, { color: colors.heading }]}>{section.heading}</Text>
                     </View>
-                    <Text style={styles.sectionBody}>{section.body}</Text>
+                    <Text style={[styles.sectionBody, { color: colors.text }]}>{section.body}</Text>
                     {/* Highlight box — the screenshottable key insight */}
                     {section.highlight && (
                       <View style={styles.highlightBox}>
                         <Text style={styles.highlightLabel}>KEY INSIGHT</Text>
-                        <Text style={styles.highlightText}>{section.highlight}</Text>
+                        <Text style={[styles.highlightText, { color: colors.text }]}>{section.highlight}</Text>
                       </View>
                     )}
                     {section.remedy && (
                       <View style={styles.remedyBox}>
                         <Text style={styles.remedyLabel}>REMEDY</Text>
-                        <Text style={styles.remedyText}>{section.remedy}</Text>
+                        <Text style={[styles.remedyText, { color: colors.text }]}>{section.remedy}</Text>
                       </View>
                     )}
                     {section.affirmation && (
-                      <View style={styles.affirmBox}>
-                        <Text style={styles.affirmText}>"{section.affirmation}"</Text>
+                      <View style={[styles.affirmBox, { backgroundColor: colors.cardAlt }]}>
+                        <Text style={[styles.affirmText, { color: colors.heading }]}>"{section.affirmation}"</Text>
                       </View>
                     )}
                     {/* Bridge to chat */}
@@ -1515,13 +1575,47 @@ export default function ReportsScreen() {
                   </LinearGradient>
                 )}
 
+                {/* ── Bridge Navigation Links ── */}
+                <View style={styles.bridgeContainer}>
+                  <TouchableOpacity
+                    style={[styles.bridgePrimary, { borderColor: isDark ? 'rgba(200,168,75,0.2)' : 'rgba(200,168,75,0.2)' }]}
+                    activeOpacity={0.7}
+                    onPress={() => {
+                      setReportModal(false);
+                      setTimeout(() => {
+                        navigation.navigate('AskAI', {
+                          initialMessage: `I just read my ${reportTitle} report. What stood out and what should I focus on?`,
+                        });
+                      }, 300);
+                    }}
+                  >
+                    <Text style={styles.bridgePrimaryIcon}>✦</Text>
+                    <Text style={[styles.bridgePrimaryText, { color: colors.heading }]}>Discuss with Celestia</Text>
+                    <Text style={styles.bridgeArrow}>{'\u2192'}</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    style={[styles.bridgeSecondary, { borderColor: colors.border }]}
+                    activeOpacity={0.7}
+                    onPress={() => {
+                      setReportModal(false);
+                      setTimeout(() => {
+                        navigation.navigate('Chart');
+                      }, 300);
+                    }}
+                  >
+                    <Text style={styles.bridgeSecondaryIcon}>☉</Text>
+                    <Text style={styles.bridgeSecondaryText}>Explore your chart</Text>
+                    <Text style={styles.bridgeArrowSecondary}>{'\u2192'}</Text>
+                  </TouchableOpacity>
+                </View>
+
                 <View style={{ height: 20 }} />
               </ScrollView>
 
               {/* Bottom action bar */}
-              <View style={styles.actionBar}>
-                <TouchableOpacity style={styles.actionBtnOutline} activeOpacity={0.7} onPress={handleShareText}>
-                  <Text style={styles.actionBtnOutlineText}>Share ↗</Text>
+              <View style={[styles.actionBar, { backgroundColor: colors.bg, borderTopColor: colors.divider }]}>
+                <TouchableOpacity style={[styles.actionBtnOutline, { borderColor: colors.border }]} activeOpacity={0.7} onPress={handleShareText}>
+                  <Text style={[styles.actionBtnOutlineText, { color: colors.textSecondary }]}>Share ↗</Text>
                 </TouchableOpacity>
                 <TouchableOpacity style={styles.actionBtnFill} activeOpacity={0.85} onPress={handleDownloadPdf} disabled={pdfLoading}>
                   <LinearGradient colors={[T.navy, '#1A1060']} style={styles.actionBtnGrad}>
@@ -1578,7 +1672,7 @@ const styles = StyleSheet.create({
   rtileColor: { height: 74, alignItems: 'center', justifyContent: 'center' },
   rtileBody: { padding: 11, paddingHorizontal: 13, paddingBottom: 13 },
   rtileName: { fontFamily: FONTS.serif, fontSize: 16, color: T.navy, marginBottom: 2 },
-  rtileDesc: { fontSize: 10, color: T.stone, lineHeight: 14, marginBottom: 9 },
+  rtileDesc: { fontSize: 11, color: T.stone, lineHeight: 15, marginBottom: 9 },
   rtilePrice: { fontFamily: FONTS.serif, fontSize: 19, color: T.navy },
   tileLock: { position: 'absolute', top: 8, right: 8, width: 20, height: 20, borderRadius: 10, backgroundColor: 'rgba(0,0,0,0.3)', alignItems: 'center', justifyContent: 'center' },
   // Modal
@@ -1631,4 +1725,32 @@ const styles = StyleSheet.create({
   // Ask about bridge
   askAboutBtn: { marginTop: 10, paddingVertical: 8 },
   askAboutBtnText: { fontSize: 12, fontFamily: FONTS.sansMedium, color: T.gold },
+  // Bridge navigation links
+  bridgeContainer: { marginTop: 8, gap: 10 },
+  bridgePrimary: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: 'rgba(200,168,75,0.1)',
+    borderRadius: 14,
+    paddingVertical: 14,
+    paddingHorizontal: 16,
+    borderWidth: 1,
+    borderColor: 'rgba(200,168,75,0.2)',
+  },
+  bridgePrimaryIcon: { fontSize: 16, color: T.gold, marginRight: 10 },
+  bridgePrimaryText: { flex: 1, fontSize: 14, fontFamily: FONTS.sansMedium, color: T.navy },
+  bridgeArrow: { fontSize: 16, color: T.gold },
+  bridgeSecondary: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: 'transparent',
+    borderRadius: 14,
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    borderWidth: 1,
+    borderColor: T.border,
+  },
+  bridgeSecondaryIcon: { fontSize: 14, color: T.stone, marginRight: 10 },
+  bridgeSecondaryText: { flex: 1, fontSize: 13, fontFamily: FONTS.sansMedium, color: T.stone },
+  bridgeArrowSecondary: { fontSize: 14, color: T.stone },
 });
