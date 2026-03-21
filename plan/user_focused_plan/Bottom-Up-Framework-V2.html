@@ -1,0 +1,548 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>The Bottom-Up Framework — Build for One. Scale Through Many.</title>
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,300;0,400;0,500;0,600;0,700;1,400;1,500&family=DM+Sans:ital,wght@0,300;0,400;0,500;0,600;0,700;1,400&display=swap" rel="stylesheet">
+<style>
+:root{--bg:#0A0A12;--card:#141420;--card2:#1A1A2A;--accent:#D4854A;--gold:#D4A853;--sage:#7BA882;--rose:#C4918A;--lav:#9B8EC4;--sky:#6BA3C4;--cream:#F0EAE0;--muted:#6B6880;--border:rgba(255,255,255,0.05);--text:rgba(255,255,255,0.78);--dim:rgba(255,255,255,0.42)}
+*{margin:0;padding:0;box-sizing:border-box}
+body{background:var(--bg);color:var(--cream);font-family:'DM Sans',sans-serif;-webkit-font-smoothing:antialiased;line-height:1.65}
+.wrap{max-width:940px;margin:0 auto;padding:0 24px}
+.hero{text-align:center;padding:64px 20px 44px;position:relative}
+.hero::before{content:'';position:absolute;top:-80px;left:50%;transform:translateX(-50%);width:700px;height:700px;background:radial-gradient(circle,rgba(212,133,74,.06) 0%,transparent 60%);pointer-events:none}
+.hero h1{font-family:'Playfair Display',serif;font-size:clamp(28px,5.5vw,48px);font-weight:300;line-height:1.15;margin-bottom:16px;letter-spacing:-0.5px}
+.hero h1 b{font-weight:600;color:var(--accent)}
+.hero .sub{font-size:15px;color:var(--dim);max-width:580px;margin:0 auto;line-height:1.7}
+.sec{padding:52px 0 16px}
+.sec-tag{font-size:9px;letter-spacing:4px;text-transform:uppercase;font-weight:700;margin-bottom:8px}
+.sec-title{font-family:'Playfair Display',serif;font-size:clamp(20px,3.5vw,30px);font-weight:400;line-height:1.25;margin-bottom:6px}
+.sec-sub{font-size:12px;color:var(--dim);margin-bottom:24px}
+.card{background:var(--card);border:1px solid var(--border);border-radius:16px;padding:24px;margin-bottom:14px}
+.g2{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+.g3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px}
+.g4{display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:10px}
+
+/* Phase blocks */
+.phase-block{border-radius:16px;padding:28px;margin-bottom:16px;position:relative;overflow:hidden}
+.phase-block::before{content:'';position:absolute;top:0;left:0;bottom:0;width:4px}
+.phase-num{font-family:'Playfair Display',serif;font-size:48px;font-weight:700;opacity:.12;position:absolute;right:20px;top:8px;line-height:1}
+.phase-tag{font-size:9px;letter-spacing:3px;text-transform:uppercase;font-weight:700;margin-bottom:6px}
+.phase-name{font-size:20px;font-weight:700;margin-bottom:4px;line-height:1.25}
+.phase-desc{font-size:12px;color:var(--dim);margin-bottom:16px;max-width:600px;line-height:1.6}
+
+/* Visual nodes */
+.node{background:var(--card);border:1px solid var(--border);border-radius:12px;padding:16px;text-align:center;position:relative}
+.node-icon{font-size:24px;margin-bottom:6px}
+.node-label{font-size:11px;font-weight:600;margin-bottom:3px}
+.node-desc{font-size:10px;color:var(--dim);line-height:1.4}
+
+/* Flow arrows */
+.flow-down{text-align:center;padding:8px 0;font-size:18px;color:var(--muted);opacity:.4}
+
+/* Example toggle */
+.ex-tabs{display:flex;gap:4px;margin-bottom:12px}
+.ex-tab{padding:6px 14px;border-radius:8px;font-size:10px;font-weight:600;cursor:pointer;border:1px solid var(--border);color:var(--muted);transition:.2s}
+.ex-tab.active{background:rgba(212,133,74,.1);border-color:rgba(212,133,74,.2);color:var(--accent)}
+.ex-content{display:none;font-size:11.5px;color:var(--dim);line-height:1.6;padding:14px;background:var(--card2);border-radius:10px;border:1px solid var(--border)}
+.ex-content.active{display:block}
+.ex-content b{color:var(--cream)}
+
+/* Checklist */
+.check{display:flex;gap:10px;margin-bottom:8px;align-items:flex-start}
+.check-box{width:20px;height:20px;border-radius:6px;display:flex;align-items:center;justify-content:center;font-size:10px;flex-shrink:0;margin-top:1px}
+.check-text{font-size:12px;color:var(--dim);line-height:1.5}
+.check-text b{color:var(--cream)}
+
+/* Screen sim */
+.screen{background:var(--card2);border-radius:14px;padding:16px;border:1px solid var(--border);text-align:center;min-height:160px;display:flex;flex-direction:column;justify-content:center}
+.screen-label{font-size:8px;letter-spacing:2px;text-transform:uppercase;color:var(--muted);margin-bottom:6px}
+.screen-title{font-size:13px;font-weight:600;margin-bottom:4px}
+.screen-desc{font-size:10px;color:var(--dim);line-height:1.4}
+
+/* Compare mini */
+.vs-row{display:grid;grid-template-columns:1fr 1fr;gap:0;border-radius:10px;overflow:hidden;margin-bottom:10px}
+.vs-bad{background:rgba(200,80,80,.04);padding:14px;border:1px solid rgba(200,80,80,.06)}
+.vs-good{background:rgba(100,180,100,.04);padding:14px;border:1px solid rgba(100,180,100,.06)}
+.vs-label{font-size:8px;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;margin-bottom:6px}
+
+.footer{text-align:center;padding:36px;border-top:1px solid var(--border)}
+.footer p{font-family:'Playfair Display',serif;font-size:15px;color:var(--dim);font-style:italic;line-height:1.6}
+@media(max-width:700px){.g2,.g3,.g4,.vs-row{grid-template-columns:1fr}.phase-num{font-size:36px}}
+</style>
+</head>
+<body>
+
+<div class="wrap">
+
+<section class="hero">
+  <h1>The <b>Bottom-Up</b> Framework</h1>
+  <p class="sub">Don't start with the market. Start with one person. Build the product for her. Grow through her. A reusable system for building products people can't stop talking about.</p>
+</section>
+
+<!-- ═══════ THE CORE IDEA ═══════ -->
+<section class="sec">
+  <div style="text-align:center;padding:20px 0">
+    <div class="g3">
+      <div class="node" style="border-top:3px solid var(--accent)">
+        <div class="node-icon">🎯</div>
+        <div class="node-label">Start with ONE</div>
+        <div class="node-desc">Not a segment. Not a demographic. One real human with a name, a life, and a problem.</div>
+      </div>
+      <div class="node" style="border-top:3px solid var(--gold)">
+        <div class="node-icon">🔨</div>
+        <div class="node-label">Build for HER</div>
+        <div class="node-desc">Every screen, every word, every notification, every price point — traced back to her specific reality.</div>
+      </div>
+      <div class="node" style="border-top:3px solid var(--sage)">
+        <div class="node-icon">📈</div>
+        <div class="node-label">Grow through HER</div>
+        <div class="node-desc">She loves it so much she can't stop sharing. Growth is a side effect of delight, not a strategy.</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="vs-row">
+    <div class="vs-bad">
+      <div class="vs-label" style="color:#C45050">❌ Top-Down</div>
+      <div style="font-size:11px;color:var(--dim);line-height:1.7">"The Lego resale market is $1.2B" → Build for "collectors ages 25-45" → Generic features for a vague crowd → Blast ads → Hope → 4% conversion, 20% churn</div>
+    </div>
+    <div class="vs-good">
+      <div class="vs-label" style="color:#64B464">✅ Bottom-Up</div>
+      <div style="font-size:11px;color:var(--dim);line-height:1.7">"His name is Marcus. He buys Lego at Target every Saturday with his daughter" → Build the scanner HE needs → He shows it to 3 dads at the Lego meetup → They tell their friends → $0 CAC, 8% churn</div>
+    </div>
+  </div>
+</section>
+
+<!-- ═══════ PHASE 1: THE SINGLE USER ═══════ -->
+<div class="phase-block" style="background:rgba(212,133,74,.03);border:1px solid rgba(212,133,74,.08)">
+  <div class="phase-num" style="color:var(--accent)">01</div>
+  <div style="position:relative;z-index:1">
+    <div class="phase-tag" style="color:var(--accent)">Phase 1</div>
+    <div class="phase-name">Name One Person</div>
+    <div class="phase-desc">Not a persona. A person. Real enough that everyone on your team can picture her morning, her phone screen, and the exact moment she'd need your product.</div>
+
+    <div class="g4">
+      <div class="node"><div class="node-icon">👤</div><div class="node-label">Identity</div><div class="node-desc">Name, age, city, job, salary, apartment, daily routine</div></div>
+      <div class="node"><div class="node-icon">🌍</div><div class="node-label">Physical World</div><div class="node-desc">Where she shops, eats, walks, hangs out — the geography of her life</div></div>
+      <div class="node"><div class="node-icon">📱</div><div class="node-label">Digital World</div><div class="node-desc">Screen time by app, when she opens each, what she searches at 10pm</div></div>
+      <div class="node"><div class="node-icon">💭</div><div class="node-label">Inner World</div><div class="node-desc">The thoughts she doesn't say aloud — her fears, frustrations, secret hopes</div></div>
+    </div>
+
+    <div style="margin-top:14px">
+      <div class="ex-tabs">
+        <div class="ex-tab active" onclick="showEx(this,'ex1')">🧱 LegoSnap</div>
+        <div class="ex-tab" onclick="showEx(this,'ex2')">🔮 Astrology App</div>
+        <div class="ex-tab" onclick="showEx(this,'ex3')">🏋️ Fitness App</div>
+      </div>
+      <div class="ex-content active" id="ex1"><b>Marcus Chen, 34, Portland OR.</b> Software engineer, $115K. Married, daughter Lily (7). Buys Lego at Target every Saturday. Has 40+ sets in the basement. Checks BrickLink prices at 11pm on his phone. Follows r/lego and r/legomarket. His pain: he found a retired set at Goodwill last week but didn't know if $35 was a good price. By the time he checked BrickLink at home, it was gone. His dream: scan any Lego box or set number and instantly know the market value, trending direction, and whether it's a good deal — right there in the aisle.</div>
+      <div class="ex-content" id="ex2"><b>Mia Reyes, 24, Austin TX.</b> Marketing coordinator, $44K. Single. iPhone 14. Googles "virgo scorpio compatibility" at 10:47pm. Scrolls TikTok 2+ hours/night. Her pain: same relationship pattern, can't afford therapy, Co-Star feels cold. Her dream: an AI that knows her chart and talks to her like a friend who gets it.</div>
+      <div class="ex-content" id="ex3"><b>Priya Desai, 28, Chicago IL.</b> Product manager, $82K. Lives alone. Goes to gym 3-4x/week but plateauing. Watches fitness YouTube at night. Her pain: generic programs don't account for her schedule, her injuries, or the fact that she hates running. Her dream: an AI coach that adapts to HER body, HER constraints, HER goals — not a template with her name on it.</div>
+    </div>
+
+    <div class="card" style="margin-top:12px;padding:16px">
+      <div style="font-size:11px;font-weight:700;letter-spacing:2px;text-transform:uppercase;color:var(--accent);margin-bottom:10px">The 6 Layers of Knowing Your User</div>
+      <div class="g3">
+        <div class="check"><div class="check-box" style="background:rgba(212,133,74,.1);color:var(--accent)">1</div><div class="check-text"><b>WHO</b> — Full name, demographics, financial reality</div></div>
+        <div class="check"><div class="check-box" style="background:rgba(212,168,83,.1);color:var(--gold)">2</div><div class="check-text"><b>WHERE</b> — Physical locations + digital platforms, hour by hour</div></div>
+        <div class="check"><div class="check-box" style="background:rgba(123,168,130,.1);color:var(--sage)">3</div><div class="check-text"><b>WHEN</b> — The exact moments she'd reach for your product</div></div>
+        <div class="check"><div class="check-box" style="background:rgba(196,145,138,.1);color:var(--rose)">4</div><div class="check-text"><b>WHY</b> — The emotional pain beneath the functional need</div></div>
+        <div class="check"><div class="check-box" style="background:rgba(155,142,196,.1);color:var(--lav)">5</div><div class="check-text"><b>WHAT</b> — Her exact words for the problem (not yours)</div></div>
+        <div class="check"><div class="check-box" style="background:rgba(107,163,196,.1);color:var(--sky)">6</div><div class="check-text"><b>HOW</b> — Her current workaround and why it fails her</div></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="flow-down">↓</div>
+
+<!-- ═══════ PHASE 2: THE PRODUCT ═══════ -->
+<div class="phase-block" style="background:rgba(212,168,83,.03);border:1px solid rgba(212,168,83,.08)">
+  <div class="phase-num" style="color:var(--gold)">02</div>
+  <div style="position:relative;z-index:1">
+    <div class="phase-tag" style="color:var(--gold)">Phase 2</div>
+    <div class="phase-name">Build Every Pixel for Her</div>
+    <div class="phase-desc">The product isn't a collection of features. It's a sequence of moments designed for ONE person. Every screen, every word, every animation answers: "what does she need right now?"</div>
+
+    <div style="font-size:11px;font-weight:700;letter-spacing:2px;text-transform:uppercase;color:var(--gold);margin-bottom:12px">Screen-by-Screen Design from Her Perspective</div>
+
+    <div class="g3" style="margin-bottom:14px">
+      <div class="screen">
+        <div class="screen-label">Screen 1</div>
+        <div style="font-size:22px;margin-bottom:4px">👋</div>
+        <div class="screen-title">Onboarding</div>
+        <div class="screen-desc">Collect ONLY what you need. Make every field explain WHY it matters to HER. Show instant value within 30 seconds of opening.</div>
+      </div>
+      <div class="screen">
+        <div class="screen-label">Screen 2</div>
+        <div style="font-size:22px;margin-bottom:4px">⭐</div>
+        <div class="screen-title">The "Wow" Moment</div>
+        <div class="screen-desc">Within 60 seconds she should think "how does it know?" or "this is exactly what I needed." This screen determines if she stays or deletes.</div>
+      </div>
+      <div class="screen">
+        <div class="screen-label">Screen 3</div>
+        <div style="font-size:22px;margin-bottom:4px">🏠</div>
+        <div class="screen-title">Home / Daily</div>
+        <div class="screen-desc">What she sees every time she opens the app. Personalized. Fresh. Never the same twice. This is the habit surface.</div>
+      </div>
+    </div>
+    <div class="g3" style="margin-bottom:14px">
+      <div class="screen">
+        <div class="screen-label">Screen 4</div>
+        <div style="font-size:22px;margin-bottom:4px">🔍</div>
+        <div class="screen-title">Core Action</div>
+        <div class="screen-desc">The ONE thing she came to do. Scan a Lego. Check compatibility. Log a workout. Zero friction. One tap to start.</div>
+      </div>
+      <div class="screen">
+        <div class="screen-label">Screen 5</div>
+        <div style="font-size:22px;margin-bottom:4px">📊</div>
+        <div class="screen-title">The Result</div>
+        <div class="screen-desc">Beautiful. Personal. Screenshottable. Includes a share button. This is simultaneously the product AND the marketing asset.</div>
+      </div>
+      <div class="screen">
+        <div class="screen-label">Screen 6</div>
+        <div style="font-size:22px;margin-bottom:4px">🔗</div>
+        <div class="screen-title">The Bridge</div>
+        <div class="screen-desc">After the result: "Go deeper?" or "Share this?" or "Compare with someone?" Every result leads somewhere. No dead ends.</div>
+      </div>
+    </div>
+
+    <div class="ex-tabs">
+      <div class="ex-tab active" onclick="showEx(this,'ex4')">🧱 LegoSnap</div>
+      <div class="ex-tab" onclick="showEx(this,'ex5')">🔮 Astrology App</div>
+      <div class="ex-tab" onclick="showEx(this,'ex6')">🏋️ Fitness App</div>
+    </div>
+    <div class="ex-content active" id="ex4"><b>Onboarding:</b> "What kind of collector are you?" (casual/investor/builder) → <b>Wow moment:</b> He scans his first set and sees instant market value + price trend graph + "you paid $35, it's worth $89. Good find." → <b>Home:</b> His collection with total value + trending sets + price alerts → <b>Core action:</b> Point camera at any Lego box or set number → instant scan → <b>Result:</b> Beautiful value card with price, rarity, trend arrow, and "Share this find" button → <b>Bridge:</b> "Add to your collection?" "See similar sets?" "Set a price alert?"</div>
+    <div class="ex-content" id="ex5"><b>Onboarding:</b> Birthday + birth time (optional) → <b>Wow moment:</b> Beautiful chart with Big 3 explained — "You feel things at a 10 even when you act like it's a 3" → <b>Home:</b> Daily personalized insight → <b>Core action:</b> AI chat that knows her chart → <b>Result:</b> Response she screenshots and sends to friends → <b>Bridge:</b> "Check compatibility?" "Explore your Venus?" "Get your weekly report?"</div>
+    <div class="ex-content" id="ex6"><b>Onboarding:</b> Goals + constraints + injuries + schedule → <b>Wow moment:</b> "Here's tomorrow's workout — designed around your bad knee, your 45-min window, and the fact that you hate cardio" → <b>Home:</b> Today's plan + streak + body metrics → <b>Core action:</b> Start workout with real-time guidance → <b>Result:</b> Session recap with PR highlights and progress visualization → <b>Bridge:</b> "Share this PR?" "Adjust tomorrow's plan?" "Log nutrition?"</div>
+
+    <div class="card" style="margin-top:14px">
+      <div style="font-size:11px;font-weight:700;letter-spacing:2px;text-transform:uppercase;color:var(--gold);margin-bottom:10px">Product Design Decisions — All Traced to Her</div>
+      <div class="g2">
+        <div style="font-size:11.5px;color:var(--dim);line-height:1.8">
+          <b style="color:var(--cream)">Voice & Tone</b> → Use HER words. Interview real users and steal their exact phrases.<br>
+          <b style="color:var(--cream)">Feature Priority</b> → Build the ONE thing she does most, first. Everything else is Phase 2+.<br>
+          <b style="color:var(--cream)">Design Language</b> → Match HER aesthetic world. If she lives on Pinterest, make it Pinterest-worthy.<br>
+          <b style="color:var(--cream)">Navigation</b> → Bridge every screen. Never let her think "where do I go now?"
+        </div>
+        <div style="font-size:11.5px;color:var(--dim);line-height:1.8">
+          <b style="color:var(--cream)">Pricing</b> → What can she afford without thinking? $0.23/day ≠ $6.99/mo in her head.<br>
+          <b style="color:var(--cream)">Free vs Paid</b> → Free must be genuinely great. Paid unlocks at moments of peak curiosity, not random pop-ups.<br>
+          <b style="color:var(--cream)">Notifications</b> → Every push must be a gift she'd miss if it stopped. Not a reminder. Not a nag.<br>
+          <b style="color:var(--cream)">Sharing</b> → Built into every result BY DESIGN. Not a "share button" added later.
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="flow-down">↓</div>
+
+<!-- ═══════ PHASE 3: THE RETENTION SYSTEM ═══════ -->
+<div class="phase-block" style="background:rgba(123,168,130,.03);border:1px solid rgba(123,168,130,.08)">
+  <div class="phase-num" style="color:var(--sage)">03</div>
+  <div style="position:relative;z-index:1">
+    <div class="phase-tag" style="color:var(--sage)">Phase 3</div>
+    <div class="phase-name">Build the Daily Habit</div>
+    <div class="phase-desc">She downloaded. Now she needs a reason to open tomorrow. And the day after. And 6 months from now. The habit system is what separates apps that last from apps that get deleted.</div>
+
+    <div class="g4">
+      <div class="node" style="border-top:3px solid var(--sage)">
+        <div class="node-icon">🌅</div>
+        <div class="node-label">Morning Trigger</div>
+        <div class="node-desc">A push notification that's worth reading before she gets out of bed. Personalized. Fresh daily. Timed to HER alarm.</div>
+      </div>
+      <div class="node" style="border-top:3px solid var(--gold)">
+        <div class="node-icon">📅</div>
+        <div class="node-label">Weekly Anchor</div>
+        <div class="node-desc">One deeper piece of content per week (report, recap, plan). She plans her week around it. Premium conversion trigger.</div>
+      </div>
+      <div class="node" style="border-top:3px solid var(--rose)">
+        <div class="node-icon">🧠</div>
+        <div class="node-label">Memory Layer</div>
+        <div class="node-desc">The product remembers her history. Gets smarter over time. Switching to a competitor = starting from zero. Ethical lock-in.</div>
+      </div>
+      <div class="node" style="border-top:3px solid var(--lav)">
+        <div class="node-icon">🏆</div>
+        <div class="node-label">Progress Identity</div>
+        <div class="node-desc">She sees herself in the data. Her collection value. Her streak. Her chart. The product becomes part of how she defines herself.</div>
+      </div>
+    </div>
+
+    <div class="ex-tabs" style="margin-top:14px">
+      <div class="ex-tab active" onclick="showEx(this,'ex7')">🧱 LegoSnap</div>
+      <div class="ex-tab" onclick="showEx(this,'ex8')">🔮 Astrology App</div>
+      <div class="ex-tab" onclick="showEx(this,'ex9')">🏋️ Fitness App</div>
+    </div>
+    <div class="ex-content active" id="ex7"><b>Morning trigger:</b> "Set #75192 (Millennium Falcon) dropped 8% overnight. Now $649 on eBay." → <b>Weekly anchor:</b> "Your Collection This Week: +$47 in value. 2 sets trending up." → <b>Memory:</b> Remembers every set he owns, every scan, his wishlist, his price alerts → <b>Identity:</b> "My Lego collection is worth $4,200" becomes something he tells people at dinner.</div>
+    <div class="ex-content" id="ex8"><b>Morning trigger:</b> "Feelings will flow easier today — Venus trines your Moon" → <b>Weekly anchor:</b> Monday transit report (Premium) → <b>Memory:</b> Remembers her relationship history, recurring questions, growth patterns → <b>Identity:</b> "I'm a Virgo Sun, Scorpio Moon, Leo Rising" becomes part of her IG bio.</div>
+    <div class="ex-content" id="ex9"><b>Morning trigger:</b> "Upper body day. 42 min. Your shoulder is recovered — we're adding overhead press back." → <b>Weekly anchor:</b> Weekly body report (measurements, strength trends, recovery score) → <b>Memory:</b> Knows her injuries, preferences, plateaus, PRs → <b>Identity:</b> "I've worked out 147 days this year" becomes her Lock Screen widget.</div>
+  </div>
+</div>
+
+<div class="flow-down">↓</div>
+
+<!-- ═══════ PHASE 4: THE INVISIBLE FUNNEL ═══════ -->
+<div class="phase-block" style="background:rgba(196,145,138,.03);border:1px solid rgba(196,145,138,.08)">
+  <div class="phase-num" style="color:var(--rose)">04</div>
+  <div style="position:relative;z-index:1">
+    <div class="phase-tag" style="color:var(--rose)">Phase 4</div>
+    <div class="phase-name">Monetize at Peak Curiosity</div>
+    <div class="phase-desc">Never sell when she's calm. Sell when she NEEDS the answer and the free version got her 80% there. The paywall should feel like a door she wants to open, not a wall blocking her.</div>
+
+    <div class="g3">
+      <div class="node" style="border-top:3px solid var(--rose)">
+        <div class="node-icon">🆓</div>
+        <div class="node-label">Free = Genuinely Great</div>
+        <div class="node-desc">Good enough to keep using forever. She tells friends about the FREE version. It's not broken or limited — it's focused. The upgrade adds depth, not access.</div>
+      </div>
+      <div class="node" style="border-top:3px solid var(--rose)">
+        <div class="node-icon">😳</div>
+        <div class="node-label">Trigger = Emotional Peak</div>
+        <div class="node-desc">She just scanned a rare set and the full value history is blurred. She just read "The Spark" and "Where You'll Fight" is locked. She WANTS the answer. Now.</div>
+      </div>
+      <div class="node" style="border-top:3px solid var(--rose)">
+        <div class="node-icon">✨</div>
+        <div class="node-label">Upgrade = Natural Step</div>
+        <div class="node-desc">"Of course I want this." It shouldn't feel like buying. It should feel like unlocking something that was always hers. The next room in her house.</div>
+      </div>
+    </div>
+
+    <div class="card" style="margin-top:12px">
+      <div style="font-size:11px;font-weight:700;letter-spacing:2px;text-transform:uppercase;color:var(--rose);margin-bottom:10px">Pricing Decisions Traced to Her</div>
+      <div class="g2">
+        <div style="font-size:11.5px;color:var(--dim);line-height:1.8">
+          <b style="color:var(--cream)">Monthly price</b> = What she spends without thinking. Her daily coffee cost ÷ 30 is your ceiling.<br>
+          <b style="color:var(--cream)">Trial length</b> = How long she needs to experience the anchor value. If the weekly report converts, 7-day trial (she must see one Monday).<br>
+          <b style="color:var(--cream)">One-time purchases</b> = For users who won't subscribe but WILL impulse-buy at the moment of peak curiosity.
+        </div>
+        <div style="font-size:11.5px;color:var(--dim);line-height:1.8">
+          <b style="color:var(--cream)">Annual offer</b> = After 2+ months subscribed. "Save 40%." Offered when she's proven she won't churn.<br>
+          <b style="color:var(--cream)">The blur mechanic</b> = Show WHAT's behind the paywall. Visible titles, blurred content. Curiosity is the conversion.<br>
+          <b style="color:var(--cream)">Never at rest</b> = No random "upgrade now!" pop-ups. Only at moments of peak emotional engagement.
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="flow-down">↓</div>
+
+<!-- ═══════ PHASE 5: CATCH HER WHERE SHE IS ═══════ -->
+<div class="phase-block" style="background:rgba(155,142,196,.03);border:1px solid rgba(155,142,196,.08)">
+  <div class="phase-num" style="color:var(--lav)">05</div>
+  <div style="position:relative;z-index:1">
+    <div class="phase-tag" style="color:var(--lav)">Phase 5</div>
+    <div class="phase-name">Go Where She Already Lives</div>
+    <div class="phase-desc">Map her digital world. Each platform has ONE job. Your content should be indistinguishable from content made BY users of that platform — not content made FOR users of that platform.</div>
+
+    <div class="g2">
+      <div class="node" style="border-top:3px solid var(--lav)">
+        <div style="font-size:11px;font-weight:700;color:var(--lav);margin-bottom:8px">HER PLATFORM MAP</div>
+        <div style="font-size:11px;color:var(--dim);line-height:2">
+          <b style="color:var(--cream)">Discovery platform</b> (TikTok / YouTube Shorts / Reddit) → She FINDS you here. Reach strangers. Hook in 2 seconds.<br>
+          <b style="color:var(--cream)">Engagement platform</b> (Instagram / Twitter / Discord) → She FOLLOWS you here. Saves, shares, DMs. Deepens the relationship.<br>
+          <b style="color:var(--cream)">Research platform</b> (Pinterest / Google / YouTube) → She SEARCHES here. Long-tail. Evergreen. High intent.<br>
+          <b style="color:var(--cream)">Conversion surface</b> (Website / App Store) → She ACTS here. Enters data. Downloads. Pays.<br>
+          <b style="color:var(--cream)">Retention channels</b> (Push / Email / In-App) → She RETURNS here. Daily habits. Weekly anchors.
+        </div>
+      </div>
+      <div>
+        <div class="node" style="border-top:3px solid var(--accent);margin-bottom:12px">
+          <div style="font-size:11px;font-weight:700;color:var(--accent);margin-bottom:8px">EACH PLATFORM = ONE JOB</div>
+          <div style="font-size:11px;color:var(--dim);line-height:1.6">Don't ask every platform to do everything. TikTok doesn't convert — it creates awareness. Pinterest doesn't go viral — it compounds traffic for 90 days. Email doesn't acquire — it retains and sells. Match the platform to its natural strength in HER specific behavior pattern.</div>
+        </div>
+        <div class="node" style="border-top:3px solid var(--gold)">
+          <div style="font-size:11px;font-weight:700;color:var(--gold);margin-bottom:8px">THE VOICE TEST</div>
+          <div style="font-size:11px;color:var(--dim);line-height:1.6">"Would she say this to a friend?" If yes → publish. If it sounds like a brand wrote it → rewrite. The best marketing is indistinguishable from organic conversation between users.</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="flow-down">↓</div>
+
+<!-- ═══════ PHASE 6: THE TASTE ═══════ -->
+<div class="phase-block" style="background:rgba(107,163,196,.03);border:1px solid rgba(107,163,196,.08)">
+  <div class="phase-num" style="color:var(--sky)">06</div>
+  <div style="position:relative;z-index:1">
+    <div class="phase-tag" style="color:var(--sky)">Phase 6</div>
+    <div class="phase-name">Let Her Taste Before She Commits</div>
+    <div class="phase-desc">"Download our app" is a huge ask from a stranger. Give her a taste of the product ON THE WEB first. Once she's had the "wow" moment, the download isn't a leap of faith — it's an inevitable next step.</div>
+
+    <div class="g3">
+      <div class="screen" style="border-top:3px solid var(--sky)">
+        <div style="font-size:20px;margin-bottom:4px">🌐</div>
+        <div class="screen-title">Free Web Tool</div>
+        <div class="screen-desc">One interactive tool that delivers instant value. She enters data → gets a result → has the "wow" moment. No download required. Birthday = conversion point.</div>
+      </div>
+      <div class="screen" style="border-top:3px solid var(--sky)">
+        <div style="font-size:20px;margin-bottom:4px">💬</div>
+        <div class="screen-title">Web Chat / Demo (3-4 interactions)</div>
+        <div class="screen-desc">Let her TALK to the product. Enough to prove it works. Not enough to satisfy. She hits the limit at peak curiosity → downloads to continue.</div>
+      </div>
+      <div class="screen" style="border-top:3px solid var(--sky)">
+        <div style="font-size:20px;margin-bottom:4px">📄</div>
+        <div class="screen-title">Free Mini-Result</div>
+        <div class="screen-desc">A beautiful, screenshottable preview of her personalized result. She shares it → friends see it → they enter their data → the loop begins.</div>
+      </div>
+    </div>
+
+    <div class="card" style="margin-top:12px">
+      <div style="font-size:11px;font-weight:700;letter-spacing:2px;text-transform:uppercase;color:var(--sky);margin-bottom:10px">The Seamless Handoff — Web → App</div>
+      <div style="font-size:11.5px;color:var(--dim);line-height:1.8">
+        <b style="color:var(--cream)">Rule 1:</b> Transfer ALL data automatically. If she re-enters anything in the app, you've failed.<br>
+        <b style="color:var(--cream)">Rule 2:</b> The app greets her by name with context. "Welcome, Marcus — your Millennium Falcon scan is saved."<br>
+        <b style="color:var(--cream)">Rule 3:</b> It should feel like walking from one room to the next in the same house. Not like starting over in a new product.
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="flow-down">↓</div>
+
+<!-- ═══════ PHASE 7: VIRAL GROWTH ═══════ -->
+<div class="phase-block" style="background:rgba(212,133,74,.03);border:1px solid rgba(212,133,74,.08)">
+  <div class="phase-num" style="color:var(--accent)">07</div>
+  <div style="position:relative;z-index:1">
+    <div class="phase-tag" style="color:var(--accent)">Phase 7</div>
+    <div class="phase-name">Let Her Scale It</div>
+    <div class="phase-desc">Don't build a referral program. Build a product so specific and so remarkable that she shares it because she CAN'T NOT. Then build sharing into every core action so the growth is automatic.</div>
+
+    <div class="g3">
+      <div class="node" style="border-top:3px solid var(--accent)">
+        <div class="node-icon">📸</div>
+        <div class="node-label">Screenshot Trigger</div>
+        <div class="node-desc">Every result is designed to be screenshotted and shared. Your branding is visible. Every screenshot = a micro-billboard.</div>
+      </div>
+      <div class="node" style="border-top:3px solid var(--accent)">
+        <div class="node-icon">👥</div>
+        <div class="node-label">Two-Person Action</div>
+        <div class="node-desc">At least one core feature naturally involves a second person. Compatibility. Comparison. Competition. Each action = 1 new user acquired for $0.</div>
+      </div>
+      <div class="node" style="border-top:3px solid var(--accent)">
+        <div class="node-icon">💬</div>
+        <div class="node-label">Group Chat Contagion</div>
+        <div class="node-desc">She shares to her 4-person group chat. 2 download. Each shares to THEIR group chat. Exponential. The group chat is your growth team.</div>
+      </div>
+    </div>
+
+    <div class="ex-tabs" style="margin-top:14px">
+      <div class="ex-tab active" onclick="showEx(this,'ex10')">🧱 LegoSnap</div>
+      <div class="ex-tab" onclick="showEx(this,'ex11')">🔮 Astrology App</div>
+      <div class="ex-tab" onclick="showEx(this,'ex12')">🏋️ Fitness App</div>
+    </div>
+    <div class="ex-content active" id="ex10"><b>Screenshot:</b> He scans a rare set at a thrift store and the value card shows "$12 → worth $210." He photographs it and sends to 3 Lego buddies → <b>Two-person:</b> "Compare Collections" feature — he sends his friend a link, friend enters their sets, they compare total value → <b>Group chat:</b> He sends the thrift store find to his Lego Discord. 8 people ask "what app did you use to scan that?"</div>
+    <div class="ex-content" id="ex11"><b>Screenshot:</b> She screenshots the daily insight and posts to IG Stories → <b>Two-person:</b> Every compatibility check sends a link to the other person → <b>Group chat:</b> She sends the compatibility score to her 4-person iMessage group. 3 friends download that night.</div>
+    <div class="ex-content" id="ex12"><b>Screenshot:</b> She screenshots her PR recap ("New deadlift PR: 185lbs 💪") and posts to Stories → <b>Two-person:</b> "Challenge a Friend" — workout competition for the week → <b>Group chat:</b> She sends the challenge link to 2 gym friends. They join. Each invites their gym buddy.</div>
+
+    <div class="card" style="margin-top:14px;text-align:center;padding:20px">
+      <div style="font-size:11px;font-weight:700;letter-spacing:2px;text-transform:uppercase;color:var(--accent);margin-bottom:10px">The Flywheel</div>
+      <div style="display:flex;flex-wrap:wrap;justify-content:center;align-items:center;gap:8px;margin:10px 0">
+        <div style="padding:10px 16px;border-radius:10px;font-size:11px;font-weight:600;border:2px solid var(--accent);color:var(--accent)">She uses the product</div>
+        <div style="color:var(--muted)">→</div>
+        <div style="padding:10px 16px;border-radius:10px;font-size:11px;font-weight:600;border:2px solid var(--gold);color:var(--gold)">Has a "wow" moment</div>
+        <div style="color:var(--muted)">→</div>
+        <div style="padding:10px 16px;border-radius:10px;font-size:11px;font-weight:600;border:2px solid var(--rose);color:var(--rose)">Screenshots / shares</div>
+        <div style="color:var(--muted)">→</div>
+        <div style="padding:10px 16px;border-radius:10px;font-size:11px;font-weight:600;border:2px solid var(--sage);color:var(--sage)">Friends discover</div>
+        <div style="color:var(--muted)">→</div>
+        <div style="padding:10px 16px;border-radius:10px;font-size:11px;font-weight:600;border:2px solid var(--lav);color:var(--lav)">Friends use the product</div>
+        <div style="color:var(--muted)">→</div>
+        <div style="padding:10px 16px;border-radius:10px;font-size:11px;font-weight:600;border:2px solid var(--accent);color:var(--accent)">They have "wow" moments</div>
+        <div style="color:var(--muted)">→ ∞</div>
+      </div>
+      <div style="font-size:10px;color:var(--muted);font-style:italic;margin-top:8px">Each revolution makes the next one faster. By Month 3, the flywheel spins on its own.</div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════ THE UNIVERSAL LITMUS TEST ═══════ -->
+<section class="sec">
+  <div class="sec-tag" style="color:var(--accent)">The Litmus Test</div>
+  <div class="sec-title">7 Questions for <em>Every</em> Decision</div>
+  <div class="sec-sub">Before building any feature, writing any copy, choosing any price, sending any notification — ask:</div>
+
+  <div class="card" style="border-top:4px solid var(--accent)">
+    <div class="g2">
+      <div style="font-size:13px;color:var(--dim);line-height:2.3">
+        <b style="color:var(--cream)">1.</b> Can I picture [Name] using this at a specific moment in her day?<br>
+        <b style="color:var(--cream)">2.</b> Would [Name] use THESE exact words to describe this to a friend?<br>
+        <b style="color:var(--cream)">3.</b> Would [Name] screenshot this and send it to someone?<br>
+        <b style="color:var(--cream)">4.</b> Does this feature naturally involve or invite another person?
+      </div>
+      <div style="font-size:13px;color:var(--dim);line-height:2.3">
+        <b style="color:var(--cream)">5.</b> Would [Name] miss this if we removed it tomorrow?<br>
+        <b style="color:var(--cream)">6.</b> Does this feel like a gift or an interruption?<br>
+        <b style="color:var(--cream)">7.</b> Would [Name] pay for this — at THIS price — at the moment she'd encounter it?
+      </div>
+    </div>
+    <p style="font-size:11px;color:var(--accent);font-style:italic;margin-top:14px;text-align:center">5+ YES answers = build it. 0 YES answers = go back to Phase 1 and re-read her internal monologue.</p>
+  </div>
+</section>
+
+<!-- ═══════ FULL FLOW ═══════ -->
+<section class="sec">
+  <div class="sec-tag" style="color:var(--gold)">The Complete System</div>
+  <div class="sec-title">One Person's Journey — Stranger to Advocate</div>
+
+  <div style="display:flex;flex-wrap:wrap;justify-content:center;gap:6px;margin:20px 0">
+    <div style="padding:10px 14px;border-radius:10px;font-size:10px;font-weight:600;background:var(--card);border:1px solid var(--border);color:var(--muted)">Stranger</div>
+    <div style="color:var(--muted);padding:4px">→</div>
+    <div style="padding:10px 14px;border-radius:10px;font-size:10px;font-weight:600;background:var(--card);border:1px solid rgba(155,142,196,.15);color:var(--lav)">Sees content</div>
+    <div style="color:var(--muted);padding:4px">→</div>
+    <div style="padding:10px 14px;border-radius:10px;font-size:10px;font-weight:600;background:var(--card);border:1px solid rgba(212,168,83,.15);color:var(--gold)">Visits website</div>
+    <div style="color:var(--muted);padding:4px">→</div>
+    <div style="padding:10px 14px;border-radius:10px;font-size:10px;font-weight:600;background:rgba(212,133,74,.06);border:2px solid rgba(212,133,74,.2);color:var(--accent)">Tastes product ⭐</div>
+    <div style="color:var(--muted);padding:4px">→</div>
+    <div style="padding:10px 14px;border-radius:10px;font-size:10px;font-weight:600;background:var(--card);border:1px solid rgba(123,168,130,.15);color:var(--sage)">Downloads app</div>
+    <div style="color:var(--muted);padding:4px">→</div>
+    <div style="padding:10px 14px;border-radius:10px;font-size:10px;font-weight:600;background:rgba(123,168,130,.06);border:2px solid rgba(123,168,130,.2);color:var(--sage)">Daily user ⭐</div>
+    <div style="color:var(--muted);padding:4px">→</div>
+    <div style="padding:10px 14px;border-radius:10px;font-size:10px;font-weight:600;background:var(--card);border:1px solid rgba(196,145,138,.15);color:var(--rose)">Pays</div>
+    <div style="color:var(--muted);padding:4px">→</div>
+    <div style="padding:10px 14px;border-radius:10px;font-size:10px;font-weight:600;background:rgba(212,133,74,.06);border:2px solid rgba(212,133,74,.2);color:var(--accent)">Shares ⭐</div>
+    <div style="color:var(--muted);padding:4px">→</div>
+    <div style="padding:10px 14px;border-radius:10px;font-size:10px;font-weight:600;background:var(--card);border:1px solid var(--border);color:var(--muted)">Her friends become strangers who enter the same flow</div>
+  </div>
+</section>
+
+<!-- ═══════ CLOSING ═══════ -->
+<div style="background:linear-gradient(135deg,var(--accent),#A8643A);border-radius:20px;padding:40px 36px;margin:32px 0;text-align:center">
+  <p style="font-size:9px;letter-spacing:5px;text-transform:uppercase;opacity:.5;margin-bottom:16px">The Bottom-Up Framework</p>
+  <p style="font-family:'Playfair Display',serif;font-size:clamp(18px,3vw,26px);font-style:italic;line-height:1.5;margin-bottom:20px;max-width:600px;margin-left:auto;margin-right:auto">"Don't build a product millions of people sort of like. Build a product one person can't live without. Then find out how many people are just like her."</p>
+  <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:12px;max-width:500px;margin:0 auto">
+    <div style="padding:16px;background:rgba(0,0,0,.15);border-radius:12px">
+      <div style="font-size:24px;margin-bottom:6px">🎯</div>
+      <div style="font-size:11px;font-weight:600">Start with one</div>
+    </div>
+    <div style="padding:16px;background:rgba(0,0,0,.15);border-radius:12px">
+      <div style="font-size:24px;margin-bottom:6px">💕</div>
+      <div style="font-size:11px;font-weight:600">Make her love it</div>
+    </div>
+    <div style="padding:16px;background:rgba(0,0,0,.15);border-radius:12px">
+      <div style="font-size:24px;margin-bottom:6px">📈</div>
+      <div style="font-size:11px;font-weight:600">Let her scale it</div>
+    </div>
+  </div>
+</div>
+
+<footer class="footer">
+  <p>"Growth is a side effect of love.<br>Not the other way around."</p>
+</footer>
+
+</div>
+
+<script>
+function showEx(tab,id){
+  const parent=tab.parentElement.parentElement;
+  parent.querySelectorAll('.ex-tab').forEach(t=>t.classList.remove('active'));
+  parent.querySelectorAll('.ex-content').forEach(c=>c.classList.remove('active'));
+  tab.classList.add('active');
+  document.getElementById(id).classList.add('active');
+}
+</script>
+</body>
+</html>

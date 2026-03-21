@@ -41,7 +41,7 @@ const DEPTH_OPTIONS = ['Beginner', 'Intermediate', 'Advanced'];
 export default function ProfileScreen({ navigation }) {
   const { userProfile, setUserProfile } = useUserProfile();
   const { user, signOut: authSignOut, deleteAccount } = useAuth();
-  const { customerInfo, isPro } = useRevenueCat();
+  const { customerInfo, isPro, debugOverridePro, setDebugOverridePro } = useRevenueCat();
   const { preference: themePref, setThemePreference } = useTheme();
   const [settings, setSettings] = useState({ voice: 'Poetic', depth: 'Intermediate' });
   const [showVoicePicker, setShowVoicePicker] = useState(false);
@@ -465,6 +465,33 @@ export default function ProfileScreen({ navigation }) {
             <>
               <Text style={[styles.secLbl, { marginTop: 8, color: T.gold }]}>DEBUG PANEL</Text>
               <View style={styles.devCard}>
+                {/* Pro Mode Toggle — simple big button */}
+                <TouchableOpacity
+                  style={[styles.devRow, { marginBottom: 4 }]}
+                  activeOpacity={0.7}
+                  onPress={() => {
+                    setDebugOverridePro(isPro ? false : true);
+                    haptic.medium();
+                    Alert.alert(isPro ? 'Switched to FREE mode' : 'Switched to PRO mode', 'All screens will reflect the change immediately.');
+                  }}>
+                  <View style={[styles.devIcon, { backgroundColor: isPro ? 'rgba(76,175,80,0.2)' : 'rgba(232,80,80,0.15)' }]}>
+                    <Text style={{ fontSize: 16 }}>{isPro ? '⭐' : '🔒'}</Text>
+                  </View>
+                  <View style={{ flex: 1 }}>
+                    <Text style={[styles.devLabel, textStyle]}>
+                      {isPro ? 'PRO Mode Active' : 'FREE Mode Active'}
+                    </Text>
+                    <Text style={{ fontSize: 11, color: colors.textMuted, marginTop: 1 }}>
+                      Tap to switch to {isPro ? 'FREE' : 'PRO'}
+                    </Text>
+                  </View>
+                  <View style={{ backgroundColor: isPro ? 'rgba(76,175,80,0.2)' : 'rgba(200,168,75,0.12)', borderRadius: 8, paddingVertical: 4, paddingHorizontal: 10, borderWidth: 1, borderColor: isPro ? 'rgba(76,175,80,0.3)' : 'rgba(200,168,75,0.2)' }}>
+                    <Text style={{ fontSize: 11, fontFamily: FONTS.sansSemiBold, color: isPro ? '#4CAF50' : T.gold }}>
+                      {isPro ? 'Switch to FREE' : 'Enable PRO'}
+                    </Text>
+                  </View>
+                </TouchableOpacity>
+
                 {/* Show Onboarding */}
                 <TouchableOpacity style={styles.devRow} activeOpacity={0.7}
                   onPress={() => navigation.navigate('OnboardingFlow')}>

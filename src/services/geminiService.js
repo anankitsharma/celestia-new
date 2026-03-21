@@ -2786,7 +2786,7 @@ export const generateFullReport = async (profile, reportType, narrativeContext =
         ${reportConfig.instruction}
 
         WRITING RULES:
-        1. Each section has: heading (max 4 words), body (2-3 rich paragraphs, ~100 words each), remedy (a practical action, max 20 words), affirmation (an "I am..." statement, max 12 words).
+        1. Each section has: heading (max 4 words, evocative like "The Depth You Carry"), body (3-4 rich paragraphs, ~120-150 words each — this is a premium $9.99 product, depth is expected), remedy (a practical action, max 25 words), affirmation (an "I am..." statement, max 15 words).
         2. Generate EXACTLY 6 sections.
         3. Title: Max 6 words, evocative.
         4. Summary: 2 sentences (max 40 words). Mystical hook.
@@ -2901,23 +2901,23 @@ export const generateDeepPdfReport = async (profile, reportType, narrativeContex
         2. CORE MOTIF: One profound sentence capturing the soul's theme
         3. OVERVIEW: 4 paragraphs separated by \\n\\n — chart synthesis, internal tensions, unique gifts, life mission. ~400 words total.
         4. BIG THREE: Each of Sun, Moon, Rising gets:
-           - title (e.g., "Leo Sun: The Sacred Performer")
-           - interpretation (2-3 paragraphs, ~200 words, deeply personal)
-           - shadow (1 paragraph on the shadow side, ~60 words)
+           - title (evocative, e.g., "The Depth You Carry" not "Moon in Scorpio")
+           - interpretation (3-4 paragraphs, ~300 words, deeply personal — this is a $9.99 report, depth is expected. Start with what she already knows about herself, name the pattern, explain the WHY through her chart, end with forward-looking insight)
+           - shadow (1 paragraph on the shadow side, ~80 words — specific, not generic)
            - advice (1 practical sentence)
         5. PLANETS: 8 entries (Mercury, Venus, Mars, Jupiter, Saturn, Uranus, Neptune, Pluto):
-           - name, placement (sign + house), title (poetic)
-           - interpretation: 2 paragraphs for Mercury-Saturn, 1 paragraph for Uranus-Pluto (house-focused)
-           - advice (1 sentence)
+           - name, placement (sign + house), title (evocative — "Why You Love Like This" not "Venus in Virgo")
+           - interpretation: 3 paragraphs for Mercury-Saturn (~250 words each — include lived-experience patterns, not just descriptions), 2 paragraphs for Uranus-Pluto (house-focused, ~150 words each)
+           - advice (1-2 practical sentences)
         6. LIFE AREAS: 4 areas (love, career, purpose, challenge):
-           - theme (3-4 words), analysis (2-3 paragraphs ~200 words), advice (1 sentence)
+           - theme (3-4 words), analysis (3-4 paragraphs ~300 words — include specific chart references), advice (1-2 sentences)
         7. SOUL PATH:
-           - northNodeMessage: 2 paragraphs on evolutionary direction
-           - karmicPatterns: 1-2 paragraphs on South Node patterns
-           - giftToTheWorld: 1 inspiring paragraph
+           - northNodeMessage: 3 paragraphs on evolutionary direction (~250 words)
+           - karmicPatterns: 2 paragraphs on South Node patterns (~150 words)
+           - giftToTheWorld: 1 inspiring paragraph (~80 words)
         8. ELEMENTAL BALANCE:
-           - dominantElement, dominantModality, analysis (2 paragraphs)
-        9. CLOSING: 2 inspiring paragraphs weaving all themes (~150 words)
+           - dominantElement, dominantModality, analysis (2-3 paragraphs)
+        9. CLOSING: 2-3 inspiring paragraphs weaving all themes (~200 words). End with a sentence she'd screenshot.
 
         CRITICAL WRITING RULES:
         - EVERY sentence must reference SPECIFIC signs, houses, planets, degrees from their chart

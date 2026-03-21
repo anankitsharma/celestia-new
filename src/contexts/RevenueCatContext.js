@@ -13,6 +13,7 @@ export const RevenueCatProvider = ({ children }) => {
     const [customerInfo, setCustomerInfo] = useState(null);
     const [offerings, setOfferings] = useState(null);
     const [isPro, setIsPro] = useState(false);
+    const [debugOverridePro, setDebugOverridePro] = useState(__DEV__ ? true : null); // DEV: default Pro for testing
     const [isLoading, setIsLoading] = useState(true);
 
     useEffect(() => {
@@ -51,11 +52,17 @@ export const RevenueCatProvider = ({ children }) => {
         };
     }, [userProfile?.id]);
 
+    // Debug override: in __DEV__, allows toggling Pro mode for testing
+    const effectiveIsPro = debugOverridePro !== null ? debugOverridePro : isPro;
+
     const value = {
         customerInfo,
         offerings,
-        isPro,
+        isPro: effectiveIsPro,
         isLoading,
+        // Debug: toggle Pro mode (guarded by __DEV__ in ProfileScreen)
+        debugOverridePro,
+        setDebugOverridePro,
         purchasePackage: async (pack) => {
             const info = await RevenueCatService.purchasePackage(pack);
             setCustomerInfo(info);

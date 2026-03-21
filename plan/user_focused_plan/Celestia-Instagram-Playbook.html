@@ -1,0 +1,611 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Celestia — Instagram Playbook (Where She Screenshots, Saves, and Shares)</title>
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,300;0,400;0,500;0,600;0,700;1,400;1,500&family=DM+Sans:ital,wght@0,300;0,400;0,500;0,600;0,700;1,400&display=swap" rel="stylesheet">
+<style>
+:root{--bg:#0F0D1A;--card:#1A1726;--card2:#211E2E;--terra:#C17F59;--gold:#D4A853;--sage:#8B9E7E;--rose:#C4918A;--lav:#9B8EC4;--sky:#7BA7C4;--cream:#F5EDE3;--muted:#6B6880;--border:rgba(255,255,255,0.06);--text:rgba(255,255,255,0.78);--dim:rgba(255,255,255,0.45);--ig:linear-gradient(45deg,#f09433,#e6683c,#dc2743,#cc2366,#bc1888)}
+*{margin:0;padding:0;box-sizing:border-box}
+body{background:var(--bg);color:var(--cream);font-family:'DM Sans',sans-serif;-webkit-font-smoothing:antialiased;line-height:1.65}
+.wrap{max-width:920px;margin:0 auto;padding:0 24px}
+.topnav{position:sticky;top:0;z-index:100;background:rgba(15,13,26,.92);backdrop-filter:blur(16px);border-bottom:1px solid var(--border);overflow-x:auto}
+.topnav::-webkit-scrollbar{display:none}
+.topnav-inner{display:flex;max-width:920px;margin:0 auto;min-width:max-content}
+.topnav a{padding:11px 13px;font-size:8.5px;letter-spacing:1.5px;text-transform:uppercase;color:var(--muted);text-decoration:none;white-space:nowrap;border-bottom:2px solid transparent;transition:.3s}
+.topnav a:hover,.topnav a.active{color:var(--rose);border-bottom-color:var(--rose)}
+.hero{text-align:center;padding:52px 20px 36px;position:relative}
+.hero::before{content:'';position:absolute;top:-120px;left:50%;transform:translateX(-50%);width:600px;height:600px;background:radial-gradient(circle,rgba(196,145,138,.07) 0%,transparent 65%);pointer-events:none}
+.htag{font-size:9px;letter-spacing:5px;text-transform:uppercase;color:var(--gold);opacity:.6;margin-bottom:14px}
+.hero h1{font-family:'Playfair Display',serif;font-size:clamp(24px,5vw,38px);font-weight:300;line-height:1.2;margin-bottom:10px}
+.hero h1 b{font-weight:600;background:var(--ig);-webkit-background-clip:text;-webkit-text-fill-color:transparent}
+.hero .sub{font-size:13.5px;color:var(--dim);max-width:600px;margin:0 auto}
+.sec{padding:44px 0 16px}
+.sec-head{display:flex;align-items:center;gap:12px;margin-bottom:24px}
+.sec-num{width:32px;height:32px;border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;color:white;flex-shrink:0}
+.sec-label{font-size:9.5px;letter-spacing:3px;text-transform:uppercase;font-weight:600}
+.sec-line{flex:1;height:1px;opacity:.15}
+.card{background:var(--card);border:1px solid var(--border);border-radius:14px;padding:22px;margin-bottom:12px}
+.card-t{font-size:9px;letter-spacing:2.5px;text-transform:uppercase;font-weight:600;margin-bottom:14px}
+.g2{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.g3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px}
+.mia{display:flex;gap:14px;align-items:flex-start;background:var(--card2);border:1px solid var(--border);border-radius:14px;padding:18px;margin-bottom:12px}
+.mia-ava{width:38px;height:38px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:15px;flex-shrink:0;border:2px solid var(--rose);background:rgba(196,145,138,.08)}
+.mia-txt{flex:1}
+.mia-label{font-size:8px;letter-spacing:2px;font-weight:700;text-transform:uppercase;color:var(--rose);margin-bottom:3px}
+.mia-q{font-family:'Playfair Display',serif;font-style:italic;font-size:13.5px;color:var(--cream);line-height:1.5}
+.mia-ctx{font-size:10px;color:var(--muted);margin-top:3px}
+
+/* IG Profile sim */
+.ig-profile{background:#000;border-radius:24px;max-width:340px;margin:0 auto 14px;overflow:hidden;border:2px solid rgba(255,255,255,.06);box-shadow:0 16px 60px rgba(0,0,0,.6)}
+.ig-header{padding:14px 16px;display:flex;align-items:center;gap:12px}
+.ig-ava{width:64px;height:64px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:24px;flex-shrink:0;border:3px solid var(--terra);background:rgba(193,127,89,.08)}
+.ig-info{flex:1}
+.ig-handle{font-size:14px;font-weight:700}
+.ig-stats{display:flex;gap:14px;margin-top:6px}
+.ig-stat-num{font-size:13px;font-weight:700;color:white}
+.ig-stat-label{font-size:9px;color:rgba(255,255,255,.4)}
+.ig-bio-area{padding:0 16px 12px}
+.ig-display-name{font-size:12px;font-weight:700;margin-bottom:2px}
+.ig-bio{font-size:11px;color:rgba(255,255,255,.8);line-height:1.5}
+.ig-bio-link{color:var(--terra);font-weight:600}
+.ig-btns{display:flex;gap:4px;padding:0 16px 12px}
+.ig-btn{flex:1;padding:7px;text-align:center;border-radius:8px;font-size:11px;font-weight:600}
+.ig-btn-follow{background:#0095f6;color:white}
+.ig-btn-msg{background:rgba(255,255,255,.1);color:white}
+.ig-highlights{display:flex;gap:10px;padding:0 16px 12px;overflow-x:auto}
+.ig-highlight{text-align:center;flex-shrink:0}
+.ig-highlight-circle{width:52px;height:52px;border-radius:50%;border:2px solid rgba(255,255,255,.15);display:flex;align-items:center;justify-content:center;font-size:18px;margin-bottom:3px}
+.ig-highlight-label{font-size:8px;color:rgba(255,255,255,.5)}
+.ig-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:2px}
+.ig-thumb{aspect-ratio:1;display:flex;align-items:center;justify-content:center;font-size:7px;color:var(--muted);text-align:center;padding:6px;line-height:1.3;position:relative}
+
+/* Carousel sim */
+.carousel{background:#000;border-radius:16px;max-width:360px;margin:0 auto 14px;overflow:hidden;border:1px solid rgba(255,255,255,.06)}
+.carousel-slide{padding:28px 24px;text-align:center;min-height:300px;display:flex;flex-direction:column;justify-content:center}
+.carousel-dots{display:flex;justify-content:center;gap:4px;padding:8px}
+.carousel-dot{width:6px;height:6px;border-radius:50%;background:rgba(255,255,255,.2)}
+.carousel-dot.active{background:var(--terra)}
+.carousel-nav{display:flex;justify-content:space-between;padding:10px 16px;border-top:1px solid rgba(255,255,255,.06);font-size:9px;color:rgba(255,255,255,.4)}
+
+/* Story sim */
+.story-sim{background:#000;border-radius:20px;max-width:240px;margin:0 auto 14px;overflow:hidden;border:1px solid rgba(255,255,255,.06);box-shadow:0 12px 40px rgba(0,0,0,.5)}
+.story-bars{display:flex;gap:2px;padding:8px 8px 0}
+.story-bar{flex:1;height:2px;background:rgba(255,255,255,.15);border-radius:1px}
+.story-bar.active{background:white}
+.story-top{display:flex;align-items:center;gap:6px;padding:8px 12px}
+.story-ava-s{width:24px;height:24px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:10px;border:1.5px solid var(--terra);background:rgba(193,127,89,.08)}
+.story-name-s{font-size:10px;font-weight:600;color:white}
+.story-body{padding:16px;min-height:320px;display:flex;flex-direction:column;justify-content:center;text-align:center}
+
+/* Calendar */
+.cal-table{width:100%;border-collapse:collapse;font-size:11px}
+.cal-table th{padding:8px 6px;text-align:left;font-size:8px;letter-spacing:1.5px;text-transform:uppercase;color:var(--muted);border-bottom:1px solid var(--border);font-weight:600}
+.cal-table td{padding:10px 6px;vertical-align:top;border-bottom:1px solid var(--border)}
+.cal-type{font-size:8px;font-weight:700;letter-spacing:1px;text-transform:uppercase;padding:2px 6px;border-radius:4px;display:inline-block;margin-bottom:3px}
+
+.footer{text-align:center;padding:28px;border-top:1px solid var(--border)}
+.footer p{font-size:12px;color:var(--muted);font-style:italic}
+.footer .brand{font-size:9px;letter-spacing:4px;color:var(--gold);opacity:.4;margin-top:8px;text-transform:uppercase}
+@media(max-width:700px){.g2,.g3{grid-template-columns:1fr}.ig-profile,.carousel,.story-sim{max-width:100%}.mia{flex-direction:column;text-align:center;align-items:center}}
+</style>
+</head>
+<body>
+
+<nav class="topnav"><div class="topnav-inner">
+  <a href="#role">IG's Role</a>
+  <a href="#profile">Profile Setup</a>
+  <a href="#grid">Grid Aesthetic</a>
+  <a href="#carousels">Carousels</a>
+  <a href="#reels">Reels</a>
+  <a href="#stories">Stories</a>
+  <a href="#calendar">30-Day Calendar</a>
+  <a href="#rules">Rules</a>
+</div></nav>
+
+<div class="wrap">
+
+<section class="hero">
+  <div class="htag">✦ Celestia — Instagram Playbook ✦</div>
+  <h1>Where She <b>Saves, Shares, and Screenshots</b></h1>
+  <p class="sub">TikTok is where she DISCOVERS. Instagram is where she ENGAGES. She saves carousels, shares Reels to her Story, DMs posts to friends, and puts her chart screenshot on her grid. Instagram is the social proof engine — the place where Celestia becomes part of her identity.</p>
+</section>
+
+<!-- ═══════ 01 ROLE ═══════ -->
+<section class="sec" id="role">
+  <div class="sec-head">
+    <div class="sec-num" style="background:var(--rose)">01</div>
+    <span class="sec-label" style="color:var(--rose)">Instagram's Role — Different From TikTok</span>
+    <div class="sec-line" style="background:var(--rose)"></div>
+  </div>
+
+  <div class="card" style="border-top:3px solid var(--rose)">
+    <div class="g2">
+      <div style="padding:16px;background:rgba(254,44,85,.04);border-radius:12px">
+        <p style="font-size:12px;font-weight:700;margin-bottom:6px">TikTok = DISCOVERY</p>
+        <div style="font-size:11px;color:var(--dim);line-height:1.6">
+          She finds us. She watches. She laughs. She maybe taps profile. The content reaches STRANGERS. It's a megaphone. Optimized for reach and views from non-followers. 55% of Reel views come from non-followers.
+        </div>
+      </div>
+      <div style="padding:16px;background:rgba(196,145,138,.08);border-radius:12px;border:2px solid rgba(196,145,138,.15)">
+        <p style="font-size:12px;font-weight:700;margin-bottom:6px">Instagram = ENGAGEMENT + IDENTITY</p>
+        <div style="font-size:11px;color:var(--dim);line-height:1.6">
+          She follows us. She saves carousels. She shares Reels to her Story. She DMs posts to her group chat. She screenshots her chart and posts it. Instagram isn't about discovery — it's about <b style="color:var(--cream)">deepening the relationship</b> and making Celestia part of her social identity.
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-t" style="color:var(--gold)">The 2026 Instagram Algorithm — What Matters</div>
+    <div class="g3">
+      <div style="text-align:center;padding:14px;background:rgba(196,145,138,.05);border-radius:10px">
+        <p style="font-size:22px;font-weight:700;color:var(--rose)">DM Shares</p>
+        <p style="font-size:10px;color:var(--dim);margin-top:4px">The #1 signal for reaching new audiences. 694K Reels are sent via DM every minute. Content worth sharing = growth.</p>
+      </div>
+      <div style="text-align:center;padding:14px;background:rgba(212,168,83,.05);border-radius:10px">
+        <p style="font-size:22px;font-weight:700;color:var(--gold)">Saves</p>
+        <p style="font-size:10px;color:var(--dim);margin-top:4px">Carousels are the saves king. A save = "I want to come back to this." Carousels with 10.15% avg engagement dominate saves.</p>
+      </div>
+      <div style="text-align:center;padding:14px;background:rgba(155,142,196,.05);border-radius:10px">
+        <p style="font-size:22px;font-weight:700;color:var(--lav)">Watch Time</p>
+        <p style="font-size:10px;color:var(--dim);margin-top:4px">For Reels: watch-through rate is everything. A 15sec Reel fully watched beats a 60sec Reel abandoned at 30%. Keep it tight.</p>
+      </div>
+    </div>
+  </div>
+
+  <div class="mia">
+    <div class="mia-ava">📱</div>
+    <div class="mia-txt">
+      <div class="mia-label">How Mia uses Instagram differently from TikTok</div>
+      <div class="mia-q">"TikTok is for scrolling. Instagram is for sharing. When I find something on TikTok that's good, I watch it. When I find something on Instagram that's good, I save it, share it to my Story, and DM it to 3 people. Instagram is where I build my image — and reposting astrology content that's accurate about me IS part of my image."</div>
+      <div class="mia-ctx">Instagram Mia is a CURATOR. She shares what represents her. Celestia content must be screenshottable, saveable, and share-worthy.</div>
+    </div>
+  </div>
+</section>
+
+<!-- ═══════ 02 PROFILE SETUP ═══════ -->
+<section class="sec" id="profile">
+  <div class="sec-head">
+    <div class="sec-num" style="background:var(--terra)">02</div>
+    <span class="sec-label" style="color:var(--terra)">Profile Setup — The Storefront</span>
+    <div class="sec-line" style="background:var(--terra)"></div>
+  </div>
+
+  <div class="g2">
+    <div>
+      <div class="ig-profile">
+        <div class="ig-header">
+          <div class="ig-ava">✦</div>
+          <div class="ig-info">
+            <div class="ig-handle">celestia.astro</div>
+            <div class="ig-stats">
+              <div><div class="ig-stat-num">142</div><div class="ig-stat-label">posts</div></div>
+              <div><div class="ig-stat-num">18.7K</div><div class="ig-stat-label">followers</div></div>
+              <div><div class="ig-stat-num">847</div><div class="ig-stat-label">following</div></div>
+            </div>
+          </div>
+        </div>
+        <div class="ig-bio-area">
+          <div class="ig-display-name">Celestia ✦ AI Astrology</div>
+          <div class="ig-bio">your chart. explained like a friend would.<br>scary accurate AI readings 🔮<br>free birth chart ↓<br><span class="ig-bio-link">hicelestia.com/ig</span></div>
+        </div>
+        <div class="ig-btns">
+          <div class="ig-btn ig-btn-follow">Follow</div>
+          <div class="ig-btn ig-btn-msg">Message</div>
+        </div>
+        <div class="ig-highlights">
+          <div class="ig-highlight"><div class="ig-highlight-circle" style="border-color:var(--terra)">🔮</div><div class="ig-highlight-label">Get Chart</div></div>
+          <div class="ig-highlight"><div class="ig-highlight-circle" style="border-color:var(--rose)">💕</div><div class="ig-highlight-label">Compat</div></div>
+          <div class="ig-highlight"><div class="ig-highlight-circle" style="border-color:var(--lav)">♍</div><div class="ig-highlight-label">Virgo</div></div>
+          <div class="ig-highlight"><div class="ig-highlight-circle" style="border-color:var(--lav)">♏</div><div class="ig-highlight-label">Scorpio</div></div>
+          <div class="ig-highlight"><div class="ig-highlight-circle" style="border-color:var(--gold)">😳</div><div class="ig-highlight-label">AI Reads</div></div>
+          <div class="ig-highlight"><div class="ig-highlight-circle" style="border-color:var(--sage)">📖</div><div class="ig-highlight-label">Learn</div></div>
+        </div>
+        <div class="ig-grid">
+          <div class="ig-thumb" style="background:var(--terra)">Carousel</div>
+          <div class="ig-thumb" style="background:rgba(155,142,196,.15)">Reel</div>
+          <div class="ig-thumb" style="background:var(--terra)">Carousel</div>
+          <div class="ig-thumb" style="background:rgba(155,142,196,.15)">Reel</div>
+          <div class="ig-thumb" style="background:rgba(193,127,89,.15)">Quote</div>
+          <div class="ig-thumb" style="background:var(--terra)">Carousel</div>
+        </div>
+      </div>
+    </div>
+
+    <div>
+      <div class="card" style="border-top:3px solid var(--terra)">
+        <div class="card-t" style="color:var(--terra)">Exact Profile Specs</div>
+        <div style="font-size:12px;color:var(--dim);line-height:1.9">
+          <b style="color:var(--cream)">Handle:</b> @celestia.astro — same as TikTok. Cross-platform consistency.<br>
+          <b style="color:var(--cream)">Display name:</b> Celestia ✦ AI Astrology — includes keywords for Instagram search (SEO over hashtags in 2026).<br>
+          <b style="color:var(--cream)">Profile photo:</b> Identical ✦ logo as TikTok. Recognizable at 44px in feed.<br>
+          <b style="color:var(--cream)">Bio:</b> Same 3-line structure as TikTok for brand consistency. Link: hicelestia.com/ig (separate UTM from TikTok).<br>
+          <b style="color:var(--cream)">Category:</b> "Astrology Service" (shows under name, builds credibility).<br>
+          <b style="color:var(--cream)">Action button:</b> "Get Chart" → links to hicelestia.com/ig
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-t" style="color:var(--gold)">Story Highlights — The Permanent Shelf</div>
+        <div style="font-size:12px;color:var(--dim);line-height:1.8">
+          <b style="color:var(--terra)">🔮 Get Chart</b> — "Tap here to get your free birth chart in 10 seconds" → swipe-up/link sticker to hicelestia.com/ig<br>
+          <b style="color:var(--rose)">💕 Compat</b> — "Check your compatibility" → link to checker tool<br>
+          <b style="color:var(--lav)">♍ Virgo (× 12 signs)</b> — Best Virgo content collected. She taps her sign, binges the highlight. Do this for the top 6 signs first, expand to all 12.<br>
+          <b style="color:var(--gold)">😳 AI Reads</b> — Screenshots and screen recordings of Celestia AI chat. The "proof" highlight. Social proof that the AI is real and scary accurate.<br>
+          <b style="color:var(--sage)">📖 Learn</b> — "What's a rising sign?" educational Stories. The beginner's entry point.
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ═══════ 03 GRID AESTHETIC ═══════ -->
+<section class="sec" id="grid">
+  <div class="sec-head">
+    <div class="sec-num" style="background:var(--gold)">03</div>
+    <span class="sec-label" style="color:var(--gold)">Grid Aesthetic — The Desert Dawn Feed</span>
+    <div class="sec-line" style="background:var(--gold)"></div>
+  </div>
+
+  <div class="card" style="border-top:3px solid var(--gold)">
+    <div class="card-t" style="color:var(--gold)">Visual Identity — Standing Out in Her Feed</div>
+    <div class="g2">
+      <div style="font-size:12px;color:var(--dim);line-height:1.8">
+        <b style="color:var(--cream)">The Desert Dawn palette:</b><br>
+        → Primary: terracotta (#C17F59), warm cream (#F5EDE3)<br>
+        → Secondary: sage green, dusty lavender, muted gold<br>
+        → Backgrounds: deep navy/charcoal (#0F0D1A) for dark posts, warm cream for light<br>
+        → Typography: Playfair Display (headings), DM Sans (body)<br><br>
+        <b style="color:var(--cream)">Why this stands out:</b> Most astrology accounts use either neon purple/blue (Co-Star aesthetic) or pastel pink (generic spiritual). Celestia's warm, earthy tones are UNIQUE on her feed. She scrolls and sees blue, blue, bright, bright, then — warm terracotta. Her eye stops.
+      </div>
+      <div style="font-size:12px;color:var(--dim);line-height:1.8">
+        <b style="color:var(--cream)">Grid pattern (every 3 posts):</b><br>
+        → Post 1: Carousel (dark bg, terracotta accents)<br>
+        → Post 2: Reel (thumbnail designed with text overlay)<br>
+        → Post 3: Carousel or single image (cream/light bg)<br><br>
+        <b style="color:var(--cream)">This creates a visual rhythm:</b> dark-video-light-dark-video-light. The grid looks intentional without being rigid. When she taps the profile, the grid feels cohesive and beautiful — like a brand, not a random meme account.<br><br>
+        <b style="color:var(--cream)">Cover images for Reels:</b> Always add a custom thumbnail. Never let Instagram auto-select a blurry frame. The thumbnail has text overlay in Celestia fonts on a solid color bg.
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ═══════ 04 CAROUSELS ═══════ -->
+<section class="sec" id="carousels">
+  <div class="sec-head">
+    <div class="sec-num" style="background:var(--lav)">04</div>
+    <span class="sec-label" style="color:var(--lav)">Carousels — The Engagement King (10% Avg Engagement)</span>
+    <div class="sec-line" style="background:var(--lav)"></div>
+  </div>
+
+  <p style="font-size:12px;color:var(--dim);margin-bottom:16px">Carousels are Celestia's secret weapon on Instagram. They drive the most saves, the most shares, and the highest engagement rate of any format. Mia doesn't just scroll them — she saves them, screenshots individual slides, and sends them to friends. Every carousel is designed to be swiped, saved, and shared.</p>
+
+  <div class="card">
+    <div class="card-t" style="color:var(--lav)">5 Carousel Templates — Repeatable Formats</div>
+    <div class="g2">
+      <div style="padding:16px;background:rgba(155,142,196,.04);border-radius:12px;border:1px solid rgba(155,142,196,.1)">
+        <div style="font-size:14px;font-weight:700;margin-bottom:4px">📊 Template 1: The Sign Deep-Dive</div>
+        <div style="font-size:10px;color:var(--lav);margin-bottom:6px">7-10 slides · Highest saves · 2x/week</div>
+        <div style="font-size:11px;color:var(--dim);line-height:1.6">
+          <b style="color:var(--cream)">Slide 1:</b> "Virgo Sun: The Complete Truth" — bold title, sign symbol, Desert Dawn bg<br>
+          <b style="color:var(--cream)">Slide 2:</b> "Who you are at your core" — one paragraph<br>
+          <b style="color:var(--cream)">Slide 3:</b> "Your biggest strength" — specific, warm<br>
+          <b style="color:var(--cream)">Slide 4:</b> "Your hidden weakness" — the part that makes her feel seen<br>
+          <b style="color:var(--cream)">Slide 5:</b> "In love" — how this sign loves<br>
+          <b style="color:var(--cream)">Slide 6:</b> "At work" — career patterns<br>
+          <b style="color:var(--cream)">Slide 7:</b> "The pattern" — the one insight that makes her screenshot<br>
+          <b style="color:var(--cream)">Slide 8:</b> CTA — "This is your Sun. Your full chart has 10 planets. → link in bio 🔮"
+        </div>
+      </div>
+      <div style="padding:16px;background:rgba(196,145,138,.04);border-radius:12px;border:1px solid rgba(196,145,138,.1)">
+        <div style="font-size:14px;font-weight:700;margin-bottom:4px">💕 Template 2: The Compatibility Carousel</div>
+        <div style="font-size:10px;color:var(--rose);margin-bottom:6px">8-10 slides · Most shares · 1x/week</div>
+        <div style="font-size:11px;color:var(--dim);line-height:1.6">
+          <b style="color:var(--cream)">Slide 1:</b> "Virgo ♍ + Scorpio ♏" — both sign symbols with heart<br>
+          <b style="color:var(--cream)">Slide 2:</b> Match score ring + 4 area bars visual<br>
+          <b style="color:var(--cream)">Slide 3:</b> "The Spark" — why the attraction is instant<br>
+          <b style="color:var(--cream)">Slide 4:</b> "Communication style" — where wires cross<br>
+          <b style="color:var(--cream)">Slide 5:</b> "In love" — the dynamic<br>
+          <b style="color:var(--cream)">Slide 6:</b> "Where you'll fight" — the slide she screenshots<br>
+          <b style="color:var(--cream)">Slide 7:</b> "The verdict" — honest, warm assessment<br>
+          <b style="color:var(--cream)">Slide 8:</b> "Tag your Scorpio 🦂" + "Full compatibility check → link in bio"
+        </div>
+      </div>
+      <div style="padding:16px;background:rgba(193,127,89,.04);border-radius:12px;border:1px solid rgba(193,127,89,.1)">
+        <div style="font-size:14px;font-weight:700;margin-bottom:4px">🎭 Template 3: The "Signs As..." Ranking</div>
+        <div style="font-size:10px;color:var(--terra);margin-bottom:6px">6-8 slides · Comment bait · 1x/week</div>
+        <div style="font-size:11px;color:var(--dim);line-height:1.6">
+          <b style="color:var(--cream)">Slide 1:</b> "How each sign handles being left on read" — bold hook<br>
+          <b style="color:var(--cream)">Slides 2-7:</b> 2 signs per slide (Fire, Earth, Air, Water grouped). One line each. Punchy, funny, specific.<br>
+          <b style="color:var(--cream)">Last slide:</b> "Tag the person who needs to see this 👀" + "which one are you? Comment ⬇️"<br>
+          <span style="color:var(--terra);font-size:10px">The "tag" CTA on the last slide drives shares. She tags her friend's sign. The friend sees it, follows us.</span>
+        </div>
+      </div>
+      <div style="padding:16px;background:rgba(212,168,83,.04);border-radius:12px;border:1px solid rgba(212,168,83,.1)">
+        <div style="font-size:14px;font-weight:700;margin-bottom:4px">📖 Template 4: The Astrology Explainer</div>
+        <div style="font-size:10px;color:var(--gold);margin-bottom:6px">6-8 slides · Authority builder · 1x/week</div>
+        <div style="font-size:11px;color:var(--dim);line-height:1.6">
+          <b style="color:var(--cream)">Slide 1:</b> "Your Moon sign is more important than your Sun sign. Here's why." — Hook<br>
+          <b style="color:var(--cream)">Slides 2-6:</b> Simple, clear explanation with visuals. One concept per slide. No jargon.<br>
+          <b style="color:var(--cream)">Last slide:</b> "Want to know your Moon sign? → link in bio 🔮"<br>
+          <span style="color:var(--gold);font-size:10px">Educational carousels get the most SAVES. People bookmark them to reference later. Saves = algorithm boost.</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Carousel sim -->
+  <p style="font-size:9px;letter-spacing:2px;text-transform:uppercase;color:var(--lav);font-weight:600;margin:18px 0 10px;text-align:center">Sample Carousel — "Venus in Virgo: How You Love"</p>
+
+  <div class="g3">
+    <div class="carousel">
+      <div class="carousel-slide" style="background:linear-gradient(180deg,#1E1B2E,#0F0D1A)">
+        <div style="font-size:8px;letter-spacing:3px;color:var(--gold);opacity:.6">CELESTIA ✦</div>
+        <div style="font-size:32px;margin:12px 0">♀</div>
+        <div style="font-family:'Playfair Display',serif;font-size:20px;color:var(--cream);line-height:1.3">Venus in Virgo</div>
+        <div style="font-size:11px;color:var(--rose);margin-top:6px">How You Love</div>
+        <div style="font-size:9px;color:var(--muted);margin-top:12px">swipe →</div>
+      </div>
+      <div class="carousel-dots"><div class="carousel-dot active"></div><div class="carousel-dot"></div><div class="carousel-dot"></div><div class="carousel-dot"></div><div class="carousel-dot"></div></div>
+    </div>
+
+    <div class="carousel">
+      <div class="carousel-slide" style="background:linear-gradient(180deg,#1E1B2E,#0F0D1A)">
+        <div style="font-size:9px;letter-spacing:2px;color:var(--terra);margin-bottom:10px">THE PATTERN</div>
+        <div style="font-family:'Playfair Display',serif;font-size:15px;color:var(--cream);line-height:1.5;padding:0 8px">"You show love by fixing things for people. And then quietly resent that nobody fixes things for you."</div>
+        <div style="font-size:10px;color:var(--dim);margin-top:14px;line-height:1.5;padding:0 8px">Your love language is acts of service — but you rarely ask for it back. You give and give and give... and then one day you snap.</div>
+      </div>
+      <div class="carousel-dots"><div class="carousel-dot"></div><div class="carousel-dot"></div><div class="carousel-dot active"></div><div class="carousel-dot"></div><div class="carousel-dot"></div></div>
+    </div>
+
+    <div class="carousel">
+      <div class="carousel-slide" style="background:linear-gradient(180deg,#1E1B2E,#0F0D1A)">
+        <div style="font-size:9px;letter-spacing:2px;color:var(--rose);margin-bottom:10px">IN RELATIONSHIPS</div>
+        <div style="font-size:11px;color:var(--dim);line-height:1.6;padding:0 8px">You don't fall for grand gestures. You fall for someone who remembers how you take your coffee. You notice EVERYTHING — which means you also notice every red flag. The problem? You notice the red flags and stay anyway, hoping your love will fix them.</div>
+        <div style="font-size:10px;color:var(--terra);margin-top:14px">This is why you keep dating "projects" ✦</div>
+      </div>
+      <div class="carousel-dots"><div class="carousel-dot"></div><div class="carousel-dot"></div><div class="carousel-dot"></div><div class="carousel-dot active"></div><div class="carousel-dot"></div></div>
+    </div>
+  </div>
+
+  <div class="card" style="margin-top:12px">
+    <div class="card-t" style="color:var(--terra)">Carousel Design Rules</div>
+    <div style="font-size:12px;color:var(--dim);line-height:1.8">
+      <b style="color:var(--cream)">Format:</b> 1080×1350px (4:5) — fills the feed, more real estate than square.<br>
+      <b style="color:var(--cream)">Slides:</b> 7-10 per carousel. Instagram allows up to 20 but sweet spot is 7-10 for astrology content.<br>
+      <b style="color:var(--cream)">Slide 1:</b> Must stop the scroll. Bold headline + sign symbol + "swipe →" hint. No body text.<br>
+      <b style="color:var(--cream)">Middle slides:</b> One idea per slide. Large text. Plenty of whitespace. She should be able to screenshot ANY single slide and it makes sense standalone.<br>
+      <b style="color:var(--cream)">Last slide:</b> Always has a CTA — either "tag someone," "comment your sign," or "link in bio." This drives engagement on the final frame.<br>
+      <b style="color:var(--cream)">Typography:</b> Playfair Display for headlines, DM Sans for body. Max 40 words per slide.<br>
+      <b style="color:var(--cream)">Brand mark:</b> Small "Celestia ✦" watermark on every slide — visible but not obnoxious. Every screenshot = a tiny billboard.
+    </div>
+  </div>
+</section>
+
+<!-- ═══════ 05 REELS ═══════ -->
+<section class="sec" id="reels">
+  <div class="sec-head">
+    <div class="sec-num" style="background:var(--sage)">05</div>
+    <span class="sec-label" style="color:var(--sage)">Reels — The Reach Engine (55% Non-Follower Views)</span>
+    <div class="sec-line" style="background:var(--sage)"></div>
+  </div>
+
+  <div class="card" style="border-top:3px solid var(--sage)">
+    <div class="card-t" style="color:var(--sage)">Reels Strategy — Cross-Post + Native</div>
+    <div class="g2">
+      <div style="font-size:12px;color:var(--dim);line-height:1.8">
+        <b style="color:var(--cream)">70% cross-posted from TikTok (re-edited)</b><br>
+        The same scripts work — but we MUST re-edit for Instagram. No TikTok watermark (Instagram penalizes this). No CapCut watermark. Re-export clean from the editing app. Same content, fresh export.<br><br>
+        <b style="color:var(--cream)">30% Instagram-native Reels</b><br>
+        Content designed specifically for Instagram's culture: slightly more polished, slightly more aesthetic, and optimized for DM sharing (the #1 ranking signal on IG in 2026).<br><br>
+        <b style="color:var(--cream)">Reel length:</b> 15-30 seconds for most. Never over 45 seconds unless the hook is incredible. Instagram rewards completion rate — shorter = higher completion.
+      </div>
+      <div style="font-size:12px;color:var(--dim);line-height:1.8">
+        <b style="color:var(--cream)">Instagram-native Reel ideas:</b><br>
+        → "Send this to the Scorpio in your life" — designed for DM sharing<br>
+        → "Save this for when he leaves you on read" — designed for saves<br>
+        → Screen recording of someone exploring their Celestia chart — beautiful app footage<br>
+        → "What your rising sign says about your first impression" — talking head, warm aesthetic<br><br>
+        <b style="color:var(--cream)">Custom thumbnails:</b> Always. Text overlay on a solid Desert Dawn background. The grid should look cohesive when she visits the profile. Auto-selected frames look messy.<br><br>
+        <b style="color:var(--cream)">Trending audio:</b> Add trending sounds to boost discovery. Instagram still pushes content using trending audio into Explore and Reels feeds.
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ═══════ 06 STORIES ═══════ -->
+<section class="sec" id="stories">
+  <div class="sec-head">
+    <div class="sec-num" style="background:var(--rose)">06</div>
+    <span class="sec-label" style="color:var(--rose)">Stories — The Daily Connection (500M Daily Users)</span>
+    <div class="sec-line" style="background:var(--rose)"></div>
+  </div>
+
+  <p style="font-size:12px;color:var(--dim);margin-bottom:16px">Stories are how Celestia stays in Mia's daily life on Instagram. They appear at the TOP of her feed. They're ephemeral (24hrs) which creates urgency. And they have interactive stickers that drive engagement. Optimal length: 6-13 slides per day.</p>
+
+  <div class="g2">
+    <div>
+      <p style="font-size:9px;letter-spacing:2px;text-transform:uppercase;color:var(--rose);font-weight:600;margin-bottom:8px;text-align:center">Daily Transit Story</p>
+      <div class="story-sim">
+        <div class="story-bars"><div class="story-bar active"></div><div class="story-bar active"></div><div class="story-bar"></div><div class="story-bar"></div></div>
+        <div class="story-top"><div class="story-ava-s">✦</div><div class="story-name-s">celestia.astro</div></div>
+        <div class="story-body" style="background:linear-gradient(180deg,#1E1B2E,rgba(193,127,89,.08))">
+          <div style="font-size:8px;letter-spacing:2px;color:var(--gold);opacity:.6">TODAY'S ENERGY ✦</div>
+          <div style="font-family:'Playfair Display',serif;font-size:18px;color:var(--cream);margin:10px 0;line-height:1.3">Feelings will flow easier today.</div>
+          <div style="font-size:10px;color:var(--dim);line-height:1.5;margin-bottom:14px">Venus trine Moon — conversations about emotions won't feel as scary as usual.</div>
+          <div style="background:rgba(193,127,89,.1);border-radius:10px;padding:10px;font-size:10px;color:var(--cream);margin-bottom:10px">POLL: Is there something you've been holding back?<br><div style="display:flex;gap:6px;margin-top:6px"><span style="flex:1;background:rgba(255,255,255,.08);border-radius:6px;padding:6px;text-align:center;font-size:9px">YES 😬</span><span style="flex:1;background:rgba(255,255,255,.08);border-radius:6px;padding:6px;text-align:center;font-size:9px">always 💀</span></div></div>
+          <div style="font-size:9px;color:var(--terra)">↑ Swipe up for your personal daily insight</div>
+        </div>
+      </div>
+    </div>
+
+    <div>
+      <div class="card" style="border-top:3px solid var(--rose)">
+        <div class="card-t" style="color:var(--rose)">6 Story Types — Rotating Daily</div>
+        <div style="font-size:12px;color:var(--dim);line-height:1.9">
+          <b style="color:var(--terra)">1. Daily Transit Energy</b> — Today's vibe + poll sticker. Posted every morning at 8am. The Instagram version of the daily push notification. Link sticker → website.<br>
+          <b style="color:var(--rose)">2. "This or That" Sign Quiz</b> — "Are you more [option A] or [option B]?" with the Quiz sticker. Engagement magnet. Posted 2x/week.<br>
+          <b style="color:var(--lav)">3. Chart Screenshot Share</b> — Repost a follower's chart screenshot with their permission. "Look at this chart 😳" → drives others to share theirs. Posted 2x/week.<br>
+          <b style="color:var(--gold)">4. Behind the AI</b> — Show the app in action. Screen recording of a real chat. "Someone asked us why they self-sabotage..." → builds curiosity. Posted 1x/week.<br>
+          <b style="color:var(--sage)">5. Countdown / Transit Alert</b> — "Mercury retrograde in 3 days ☿" with countdown sticker. Creates urgency. Posted before astrological events.<br>
+          <b style="color:var(--sky)">6. "Ask Celestia" Q&A</b> — Question box sticker: "Ask me anything about your chart ✦" → answer 5-8 in Stories. Massive engagement. Posted 1x/week.
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-t" style="color:var(--gold)">Interactive Sticker Strategy</div>
+        <div style="font-size:12px;color:var(--dim);line-height:1.8">
+          <b style="color:var(--cream)">Poll stickers:</b> "Are Scorpios emotionally unavailable? YES / they're just selective 🦂" → drives taps, boosts Story reach.<br>
+          <b style="color:var(--cream)">Quiz stickers:</b> "Which planet rules your love life?" → 4 options → reveals the answer → drives saves.<br>
+          <b style="color:var(--cream)">Question box:</b> "What's your burning astrology question?" → we answer publicly. Each answer = a Story slide = more content for free.<br>
+          <b style="color:var(--cream)">Countdown:</b> "Mercury retrograde starts..." → followers get notified when it arrives. Event-driven engagement.<br>
+          <b style="color:var(--cream)">Link sticker:</b> On EVERY Story sequence — "Get your chart →" pointing to hicelestia.com/ig. Subtle but always present.
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ═══════ 07 30-DAY CALENDAR ═══════ -->
+<section class="sec" id="calendar">
+  <div class="sec-head">
+    <div class="sec-num" style="background:var(--sage)">07</div>
+    <span class="sec-label" style="color:var(--sage)">Full 30-Day Content Calendar</span>
+    <div class="sec-line" style="background:var(--sage)"></div>
+  </div>
+
+  <p style="font-size:12px;color:var(--dim);margin-bottom:16px">7-8 feed posts per week (3 carousels + 3-4 Reels + 1 single image) + daily Stories. The calendar ensures format variety, sign coverage, and consistent posting while hitting the optimal content mix for engagement.</p>
+
+  <div class="card" style="overflow-x:auto">
+    <div class="card-t" style="color:var(--sage)">Week 1</div>
+    <table class="cal-table">
+      <tr><th>Day</th><th>Feed Post</th><th>Stories</th><th>Time</th></tr>
+      <tr><td>M1</td><td><span class="cal-type" style="color:var(--lav);background:rgba(155,142,196,.1)">CAROUSEL</span> <b>Virgo Sun Deep-Dive</b> (8 slides)</td><td>Daily transit + poll</td><td>12pm</td></tr>
+      <tr><td>T2</td><td><span class="cal-type" style="color:var(--sage);background:rgba(139,158,126,.1)">REEL</span> <b>Why You Keep Choosing Scorpios</b> (cross-post TT)</td><td>"This or That" quiz</td><td>7pm</td></tr>
+      <tr><td>W3</td><td><span class="cal-type" style="color:var(--lav);background:rgba(155,142,196,.1)">CAROUSEL</span> <b>Virgo + Scorpio Compatibility</b> (10 slides)</td><td>Repost follower chart</td><td>12pm</td></tr>
+      <tr><td>T4</td><td><span class="cal-type" style="color:var(--sage);background:rgba(139,158,126,.1)">REEL</span> <b>Moon Sign > Sun Sign Explainer</b></td><td>Daily transit + Q&A box</td><td>7pm</td></tr>
+      <tr><td>F5</td><td><span class="cal-type" style="color:var(--sage);background:rgba(139,158,126,.1)">REEL</span> <b>AI App Reveal — Self-Sabotage</b> (cross-post TT)</td><td>Behind the AI screen recording</td><td>8pm</td></tr>
+      <tr><td>S6</td><td><span class="cal-type" style="color:var(--lav);background:rgba(155,142,196,.1)">CAROUSEL</span> <b>Venus in Virgo: How You Love</b> (7 slides)</td><td>"Ask Celestia" Q&A</td><td>11am</td></tr>
+      <tr><td>S7</td><td><span class="cal-type" style="color:var(--terra);background:rgba(193,127,89,.1)">QUOTE</span> <b>"You show love by fixing things..."</b> (single image)</td><td>Weekly reflection prompt</td><td>6pm</td></tr>
+    </table>
+  </div>
+
+  <div class="card" style="overflow-x:auto">
+    <div class="card-t" style="color:var(--terra)">Week 2</div>
+    <table class="cal-table">
+      <tr><th>Day</th><th>Feed Post</th><th>Stories</th><th>Time</th></tr>
+      <tr><td>M8</td><td><span class="cal-type" style="color:var(--lav);background:rgba(155,142,196,.1)">CAROUSEL</span> <b>Scorpio Moon Deep-Dive</b> (8 slides)</td><td>Daily transit + poll</td><td>12pm</td></tr>
+      <tr><td>T9</td><td><span class="cal-type" style="color:var(--sage);background:rgba(139,158,126,.1)">REEL</span> <b>Signs Ranked by How Fast They Fall in Love</b></td><td>"This or That" — love edition</td><td>7pm</td></tr>
+      <tr><td>W10</td><td><span class="cal-type" style="color:var(--lav);background:rgba(155,142,196,.1)">CAROUSEL</span> <b>Aries + Libra Compatibility</b> (10 slides)</td><td>Transit countdown (if event near)</td><td>12pm</td></tr>
+      <tr><td>T11</td><td><span class="cal-type" style="color:var(--sage);background:rgba(139,158,126,.1)">REEL</span> <b>Your 7th House Decides Who You Date</b></td><td>Daily transit + Q&A box</td><td>7pm</td></tr>
+      <tr><td>F12</td><td><span class="cal-type" style="color:var(--sage);background:rgba(139,158,126,.1)">REEL</span> <b>AI Explained My Attachment Style</b></td><td>Behind the AI — attachment chat</td><td>8pm</td></tr>
+      <tr><td>S13</td><td><span class="cal-type" style="color:var(--lav);background:rgba(155,142,196,.1)">CAROUSEL</span> <b>How Each Sign Handles Being Left on Read</b> (7 slides)</td><td>"Ask Celestia" Q&A</td><td>11am</td></tr>
+      <tr><td>S14</td><td><span class="cal-type" style="color:var(--terra);background:rgba(193,127,89,.1)">QUOTE</span> <b>"Your Moon sign chose your attachment style"</b></td><td>Weekly reflection</td><td>6pm</td></tr>
+    </table>
+  </div>
+
+  <div class="card" style="overflow-x:auto">
+    <div class="card-t" style="color:var(--lav)">Week 3</div>
+    <table class="cal-table">
+      <tr><th>Day</th><th>Feed Post</th><th>Stories</th><th>Time</th></tr>
+      <tr><td>M15</td><td><span class="cal-type" style="color:var(--lav);background:rgba(155,142,196,.1)">CAROUSEL</span> <b>Leo Rising: What People See vs What You Feel</b></td><td>Daily transit + poll</td><td>12pm</td></tr>
+      <tr><td>T16</td><td><span class="cal-type" style="color:var(--sage);background:rgba(139,158,126,.1)">REEL</span> <b>Venus in Virgo Shows Love by Fixing Then Resenting</b></td><td>"This or That" — career edition</td><td>7pm</td></tr>
+      <tr><td>W17</td><td><span class="cal-type" style="color:var(--lav);background:rgba(155,142,196,.1)">CAROUSEL</span> <b>Cancer + Capricorn Compatibility</b></td><td>Repost follower charts (2-3)</td><td>12pm</td></tr>
+      <tr><td>T18</td><td><span class="cal-type" style="color:var(--sage);background:rgba(139,158,126,.1)">REEL</span> <b>The 12th House Nobody Talks About</b></td><td>Daily transit + Q&A box</td><td>7pm</td></tr>
+      <tr><td>F19</td><td><span class="cal-type" style="color:var(--sage);background:rgba(139,158,126,.1)">REEL</span> <b>AI Told Me Why I Can't Be Alone</b></td><td>Behind the AI — loneliness chat</td><td>8pm</td></tr>
+      <tr><td>S20</td><td><span class="cal-type" style="color:var(--lav);background:rgba(155,142,196,.1)">CAROUSEL</span> <b>Your Mars Sign = How You Handle Anger</b></td><td>"Ask Celestia" Q&A</td><td>11am</td></tr>
+      <tr><td>S21</td><td><span class="cal-type" style="color:var(--terra);background:rgba(193,127,89,.1)">QUOTE</span> <b>"Anger isn't dangerous. It's information."</b></td><td>Weekly reflection</td><td>6pm</td></tr>
+    </table>
+  </div>
+
+  <div class="card" style="overflow-x:auto">
+    <div class="card-t" style="color:var(--gold)">Week 4 + Days 29-30</div>
+    <table class="cal-table">
+      <tr><th>Day</th><th>Feed Post</th><th>Stories</th><th>Time</th></tr>
+      <tr><td>M22</td><td><span class="cal-type" style="color:var(--lav);background:rgba(155,142,196,.1)">CAROUSEL</span> <b>Mars in Cancer: The Quiet Volcano</b></td><td>Daily transit + poll</td><td>12pm</td></tr>
+      <tr><td>T23</td><td><span class="cal-type" style="color:var(--sage);background:rgba(139,158,126,.1)">REEL</span> <b>Signs Ranked by Emotional Walls</b></td><td>"This or That" — friendship edition</td><td>7pm</td></tr>
+      <tr><td>W24</td><td><span class="cal-type" style="color:var(--lav);background:rgba(155,142,196,.1)">CAROUSEL</span> <b>Gemini + Sagittarius Compatibility</b></td><td>Transit countdown for full moon</td><td>12pm</td></tr>
+      <tr><td>T25</td><td><span class="cal-type" style="color:var(--sage);background:rgba(139,158,126,.1)">REEL</span> <b>Saturn Return Explained in 30 Seconds</b></td><td>Daily transit + Q&A box</td><td>7pm</td></tr>
+      <tr><td>F26</td><td><span class="cal-type" style="color:var(--sage);background:rgba(139,158,126,.1)">REEL</span> <b>AI vs My Therapist — Same Question Different Answers</b></td><td>Behind the AI — therapy chat</td><td>8pm</td></tr>
+      <tr><td>S27</td><td><span class="cal-type" style="color:var(--lav);background:rgba(155,142,196,.1)">CAROUSEL</span> <b>Best Sign to Marry Per Sign</b> (ranking carousel)</td><td>"Ask Celestia" Q&A</td><td>11am</td></tr>
+      <tr><td>S28</td><td><span class="cal-type" style="color:var(--terra);background:rgba(193,127,89,.1)">QUOTE</span> <b>"Stop asking 'is he the one?' Ask 'what does my 7th house need?'"</b></td><td>Weekly reflection + month recap</td><td>6pm</td></tr>
+      <tr><td>M29</td><td><span class="cal-type" style="color:var(--lav);background:rgba(155,142,196,.1)">CAROUSEL</span> <b>Pisces Moon Deep-Dive</b></td><td>Daily transit</td><td>12pm</td></tr>
+      <tr><td>T30</td><td><span class="cal-type" style="color:var(--sage);background:rgba(139,158,126,.1)">REEL</span> <b>How Each Sign Says "I'm Fine" When They're NOT</b></td><td>"This or That" — finale edition</td><td>7pm</td></tr>
+    </table>
+  </div>
+
+  <div class="card">
+    <div class="card-t" style="color:var(--terra)">30-Day Summary Stats</div>
+    <div style="display:flex;flex-wrap:wrap;gap:8px">
+      <div style="padding:10px 16px;background:rgba(155,142,196,.05);border-radius:8px;text-align:center"><div style="font-size:18px;font-weight:700;color:var(--lav)">12</div><div style="font-size:9px;color:var(--muted)">Carousels</div></div>
+      <div style="padding:10px 16px;background:rgba(139,158,126,.05);border-radius:8px;text-align:center"><div style="font-size:18px;font-weight:700;color:var(--sage)">14</div><div style="font-size:9px;color:var(--muted)">Reels</div></div>
+      <div style="padding:10px 16px;background:rgba(193,127,89,.05);border-radius:8px;text-align:center"><div style="font-size:18px;font-weight:700;color:var(--terra)">4</div><div style="font-size:9px;color:var(--muted)">Quote Images</div></div>
+      <div style="padding:10px 16px;background:rgba(196,145,138,.05);border-radius:8px;text-align:center"><div style="font-size:18px;font-weight:700;color:var(--rose)">30</div><div style="font-size:9px;color:var(--muted)">Story Days</div></div>
+      <div style="padding:10px 16px;background:rgba(212,168,83,.05);border-radius:8px;text-align:center"><div style="font-size:18px;font-weight:700;color:var(--gold)">4</div><div style="font-size:9px;color:var(--muted)">Compatibility Pairs</div></div>
+      <div style="padding:10px 16px;background:rgba(155,142,196,.05);border-radius:8px;text-align:center"><div style="font-size:18px;font-weight:700;color:var(--lav)">6</div><div style="font-size:9px;color:var(--muted)">Signs Deep-Dived</div></div>
+    </div>
+  </div>
+</section>
+
+<!-- ═══════ 08 RULES ═══════ -->
+<section class="sec" id="rules">
+  <div class="sec-head">
+    <div class="sec-num" style="background:var(--terra)">08</div>
+    <span class="sec-label" style="color:var(--terra)">Non-Negotiable Rules</span>
+    <div class="sec-line" style="background:var(--terra)"></div>
+  </div>
+
+  <div class="g2">
+    <div class="card" style="border-left:3px solid var(--sage)">
+      <div class="card-t" style="color:var(--sage)">Always</div>
+      <div style="font-size:12px;color:var(--dim);line-height:1.9">
+        ✓ <b style="color:var(--cream)">Carousels 3x/week minimum</b> — they drive saves, the #1 engagement signal<br>
+        ✓ <b style="color:var(--cream)">Reels 3-4x/week</b> — they drive discovery from non-followers<br>
+        ✓ <b style="color:var(--cream)">Stories DAILY</b> — even just the transit energy + a poll<br>
+        ✓ <b style="color:var(--cream)">Custom Reel thumbnails</b> — keep the grid cohesive<br>
+        ✓ <b style="color:var(--cream)">Celestia ✦ watermark on every carousel slide</b><br>
+        ✓ <b style="color:var(--cream)">Desert Dawn palette consistently</b> — warm tones, clean type<br>
+        ✓ <b style="color:var(--cream)">Every post has a CTA</b> — save, share, tag, link in bio, or comment<br>
+        ✓ <b style="color:var(--cream)">Keywords in captions</b> — IG SEO > hashtags in 2026<br>
+        ✓ <b style="color:var(--cream)">Design every slide to be screenshot-worthy standalone</b><br>
+        ✓ <b style="color:var(--cream)">Remove TikTok watermarks before cross-posting Reels</b>
+      </div>
+    </div>
+    <div class="card" style="border-left:3px solid #D4605A">
+      <div class="card-t" style="color:#D4605A">Never</div>
+      <div style="font-size:12px;color:var(--dim);line-height:1.9">
+        ✗ <b style="color:var(--cream)">Post Reels with TikTok watermark</b> — Instagram deprioritizes them<br>
+        ✗ <b style="color:var(--cream)">Skip Stories for more than 1 day</b> — breaks the daily connection<br>
+        ✗ <b style="color:var(--cream)">Use more than 5 hashtags</b> — hashtag stuffing hurts in 2026. Use keywords instead.<br>
+        ✗ <b style="color:var(--cream)">Post carousels with walls of text</b> — one idea per slide, max 40 words<br>
+        ✗ <b style="color:var(--cream)">Let Instagram auto-select Reel thumbnails</b> — always custom<br>
+        ✗ <b style="color:var(--cream)">Post generic zodiac memes</b> — Celestia's content is warm and specific, not recycled meme templates<br>
+        ✗ <b style="color:var(--cream)">Ignore DMs</b> — DM engagement drives the algorithm. Reply to every message.<br>
+        ✗ <b style="color:var(--cream)">Break the visual grid pattern</b> — consistency builds brand recognition at the profile level
+      </div>
+    </div>
+  </div>
+
+  <div style="background:linear-gradient(135deg,var(--rose),#A8706A);border-radius:18px;padding:32px;margin-top:16px">
+    <p style="font-size:9px;letter-spacing:3px;text-transform:uppercase;opacity:.6;margin-bottom:12px">The Instagram Quality Test</p>
+    <p style="font-family:'Playfair Display',serif;font-size:clamp(15px,2.5vw,19px);font-style:italic;line-height:1.5">"If she doesn't save the carousel — the insight wasn't specific enough. If she doesn't share the Reel — it wasn't relatable enough to send to a friend. If she doesn't respond to the Story poll — the question wasn't personal enough. Instagram success = saves + shares + DMs. Not likes."</p>
+  </div>
+</section>
+
+<footer class="footer">
+  <p>TikTok is where she discovers us. Instagram is where she makes us part of her identity.</p>
+  <div class="brand">Celestia · Instagram Playbook · 2026</div>
+</footer>
+
+</div>
+
+<script>
+const secs=document.querySelectorAll('.sec');
+const navs=document.querySelectorAll('.topnav a');
+const obs=new IntersectionObserver(entries=>{entries.forEach(e=>{if(e.isIntersecting){navs.forEach(n=>n.classList.remove('active'));const a=document.querySelector(`.topnav a[href="#${e.target.id}"]`);if(a)a.classList.add('active')}})},{threshold:.15});
+secs.forEach(s=>obs.observe(s));
+</script>
+</body>
+</html>

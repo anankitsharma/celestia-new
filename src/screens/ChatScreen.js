@@ -587,13 +587,7 @@ export default function ChatScreen({ navigation, route }) {
             <Text style={[styles.newChatBtnText, { color: colors.text }]}>New Chat</Text>
           </TouchableOpacity>
         </View>
-        {ctxChips.length > 0 && (
-          <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.ctxBar}>
-            {ctxChips.map((c, i) => (
-              <View key={i} style={[styles.ctxChip, { backgroundColor: colors.cardAlt }]}><Text style={[styles.ctxChipText, { color: colors.textSecondary }]}>{c}</Text></View>
-            ))}
-          </ScrollView>
-        )}
+        {/* Context chips removed — Mia knows her Big 3, the AI knows it too */}
       </View>
 
       {/* Theme selector — only shown at start of conversation */}

@@ -1,0 +1,793 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Celestia — The Complete Experience (Not Features, Feelings)</title>
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,300;0,400;0,500;0,600;0,700;1,400;1,500&family=DM+Sans:ital,wght@0,300;0,400;0,500;0,600;0,700;1,400&display=swap" rel="stylesheet">
+<style>
+:root{--bg:#0F0D1A;--card:#1A1726;--card2:#211E2E;--terra:#C17F59;--gold:#D4A853;--sage:#8B9E7E;--rose:#C4918A;--lav:#9B8EC4;--sky:#7BA7C4;--cream:#F5EDE3;--muted:#6B6880;--border:rgba(255,255,255,0.06);--text:rgba(255,255,255,0.78);--dim:rgba(255,255,255,0.45)}
+*{margin:0;padding:0;box-sizing:border-box}
+body{background:var(--bg);color:var(--cream);font-family:'DM Sans',sans-serif;-webkit-font-smoothing:antialiased;line-height:1.65}
+.wrap{max-width:880px;margin:0 auto;padding:0 24px}
+.topnav{position:sticky;top:0;z-index:100;background:rgba(15,13,26,.92);backdrop-filter:blur(16px);border-bottom:1px solid var(--border);overflow-x:auto}
+.topnav::-webkit-scrollbar{display:none}
+.topnav-inner{display:flex;max-width:880px;margin:0 auto;min-width:max-content}
+.topnav a{padding:11px 14px;font-size:9px;letter-spacing:1.5px;text-transform:uppercase;color:var(--muted);text-decoration:none;white-space:nowrap;border-bottom:2px solid transparent;transition:.3s}
+.topnav a:hover,.topnav a.active{color:var(--terra);border-bottom-color:var(--terra)}
+.hero{text-align:center;padding:52px 20px 36px;position:relative}
+.hero::before{content:'';position:absolute;top:-120px;left:50%;transform:translateX(-50%);width:600px;height:600px;background:radial-gradient(circle,rgba(193,127,89,.07) 0%,transparent 65%);pointer-events:none}
+.htag{font-size:9px;letter-spacing:5px;text-transform:uppercase;color:var(--gold);opacity:.6;margin-bottom:14px}
+.hero h1{font-family:'Playfair Display',serif;font-size:clamp(24px,5vw,40px);font-weight:300;line-height:1.2;margin-bottom:10px}
+.hero h1 b{font-weight:600;color:var(--terra)}
+.hero .sub{font-size:13.5px;color:var(--dim);max-width:580px;margin:0 auto}
+.sec{padding:44px 0 16px}
+.sec-head{display:flex;align-items:center;gap:12px;margin-bottom:24px}
+.sec-num{width:32px;height:32px;border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;color:white;flex-shrink:0}
+.sec-label{font-size:9.5px;letter-spacing:3px;text-transform:uppercase;font-weight:600}
+.sec-line{flex:1;height:1px;opacity:.15}
+.card{background:var(--card);border:1px solid var(--border);border-radius:14px;padding:22px;margin-bottom:12px}
+.card-t{font-size:9px;letter-spacing:2.5px;text-transform:uppercase;font-weight:600;margin-bottom:14px}
+.g2{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.g3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px}
+.mia{display:flex;gap:14px;align-items:flex-start;background:var(--card2);border:1px solid var(--border);border-radius:14px;padding:18px;margin-bottom:12px}
+.mia-ava{width:38px;height:38px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:15px;flex-shrink:0;border:2px solid var(--terra);background:rgba(193,127,89,.08)}
+.mia-txt{flex:1}
+.mia-label{font-size:8px;letter-spacing:2px;font-weight:700;text-transform:uppercase;color:var(--terra);margin-bottom:3px}
+.mia-q{font-family:'Playfair Display',serif;font-style:italic;font-size:13.5px;color:var(--cream);line-height:1.5}
+.mia-ctx{font-size:10px;color:var(--muted);margin-top:3px}
+
+/* Phone frame sim */
+.phone{background:#1c1c1e;border-radius:28px;max-width:320px;margin:0 auto 14px;overflow:hidden;border:2px solid rgba(255,255,255,.08);box-shadow:0 16px 60px rgba(0,0,0,.6)}
+.phone-status{display:flex;justify-content:space-between;padding:8px 18px 2px;font-size:9px;color:rgba(255,255,255,.4)}
+.phone-screen{padding:0}
+.phone-nav{display:flex;border-top:1px solid rgba(255,255,255,.06);background:rgba(15,13,26,.95)}
+.phone-nav-item{flex:1;padding:10px 4px 12px;text-align:center;font-size:7px;letter-spacing:.5px;color:var(--muted)}
+.phone-nav-item.active{color:var(--terra)}
+.phone-nav-icon{font-size:16px;margin-bottom:2px}
+
+/* Flow connector */
+.flow-v{position:relative;padding-left:32px}
+.flow-v::before{content:'';position:absolute;left:14px;top:0;bottom:0;width:2px;opacity:.15}
+.fv-step{position:relative;margin-bottom:0;padding-bottom:24px}
+.fv-step:last-child{padding-bottom:0}
+.fv-dot{position:absolute;left:-32px;top:4px;width:28px;height:28px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:13px;border:2px solid;background:var(--bg);z-index:1}
+.fv-time{font-size:9px;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;margin-bottom:3px}
+.fv-title{font-size:14px;font-weight:600;margin-bottom:4px;line-height:1.3}
+.fv-desc{font-size:12px;color:var(--dim);line-height:1.6}
+.fv-bridge{display:inline-flex;align-items:center;gap:6px;margin-top:8px;font-size:10.5px;font-weight:600;padding:5px 12px;border-radius:8px;border:1px dashed}
+
+/* Bridge map */
+.bridge-card{background:var(--card);border:1px solid var(--border);border-radius:12px;padding:16px;text-align:center;position:relative}
+.bridge-from{font-size:11px;font-weight:700;margin-bottom:4px}
+.bridge-arrow{font-size:14px;color:var(--muted);margin:4px 0}
+.bridge-to{font-size:11px;font-weight:700;margin-bottom:6px}
+.bridge-how{font-size:10px;color:var(--dim);line-height:1.4;font-style:italic}
+
+/* Connection diagram */
+.conn-center{text-align:center;position:relative;padding:40px 0}
+.conn-hub{width:90px;height:90px;border-radius:50%;display:flex;align-items:center;justify-content:center;margin:0 auto;font-size:14px;font-weight:700;position:relative;z-index:2}
+.conn-nodes{position:relative;max-width:500px;margin:0 auto;min-height:300px}
+.conn-node{position:absolute;width:100px;text-align:center}
+.conn-node-dot{width:48px;height:48px;border-radius:50%;display:flex;align-items:center;justify-content:center;margin:0 auto 4px;font-size:18px;border:2px solid}
+.conn-node-label{font-size:9px;font-weight:600;letter-spacing:.5px}
+
+/* Emotion states */
+.emotion-card{background:var(--card);border:1px solid var(--border);border-radius:12px;padding:18px;position:relative;overflow:hidden}
+.emotion-card::before{content:'';position:absolute;top:0;left:0;width:3px;height:100%}
+.emotion-emoji{font-size:24px;margin-bottom:6px}
+.emotion-state{font-size:13px;font-weight:700;margin-bottom:2px}
+.emotion-detect{font-size:10px;color:var(--muted);margin-bottom:8px;font-style:italic}
+.emotion-response{font-size:11.5px;color:var(--dim);line-height:1.6}
+.emotion-features{margin-top:8px;display:flex;flex-wrap:wrap;gap:4px}
+.emotion-feat{font-size:9px;padding:3px 8px;border-radius:5px;font-weight:600}
+
+.footer{text-align:center;padding:28px;border-top:1px solid var(--border)}
+.footer p{font-size:12px;color:var(--muted);font-style:italic}
+.footer .brand{font-size:9px;letter-spacing:4px;color:var(--gold);opacity:.4;margin-top:8px;text-transform:uppercase}
+@media(max-width:700px){.g2,.g3{grid-template-columns:1fr}.phone{max-width:100%}.mia{flex-direction:column;text-align:center;align-items:center}}
+</style>
+</head>
+<body>
+
+<nav class="topnav"><div class="topnav-inner">
+  <a href="#philosophy">Philosophy</a>
+  <a href="#home">Home Screen</a>
+  <a href="#bridges">Bridge Map</a>
+  <a href="#day">Full Day</a>
+  <a href="#week">Full Week</a>
+  <a href="#emotion">Emotion Engine</a>
+  <a href="#memory">Memory Layer</a>
+  <a href="#funnel">Invisible Funnel</a>
+</div></nav>
+
+<div class="wrap">
+
+<section class="hero">
+  <div class="htag">✦ Celestia — Master Experience Document ✦</div>
+  <h1>Not Features. <b>Feelings.</b></h1>
+  <p class="sub">This document is the connective tissue. It defines how Chart, Chat, Daily Insights, Compatibility, Reports, and Weekly Transit flow into each other so seamlessly that Mia never thinks "where do I go?" — she just follows her curiosity and the app anticipates what she needs next.</p>
+</section>
+
+<!-- ═══════ 01 PHILOSOPHY ═══════ -->
+<section class="sec" id="philosophy">
+  <div class="sec-head">
+    <div class="sec-num" style="background:var(--terra)">01</div>
+    <span class="sec-label" style="color:var(--terra)">The Core Principle — She Never "Navigates"</span>
+    <div class="sec-line" style="background:var(--terra)"></div>
+  </div>
+
+  <div class="g2">
+    <div class="card" style="border-left:3px solid #D4605A">
+      <div class="card-t" style="color:#D4605A">❌ What a "Features App" Feels Like</div>
+      <p style="font-size:12.5px;color:var(--dim);line-height:1.7">She opens the app. Sees 5 tabs at the bottom: Home, Chart, Chat, Compatibility, Profile. She thinks "where should I go?" She taps Chart. Reads something. Wants to ask a question about it. Goes back. Taps Chat. Re-explains what she was looking at. Gets an answer. Wants to check compatibility. Goes back. Taps Compatibility. Re-enters data. Every feature is an island. She's the ferry between them. It feels like using a tool. She stops coming back after a week.</p>
+    </div>
+    <div class="card" style="border-left:3px solid #6BBF7A">
+      <div class="card-t" style="color:#6BBF7A">✅ What an "Experience" Feels Like</div>
+      <p style="font-size:12.5px;color:var(--dim);line-height:1.7">She opens the app. Today's insight is there. She reads it. Below it: "Ask Celestia about this →" — she taps, the chat opens with today's transit already loaded. She asks about the guy. Celestia mentions her Venus. "Want to see your Venus placement? →" — she taps, her chart scrolls to Venus. She reads it. "Check compatibility with him? →" — she taps, enters his birthday, sees the result. "Get the full deep-dive →" — $9.99. She never left one continuous flow. She never "navigated." She just followed her curiosity.</p>
+    </div>
+  </div>
+
+  <div class="card" style="border-top:3px solid var(--terra)">
+    <p style="font-family:'Playfair Display',serif;font-size:18px;line-height:1.5;text-align:center;padding:8px 0"><b style="color:var(--terra)">The rule:</b> every screen has at least one <em>bridge</em> to another screen. She never hits a dead end. She never has to think "what do I do now?" The next step is always visible, always relevant, always one tap away.</p>
+  </div>
+
+  <div class="mia">
+    <div class="mia-ava">✨</div>
+    <div class="mia-txt">
+      <div class="mia-label">What the seamless experience feels like to Mia</div>
+      <div class="mia-q">"I opened the app to check my daily insight. Twenty minutes later I've read about my Venus, asked the AI why I self-sabotage, checked compatibility with the new guy, and I'm buying the full report. I didn't plan any of that. It just... happened."</div>
+      <div class="mia-ctx">This is the product working. One thing leads to the next. Curiosity is the navigation.</div>
+    </div>
+  </div>
+</section>
+
+<!-- ═══════ 02 HOME SCREEN ═══════ -->
+<section class="sec" id="home">
+  <div class="sec-head">
+    <div class="sec-num" style="background:var(--gold)">02</div>
+    <span class="sec-label" style="color:var(--gold)">The Home Screen — A Living Page, Not a Dashboard</span>
+    <div class="sec-line" style="background:var(--gold)"></div>
+  </div>
+
+  <p style="font-size:12px;color:var(--dim);margin-bottom:18px">The home screen is NOT a menu with 6 feature tiles. It's a vertical scroll that feels like opening a letter from a friend — today's insight at the top, gentle doorways to deeper exploration below, all changing based on time of day and what's happening in her chart right now.</p>
+
+  <div class="g2">
+    <!-- Phone sim - morning -->
+    <div>
+      <p style="font-size:9px;letter-spacing:2px;text-transform:uppercase;color:var(--gold);font-weight:600;margin-bottom:8px;text-align:center">Morning Home Screen (7:30am)</p>
+      <div class="phone">
+        <div class="phone-status"><span>7:32 AM</span><span>☀️ 73°</span></div>
+        <div class="phone-screen">
+          <!-- Daily insight hero -->
+          <div style="padding:20px 18px 14px;background:linear-gradient(180deg,rgba(193,127,89,.06),transparent)">
+            <div style="font-size:9px;color:var(--muted);letter-spacing:1px;margin-bottom:4px">TUESDAY, MARCH 19</div>
+            <div style="font-family:'Playfair Display',serif;font-size:17px;color:var(--cream);margin-bottom:10px">Good morning, Mia ✦</div>
+            <div style="font-size:9px;color:var(--terra);letter-spacing:1px;margin-bottom:6px">♀ VENUS TRINE NATAL MOON</div>
+            <div style="font-family:'Playfair Display',serif;font-size:14px;color:var(--cream);margin-bottom:8px">Feelings will flow easier today.</div>
+            <div style="font-size:10px;color:var(--dim);line-height:1.5;margin-bottom:10px">Your emotional guard drops a notch today — in a good way. If you've been holding something back from someone, today's the day to say it.</div>
+            <!-- 3 area pills -->
+            <div style="display:flex;gap:6px;margin-bottom:12px">
+              <div style="flex:1;background:rgba(196,145,138,.08);border-radius:8px;padding:6px;text-align:center"><div style="font-size:10px">💕</div><div style="font-size:8px;color:var(--rose)">Open</div></div>
+              <div style="flex:1;background:rgba(212,168,83,.08);border-radius:8px;padding:6px;text-align:center"><div style="font-size:10px">💼</div><div style="font-size:8px;color:var(--gold)">Steady</div></div>
+              <div style="flex:1;background:rgba(139,158,126,.08);border-radius:8px;padding:6px;text-align:center"><div style="font-size:10px">🔋</div><div style="font-size:8px;color:var(--sage)">Medium</div></div>
+            </div>
+            <!-- Bridge to chat -->
+            <div style="background:rgba(193,127,89,.06);border:1px solid rgba(193,127,89,.1);border-radius:10px;padding:10px 14px;display:flex;align-items:center;gap:8px;margin-bottom:10px">
+              <span style="font-size:14px">💬</span>
+              <span style="font-size:11px;color:var(--terra)">Ask Celestia about today's energy →</span>
+            </div>
+          </div>
+          <!-- Doorway cards -->
+          <div style="padding:0 18px 14px">
+            <div style="font-size:8px;color:var(--muted);letter-spacing:2px;margin-bottom:8px">EXPLORE</div>
+            <div style="display:flex;gap:8px">
+              <div style="flex:1;background:var(--card);border:1px solid var(--border);border-radius:10px;padding:10px;text-align:center"><div style="font-size:16px;margin-bottom:2px">🌙</div><div style="font-size:9px;color:var(--lav)">My Chart</div></div>
+              <div style="flex:1;background:var(--card);border:1px solid var(--border);border-radius:10px;padding:10px;text-align:center"><div style="font-size:16px;margin-bottom:2px">💕</div><div style="font-size:9px;color:var(--rose)">Compatibility</div></div>
+              <div style="flex:1;background:var(--card);border:1px solid var(--border);border-radius:10px;padding:10px;text-align:center;opacity:.6"><div style="font-size:16px;margin-bottom:2px">📋</div><div style="font-size:9px;color:var(--gold)">This Week</div><div style="font-size:7px;color:var(--terra)">Premium</div></div>
+            </div>
+          </div>
+        </div>
+        <div class="phone-nav">
+          <div class="phone-nav-item active"><div class="phone-nav-icon">✦</div>Today</div>
+          <div class="phone-nav-item"><div class="phone-nav-icon">🌙</div>Chart</div>
+          <div class="phone-nav-item"><div class="phone-nav-icon">💬</div>Chat</div>
+          <div class="phone-nav-item"><div class="phone-nav-icon">💕</div>Match</div>
+          <div class="phone-nav-item"><div class="phone-nav-icon">👤</div>Me</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Phone sim - night -->
+    <div>
+      <p style="font-size:9px;letter-spacing:2px;text-transform:uppercase;color:var(--lav);font-weight:600;margin-bottom:8px;text-align:center">Night Home Screen (10:30pm)</p>
+      <div class="phone">
+        <div class="phone-status"><span>10:32 PM</span><span>🌙 65°</span></div>
+        <div class="phone-screen">
+          <div style="padding:20px 18px 14px;background:linear-gradient(180deg,rgba(155,142,196,.06),transparent)">
+            <div style="font-size:9px;color:var(--muted);letter-spacing:1px;margin-bottom:4px">TONIGHT</div>
+            <div style="font-family:'Playfair Display',serif;font-size:17px;color:var(--cream);margin-bottom:10px">Evening check-in, Mia ✦</div>
+            <div style="font-size:10px;color:var(--dim);line-height:1.5;margin-bottom:12px">The Moon just moved into your 12th house. You might feel more introspective than usual tonight. That's not loneliness — it's your chart asking for quiet processing time.</div>
+            <!-- Contextual prompts based on time -->
+            <div style="font-size:8px;color:var(--muted);letter-spacing:1.5px;margin-bottom:8px">WHAT'S ON YOUR MIND?</div>
+            <div style="background:rgba(193,127,89,.06);border:1px solid rgba(193,127,89,.1);border-radius:10px;padding:9px 14px;margin-bottom:6px;font-size:10.5px;color:var(--terra)">Why do I keep attracting the same type? →</div>
+            <div style="background:rgba(196,145,138,.06);border:1px solid rgba(196,145,138,.1);border-radius:10px;padding:9px 14px;margin-bottom:6px;font-size:10.5px;color:var(--rose)">Check compatibility with someone →</div>
+            <div style="background:rgba(155,142,196,.06);border:1px solid rgba(155,142,196,.1);border-radius:10px;padding:9px 14px;margin-bottom:6px;font-size:10.5px;color:var(--lav)">Why am I feeling off tonight? →</div>
+          </div>
+          <!-- Recent activity -->
+          <div style="padding:0 18px 14px">
+            <div style="font-size:8px;color:var(--muted);letter-spacing:2px;margin-bottom:8px">RECENT</div>
+            <div style="background:var(--card);border:1px solid var(--border);border-radius:10px;padding:10px 14px;margin-bottom:6px;display:flex;align-items:center;gap:10px">
+              <span style="font-size:14px">💕</span>
+              <div><div style="font-size:10px;font-weight:600">You + Jake</div><div style="font-size:9px;color:var(--muted)">78% match · Checked 2 days ago</div></div>
+              <span style="font-size:10px;color:var(--terra);margin-left:auto">View →</span>
+            </div>
+          </div>
+        </div>
+        <div class="phone-nav">
+          <div class="phone-nav-item active"><div class="phone-nav-icon">✦</div>Today</div>
+          <div class="phone-nav-item"><div class="phone-nav-icon">🌙</div>Chart</div>
+          <div class="phone-nav-item"><div class="phone-nav-icon">💬</div>Chat</div>
+          <div class="phone-nav-item"><div class="phone-nav-icon">💕</div>Match</div>
+          <div class="phone-nav-item"><div class="phone-nav-icon">👤</div>Me</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="card" style="margin-top:14px">
+    <div class="card-t" style="color:var(--gold)">The Home Screen Changes Based on Context</div>
+    <div class="g3">
+      <div style="font-size:12px;color:var(--dim);line-height:1.7">
+        <b style="color:var(--cream)">Time of Day</b><br>
+        Morning (7-10am): Daily insight hero. Bright energy. "Today's theme" focus.<br>
+        Afternoon (12-5pm): Lighter. Quick prompts. "Quick check-in" energy.<br>
+        Evening (8pm+): Deeper, reflective. Moon transit mention. Longer prompts. This is when she goes deep.
+      </div>
+      <div style="font-size:12px;color:var(--dim);line-height:1.7">
+        <b style="color:var(--cream)">Day of Week</b><br>
+        Monday: Weekly Transit Report replaces daily as the hero card (Premium) or blurred preview (Free).<br>
+        Sunday: Week reflection card. "Here's what you learned this week."<br>
+        Other days: Standard daily insight.
+      </div>
+      <div style="font-size:12px;color:var(--dim);line-height:1.7">
+        <b style="color:var(--cream)">Astrological Events</b><br>
+        Mercury Rx: Special banner across the top. "Mercury Retrograde is active — here's what it means for you."<br>
+        Full Moon: Hero card becomes full moon insight. Bigger, more emotional.<br>
+        Her Birthday: Solar Return takeover. "Happy birthday, Mia ✦"
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ═══════ 03 BRIDGE MAP ═══════ -->
+<section class="sec" id="bridges">
+  <div class="sec-head">
+    <div class="sec-num" style="background:var(--sage)">03</div>
+    <span class="sec-label" style="color:var(--sage)">The Bridge Map — How Everything Connects</span>
+    <div class="sec-line" style="background:var(--sage)"></div>
+  </div>
+
+  <p style="font-size:12px;color:var(--dim);margin-bottom:18px">A "bridge" is a contextual link from one feature to another that appears at the natural moment she'd want it. Not a tab switch. Not a menu click. A gentle "want to go deeper? →" that appears when her curiosity peaks. Every feature connects to at least 3 others.</p>
+
+  <div class="card">
+    <div class="card-t" style="color:var(--sage)">Every Feature → Every Other Feature</div>
+
+    <!-- Central connection diagram described as text for clarity -->
+    <div style="text-align:center;padding:20px 0;margin-bottom:16px">
+      <svg width="100%" height="300" viewBox="0 0 500 300" style="max-width:500px">
+        <!-- Center hub -->
+        <circle cx="250" cy="150" r="35" fill="rgba(193,127,89,.1)" stroke="var(--terra)" stroke-width="2"/>
+        <text x="250" y="146" text-anchor="middle" fill="var(--terra)" font-size="10" font-weight="700">MIA'S</text>
+        <text x="250" y="160" text-anchor="middle" fill="var(--terra)" font-size="10" font-weight="700">CURIOSITY</text>
+
+        <!-- Nodes -->
+        <circle cx="250" cy="30" r="28" fill="rgba(212,168,83,.1)" stroke="var(--gold)" stroke-width="1.5"/>
+        <text x="250" y="28" text-anchor="middle" fill="var(--gold)" font-size="9" font-weight="600">Daily</text>
+        <text x="250" y="40" text-anchor="middle" fill="var(--gold)" font-size="8">Insight</text>
+
+        <circle cx="420" cy="80" r="28" fill="rgba(193,127,89,.1)" stroke="var(--terra)" stroke-width="1.5"/>
+        <text x="420" y="78" text-anchor="middle" fill="var(--terra)" font-size="9" font-weight="600">AI</text>
+        <text x="420" y="90" text-anchor="middle" fill="var(--terra)" font-size="8">Chat</text>
+
+        <circle cx="430" cy="210" r="28" fill="rgba(155,142,196,.1)" stroke="var(--lav)" stroke-width="1.5"/>
+        <text x="430" y="208" text-anchor="middle" fill="var(--lav)" font-size="9" font-weight="600">My</text>
+        <text x="430" y="220" text-anchor="middle" fill="var(--lav)" font-size="8">Chart</text>
+
+        <circle cx="310" cy="280" r="28" fill="rgba(196,145,138,.1)" stroke="var(--rose)" stroke-width="1.5"/>
+        <text x="310" y="278" text-anchor="middle" fill="var(--rose)" font-size="9" font-weight="600">Compat</text>
+        <text x="310" y="290" text-anchor="middle" fill="var(--rose)" font-size="8">-ibility</text>
+
+        <circle cx="190" cy="280" r="28" fill="rgba(123,167,196,.1)" stroke="var(--sky)" stroke-width="1.5"/>
+        <text x="190" y="278" text-anchor="middle" fill="var(--sky)" font-size="9" font-weight="600">Reports</text>
+        <text x="190" y="290" text-anchor="middle" fill="var(--sky)" font-size="8">($9.99)</text>
+
+        <circle cx="70" cy="210" r="28" fill="rgba(139,158,126,.1)" stroke="var(--sage)" stroke-width="1.5"/>
+        <text x="70" y="208" text-anchor="middle" fill="var(--sage)" font-size="9" font-weight="600">Weekly</text>
+        <text x="70" y="220" text-anchor="middle" fill="var(--sage)" font-size="8">Transit</text>
+
+        <circle cx="80" cy="80" r="28" fill="rgba(193,127,89,.1)" stroke="var(--terra)" stroke-width="1.5"/>
+        <text x="80" y="78" text-anchor="middle" fill="var(--terra)" font-size="9" font-weight="600">Share</text>
+        <text x="80" y="90" text-anchor="middle" fill="var(--terra)" font-size="8">/ Viral</text>
+
+        <!-- Connection lines to center -->
+        <line x1="250" y1="58" x2="250" y2="115" stroke="var(--gold)" stroke-width="1" opacity=".2"/>
+        <line x1="395" y1="95" x2="280" y2="135" stroke="var(--terra)" stroke-width="1" opacity=".2"/>
+        <line x1="405" y1="195" x2="280" y2="160" stroke="var(--lav)" stroke-width="1" opacity=".2"/>
+        <line x1="290" y1="260" x2="265" y2="175" stroke="var(--rose)" stroke-width="1" opacity=".2"/>
+        <line x1="200" y1="255" x2="240" y2="175" stroke="var(--sky)" stroke-width="1" opacity=".2"/>
+        <line x1="90" y1="195" x2="220" y2="160" stroke="var(--sage)" stroke-width="1" opacity=".2"/>
+        <line x1="100" y1="95" x2="220" y2="135" stroke="var(--terra)" stroke-width="1" opacity=".2"/>
+
+        <!-- Cross connections (feature to feature) -->
+        <line x1="270" y1="55" x2="395" y2="70" stroke="rgba(255,255,255,.05)" stroke-width="1" stroke-dasharray="3 3"/>
+        <line x1="420" y1="108" x2="425" y2="182" stroke="rgba(255,255,255,.05)" stroke-width="1" stroke-dasharray="3 3"/>
+        <line x1="405" y1="230" x2="335" y2="265" stroke="rgba(255,255,255,.05)" stroke-width="1" stroke-dasharray="3 3"/>
+        <line x1="165" y1="275" x2="95" y2="235" stroke="rgba(255,255,255,.05)" stroke-width="1" stroke-dasharray="3 3"/>
+        <line x1="280" y1="260" x2="210" y2="270" stroke="rgba(255,255,255,.05)" stroke-width="1" stroke-dasharray="3 3"/>
+      </svg>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-t" style="color:var(--terra)">Every Bridge — The Complete Connection List</div>
+    <div class="g3">
+      <div class="bridge-card" style="border-top:2px solid var(--gold)">
+        <div class="bridge-from" style="color:var(--gold)">Daily Insight</div>
+        <div class="bridge-arrow">↓</div>
+        <div class="bridge-to" style="color:var(--terra)">Chat</div>
+        <div class="bridge-how">"Ask Celestia about today's transit →" — opens chat with today's context pre-loaded</div>
+      </div>
+      <div class="bridge-card" style="border-top:2px solid var(--terra)">
+        <div class="bridge-from" style="color:var(--terra)">Chat</div>
+        <div class="bridge-arrow">↓</div>
+        <div class="bridge-to" style="color:var(--lav)">Chart</div>
+        <div class="bridge-how">AI mentions a placement → "See your Venus in your chart →" — scrolls chart to Venus</div>
+      </div>
+      <div class="bridge-card" style="border-top:2px solid var(--lav)">
+        <div class="bridge-from" style="color:var(--lav)">Chart</div>
+        <div class="bridge-arrow">↓</div>
+        <div class="bridge-to" style="color:var(--terra)">Chat</div>
+        <div class="bridge-how">After reading a planet → "Ask Celestia about your Venus →" — chat pre-filled with placement</div>
+      </div>
+      <div class="bridge-card" style="border-top:2px solid var(--terra)">
+        <div class="bridge-from" style="color:var(--terra)">Chat (about a guy)</div>
+        <div class="bridge-arrow">↓</div>
+        <div class="bridge-to" style="color:var(--rose)">Compatibility</div>
+        <div class="bridge-how">"Want to check compatibility? Enter his birthday →" — appears when she mentions someone</div>
+      </div>
+      <div class="bridge-card" style="border-top:2px solid var(--rose)">
+        <div class="bridge-from" style="color:var(--rose)">Compatibility</div>
+        <div class="bridge-arrow">↓</div>
+        <div class="bridge-to" style="color:var(--sky)">Report ($9.99)</div>
+        <div class="bridge-how">Blurred sections → "Unlock full report →" — one-tap purchase at the moment of peak curiosity</div>
+      </div>
+      <div class="bridge-card" style="border-top:2px solid var(--sage)">
+        <div class="bridge-from" style="color:var(--sage)">Weekly Transit</div>
+        <div class="bridge-arrow">↓</div>
+        <div class="bridge-to" style="color:var(--rose)">Compatibility</div>
+        <div class="bridge-how">"Venus enters your 7th house this week — check compatibility? →"</div>
+      </div>
+    </div>
+
+    <div class="g3" style="margin-top:10px">
+      <div class="bridge-card" style="border-top:2px solid var(--lav)">
+        <div class="bridge-from" style="color:var(--lav)">Chart (planet)</div>
+        <div class="bridge-arrow">↓</div>
+        <div class="bridge-to" style="color:var(--sky)">Report</div>
+        <div class="bridge-how">"Want the full Venus deep-dive? →" — bridges to the Love Report</div>
+      </div>
+      <div class="bridge-card" style="border-top:2px solid var(--gold)">
+        <div class="bridge-from" style="color:var(--gold)">Daily Insight</div>
+        <div class="bridge-arrow">↓</div>
+        <div class="bridge-to" style="color:var(--lav)">Chart</div>
+        <div class="bridge-how">"This transit hits your 7th house → See what's in your 7th house →"</div>
+      </div>
+      <div class="bridge-card" style="border-top:2px solid var(--rose)">
+        <div class="bridge-from" style="color:var(--rose)">Compatibility</div>
+        <div class="bridge-arrow">↓</div>
+        <div class="bridge-to" style="color:var(--terra)">Share / Viral</div>
+        <div class="bridge-how">"Send to Jake →" — shareable link that makes him a user too</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="mia">
+    <div class="mia-ava">🔄</div>
+    <div class="mia-txt">
+      <div class="mia-label">How Mia experiences the bridges</div>
+      <div class="mia-q">"I don't even realize I'm moving between features. I started reading my daily, then I was in the chat, then I was looking at my Venus, then I was checking compatibility with the new guy. It all just... flowed. Like one continuous conversation about my life."</div>
+      <div class="mia-ctx">She never tapped a tab. She followed bridges. That's the difference between a tool and a companion.</div>
+    </div>
+  </div>
+</section>
+
+<!-- ═══════ 04 FULL DAY ═══════ -->
+<section class="sec" id="day">
+  <div class="sec-head">
+    <div class="sec-num" style="background:var(--terra)">04</div>
+    <span class="sec-label" style="color:var(--terra)">A Full Day With Celestia — Morning to Midnight</span>
+    <div class="sec-line" style="background:var(--terra)"></div>
+  </div>
+
+  <p style="font-size:12px;color:var(--dim);margin-bottom:18px">This is a real Thursday in Mia's life. She has a date tonight. Watch how the app weaves through her entire day — from the morning notification to the post-date compatibility check at midnight. Every feature appears at the exact moment she needs it.</p>
+
+  <div class="flow-v" style="border-color:var(--terra)">
+    <div class="fv-step">
+      <div class="fv-dot" style="border-color:var(--gold);background:rgba(212,168,83,.08)">🌅</div>
+      <div class="fv-time" style="color:var(--gold)">7:22 AM — Push Notification on Lock Screen</div>
+      <div class="fv-title">She sees: "Conversations about feelings will flow easier today."</div>
+      <div class="fv-desc">She reads the full notification preview in bed. Thinks about the date tonight. Taps the notification → app opens to Daily Insight.</div>
+      <div class="fv-bridge" style="color:var(--gold);border-color:rgba(212,168,83,.2);background:rgba(212,168,83,.04)">Feature: Daily Insight → Bridge: "Ask Celestia →" to Chat</div>
+    </div>
+
+    <div class="fv-step">
+      <div class="fv-dot" style="border-color:var(--terra);background:rgba(193,127,89,.08)">📖</div>
+      <div class="fv-time" style="color:var(--terra)">7:24 AM — Reads Daily Insight (60 seconds)</div>
+      <div class="fv-title">She reads the full insight. Love: "Open." She smiles. Remembers the date.</div>
+      <div class="fv-desc">Scrolls past the 3 life areas (Love/Work/Energy). Sees the bridge card: "Ask Celestia about today's energy →". She doesn't tap yet — she's getting ready for work. But the seed is planted.</div>
+      <div class="fv-bridge" style="color:var(--terra);border-color:rgba(193,127,89,.2);background:rgba(193,127,89,.04)">She closes the app. Total time: 90 seconds. She'll be back.</div>
+    </div>
+
+    <div class="fv-step">
+      <div class="fv-dot" style="border-color:var(--sage);background:rgba(139,158,126,.08)">☕</div>
+      <div class="fv-time" style="color:var(--sage)">12:15 PM — Lunch Break. Opens Chat.</div>
+      <div class="fv-title">She types: "I have a date tonight and I'm nervous. Is today a good day for it?"</div>
+      <div class="fv-desc">The AI already knows today's transits (from the daily insight context). It gives her the Venus trine answer plus the Mercury-Mars heads up: "don't bring up the ex on the first round of drinks." She laughs. Screenshots the response. Sends to group chat.</div>
+      <div class="fv-bridge" style="color:var(--sage);border-color:rgba(139,158,126,.2);background:rgba(139,158,126,.04)">Feature: Chat → Bridge: Screenshot → Group Chat = Viral moment</div>
+    </div>
+
+    <div class="fv-step">
+      <div class="fv-dot" style="border-color:var(--lav);background:rgba(155,142,196,.08)">💅</div>
+      <div class="fv-time" style="color:var(--lav)">6:30 PM — Getting Ready. Opens Chart.</div>
+      <div class="fv-title">She taps "My Chart" to look at her Leo Rising before the date.</div>
+      <div class="fv-desc">Reads the Rising explanation: "People see confidence. You feel the opposite most days." She thinks "okay, fake it till I make it." She taps Venus → reads about how she shows love. Below the Venus card: "Check compatibility with someone? →"</div>
+      <div class="fv-bridge" style="color:var(--lav);border-color:rgba(155,142,196,.2);background:rgba(155,142,196,.04)">Feature: Chart → Bridge: "Check compatibility →" (she saves it for after the date)</div>
+    </div>
+
+    <div class="fv-step">
+      <div class="fv-dot" style="border-color:var(--rose);background:rgba(196,145,138,.08)">💕</div>
+      <div class="fv-time" style="color:var(--rose)">8:45 PM — Gets Home From Date. Opens Compatibility.</div>
+      <div class="fv-title">Shoes still on. Opens the app. Taps "Compatibility." Enters: Jake, November 7, 1997.</div>
+      <div class="fv-desc">The preview loads. Match score: 78%. Chemistry: 90%. Communication: 60%. She reads "The Spark" section — it describes exactly why she felt drawn to him. Below the free section, the blurred sections appear: "How You Love Each Other" 🔒 and "Where You'll Fight" 🔒.</div>
+      <div class="fv-bridge" style="color:var(--rose);border-color:rgba(196,145,138,.2);background:rgba(196,145,138,.04)">Feature: Compatibility → Bridge: Blurred sections → "Unlock full report $9.99"</div>
+    </div>
+
+    <div class="fv-step">
+      <div class="fv-dot" style="border-color:var(--sky);background:rgba(123,167,196,.08)">💰</div>
+      <div class="fv-time" style="color:var(--sky)">8:52 PM — She Pays $9.99</div>
+      <div class="fv-title">She can't NOT read "Where You'll Fight." She taps Unlock. Apple Pay. Done.</div>
+      <div class="fv-desc">The full report opens. She reads every section. The "tension points" section describes the exact dynamic she felt at dinner — "his intensity meets your analysis paralysis." She reads it twice.</div>
+      <div class="fv-bridge" style="color:var(--sky);border-color:rgba(123,167,196,.2);background:rgba(123,167,196,.04)">Feature: Report → Bridge: "Share this with Jake →" (viral link)</div>
+    </div>
+
+    <div class="fv-step">
+      <div class="fv-dot" style="border-color:var(--terra);background:rgba(193,127,89,.12)">📸</div>
+      <div class="fv-time" style="color:var(--terra)">9:15 PM — Screenshots + Group Chat + Jake</div>
+      <div class="fv-title">She screenshots the match score. Sends compatibility link to Jake. Sends screenshots to group chat.</div>
+      <div class="fv-desc">Jake receives: "Mia checked your compatibility on Celestia. Tap to see." He enters his birthday → he's now a user. Her group chat: 3 friends download Celestia that night. The flywheel spins. One date → one compatibility check → 4 new users → $9.99 revenue. All from one push notification at 7:22am.</div>
+    </div>
+
+    <div class="fv-step">
+      <div class="fv-dot" style="border-color:var(--lav);background:rgba(155,142,196,.08)">🌙</div>
+      <div class="fv-time" style="color:var(--lav)">10:30 PM — In Bed. Opens Chat One More Time.</div>
+      <div class="fv-title">She types: "okay so the date went really well but I'm already overthinking it. help."</div>
+      <div class="fv-desc">Celestia responds: "That's your Scorpio Moon doing post-date analysis. You're not overthinking — you're processing. The Venus trine today means what you felt was real, not manufactured. Sleep on it. You'll have more clarity in the morning." She puts her phone down. She sleeps better than she has in weeks.</div>
+    </div>
+  </div>
+
+  <div class="card" style="border-top:3px solid var(--terra);margin-top:4px">
+    <p style="font-size:13px;color:var(--cream);text-align:center;line-height:1.7"><b style="color:var(--terra)">The Full Day Count:</b> 7 touchpoints. 5 features used. 1 payment. 4 new users acquired. Zero moments where she felt lost or had to "navigate." The app was there every time she needed it — morning confidence, lunch reassurance, pre-date exploration, post-date urgency, midnight comfort. That's not an app. That's a companion.</p>
+  </div>
+</section>
+
+<!-- ═══════ 05 FULL WEEK ═══════ -->
+<section class="sec" id="week">
+  <div class="sec-head">
+    <div class="sec-num" style="background:var(--gold)">05</div>
+    <span class="sec-label" style="color:var(--gold)">A Full Week With Celestia — The Rhythm</span>
+    <div class="sec-line" style="background:var(--gold)"></div>
+  </div>
+
+  <div class="card">
+    <div class="card-t" style="color:var(--gold)">Monday → Sunday — Each Day Has a Different Energy</div>
+    <div style="overflow-x:auto">
+    <table style="width:100%;border-collapse:collapse;font-size:11px">
+      <tr>
+        <td style="padding:12px 10px;border-bottom:1px solid var(--border);font-weight:700;color:var(--terra);width:60px;vertical-align:top">MON</td>
+        <td style="padding:12px 10px;border-bottom:1px solid var(--border);vertical-align:top">
+          <b style="color:var(--cream)">Weekly Transit Report drops at 8am</b> (Premium hero card)<br>
+          <span style="color:var(--dim)">She reads her week ahead. Plans around it. Free users see blurred preview → upgrade moment.</span><br>
+          <span style="color:var(--terra);font-size:10px">Bridges: Report → Chat ("ask about this week") → Compatibility ("Venus in 7th this week")</span>
+        </td>
+      </tr>
+      <tr>
+        <td style="padding:12px 10px;border-bottom:1px solid var(--border);font-weight:700;color:var(--muted);vertical-align:top">TUE</td>
+        <td style="padding:12px 10px;border-bottom:1px solid var(--border);vertical-align:top">
+          <b style="color:var(--cream)">Daily insight. Normal day. She checks in 60 seconds.</b><br>
+          <span style="color:var(--dim)">Quick morning read. Maybe a lunch chat. Light engagement day.</span><br>
+          <span style="color:var(--terra);font-size:10px">Bridges: Daily → Chat → share screenshot</span>
+        </td>
+      </tr>
+      <tr>
+        <td style="padding:12px 10px;border-bottom:1px solid var(--border);font-weight:700;color:var(--muted);vertical-align:top">WED</td>
+        <td style="padding:12px 10px;border-bottom:1px solid var(--border);vertical-align:top">
+          <b style="color:var(--cream)">Midweek energy check. The "am I on track?" day.</b><br>
+          <span style="color:var(--dim)">Work stress peaks. She might chat about career. Daily insight mentions Mars energy.</span><br>
+          <span style="color:var(--terra);font-size:10px">Bridges: Daily → Chat (career question) → Chart (Midheaven) → Career Report upsell</span>
+        </td>
+      </tr>
+      <tr>
+        <td style="padding:12px 10px;border-bottom:1px solid var(--border);font-weight:700;color:var(--rose);vertical-align:top">THU</td>
+        <td style="padding:12px 10px;border-bottom:1px solid var(--border);vertical-align:top">
+          <b style="color:var(--cream)">Pre-weekend energy. Date night prep. Compatibility peak.</b><br>
+          <span style="color:var(--dim)">She has plans. She checks the daily for social energy. Pre-date chat. Post-date compatibility check. This is the highest revenue day of the week.</span><br>
+          <span style="color:var(--terra);font-size:10px">Bridges: Daily → Chat (date advice) → Compatibility → Report → Share → Viral</span>
+        </td>
+      </tr>
+      <tr>
+        <td style="padding:12px 10px;border-bottom:1px solid var(--border);font-weight:700;color:var(--muted);vertical-align:top">FRI</td>
+        <td style="padding:12px 10px;border-bottom:1px solid var(--border);vertical-align:top">
+          <b style="color:var(--cream)">Social day. She shows friends at dinner. Lighter tone.</b><br>
+          <span style="color:var(--dim)">Weekend preview in the daily. She checks fun prompts: "roast my chart," "what sign should I never date?" Group sharing peaks.</span><br>
+          <span style="color:var(--terra);font-size:10px">Bridges: Daily → Chat (fun mode) → Share placement cards → Friends download</span>
+        </td>
+      </tr>
+      <tr>
+        <td style="padding:12px 10px;border-bottom:1px solid var(--border);font-weight:700;color:var(--muted);vertical-align:top">SAT</td>
+        <td style="padding:12px 10px;border-bottom:1px solid var(--border);vertical-align:top">
+          <b style="color:var(--cream)">Exploration day. She goes deep in her chart. Longer sessions.</b><br>
+          <span style="color:var(--dim)">Saturday afternoon is when she taps through planets she hasn't explored yet. She shares chart screenshots to IG Stories. Pinterest research mode (finds Celestia content there too).</span><br>
+          <span style="color:var(--terra);font-size:10px">Bridges: Chart → Planet cards → Aspects → Chat → Share to Stories</span>
+        </td>
+      </tr>
+      <tr>
+        <td style="padding:12px 10px;font-weight:700;color:var(--lav);vertical-align:top">SUN</td>
+        <td style="padding:12px 10px;vertical-align:top">
+          <b style="color:var(--cream)">Reflection day. Deepest engagement. The emotional peak of the week.</b><br>
+          <span style="color:var(--dim)">Sunday night is when she reads full reports, does deep AI chats about her life, checks compatibility with the guy she's been texting all week. The daily insight turns reflective: "What did this week teach you?" Preview of next week appears.</span><br>
+          <span style="color:var(--terra);font-size:10px">Bridges: Daily → Chat (deep questions) → Reports → Compatibility → next week preview</span>
+        </td>
+      </tr>
+    </table>
+    </div>
+  </div>
+</section>
+
+<!-- ═══════ 06 EMOTION ENGINE ═══════ -->
+<section class="sec" id="emotion">
+  <div class="sec-head">
+    <div class="sec-num" style="background:var(--rose)">06</div>
+    <span class="sec-label" style="color:var(--rose)">The Emotion Engine — The App Reads the Room</span>
+    <div class="sec-line" style="background:var(--rose)"></div>
+  </div>
+
+  <p style="font-size:12px;color:var(--dim);margin-bottom:16px">Celestia adapts its entire experience — home screen, prompts, chat tone, suggested features — based on signals about Mia's emotional state. She doesn't select a mood. The app infers it from her behavior.</p>
+
+  <div class="card">
+    <div class="card-t" style="color:var(--rose)">Emotional State Detection — What the App Reads</div>
+    <div class="g2">
+      <div style="font-size:12px;color:var(--dim);line-height:1.8">
+        <b style="color:var(--cream)">Time signals:</b><br>
+        → 7am opening = morning routine (light, optimistic prompts)<br>
+        → 11pm opening = can't sleep (deeper, reflective prompts)<br>
+        → 2am opening = emotional crisis (gentlest tone, comfort mode)<br>
+        → Weekday lunch = quick break (snappy, practical)<br>
+        → Sunday evening = weekly anxiety (reassurance mode)
+      </div>
+      <div style="font-size:12px;color:var(--dim);line-height:1.8">
+        <b style="color:var(--cream)">Behavior signals:</b><br>
+        → Opens chat immediately = she has something specific on her mind<br>
+        → Checks compatibility = new person or relationship anxiety<br>
+        → Re-reads old compatibility = thinking about someone from the past<br>
+        → Explores chart for 20+ min = curiosity/self-discovery mode<br>
+        → Opens app 3x in one day = something is happening in her life
+      </div>
+    </div>
+  </div>
+
+  <div class="g2">
+    <div class="emotion-card" style="border-left-color:var(--rose)">
+      <div class="emotion-emoji">😟</div>
+      <div class="emotion-state" style="color:var(--rose)">Anxious / Vulnerable</div>
+      <div class="emotion-detect">Detected: late night, sad language in chat, re-reading old reports</div>
+      <div class="emotion-response">Home screen shifts to comfort mode. Prompts become softer: "How are you feeling tonight?" instead of "Check your compatibility!" Chat tone goes gentler — validation first, chart references second. Daily insight card shows a comforting message if she hasn't read it yet.</div>
+      <div class="emotion-features">
+        <span class="emotion-feat" style="color:var(--rose);background:rgba(196,145,138,.1)">Chat: Comfort Mode</span>
+        <span class="emotion-feat" style="color:var(--rose);background:rgba(196,145,138,.1)">Softer prompts</span>
+        <span class="emotion-feat" style="color:var(--rose);background:rgba(196,145,138,.1)">No upsells</span>
+      </div>
+    </div>
+    <div class="emotion-card" style="border-left-color:var(--terra)">
+      <div class="emotion-emoji">🤩</div>
+      <div class="emotion-state" style="color:var(--terra)">Excited / Activated</div>
+      <div class="emotion-detect">Detected: post-date timing, checking compatibility, fast chat messages</div>
+      <div class="emotion-response">Home screen highlights compatibility. Prompts become action-oriented: "Check your compatibility with him →" "See what the stars say about tonight →." Chat is snappy, confident, slightly playful. This is when she's most likely to pay — gentle upsells are appropriate here.</div>
+      <div class="emotion-features">
+        <span class="emotion-feat" style="color:var(--terra);background:rgba(193,127,89,.1)">Chat: Quick Mode</span>
+        <span class="emotion-feat" style="color:var(--terra);background:rgba(193,127,89,.1)">Compatibility front</span>
+        <span class="emotion-feat" style="color:var(--terra);background:rgba(193,127,89,.1)">Report upsell OK</span>
+      </div>
+    </div>
+    <div class="emotion-card" style="border-left-color:var(--lav)">
+      <div class="emotion-emoji">🤔</div>
+      <div class="emotion-state" style="color:var(--lav)">Curious / Exploring</div>
+      <div class="emotion-detect">Detected: browsing chart, tapping multiple planets, long session</div>
+      <div class="emotion-response">Home screen surfaces deeper content: "Explore your aspects →" "What your North Node means →." Chat offers to go deeper: "Want me to explain how your Mars and Moon interact?" This is self-discovery mode — she's in a learning headspace.</div>
+      <div class="emotion-features">
+        <span class="emotion-feat" style="color:var(--lav);background:rgba(155,142,196,.1)">Chart: expanded</span>
+        <span class="emotion-feat" style="color:var(--lav);background:rgba(155,142,196,.1)">Chat: Deep Mode</span>
+        <span class="emotion-feat" style="color:var(--lav);background:rgba(155,142,196,.1)">Birth Chart Report upsell</span>
+      </div>
+    </div>
+    <div class="emotion-card" style="border-left-color:var(--sage)">
+      <div class="emotion-emoji">😎</div>
+      <div class="emotion-state" style="color:var(--sage)">Social / Sharing</div>
+      <div class="emotion-detect">Detected: weekend, sharing actions, fun prompts, with friends</div>
+      <div class="emotion-response">Home screen highlights fun features: "Roast my chart," celebrity compatibility, shareable cards. Chat is playful and quotable. Everything is optimized for screenshots and group sharing. The viral engine runs at full speed.</div>
+      <div class="emotion-features">
+        <span class="emotion-feat" style="color:var(--sage);background:rgba(139,158,126,.1)">Chat: Fun Mode</span>
+        <span class="emotion-feat" style="color:var(--sage);background:rgba(139,158,126,.1)">Share buttons front</span>
+        <span class="emotion-feat" style="color:var(--sage);background:rgba(139,158,126,.1)">Celebrity compat</span>
+      </div>
+    </div>
+  </div>
+
+  <div class="mia">
+    <div class="mia-ava">😮</div>
+    <div class="mia-txt">
+      <div class="mia-label">What this feels like to Mia</div>
+      <div class="mia-q">"Sometimes I open the app and it's playful and fun. Sometimes I open it late at night and it's gentle and soft. It's like it knows what kind of day I've had. I never told it. It just... feels right every time."</div>
+      <div class="mia-ctx">She doesn't know there's an emotion engine. She just knows the app "gets" her. That's the magic.</div>
+    </div>
+  </div>
+</section>
+
+<!-- ═══════ 07 MEMORY LAYER ═══════ -->
+<section class="sec" id="memory">
+  <div class="sec-head">
+    <div class="sec-num" style="background:var(--lav)">07</div>
+    <span class="sec-label" style="color:var(--lav)">The Memory Layer — She Grows, It Grows With Her</span>
+    <div class="sec-line" style="background:var(--lav)"></div>
+  </div>
+
+  <p style="font-size:12px;color:var(--dim);margin-bottom:16px">What separates a tool from a companion: the tool resets every session. The companion remembers. Celestia builds a living picture of Mia's life over time — her relationship history, her recurring questions, her growth. Premium feature — this is what makes the subscription feel indispensable.</p>
+
+  <div class="card" style="border-top:3px solid var(--lav)">
+    <div class="card-t" style="color:var(--lav)">What Celestia Remembers (Premium)</div>
+    <div class="g2">
+      <div style="font-size:12px;color:var(--dim);line-height:1.8">
+        <b style="color:var(--cream)">Relationship context:</b><br>
+        → "You checked compatibility with Jake 3 weeks ago"<br>
+        → "Last time we talked about the Scorpio guy from work"<br>
+        → "You've checked compatibility with 3 Scorpios this year — want to explore why you're drawn to them?"<br><br>
+        <b style="color:var(--cream)">Recurring themes:</b><br>
+        → "You've asked about self-sabotage 4 times. Want me to go deeper into the Venus-Neptune pattern?"<br>
+        → "Career questions keep coming up — your Saturn transit is peaking next month. Let's talk about it."
+      </div>
+      <div style="font-size:12px;color:var(--dim);line-height:1.8">
+        <b style="color:var(--cream)">Growth tracking:</b><br>
+        → "3 months ago you asked why you keep dating emotionally unavailable people. You've been asking different questions lately — about what you actually want. That's growth."<br>
+        → End-of-year reflection: "Here's what you explored this year on Celestia. Your biggest themes were: relationships, career direction, and self-worth."<br><br>
+        <b style="color:var(--cream)">Proactive check-ins:</b><br>
+        → "You mentioned a big presentation at work last week. How did it go?"<br>
+        → "Jake's birthday was yesterday — are you two still talking?"
+      </div>
+    </div>
+  </div>
+
+  <div class="mia">
+    <div class="mia-ava">🥹</div>
+    <div class="mia-txt">
+      <div class="mia-label">The moment Mia realizes the app remembers</div>
+      <div class="mia-q">"I opened the chat and it said 'last time you mentioned you were thinking about quitting your job — Jupiter enters your 10th house next month, so let's revisit that.' I literally got chills. No app has ever felt like it actually KNOWS me. Not knows my sign. Knows ME."</div>
+      <div class="mia-ctx">This is the moment she becomes a lifetime user. The memory layer is the moat. No competitor can replicate her history.</div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-t" style="color:var(--terra)">The Lock-In Effect — Why She Never Leaves</div>
+    <p style="font-size:12.5px;color:var(--dim);line-height:1.7">After 6 months on Celestia, she has: 5 compatibility checks saved, 50+ chat conversations, 12 daily insights she screenshotted, 2 reports she's re-read multiple times, and an AI that understands her patterns better than she does. Switching to another app means <b style="color:var(--cream)">starting from zero.</b> No other app knows about Jake, about the Saturn Return anxiety, about the career question that keeps coming up. The data IS the product. The memory IS the moat. The longer she stays, the harder it is to leave — not because we trap her, but because the value compounds. That's ethical lock-in.</p>
+  </div>
+</section>
+
+<!-- ═══════ 08 INVISIBLE FUNNEL ═══════ -->
+<section class="sec" id="funnel">
+  <div class="sec-head">
+    <div class="sec-num" style="background:var(--sky)">08</div>
+    <span class="sec-label" style="color:var(--sky)">The Invisible Funnel — Free to Paid, Without Feeling Sold</span>
+    <div class="sec-line" style="background:var(--sky)"></div>
+  </div>
+
+  <p style="font-size:12px;color:var(--dim);margin-bottom:16px">Mia never feels "sold to." She doesn't hit a paywall and think "ugh." She follows her curiosity, the value increases, and at the exact moment she WANTS more, the upgrade appears. It doesn't feel like marketing. It feels like a natural "of course I want this."</p>
+
+  <div class="card">
+    <div class="card-t" style="color:var(--sky)">The 5 Natural Upgrade Moments</div>
+    <div style="margin-bottom:4px">
+      <div style="display:flex;gap:12px;padding:14px 0;border-bottom:1px solid var(--border);align-items:flex-start">
+        <div style="width:32px;height:32px;border-radius:8px;background:rgba(193,127,89,.1);display:flex;align-items:center;justify-content:center;font-size:14px;flex-shrink:0">1</div>
+        <div>
+          <div style="font-size:13px;font-weight:600;margin-bottom:3px">Chat limit at 11:30pm</div>
+          <div style="font-size:11.5px;color:var(--dim);line-height:1.6">She's used 5 chats. She just got home from a date. She NEEDS to ask about this guy. "You've used your 5 free chats today. Unlock unlimited? →" She upgrades because the timing is perfect — she can't wait until tomorrow.</div>
+        </div>
+      </div>
+      <div style="display:flex;gap:12px;padding:14px 0;border-bottom:1px solid var(--border);align-items:flex-start">
+        <div style="width:32px;height:32px;border-radius:8px;background:rgba(212,168,83,.1);display:flex;align-items:center;justify-content:center;font-size:14px;flex-shrink:0">2</div>
+        <div>
+          <div style="font-size:13px;font-weight:600;margin-bottom:3px">Monday report blurred</div>
+          <div style="font-size:11.5px;color:var(--dim);line-height:1.6">She's been reading the daily for 2 weeks. Monday comes. The Weekly Transit Report card appears — title visible, first line visible, rest blurred. "Your week ahead is ready. Unlock with Premium →." She's hooked on the daily. The weekly feels like the obvious next step.</div>
+        </div>
+      </div>
+      <div style="display:flex;gap:12px;padding:14px 0;border-bottom:1px solid var(--border);align-items:flex-start">
+        <div style="width:32px;height:32px;border-radius:8px;background:rgba(196,145,138,.1);display:flex;align-items:center;justify-content:center;font-size:14px;flex-shrink:0">3</div>
+        <div>
+          <div style="font-size:13px;font-weight:600;margin-bottom:3px">Compatibility blurred sections</div>
+          <div style="font-size:11.5px;color:var(--dim);line-height:1.6">She checked compatibility. The free section blew her mind. "Where You'll Fight" is blurred. She HAS to know. $9.99 one-time report. She doesn't even think about it — the curiosity is unbearable.</div>
+        </div>
+      </div>
+      <div style="display:flex;gap:12px;padding:14px 0;border-bottom:1px solid var(--border);align-items:flex-start">
+        <div style="width:32px;height:32px;border-radius:8px;background:rgba(155,142,196,.1);display:flex;align-items:center;justify-content:center;font-size:14px;flex-shrink:0">4</div>
+        <div>
+          <div style="font-size:13px;font-weight:600;margin-bottom:3px">Chart depth teaser</div>
+          <div style="font-size:11.5px;color:var(--dim);line-height:1.6">She's tapped 4 planets. Read the summaries. At the bottom of the Venus card: "This is the overview. Your full Venus deep-dive report covers your attachment style, love patterns, and what you actually need in a partner — 12 pages. →" She buys the Love Report.</div>
+        </div>
+      </div>
+      <div style="display:flex;gap:12px;padding:14px 0;align-items:flex-start">
+        <div style="width:32px;height:32px;border-radius:8px;background:rgba(196,145,138,.1);display:flex;align-items:center;justify-content:center;font-size:14px;flex-shrink:0">5</div>
+        <div>
+          <div style="font-size:13px;font-weight:600;margin-bottom:3px">Birthday Solar Return</div>
+          <div style="font-size:11.5px;color:var(--dim);line-height:1.6">Her birthday. Special home screen. "Your year-ahead forecast is ready, Mia ✦ See what's coming." The first paragraph is free. The rest: $9.99 Year-Ahead Report or included with Premium. She's emotional, it's her birthday, she treats herself. 8-12% conversion on this single moment.</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="card" style="border-top:3px solid var(--terra)">
+    <div class="card-t" style="color:var(--terra)">The Golden Rule of the Invisible Funnel</div>
+    <p style="font-family:'Playfair Display',serif;font-size:16px;line-height:1.6;text-align:center;padding:8px 0;color:var(--cream)">The upgrade never appears when she's calm. It appears when she's <b style="color:var(--terra)">curious, excited, or emotionally activated</b> — the exact moments when the value of "more" feels obvious, not optional. The paywall should always feel like a door she WANTS to open, not a wall blocking her path.</p>
+  </div>
+</section>
+
+<!-- ═══════ FINAL ═══════ -->
+<div style="background:linear-gradient(135deg,var(--terra),#A66842);border-radius:18px;padding:36px 32px;margin:32px 0">
+  <p style="font-size:9px;letter-spacing:3px;text-transform:uppercase;opacity:.6;margin-bottom:14px">The Complete Experience in One Sentence</p>
+  <p style="font-family:'Playfair Display',serif;font-size:clamp(17px,2.8vw,23px);font-style:italic;line-height:1.5;margin-bottom:16px">"Celestia is the friend who leaves a note on her pillow every morning, answers her 10:30pm questions without judgment, knows her relationship history, remembers what she was worried about last week, and always has something true to say — for $0.23 a day."</p>
+  <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-top:16px">
+    <div style="text-align:center;padding:14px;background:rgba(0,0,0,.15);border-radius:10px">
+      <p style="font-size:22px;margin-bottom:4px">🌅</p>
+      <p style="font-size:10px;font-weight:600;margin-bottom:2px">Morning</p>
+      <p style="font-size:9px;opacity:.7">Daily insight. 60 seconds. Sets the tone.</p>
+    </div>
+    <div style="text-align:center;padding:14px;background:rgba(0,0,0,.15);border-radius:10px">
+      <p style="font-size:22px;margin-bottom:4px">💬</p>
+      <p style="font-size:10px;font-weight:600;margin-bottom:2px">Anytime</p>
+      <p style="font-size:9px;opacity:.7">Chat. Ask anything. Get seen.</p>
+    </div>
+    <div style="text-align:center;padding:14px;background:rgba(0,0,0,.15);border-radius:10px">
+      <p style="font-size:22px;margin-bottom:4px">💕</p>
+      <p style="font-size:10px;font-weight:600;margin-bottom:2px">Relationships</p>
+      <p style="font-size:9px;opacity:.7">Compatibility. Reports. Answers.</p>
+    </div>
+    <div style="text-align:center;padding:14px;background:rgba(0,0,0,.15);border-radius:10px">
+      <p style="font-size:22px;margin-bottom:4px">🌙</p>
+      <p style="font-size:10px;font-weight:600;margin-bottom:2px">Night</p>
+      <p style="font-size:9px;opacity:.7">Deep questions. Comfort. Clarity.</p>
+    </div>
+  </div>
+</div>
+
+<footer class="footer">
+  <p>Not an app with features. A companion that knows her chart, reads the room, and grows with her life.</p>
+  <div class="brand">Celestia · Master Experience Document · 2026</div>
+</footer>
+
+</div>
+
+<script>
+const secs=document.querySelectorAll('.sec');
+const navs=document.querySelectorAll('.topnav a');
+const obs=new IntersectionObserver(entries=>{entries.forEach(e=>{if(e.isIntersecting){navs.forEach(n=>n.classList.remove('active'));const a=document.querySelector(`.topnav a[href="#${e.target.id}"]`);if(a)a.classList.add('active')}})},{threshold:.15});
+secs.forEach(s=>obs.observe(s));
+</script>
+</body>
+</html>

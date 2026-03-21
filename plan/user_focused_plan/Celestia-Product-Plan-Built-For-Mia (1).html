@@ -1,0 +1,626 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Celestia — The Complete Product Plan (Built for Mia)</title>
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,300;0,400;0,500;0,600;0,700;1,400;1,500&family=DM+Sans:ital,wght@0,300;0,400;0,500;0,600;0,700;1,400&display=swap" rel="stylesheet">
+<style>
+:root{--bg:#0F0D1A;--card:#1A1726;--card2:#211E2E;--terra:#C17F59;--gold:#D4A853;--sage:#8B9E7E;--rose:#C4918A;--lav:#9B8EC4;--sky:#7BA7C4;--cream:#F5EDE3;--muted:#6B6880;--border:rgba(255,255,255,0.06);--text:rgba(255,255,255,0.78);--dim:rgba(255,255,255,0.45)}
+*{margin:0;padding:0;box-sizing:border-box}
+body{background:var(--bg);color:var(--cream);font-family:'DM Sans',sans-serif;-webkit-font-smoothing:antialiased;line-height:1.65}
+.wrap{max-width:860px;margin:0 auto;padding:0 24px}
+.serif{font-family:'Playfair Display',serif}
+
+/* Nav */
+.topnav{position:sticky;top:0;z-index:100;background:rgba(15,13,26,.92);backdrop-filter:blur(16px);-webkit-backdrop-filter:blur(16px);border-bottom:1px solid var(--border);overflow-x:auto;-webkit-overflow-scrolling:touch}
+.topnav::-webkit-scrollbar{display:none}
+.topnav-inner{display:flex;max-width:860px;margin:0 auto;min-width:max-content}
+.topnav a{padding:11px 16px;font-size:9.5px;letter-spacing:1.5px;text-transform:uppercase;color:var(--muted);text-decoration:none;white-space:nowrap;border-bottom:2px solid transparent;transition:.3s}
+.topnav a:hover,.topnav a.active{color:var(--terra);border-bottom-color:var(--terra)}
+
+/* Hero */
+.hero{text-align:center;padding:56px 20px 44px;position:relative}
+.hero::before{content:'';position:absolute;top:-120px;left:50%;transform:translateX(-50%);width:600px;height:600px;background:radial-gradient(circle,rgba(193,127,89,.07) 0%,transparent 65%);pointer-events:none}
+.htag{font-size:9px;letter-spacing:5px;text-transform:uppercase;color:var(--gold);opacity:.6;margin-bottom:16px}
+.hero h1{font-family:'Playfair Display',serif;font-size:clamp(28px,6vw,48px);font-weight:300;line-height:1.15;margin-bottom:10px}
+.hero h1 b{font-weight:600;color:var(--terra)}
+.hero .sub{font-size:14px;color:var(--dim);max-width:560px;margin:0 auto}
+
+/* Section */
+.sec{padding:48px 0 20px}
+.sec-head{display:flex;align-items:center;gap:12px;margin-bottom:28px}
+.sec-num{width:34px;height:34px;border-radius:9px;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;color:white;flex-shrink:0}
+.sec-label{font-size:10px;letter-spacing:3px;text-transform:uppercase;font-weight:600}
+.sec-line{flex:1;height:1px;opacity:.15}
+
+/* Shared */
+.card{background:var(--card);border:1px solid var(--border);border-radius:16px;padding:24px;margin-bottom:14px}
+.card-t{font-size:9px;letter-spacing:2.5px;text-transform:uppercase;font-weight:600;margin-bottom:16px}
+.g2{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+.g3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px}
+.divider{text-align:center;padding:36px 0;position:relative}
+.divider::before{content:'';position:absolute;top:50%;left:0;right:0;height:1px;background:var(--border)}
+.div-text{position:relative;display:inline-block;background:var(--bg);padding:0 18px;font-size:9px;letter-spacing:3px;text-transform:uppercase;color:var(--muted)}
+
+/* Mia Says */
+.mia{display:flex;gap:16px;align-items:flex-start;background:var(--card2);border:1px solid var(--border);border-radius:14px;padding:20px;margin-bottom:14px}
+.mia-ava{width:40px;height:40px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:16px;flex-shrink:0;border:2px solid var(--terra);background:rgba(193,127,89,.08)}
+.mia-txt{flex:1}
+.mia-label{font-size:8px;letter-spacing:2px;font-weight:700;text-transform:uppercase;color:var(--terra);margin-bottom:4px}
+.mia-q{font-family:'Playfair Display',serif;font-style:italic;font-size:14px;color:var(--cream);line-height:1.5}
+.mia-ctx{font-size:10px;color:var(--muted);margin-top:4px}
+
+/* Because Mia blocks */
+.because{border-left:3px solid;padding:14px 18px;border-radius:0 12px 12px 0;margin-bottom:10px;font-size:12.5px;line-height:1.6}
+.because b{display:block;font-size:10px;letter-spacing:1.5px;text-transform:uppercase;margin-bottom:4px}
+
+/* Feature cards */
+.feat{background:var(--card);border:1px solid var(--border);border-radius:14px;padding:20px;position:relative;overflow:hidden}
+.feat::before{content:'';position:absolute;top:0;left:0;right:0;height:3px}
+.feat-icon{font-size:28px;margin-bottom:10px}
+.feat-name{font-size:15px;font-weight:700;margin-bottom:4px}
+.feat-desc{font-size:11.5px;color:var(--dim);line-height:1.6;margin-bottom:10px}
+.feat-why{font-size:10.5px;padding:8px 12px;border-radius:8px;line-height:1.5;font-style:italic}
+
+/* Onboarding steps */
+.ob-step{display:flex;gap:16px;margin-bottom:0;position:relative}
+.ob-col{display:flex;flex-direction:column;align-items:center;width:48px;flex-shrink:0}
+.ob-dot{width:40px;height:40px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:18px;border:2px solid;background:var(--bg);z-index:1}
+.ob-line{width:2px;flex:1;min-height:16px;opacity:.2}
+.ob-content{flex:1;padding:6px 0 28px}
+.ob-phase{font-size:9px;letter-spacing:2px;font-weight:700;text-transform:uppercase;margin-bottom:4px}
+.ob-title{font-size:15px;font-weight:600;margin-bottom:6px;line-height:1.3}
+.ob-desc{font-size:12px;color:var(--dim);line-height:1.6}
+.ob-screen{background:var(--card2);border:1px solid var(--border);border-radius:12px;padding:16px;margin-top:10px;font-size:11.5px;color:var(--dim)}
+.ob-screen b{color:var(--cream);font-weight:600}
+
+/* Pricing */
+.price-card{background:var(--card);border:1px solid var(--border);border-radius:16px;padding:24px;text-align:center;position:relative}
+.price-card.featured{border-color:rgba(193,127,89,.3);background:linear-gradient(180deg,rgba(193,127,89,.08),var(--card))}
+.price-badge{position:absolute;top:-10px;left:50%;transform:translateX(-50%);background:var(--terra);color:white;font-size:8px;font-weight:700;letter-spacing:1.5px;padding:4px 14px;border-radius:100px;text-transform:uppercase}
+.price-name{font-size:18px;font-weight:700;margin-bottom:4px;margin-top:8px}
+.price-amount{font-family:'Playfair Display',serif;font-size:32px;font-weight:600;margin-bottom:2px}
+.price-period{font-size:11px;color:var(--muted);margin-bottom:16px}
+.price-list{text-align:left;list-style:none}
+.price-list li{font-size:12px;padding:6px 0;border-bottom:1px solid var(--border);display:flex;gap:8px;color:var(--dim)}
+.price-list li:last-child{border-bottom:none}
+.price-list li span{flex-shrink:0;font-size:13px}
+
+/* Retention loop */
+.loop{display:flex;align-items:center;gap:0;overflow-x:auto;padding:10px 0}
+.loop-node{text-align:center;min-width:100px;flex-shrink:0}
+.loop-dot{width:48px;height:48px;border-radius:50%;display:flex;align-items:center;justify-content:center;margin:0 auto 8px;font-size:20px;border:2px solid}
+.loop-label{font-size:9px;font-weight:700;letter-spacing:1px;text-transform:uppercase}
+.loop-desc{font-size:9px;color:var(--muted);margin-top:2px;line-height:1.3}
+.loop-arrow{font-size:16px;color:var(--muted);opacity:.3;flex-shrink:0;padding:0 4px}
+
+/* Daily view */
+.daily-card{background:var(--card);border:1px solid var(--border);border-radius:14px;padding:18px;margin-bottom:8px}
+.daily-time{font-size:9px;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;margin-bottom:6px}
+.daily-title{font-size:14px;font-weight:600;margin-bottom:4px;line-height:1.3}
+.daily-body{font-size:11.5px;color:var(--dim);line-height:1.6}
+.daily-tag{display:inline-block;font-size:8px;font-weight:700;letter-spacing:1px;padding:2px 8px;border-radius:4px;margin-top:8px;text-transform:uppercase}
+
+/* Promise */
+.promise{background:linear-gradient(135deg,var(--terra),#A66842);border-radius:18px;padding:36px 32px;margin:20px 0}
+.promise-label{font-size:9px;letter-spacing:3px;text-transform:uppercase;opacity:.6;margin-bottom:12px}
+.promise-text{font-family:'Playfair Display',serif;font-size:clamp(18px,3vw,24px);font-style:italic;line-height:1.5;margin-bottom:8px}
+
+/* Footer */
+.footer{text-align:center;padding:32px;border-top:1px solid var(--border)}
+.footer p{font-size:12px;color:var(--muted);font-style:italic}
+.footer .brand{font-size:9px;letter-spacing:4px;color:var(--gold);opacity:.4;margin-top:8px;text-transform:uppercase}
+
+@media(max-width:700px){
+  .g2,.g3{grid-template-columns:1fr}
+  .mia{flex-direction:column;align-items:center;text-align:center}
+  .ob-step{gap:12px}
+  .loop{flex-wrap:wrap;justify-content:center}
+  .loop-arrow{display:none}
+}
+</style>
+</head>
+<body>
+
+<!-- NAV -->
+<nav class="topnav"><div class="topnav-inner">
+  <a href="#vision">Vision</a>
+  <a href="#features">Features</a>
+  <a href="#onboarding">Onboarding</a>
+  <a href="#pricing">Pricing</a>
+  <a href="#daily">Daily Life</a>
+  <a href="#retention">Retention</a>
+  <a href="#viral">Viral</a>
+  <a href="#revenue">Revenue</a>
+</div></nav>
+
+<div class="wrap">
+
+<!-- ═══════ HERO ═══════ -->
+<section class="hero">
+  <div class="htag">✦ Celestia — Complete Product Plan ✦</div>
+  <h1>Every Decision Starts With <b>Mia</b></h1>
+  <p class="sub">Product vision, features, pricing, onboarding, retention, growth — all traced back to one 24-year-old girl in a 1BR apartment on South Congress Ave, Austin TX.</p>
+</section>
+
+<!-- ═══════ 01 VISION ═══════ -->
+<section class="sec" id="vision">
+  <div class="sec-head">
+    <div class="sec-num" style="background:var(--terra)">01</div>
+    <span class="sec-label" style="color:var(--terra)">Product Vision</span>
+    <div class="sec-line" style="background:var(--terra)"></div>
+  </div>
+
+  <div class="card" style="border-top:3px solid var(--terra)">
+    <p style="font-family:'Playfair Display',serif;font-size:22px;font-weight:400;line-height:1.5;margin-bottom:16px"><b style="color:var(--terra)">Celestia</b> is the warm, honest friend who happens to know astrology deeply — the one Mia texts at 10:30pm when she can't figure out why she keeps ending up in the same situation.</p>
+    <p style="font-size:13px;color:var(--dim);line-height:1.7">Not a horoscope app. Not a chart calculator. Not a cold data tool. Celestia is a mirror — it shows Mia her own patterns in language she already uses, at a price she can afford, in the exact moments she needs it most.</p>
+  </div>
+
+  <div class="mia">
+    <div class="mia-ava">👤</div>
+    <div class="mia-txt">
+      <div class="mia-label">Why this vision exists</div>
+      <div class="mia-q">"I don't need another app that tells me I'm a Virgo. I need something that explains why I keep choosing the same type of guy and what I'm supposed to do about it — without charging me $200 like a therapist."</div>
+      <div class="mia-ctx">This is the gap in the market. No one is filling it with warmth.</div>
+    </div>
+  </div>
+
+  <div class="g3" style="margin-top:16px">
+    <div class="because" style="border-color:var(--terra);background:rgba(193,127,89,.05)">
+      <b style="color:var(--terra)">Brand Personality</b>
+      Warm, honest, slightly irreverent best friend — not a mystical guru. <em>Because Mia is turned off by "cosmic energy" language. She wants someone who talks like her smart friend.</em>
+    </div>
+    <div class="because" style="border-color:var(--gold);background:rgba(212,168,83,.05)">
+      <b style="color:var(--gold)">Visual Identity</b>
+      Desert Dawn palette — terracotta, warm sand, sage. Light mode. <em>Because Mia shops at Free People, saves boho Pinterest boards, and every competitor is dark mode. We own warmth.</em>
+    </div>
+    <div class="because" style="border-color:var(--sage);background:rgba(139,158,126,.05)">
+      <b style="color:var(--sage)">Core Promise</b>
+      "Your chart explains the pattern." Not predictions. Not destiny. Patterns. <em>Because Mia doesn't want fortune-telling. She wants to understand WHY things keep happening.</em>
+    </div>
+  </div>
+</section>
+
+<!-- ═══════ 02 FEATURES ═══════ -->
+<section class="sec" id="features">
+  <div class="sec-head">
+    <div class="sec-num" style="background:var(--gold)">02</div>
+    <span class="sec-label" style="color:var(--gold)">Core Features — Built for Mia</span>
+    <div class="sec-line" style="background:var(--gold)"></div>
+  </div>
+
+  <p style="font-size:13px;color:var(--dim);margin-bottom:20px">Every feature exists because Mia has a specific need at a specific moment. Nothing is built because "competitors have it."</p>
+
+  <div class="g2">
+    <!-- Feature 1 -->
+    <div class="feat" style="border-top:3px solid var(--terra)">
+      <div class="feat-icon">🤖</div>
+      <div class="feat-name">AI Chat — "Ask Celestia"</div>
+      <div class="feat-desc">She types her real question in plain language. No astrology jargon needed. The AI answers using her specific chart placements — not generic sun sign advice.</div>
+      <div class="feat-why" style="background:rgba(193,127,89,.06);color:var(--terra)">Because Mia doesn't type "explain my Venus-Neptune square." She types "why do I keep attracting unavailable men." The AI must understand both and answer in her language.</div>
+    </div>
+    <!-- Feature 2 -->
+    <div class="feat" style="border-top:3px solid var(--gold)">
+      <div class="feat-icon">📊</div>
+      <div class="feat-name">Birth Chart — Visual & Personal</div>
+      <div class="feat-desc">Beautiful, shareable visualization of her natal chart. Each placement has a warm, 2-sentence explanation she actually understands. Not a textbook — a mirror.</div>
+      <div class="feat-why" style="background:rgba(212,168,83,.06);color:var(--gold)">Because Mia screenshots pretty things. If the chart is ugly, she won't share it. If the explanations use jargon, she won't read them. Beauty + clarity = screenshots = viral loop.</div>
+    </div>
+    <!-- Feature 3 -->
+    <div class="feat" style="border-top:3px solid var(--rose)">
+      <div class="feat-icon">💕</div>
+      <div class="feat-name">Compatibility Checker</div>
+      <div class="feat-desc">Enter anyone's birth data — crush, ex, best friend, mom. Get a detailed analysis of the dynamic: strengths, tension points, and what to watch for.</div>
+      <div class="feat-why" style="background:rgba(196,145,138,.06);color:var(--rose)">Because the FIRST thing Mia does when she meets a new guy is ask "what's your birthday?" This feature is the #1 reason she'll send someone a link. Every check = 2 users. Growth disguised as a feature.</div>
+    </div>
+    <!-- Feature 4 -->
+    <div class="feat" style="border-top:3px solid var(--lav)">
+      <div class="feat-icon">🌅</div>
+      <div class="feat-name">Daily Personalized Insight</div>
+      <div class="feat-desc">Every morning: a push notification based on today's transits hitting HER chart. Not "Virgos will feel emotional." Instead: "Venus trines your natal Moon today — conversations about feelings will flow easier than usual."</div>
+      <div class="feat-why" style="background:rgba(155,142,196,.06);color:var(--lav)">Because this is what makes Mia open the app EVERY DAY. Co-Star's daily notification is the #1 retention mechanic in the category. But theirs are vague. Ours are specific to her chart + actionable. She'll screenshot them.</div>
+    </div>
+    <!-- Feature 5 -->
+    <div class="feat" style="border-top:3px solid var(--sage)">
+      <div class="feat-icon">📅</div>
+      <div class="feat-name">Weekly Transit Report</div>
+      <div class="feat-desc">Delivered every Monday 8am. A personalized briefing: what's happening in her chart this week, what to expect, what to watch for. Like a weather forecast for her emotional life.</div>
+      <div class="feat-why" style="background:rgba(139,158,126,.06);color:var(--sage)">Because Monday morning is when Mia feels the most anxious about the week ahead. This gives her a sense of "I know what's coming" — which is exactly what astrology gives people. Control in a chaotic world. Premium feature — the weekly report is what converts free users.</div>
+    </div>
+    <!-- Feature 6 -->
+    <div class="feat" style="border-top:3px solid var(--sky)">
+      <div class="feat-icon">📄</div>
+      <div class="feat-name">Downloadable Reports</div>
+      <div class="feat-desc">Beautiful, permanent PDFs: Full birth chart report, compatibility deep-dive, year-ahead forecast. Something she keeps, re-reads, highlights, sends to friends.</div>
+      <div class="feat-why" style="background:rgba(123,167,196,.06);color:var(--sky)">Because the chat disappears. The daily notification is fleeting. A report is a PRODUCT she owns. It feels like buying a book about herself. $9.99 per report for non-subscribers, free for Premium members. This is the one-time purchase path for people who won't subscribe.</div>
+    </div>
+  </div>
+</section>
+
+<!-- ═══════ 03 ONBOARDING ═══════ -->
+<section class="sec" id="onboarding">
+  <div class="sec-head">
+    <div class="sec-num" style="background:var(--rose)">03</div>
+    <span class="sec-label" style="color:var(--rose)">Onboarding — Mia's First 3 Minutes</span>
+    <div class="sec-line" style="background:var(--rose)"></div>
+  </div>
+
+  <p style="font-size:13px;color:var(--dim);margin-bottom:24px">The onboarding has ONE job: get Mia to the "how does it KNOW this" moment as fast as possible. Every extra tap, every unnecessary screen, is a chance to lose her.</p>
+
+  <div class="ob-step">
+    <div class="ob-col"><div class="ob-dot" style="border-color:var(--terra);background:rgba(193,127,89,.08)">🌅</div><div class="ob-line" style="background:var(--terra)"></div></div>
+    <div class="ob-content">
+      <div class="ob-phase" style="color:var(--terra)">Screen 1 — The Welcome (5 seconds)</div>
+      <div class="ob-title">Warm. Not corporate. Not mystical. Just warm.</div>
+      <div class="ob-screen">
+        <b>"Your chart explains the pattern."</b><br>
+        Celestia uses your birth data to show you why things keep happening — in relationships, career, and life.<br><br>
+        <b>No vague horoscopes. No sugarcoating. Just you.</b><br><br>
+        <span style="color:var(--terra)">[Get My Free Chart →]</span>
+      </div>
+      <div class="ob-desc" style="margin-top:8px">No sign-up form yet. No email capture. Just one button. Reduce friction to zero.</div>
+    </div>
+  </div>
+
+  <div class="ob-step">
+    <div class="ob-col"><div class="ob-dot" style="border-color:var(--gold);background:rgba(212,168,83,.08)">📝</div><div class="ob-line" style="background:var(--gold)"></div></div>
+    <div class="ob-content">
+      <div class="ob-phase" style="color:var(--gold)">Screen 2 — Birth Data Entry (30 seconds)</div>
+      <div class="ob-title">Three fields. Beautiful animations while she types.</div>
+      <div class="ob-screen">
+        <b>Let's build your chart</b><br><br>
+        Birthday: <b>September 14, 1999</b><br>
+        Birth time: <b>2:35 AM</b> <span style="opacity:.5">(check your birth certificate or ask your mom!)</span><br>
+        Birth city: <b>San Antonio, TX</b><br><br>
+        <span style="opacity:.5">Stars aligning in the background... warm particle animation</span><br><br>
+        <span style="color:var(--gold)">[Build My Chart →]</span>
+      </div>
+      <div class="ob-desc" style="margin-top:8px">If she doesn't know her birth time, let her skip it. Better to have an approximate chart than lose her entirely. "Don't know your birth time? That's okay — we'll use your birth date for now."</div>
+    </div>
+  </div>
+
+  <div class="ob-step">
+    <div class="ob-col"><div class="ob-dot" style="border-color:var(--sage);background:rgba(139,158,126,.08)">✨</div><div class="ob-line" style="background:var(--sage)"></div></div>
+    <div class="ob-content">
+      <div class="ob-phase" style="color:var(--sage)">Screen 3 — The Chart Reveal (20 seconds)</div>
+      <div class="ob-title">The first "wow" moment. Her chart appears with 3 key insights.</div>
+      <div class="ob-screen">
+        <b>Here's you, Mia.</b><br><br>
+        ☉ <b>Virgo Sun</b> — You analyze everything. Including yourself. Especially yourself.<br>
+        ☽ <b>Scorpio Moon</b> — You feel things at a depth most people can't handle. Including you, sometimes.<br>
+        ↑ <b>Leo Rising</b> — People see confidence. You feel the opposite most days.<br><br>
+        <span style="opacity:.5">Beautiful chart visualization behind the text. Warm colors. Feels premium.</span><br><br>
+        <span style="color:var(--sage)">She's already hooked. This is the screenshot moment.</span>
+      </div>
+    </div>
+  </div>
+
+  <div class="ob-step">
+    <div class="ob-col"><div class="ob-dot" style="border-color:var(--lav);background:rgba(155,142,196,.08)">💎</div><div class="ob-line" style="background:var(--lav)"></div></div>
+    <div class="ob-content">
+      <div class="ob-phase" style="color:var(--lav)">Screen 4 — The Soft Paywall (10 seconds)</div>
+      <div class="ob-title">She sees it. She registers it. She taps "Continue Free." No pressure.</div>
+      <div class="ob-screen">
+        <b>Celestia Free</b><br>
+        ✓ Daily personalized insight<br>
+        ✓ Your full birth chart<br>
+        ✓ 5 AI chats per day<br>
+        ✓ Basic compatibility<br><br>
+        <b style="color:var(--terra)">Celestia Premium — 7-day free trial</b><br>
+        ✓ Everything in Free<br>
+        ✓ Unlimited AI chat<br>
+        ✓ Weekly transit reports (every Monday)<br>
+        ✓ Full compatibility deep-dives<br>
+        ✓ Downloadable reports<br>
+        ✓ Transit alert notifications<br><br>
+        <span style="color:var(--terra)">[Try Premium Free for 7 Days]</span><br>
+        <span style="color:var(--muted)">[Continue with Free]</span>
+      </div>
+      <div class="ob-desc" style="margin-top:8px">She now KNOWS Premium exists. She's wired. When the moment comes — the weekly report, the deep compatibility check — she'll remember this screen. No surprise charges. No dark patterns. We're not Nebula.</div>
+    </div>
+  </div>
+
+  <div class="ob-step">
+    <div class="ob-col"><div class="ob-dot" style="border-color:var(--terra);background:rgba(193,127,89,.12)">🤯</div></div>
+    <div class="ob-content">
+      <div class="ob-phase" style="color:var(--terra)">Screen 5 — The AI Chat Prompt (30 seconds)</div>
+      <div class="ob-title">Don't make her figure out what to do next. Ask her the question.</div>
+      <div class="ob-screen">
+        <b>One thing you've always wondered about yourself?</b><br><br>
+        <span style="opacity:.5">Suggested prompts:</span><br>
+        "Why do I keep attracting the same type?"<br>
+        "What's my biggest blind spot?"<br>
+        "What should I focus on this month?"<br><br>
+        <span style="opacity:.5">She taps one or types her own. The AI answers using her specific chart. This is the moment her eyes go wide. This is the moment she screenshots. This is where the viral loop begins.</span>
+      </div>
+    </div>
+  </div>
+
+  <div class="mia">
+    <div class="mia-ava">🤯</div>
+    <div class="mia-txt">
+      <div class="mia-label">Mia after onboarding — 3 minutes in</div>
+      <div class="mia-q">"I've used like 5 astrology apps. None of them made me feel like they actually KNEW me. This one just described my entire relationship history in two paragraphs. I'm sending this to everyone I know."</div>
+      <div class="mia-ctx">3 minutes → hooked → screenshot → group chat → 3 friends sign up tonight</div>
+    </div>
+  </div>
+</section>
+
+<!-- ═══════ 04 PRICING ═══════ -->
+<section class="sec" id="pricing">
+  <div class="sec-head">
+    <div class="sec-num" style="background:var(--lav)">04</div>
+    <span class="sec-label" style="color:var(--lav)">Monetization — Priced for Mia's Wallet</span>
+    <div class="sec-line" style="background:var(--lav)"></div>
+  </div>
+
+  <div class="mia" style="margin-bottom:20px">
+    <div class="mia-ava">💸</div>
+    <div class="mia-txt">
+      <div class="mia-label">The pricing constraint</div>
+      <div class="mia-q">"I make $44K a year. I spend $6 on a latte without thinking. I agonize over anything above $15. And if I feel tricked into paying, I'll delete the app AND leave a bad review."</div>
+    </div>
+  </div>
+
+  <div class="g3">
+    <!-- Free -->
+    <div class="price-card">
+      <div class="price-name">Free</div>
+      <div class="price-amount" style="color:var(--sage)">$0</div>
+      <div class="price-period">Forever</div>
+      <ul class="price-list">
+        <li><span style="color:var(--sage)">✓</span> Daily personalized insight</li>
+        <li><span style="color:var(--sage)">✓</span> Full birth chart</li>
+        <li><span style="color:var(--sage)">✓</span> 5 AI chats per day</li>
+        <li><span style="color:var(--sage)">✓</span> Basic compatibility (sign-level)</li>
+        <li><span style="color:var(--sage)">✓</span> Share your chart link</li>
+      </ul>
+      <p style="font-size:10px;color:var(--sage);margin-top:12px;font-style:italic">This tier is the growth engine. It must be generous enough that she tells friends "it's free and it's amazing."</p>
+    </div>
+    <!-- Premium -->
+    <div class="price-card featured">
+      <div class="price-badge">Most Mias choose this</div>
+      <div class="price-name" style="color:var(--terra)">Premium</div>
+      <div class="price-amount" style="color:var(--terra)">$6.99</div>
+      <div class="price-period">/month after 7-day free trial</div>
+      <ul class="price-list">
+        <li><span style="color:var(--terra)">✓</span> Everything in Free</li>
+        <li><span style="color:var(--terra)">✓</span> <b style="color:var(--cream)">Unlimited</b> AI chat</li>
+        <li><span style="color:var(--terra)">✓</span> <b style="color:var(--cream)">Weekly transit report</b> (Mon 8am)</li>
+        <li><span style="color:var(--terra)">✓</span> Full compatibility deep-dives</li>
+        <li><span style="color:var(--terra)">✓</span> Downloadable reports (unlimited)</li>
+        <li><span style="color:var(--terra)">✓</span> Transit alert push notifications</li>
+        <li><span style="color:var(--terra)">✓</span> Monthly year-ahead forecast</li>
+      </ul>
+      <p style="font-size:10px;color:var(--terra);margin-top:12px;font-style:italic">$0.23/day. Less than a coffee. She won't think twice.</p>
+    </div>
+    <!-- One-time -->
+    <div class="price-card">
+      <div class="price-name">Single Reports</div>
+      <div class="price-amount" style="color:var(--sky)">$9.99</div>
+      <div class="price-period">each / one-time purchase</div>
+      <ul class="price-list">
+        <li><span style="color:var(--sky)">📄</span> Full Birth Chart Report</li>
+        <li><span style="color:var(--sky)">💕</span> Compatibility Deep-Dive</li>
+        <li><span style="color:var(--sky)">🔮</span> Year-Ahead Forecast</li>
+        <li><span style="color:var(--sky)">🌙</span> Saturn Return Guide</li>
+      </ul>
+      <p style="font-size:10px;color:var(--sky);margin-top:12px;font-style:italic">For the Mia who won't subscribe but WILL pay once for the thing she needs right now. Catches 100% of intent.</p>
+    </div>
+  </div>
+
+  <div class="g2" style="margin-top:14px">
+    <div class="because" style="border-color:var(--terra);background:rgba(193,127,89,.05)">
+      <b style="color:var(--terra)">Why $6.99 and not $9.99</b>
+      Co-Star charges $9/month and users are calling it "insane" in reviews. Mia makes $44K. At $6.99, it's impulse pricing — less than two coffees. We can raise later when value is proven. Start low, build love, raise when she can't live without it.
+    </div>
+    <div class="because" style="border-color:var(--gold);background:rgba(212,168,83,.05)">
+      <b style="color:var(--gold)">Why 7-day trial and not 3-day</b>
+      Nebula does 3-day trials. Too short — Mia hasn't even gotten her first Monday transit report yet. 7 days = one full weekly report + several deep AI chats + at least one compatibility check. By day 7, she's built the habit. The trial ending feels natural, not abrupt.
+    </div>
+  </div>
+</section>
+
+<!-- ═══════ 05 DAILY LIFE ═══════ -->
+<section class="sec" id="daily">
+  <div class="sec-head">
+    <div class="sec-num" style="background:var(--sage)">05</div>
+    <span class="sec-label" style="color:var(--sage)">Mia's Daily Life With Celestia</span>
+    <div class="sec-line" style="background:var(--sage)"></div>
+  </div>
+
+  <p style="font-size:13px;color:var(--dim);margin-bottom:20px">This is what a regular Tuesday looks like for Mia after she's been using Celestia for 2 weeks. The app has become part of her routine — like checking the weather, but for her emotional life.</p>
+
+  <div class="daily-card" style="border-left:3px solid var(--gold)">
+    <div class="daily-time" style="color:var(--gold)">7:22 AM — Push Notification</div>
+    <div class="daily-title">"Venus trines your natal Moon today — feelings will flow easier. If you've been holding something back, today's the day to say it."</div>
+    <div class="daily-body">She reads it in bed before getting up. Smiles. Screenshots it. Thinks about the guy she's been texting. Thinks "maybe I'll tell him how I feel tonight." The notification just shaped her entire day.</div>
+    <div class="daily-tag" style="color:var(--gold);background:rgba(212,168,83,.1)">FREE — Daily Insight</div>
+  </div>
+
+  <div class="daily-card" style="border-left:3px solid var(--terra)">
+    <div class="daily-time" style="color:var(--terra)">12:15 PM — Lunch Break</div>
+    <div class="daily-title">She opens Celestia. Types: "should I text him first or wait?"</div>
+    <div class="daily-body">The AI references her Mars in the 12th house and says something that makes her laugh — "You already know you're going to text him. Your Mars says you'll overthink for 3 hours first, then send it anyway. Skip the 3 hours." She screenshots it. Sends to group chat.</div>
+    <div class="daily-tag" style="color:var(--terra);background:rgba(193,127,89,.1)">FREE — AI Chat (2 of 5 daily)</div>
+  </div>
+
+  <div class="daily-card" style="border-left:3px solid var(--rose)">
+    <div class="daily-time" style="color:var(--rose)">8:45 PM — After the date</div>
+    <div class="daily-title">She gets home. Opens Celestia. Enters his birthday. Checks compatibility.</div>
+    <div class="daily-body">The basic free version shows sign-level compatibility. It says "high emotional intensity, potential for deep connection, watch for power dynamics." She wants MORE. She wants the full deep-dive — his Venus, her Venus, how their Moons interact. This is the moment she upgrades.</div>
+    <div class="daily-tag" style="color:var(--rose);background:rgba(196,145,138,.1)">PREMIUM TRIGGER — Compatibility deep-dive</div>
+  </div>
+
+  <div class="daily-card" style="border-left:3px solid var(--lav)">
+    <div class="daily-time" style="color:var(--lav)">10:30 PM — In bed, scrolling</div>
+    <div class="daily-title">She re-reads the daily insight. Thinks about the date. Opens the compatibility report.</div>
+    <div class="daily-body">She reads every section of the compatibility report. Screenshots the "communication style" section. Sends it to her best friend: "okay I think this one might actually be different." Her friend asks "what app is this?" The viral loop continues.</div>
+    <div class="daily-tag" style="color:var(--lav);background:rgba(155,142,196,.1)">PREMIUM — Report + Viral sharing</div>
+  </div>
+
+  <div class="mia">
+    <div class="mia-ava">💜</div>
+    <div class="mia-txt">
+      <div class="mia-label">What Celestia has become for Mia</div>
+      <div class="mia-q">"I check it every morning like I check the weather. But honestly? It's helped me understand myself more than 3 years of journaling did. And it costs less than my Spotify."</div>
+    </div>
+  </div>
+</section>
+
+<!-- ═══════ 06 RETENTION ═══════ -->
+<section class="sec" id="retention">
+  <div class="sec-head">
+    <div class="sec-num" style="background:var(--sky)">06</div>
+    <span class="sec-label" style="color:var(--sky)">Retention — What Brings Her Back</span>
+    <div class="sec-line" style="background:var(--sky)"></div>
+  </div>
+
+  <div class="card">
+    <div class="card-t" style="color:var(--sky)">The Daily Retention Loop</div>
+    <div class="loop">
+      <div class="loop-node"><div class="loop-dot" style="border-color:var(--gold);background:rgba(212,168,83,.08)">🌅</div><div class="loop-label" style="color:var(--gold)">Morning</div><div class="loop-desc">Push notification with today's transit</div></div>
+      <div class="loop-arrow">→</div>
+      <div class="loop-node"><div class="loop-dot" style="border-color:var(--terra);background:rgba(193,127,89,.08)">📱</div><div class="loop-label" style="color:var(--terra)">Opens App</div><div class="loop-desc">Reads full daily insight</div></div>
+      <div class="loop-arrow">→</div>
+      <div class="loop-node"><div class="loop-dot" style="border-color:var(--lav);background:rgba(155,142,196,.08)">💬</div><div class="loop-label" style="color:var(--lav)">Chats</div><div class="loop-desc">Asks a question during the day</div></div>
+      <div class="loop-arrow">→</div>
+      <div class="loop-node"><div class="loop-dot" style="border-color:var(--rose);background:rgba(196,145,138,.08)">📸</div><div class="loop-label" style="color:var(--rose)">Shares</div><div class="loop-desc">Screenshots → group chat</div></div>
+      <div class="loop-arrow">→</div>
+      <div class="loop-node"><div class="loop-dot" style="border-color:var(--sage);background:rgba(139,158,126,.08)">🌙</div><div class="loop-label" style="color:var(--sage)">Night</div><div class="loop-desc">Checks back, deeper questions</div></div>
+      <div class="loop-arrow">→</div>
+      <div class="loop-node"><div class="loop-dot" style="border-color:var(--gold);background:rgba(212,168,83,.08)">🔄</div><div class="loop-label" style="color:var(--gold)">Tomorrow</div><div class="loop-desc">New notification. Cycle repeats.</div></div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-t" style="color:var(--terra)">Retention Triggers — What Keeps Her Subscribed</div>
+    <div class="g2">
+      <div class="because" style="border-color:var(--gold);background:rgba(212,168,83,.04)"><b style="color:var(--gold)">Monday 8am — Weekly Transit Report</b>She opens it like a letter from a friend. "This week: focus on career conversations. Wednesday is your power day." She plans her week around it. Miss one Monday? She feels off.</div>
+      <div class="because" style="border-color:var(--terra);background:rgba(193,127,89,.04)"><b style="color:var(--terra)">Transit Alerts — Mercury Rx, Eclipses</b>"Mercury Retrograde starts Thursday. Here's what it hits in YOUR chart: communication at work will get messy. Double-check emails." She feels prepared while everyone else panics.</div>
+      <div class="because" style="border-color:var(--rose);background:rgba(196,145,138,.04)"><b style="color:var(--rose)">New Relationship → Compatibility Check</b>Every time she meets someone new, she enters their data. Every compatibility check reinforces the value of Premium. Can't do deep compatibility on Free.</div>
+      <div class="because" style="border-color:var(--lav);background:rgba(155,142,196,.04)"><b style="color:var(--lav)">Birthday — Solar Return Email</b>"Happy birthday, Mia ✨ Your Year-Ahead forecast is ready." Sent on her actual birthday. Most emotional, highest-converting email of the year. She'll re-subscribe just for this.</div>
+    </div>
+  </div>
+</section>
+
+<!-- ═══════ 07 VIRAL ═══════ -->
+<section class="sec" id="viral">
+  <div class="sec-head">
+    <div class="sec-num" style="background:var(--sage)">07</div>
+    <span class="sec-label" style="color:var(--sage)">Viral Loop — Mia IS the Marketing</span>
+    <div class="sec-line" style="background:var(--sage)"></div>
+  </div>
+
+  <div class="card" style="border-top:3px solid var(--sage)">
+    <div class="card-t" style="color:var(--sage)">4 Built-In Viral Mechanics</div>
+    <div class="g2">
+      <div>
+        <p style="font-size:14px;font-weight:700;margin-bottom:6px">📸 Screenshot-Worthy Design</p>
+        <p style="font-size:12px;color:var(--dim);line-height:1.6">Every chart, every AI answer, every daily insight is designed to be <b style="color:var(--cream)">beautiful enough to screenshot.</b> If it's ugly, she won't share it. The visual quality of the output IS the marketing. Desert Dawn palette. Clean typography. Instagram-ready without editing.</p>
+      </div>
+      <div>
+        <p style="font-size:14px;font-weight:700;margin-bottom:6px">🔗 Shareable Chart Links</p>
+        <p style="font-size:12px;color:var(--dim);line-height:1.6">One-tap "Share your chart" generates: <b style="color:var(--cream)">celestia.com/chart/mia</b> — a beautiful web page showing her chart summary. At the bottom: "Want to see YOUR chart?" Every shared link = a landing page = a new user. The product IS the distribution.</p>
+      </div>
+      <div>
+        <p style="font-size:14px;font-weight:700;margin-bottom:6px">💕 Compatibility = 2 Users</p>
+        <p style="font-size:12px;color:var(--dim);line-height:1.6">"Check our compatibility!" — she sends the link to her date. <b style="color:var(--cream)">He enters HIS birth data to see the result.</b> Now he's a user too. Every compatibility check = 2 users acquired. Growth disguised as a feature. Costs $0.</p>
+      </div>
+      <div>
+        <p style="font-size:14px;font-weight:700;margin-bottom:6px">💬 Group Chat Contagion</p>
+        <p style="font-size:12px;color:var(--dim);line-height:1.6">Mia sends an AI answer to her 4-person group chat. <b style="color:var(--cream)">3 of 4 friends enter their birth data within 24 hours.</b> Each of them sends to THEIR group chats. If viral coefficient >1.0, growth is self-sustaining with $0 ad spend.</p>
+      </div>
+    </div>
+  </div>
+
+  <div class="mia">
+    <div class="mia-ava">💬</div>
+    <div class="mia-txt">
+      <div class="mia-label">In Mia's Group Chat</div>
+      <div class="mia-q">"okay I know you're going to think I'm crazy but this app just described my entire relationship history and I'm literally shaking. just put in your birthday. trust me."</div>
+      <div class="mia-ctx">3 of 4 friends sign up that night. One of them upgrades to Premium within a week.</div>
+    </div>
+  </div>
+</section>
+
+<!-- ═══════ 08 REVENUE ═══════ -->
+<section class="sec" id="revenue">
+  <div class="sec-head">
+    <div class="sec-num" style="background:var(--gold)">08</div>
+    <span class="sec-label" style="color:var(--gold)">Revenue Model — The Math</span>
+    <div class="sec-line" style="background:var(--gold)"></div>
+  </div>
+
+  <div class="card">
+    <div class="card-t" style="color:var(--gold)">Three Revenue Streams, All Flowing From Mia</div>
+    <div class="g3">
+      <div style="text-align:center;padding:16px;background:rgba(193,127,89,.05);border-radius:12px">
+        <p style="font-size:32px;font-weight:700;font-family:'Playfair Display',serif;color:var(--terra)">$6.99</p>
+        <p style="font-size:10px;color:var(--terra);font-weight:600;letter-spacing:1px;text-transform:uppercase;margin-bottom:6px">Monthly Subscription</p>
+        <p style="font-size:11px;color:var(--dim)">Primary revenue. The Monday report + daily notifications create a habit she won't break.</p>
+        <p style="font-size:9px;color:var(--muted);margin-top:6px">~60% of total revenue</p>
+      </div>
+      <div style="text-align:center;padding:16px;background:rgba(212,168,83,.05);border-radius:12px">
+        <p style="font-size:32px;font-weight:700;font-family:'Playfair Display',serif;color:var(--gold)">$9.99</p>
+        <p style="font-size:10px;color:var(--gold);font-weight:600;letter-spacing:1px;text-transform:uppercase;margin-bottom:6px">Single Reports</p>
+        <p style="font-size:11px;color:var(--dim)">Catches non-subscribers with one-time intent: compatibility with the new guy, birthday forecast.</p>
+        <p style="font-size:9px;color:var(--muted);margin-top:6px">~30% of total revenue</p>
+      </div>
+      <div style="text-align:center;padding:16px;background:rgba(123,167,196,.05);border-radius:12px">
+        <p style="font-size:32px;font-weight:700;font-family:'Playfair Display',serif;color:var(--sky)">$49.99</p>
+        <p style="font-size:10px;color:var(--sky);font-weight:600;letter-spacing:1px;text-transform:uppercase;margin-bottom:6px">Annual Plan</p>
+        <p style="font-size:11px;color:var(--dim)">Offered after 2+ months of Premium. Saves her 40%. Locks in LTV. Reduces churn.</p>
+        <p style="font-size:9px;color:var(--muted);margin-top:6px">~10% of total revenue (growing)</p>
+      </div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-t" style="color:var(--terra)">Unit Economics — Per Mia</div>
+    <div class="g2">
+      <div>
+        <div style="display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px solid var(--border);font-size:12px"><span style="color:var(--muted)">Cost to acquire Mia (organic)</span><span style="font-weight:600">$0 – $5</span></div>
+        <div style="display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px solid var(--border);font-size:12px"><span style="color:var(--muted)">Free → Premium conversion</span><span style="font-weight:600;color:var(--terra)">12–18%</span></div>
+        <div style="display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px solid var(--border);font-size:12px"><span style="color:var(--muted)">Trial → Paid conversion</span><span style="font-weight:600;color:var(--terra)">45–55%</span></div>
+        <div style="display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px solid var(--border);font-size:12px"><span style="color:var(--muted)">Monthly churn rate</span><span style="font-weight:600">8–12%</span></div>
+      </div>
+      <div>
+        <div style="display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px solid var(--border);font-size:12px"><span style="color:var(--muted)">Avg subscription lifespan</span><span style="font-weight:600">6–8 months</span></div>
+        <div style="display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px solid var(--border);font-size:12px"><span style="color:var(--muted)">LTV per Premium Mia</span><span style="font-weight:600;color:var(--gold)">$42 – $56</span></div>
+        <div style="display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px solid var(--border);font-size:12px"><span style="color:var(--muted)">+ Single report purchases</span><span style="font-weight:600;color:var(--gold)">+$15 avg</span></div>
+        <div style="display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px solid var(--border);font-size:12px"><span style="color:var(--muted)">Friends she brings (free)</span><span style="font-weight:600;color:var(--sage)">3–5 people</span></div>
+      </div>
+    </div>
+    <div style="margin-top:16px;padding:16px;background:rgba(193,127,89,.06);border-radius:10px;text-align:center">
+      <p style="font-size:11px;color:var(--muted);margin-bottom:4px">Total value of ONE Mia to the business</p>
+      <p style="font-family:'Playfair Display',serif;font-size:28px;font-weight:600;color:var(--terra)">$57 – $71 + 3–5 free users</p>
+      <p style="font-size:10px;color:var(--muted);margin-top:4px">Acquired for $0–5. This is why bottom-up works.</p>
+    </div>
+  </div>
+</section>
+
+<!-- ═══════ PROMISE ═══════ -->
+<div class="promise">
+  <div class="promise-label">The Complete Product in One Sentence</div>
+  <div class="promise-text">"Celestia is the $6.99/month friend who knows your chart, answers your 10:30pm questions, tells you what's coming this week, and never judges you for Googling your ex's compatibility at midnight."</div>
+  <p style="font-size:13px;opacity:.8">Every feature, every price point, every notification, every pixel — designed for one girl in a 1BR apartment on South Congress. Build for her. She'll bring the world.</p>
+</div>
+
+<!-- ═══════ FOOTER ═══════ -->
+<footer class="footer">
+  <p>Build for Mia. Let Mia bring her friends. That's the entire product plan.</p>
+  <div class="brand">Celestia · Product Bible · 2026</div>
+</footer>
+
+</div>
+
+<script>
+const secs=document.querySelectorAll('.sec');
+const navs=document.querySelectorAll('.topnav a');
+const observer=new IntersectionObserver(entries=>{entries.forEach(e=>{if(e.isIntersecting){navs.forEach(n=>n.classList.remove('active'));const a=document.querySelector(`.topnav a[href="#${e.target.id}"]`);if(a)a.classList.add('active')}})},{threshold:.25});
+secs.forEach(s=>observer.observe(s));
+</script>
+</body>
+</html>

@@ -1,0 +1,534 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Celestia — Retention & Viral Engine (Keep Her + Spread Through Her)</title>
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,300;0,400;0,500;0,600;0,700;1,400;1,500&family=DM+Sans:ital,wght@0,300;0,400;0,500;0,600;0,700;1,400&display=swap" rel="stylesheet">
+<style>
+:root{--bg:#0F0D1A;--card:#1A1726;--card2:#211E2E;--terra:#C17F59;--gold:#D4A853;--sage:#8B9E7E;--rose:#C4918A;--lav:#9B8EC4;--sky:#7BA7C4;--cream:#F5EDE3;--muted:#6B6880;--border:rgba(255,255,255,0.06);--text:rgba(255,255,255,0.78);--dim:rgba(255,255,255,0.45)}
+*{margin:0;padding:0;box-sizing:border-box}
+body{background:var(--bg);color:var(--cream);font-family:'DM Sans',sans-serif;-webkit-font-smoothing:antialiased;line-height:1.65}
+.wrap{max-width:920px;margin:0 auto;padding:0 24px}
+.topnav{position:sticky;top:0;z-index:100;background:rgba(15,13,26,.92);backdrop-filter:blur(16px);border-bottom:1px solid var(--border);overflow-x:auto}
+.topnav::-webkit-scrollbar{display:none}
+.topnav-inner{display:flex;max-width:920px;margin:0 auto;min-width:max-content}
+.topnav a{padding:11px 13px;font-size:8.5px;letter-spacing:1.5px;text-transform:uppercase;color:var(--muted);text-decoration:none;white-space:nowrap;border-bottom:2px solid transparent;transition:.3s}
+.topnav a:hover,.topnav a.active{color:var(--terra);border-bottom-color:var(--terra)}
+.hero{text-align:center;padding:52px 20px 36px;position:relative}
+.hero::before{content:'';position:absolute;top:-120px;left:50%;transform:translateX(-50%);width:600px;height:600px;background:radial-gradient(circle,rgba(193,127,89,.07) 0%,transparent 65%);pointer-events:none}
+.htag{font-size:9px;letter-spacing:5px;text-transform:uppercase;color:var(--gold);opacity:.6;margin-bottom:14px}
+.hero h1{font-family:'Playfair Display',serif;font-size:clamp(22px,5vw,36px);font-weight:300;line-height:1.2;margin-bottom:10px}
+.hero h1 b{font-weight:600;color:var(--terra)}
+.hero .sub{font-size:13.5px;color:var(--dim);max-width:620px;margin:0 auto}
+.sec{padding:44px 0 16px}
+.sec-head{display:flex;align-items:center;gap:12px;margin-bottom:24px}
+.sec-num{width:32px;height:32px;border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;color:white;flex-shrink:0}
+.sec-label{font-size:9.5px;letter-spacing:3px;text-transform:uppercase;font-weight:600}
+.sec-line{flex:1;height:1px;opacity:.15}
+.card{background:var(--card);border:1px solid var(--border);border-radius:14px;padding:22px;margin-bottom:12px}
+.card-t{font-size:9px;letter-spacing:2.5px;text-transform:uppercase;font-weight:600;margin-bottom:14px}
+.g2{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.g3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px}
+.mia{display:flex;gap:14px;align-items:flex-start;background:var(--card2);border:1px solid var(--border);border-radius:14px;padding:18px;margin-bottom:12px}
+.mia-ava{width:38px;height:38px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:15px;flex-shrink:0;border:2px solid var(--terra);background:rgba(193,127,89,.08)}
+.mia-txt{flex:1}
+.mia-label{font-size:8px;letter-spacing:2px;font-weight:700;text-transform:uppercase;color:var(--terra);margin-bottom:3px}
+.mia-q{font-family:'Playfair Display',serif;font-style:italic;font-size:13.5px;color:var(--cream);line-height:1.5}
+.mia-ctx{font-size:10px;color:var(--muted);margin-top:3px}
+
+/* Phone notif sim */
+.notif-sim{background:#1c1c1e;border-radius:16px;max-width:360px;margin:0 auto 10px;overflow:hidden;border:1px solid rgba(255,255,255,.06)}
+.notif-bar{display:flex;align-items:center;gap:8px;padding:12px 16px}
+.notif-icon{width:28px;height:28px;border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:13px;flex-shrink:0}
+.notif-content{flex:1}
+.notif-app{font-size:10px;color:rgba(255,255,255,.5);margin-bottom:1px}
+.notif-title{font-size:12px;font-weight:600;color:white;line-height:1.3}
+.notif-body{font-size:11px;color:rgba(255,255,255,.6);line-height:1.4;margin-top:2px}
+.notif-time{font-size:9px;color:rgba(255,255,255,.3);flex-shrink:0}
+
+/* Email sim */
+.email-sim{background:#fff;border-radius:12px;max-width:400px;margin:0 auto 10px;overflow:hidden;border:1px solid rgba(0,0,0,.08);color:#333}
+.email-header{padding:20px 24px;text-align:center;border-bottom:1px solid rgba(0,0,0,.06)}
+.email-logo{font-family:'Playfair Display',serif;font-size:18px;color:var(--terra)}
+.email-body{padding:24px}
+.email-greeting{font-family:'Playfair Display',serif;font-size:18px;color:#1a1a1a;margin-bottom:12px}
+.email-text{font-size:13px;color:#555;line-height:1.7;margin-bottom:14px}
+.email-highlight{background:#FDF6F0;border-left:3px solid var(--terra);padding:14px 18px;border-radius:0 8px 8px 0;font-size:13px;line-height:1.6;color:#333;margin:14px 0}
+.email-cta{display:block;background:var(--terra);color:white;text-align:center;padding:14px;border-radius:10px;font-size:14px;font-weight:600;text-decoration:none;margin:16px 0}
+.email-footer{padding:16px 24px;text-align:center;font-size:10px;color:#999;border-top:1px solid rgba(0,0,0,.06)}
+
+/* Timeline */
+.timeline{position:relative;padding-left:32px}
+.timeline::before{content:'';position:absolute;left:13px;top:0;bottom:0;width:2px;background:var(--border)}
+.tl-item{position:relative;margin-bottom:20px}
+.tl-dot{position:absolute;left:-32px;top:4px;width:28px;height:28px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:12px;border:2px solid;background:var(--bg);z-index:1}
+.tl-time{font-size:9px;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;margin-bottom:3px}
+.tl-title{font-size:13px;font-weight:600;margin-bottom:4px;line-height:1.3}
+.tl-desc{font-size:11.5px;color:var(--dim);line-height:1.6}
+.tl-channel{display:inline-flex;align-items:center;gap:4px;margin-top:6px;font-size:9px;padding:3px 8px;border-radius:5px;font-weight:600}
+
+/* Viral flow */
+.viral-step{display:flex;gap:0;position:relative}
+.viral-num{width:40px;height:40px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:16px;border:2px solid;background:var(--bg);flex-shrink:0;z-index:1}
+.viral-arrow{width:40px;display:flex;align-items:center;justify-content:center;color:var(--muted);font-size:16px}
+.viral-card{flex:1;background:var(--card);border:1px solid var(--border);border-radius:10px;padding:14px}
+.viral-card-title{font-size:12px;font-weight:600;margin-bottom:3px}
+.viral-card-desc{font-size:10.5px;color:var(--dim);line-height:1.5}
+
+.footer{text-align:center;padding:28px;border-top:1px solid var(--border)}
+.footer p{font-size:12px;color:var(--muted);font-style:italic}
+.footer .brand{font-size:9px;letter-spacing:4px;color:var(--gold);opacity:.4;margin-top:8px;text-transform:uppercase}
+@media(max-width:700px){.g2,.g3{grid-template-columns:1fr}.notif-sim,.email-sim{max-width:100%}.mia{flex-direction:column;text-align:center;align-items:center}.viral-step{flex-direction:column;align-items:center}.viral-arrow{transform:rotate(90deg)}}
+</style>
+</head>
+<body>
+
+<nav class="topnav"><div class="topnav-inner">
+  <a href="#overview">Overview</a>
+  <a href="#push">Push Notifications</a>
+  <a href="#email">Email Flows</a>
+  <a href="#lifecycle">Full Lifecycle</a>
+  <a href="#winback">Win-Back</a>
+  <a href="#viral">Viral Loop</a>
+  <a href="#groupchat">Group Chat</a>
+  <a href="#rules">Rules</a>
+</div></nav>
+
+<div class="wrap">
+
+<section class="hero">
+  <div class="htag">✦ Celestia — Retention & Viral Engine ✦</div>
+  <h1>Keep Her. <b>Spread Through Her.</b></h1>
+  <p class="sub">Two systems in one document. Part 1: the retention engine — push notifications, email flows, and lifecycle messaging that keep Mia opening the app every morning for months. Part 2: the viral loop — how every action she takes brings in 1-3 new users automatically, turning one Mia into a thousand.</p>
+</section>
+
+<!-- ═══════ PART 1 HEADER ═══════ -->
+<div style="text-align:center;padding:24px 0 8px">
+  <div style="font-size:9px;letter-spacing:5px;color:var(--gold);text-transform:uppercase;margin-bottom:6px">Part One</div>
+  <div style="font-family:'Playfair Display',serif;font-size:22px;color:var(--cream)">The Retention Engine</div>
+  <div style="font-size:11px;color:var(--muted);margin-top:4px">Push, Email, and Lifecycle Messaging</div>
+</div>
+
+<!-- ═══════ 01 OVERVIEW ═══════ -->
+<section class="sec" id="overview">
+  <div class="sec-head">
+    <div class="sec-num" style="background:var(--terra)">01</div>
+    <span class="sec-label" style="color:var(--terra)">The Messaging Architecture — Push + Email Working Together</span>
+    <div class="sec-line" style="background:var(--terra)"></div>
+  </div>
+
+  <div class="card" style="border-top:3px solid var(--terra)">
+    <div class="g2">
+      <div style="text-align:center;padding:16px;background:rgba(193,127,89,.05);border-radius:12px">
+        <p style="font-size:28px;margin-bottom:6px">🔔</p>
+        <p style="font-size:14px;font-weight:700;margin-bottom:4px">Push Notifications</p>
+        <p style="font-size:11px;color:var(--dim);line-height:1.5"><b style="color:var(--cream)">Daily habit builder.</b> The morning note. The transit alert. The "come back" nudge. Push is how she sees us every morning without opening the app. It's the alarm clock for the habit loop. Short, warm, lands on her lock screen.</p>
+      </div>
+      <div style="text-align:center;padding:16px;background:rgba(212,168,83,.05);border-radius:12px">
+        <p style="font-size:28px;margin-bottom:6px">📧</p>
+        <p style="font-size:14px;font-weight:700;margin-bottom:4px">Email</p>
+        <p style="font-size:11px;color:var(--dim);line-height:1.5"><b style="color:var(--cream)">Revenue driver + re-engagement.</b> The weekly transit (Monday 8am, Premium conversion trigger). The birthday Solar Return (8-12% report conversion). The win-back sequence for lapsed users. Longer, richer, and drives the biggest purchases.</p>
+      </div>
+    </div>
+    <p style="font-size:12px;color:var(--terra);font-weight:600;text-align:center;margin-top:14px">Push gets her to open. Email gets her to buy. Together they're the retention backbone.</p>
+  </div>
+
+  <div class="card">
+    <div class="card-t" style="color:var(--gold)">When Each Channel Is Used</div>
+    <div style="font-size:12px;color:var(--dim);line-height:1.8">
+      <b style="color:var(--cream)">Push only (no email):</b> Daily insight (7:22am), transit micro-alerts ("Moon enters your 12th house tonight"), compatibility updates ("Jake entered his data — your reading just got deeper"), chat limit reminders<br>
+      <b style="color:var(--cream)">Email only (no push):</b> Weekly transit report (Monday 8am, full content in email), birthday Solar Return email, monthly recap, win-back sequence for 14+ day lapsed users<br>
+      <b style="color:var(--cream)">Both push + email:</b> Mercury Retrograde start (push = alert, email = full survival guide), Eclipse season (push = heads up, email = what it means for her chart), new report available, annual subscription offer
+    </div>
+  </div>
+</section>
+
+<!-- ═══════ 02 PUSH NOTIFICATIONS ═══════ -->
+<section class="sec" id="push">
+  <div class="sec-head">
+    <div class="sec-num" style="background:var(--gold)">02</div>
+    <span class="sec-label" style="color:var(--gold)">Push Notification Flows — Every Message She Receives</span>
+    <div class="sec-line" style="background:var(--gold)"></div>
+  </div>
+
+  <div class="card">
+    <div class="card-t" style="color:var(--gold)">The 8 Push Notification Types</div>
+    <div class="g2">
+      <div>
+        <div style="margin-bottom:14px">
+          <div class="notif-sim">
+            <div class="notif-bar"><div class="notif-icon" style="background:var(--terra)">✦</div><div class="notif-content"><div class="notif-app">Celestia · now</div><div class="notif-title">Feelings will flow easier today.</div><div class="notif-body">Venus trines your Moon — say the thing you've been holding back. →</div></div><div class="notif-time">7:22am</div></div>
+          </div>
+          <div style="font-size:10px;color:var(--terra);font-weight:600;margin-bottom:2px">① Daily Insight · Every day · 7:15-7:30am</div>
+          <div style="font-size:10px;color:var(--dim)">The backbone. Based on her chart + today's transits. Never skip. This IS the habit loop. She reads it before getting out of bed.</div>
+        </div>
+        <div style="margin-bottom:14px">
+          <div class="notif-sim">
+            <div class="notif-bar"><div class="notif-icon" style="background:var(--lav)">☿</div><div class="notif-content"><div class="notif-app">Celestia · now</div><div class="notif-title">Mercury Retrograde starts tomorrow.</div><div class="notif-body">Here's what it means for YOUR chart specifically. Tap for your survival guide. →</div></div><div class="notif-time">6:00pm</div></div>
+          </div>
+          <div style="font-size:10px;color:var(--lav);font-weight:600;margin-bottom:2px">② Transit Alert · Event-based · Day before event</div>
+          <div style="font-size:10px;color:var(--dim)">Mercury Rx, full moons, eclipses, zodiac season changes. Sent the day before the event at 6pm. Drives app opens + Premium upgrades.</div>
+        </div>
+        <div style="margin-bottom:14px">
+          <div class="notif-sim">
+            <div class="notif-bar"><div class="notif-icon" style="background:var(--rose)">💕</div><div class="notif-content"><div class="notif-app">Celestia · now</div><div class="notif-title">Jake entered his birth details!</div><div class="notif-body">Your compatibility reading just got deeper. Tap to see the updated version. →</div></div><div class="notif-time">3:47pm</div></div>
+          </div>
+          <div style="font-size:10px;color:var(--rose);font-weight:600;margin-bottom:2px">③ Compatibility Update · Triggered · Real-time</div>
+          <div style="font-size:10px;color:var(--dim)">Sent when the other person enters their data via the share link. Creates excitement + re-opens the compatibility result + drives report purchase.</div>
+        </div>
+        <div>
+          <div class="notif-sim">
+            <div class="notif-bar"><div class="notif-icon" style="background:var(--sage)">📋</div><div class="notif-content"><div class="notif-app">Celestia · now</div><div class="notif-title">Your week ahead is ready, Mia ✦</div><div class="notif-body">Venus enters your 7th house this week. Big week for relationships. Tap to read. →</div></div><div class="notif-time">Mon 8am</div></div>
+          </div>
+          <div style="font-size:10px;color:var(--sage);font-weight:600;margin-bottom:2px">④ Weekly Transit (Premium) · Monday 8am</div>
+          <div style="font-size:10px;color:var(--dim)">Premium users get the full weekly report push. Free users get a teased version: "Your week ahead is ready — upgrade to read it." #1 Premium conversion trigger.</div>
+        </div>
+      </div>
+      <div>
+        <div style="margin-bottom:14px">
+          <div class="notif-sim">
+            <div class="notif-bar"><div class="notif-icon" style="background:var(--gold)">🎂</div><div class="notif-content"><div class="notif-app">Celestia · now</div><div class="notif-title">Happy Solar Return, Mia ✦</div><div class="notif-body">Your new year begins today. Your year-ahead forecast is waiting inside. →</div></div><div class="notif-time">8:00am</div></div>
+          </div>
+          <div style="font-size:10px;color:var(--gold);font-weight:600;margin-bottom:2px">⑤ Birthday Solar Return · Once/year · 8am on birthday</div>
+          <div style="font-size:10px;color:var(--dim)">The most personal push of the year. Warm, emotional. Drives Year-Ahead Report purchase (8-12% conversion). She's already emotional — this is the treat-yourself moment.</div>
+        </div>
+        <div style="margin-bottom:14px">
+          <div class="notif-sim">
+            <div class="notif-bar"><div class="notif-icon" style="background:var(--terra)">💬</div><div class="notif-content"><div class="notif-app">Celestia · now</div><div class="notif-title">Still thinking about the Scorpio pattern?</div><div class="notif-body">We talked about your Venus-Neptune dynamic last week. Want to explore it deeper? →</div></div><div class="notif-time">8:30pm</div></div>
+          </div>
+          <div style="font-size:10px;color:var(--terra);font-weight:600;margin-bottom:2px">⑥ Context Follow-Up (Premium) · 3-5 days after deep chat</div>
+          <div style="font-size:10px;color:var(--dim)">The memory layer in action. Celestia remembers what she was exploring and checks in. "We were talking about..." Makes the app feel alive, not transactional.</div>
+        </div>
+        <div style="margin-bottom:14px">
+          <div class="notif-sim">
+            <div class="notif-bar"><div class="notif-icon" style="background:var(--sky)">🌙</div><div class="notif-content"><div class="notif-app">Celestia · now</div><div class="notif-title">You haven't checked in this week.</div><div class="notif-body">The full moon in Libra is tomorrow and it's hitting your 7th house. You might want to see this. →</div></div><div class="notif-time">7pm</div></div>
+          </div>
+          <div style="font-size:10px;color:var(--sky);font-weight:600;margin-bottom:2px">⑦ Gentle Re-engagement · Day 5-7 of inactivity</div>
+          <div style="font-size:10px;color:var(--dim)">NOT "we miss you!" — that's desperate. Instead: tied to a REAL transit hitting her chart. She comes back because something is actually happening, not because we guilted her.</div>
+        </div>
+        <div>
+          <div class="notif-sim">
+            <div class="notif-bar"><div class="notif-icon" style="background:rgba(255,255,255,.1)">✦</div><div class="notif-content"><div class="notif-app">Celestia · now</div><div class="notif-title">Someone just checked compatibility with you ✦</div><div class="notif-body">A friend used your chart link. Want to see who? →</div></div><div class="notif-time">anytime</div></div>
+          </div>
+          <div style="font-size:10px;color:var(--muted);font-weight:600;margin-bottom:2px">⑧ Social Trigger · Event-based · Real-time</div>
+          <div style="font-size:10px;color:var(--dim)">Sent when someone uses her shared chart link or checks compatibility with her. Creates curiosity + re-engagement + social proof that her friends are using Celestia too.</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ═══════ 03 EMAIL FLOWS ═══════ -->
+<section class="sec" id="email">
+  <div class="sec-head">
+    <div class="sec-num" style="background:var(--rose)">03</div>
+    <span class="sec-label" style="color:var(--rose)">Email Flows — The Revenue Driving Sequences</span>
+    <div class="sec-line" style="background:var(--rose)"></div>
+  </div>
+
+  <p style="font-size:12px;color:var(--dim);margin-bottom:16px">Email is collected during onboarding (optional, after she's already seen her chart — never as a gate). We don't email often. When we do, it's VALUABLE. Celestia's email should feel like receiving a letter, not a marketing blast.</p>
+
+  <div class="card">
+    <div class="card-t" style="color:var(--rose)">Flow 1: Welcome Sequence (Days 0-7)</div>
+    <div class="timeline">
+      <div class="tl-item"><div class="tl-dot" style="border-color:var(--terra)">📧</div><div class="tl-time" style="color:var(--terra)">Day 0 — Immediate after email capture</div><div class="tl-title">Welcome: "Your Chart Is Ready, Mia ✦"</div><div class="tl-desc">Her Big 3 summary in the email itself — not "click to see your chart" but the actual Sun/Moon/Rising with one warm sentence each. She can read value without clicking. Below: "There's so much more to explore → Open the app." This email has a 45-60% open rate because she JUST signed up and wants to see her chart.</div></div>
+      <div class="tl-item"><div class="tl-dot" style="border-color:var(--gold)">📧</div><div class="tl-time" style="color:var(--gold)">Day 2 — If she's opened the app at least once</div><div class="tl-title">"Your Venus Has a Story to Tell"</div><div class="tl-desc">Introduces a specific planet she might not have explored yet. "Your Venus in Virgo explains more about your love life than your Sun sign ever could." Teases the insight. Links to the Venus card in the app. Also teases the compatibility checker: "Curious how your Venus interacts with someone else's? Try the compatibility check."</div></div>
+      <div class="tl-item"><div class="tl-dot" style="border-color:var(--sage)">📧</div><div class="tl-time" style="color:var(--sage)">Day 4 — Regardless of activity</div><div class="tl-title">"Have You Met Your Moon Yet?"</div><div class="tl-desc">The Scorpio Moon deep-dive. This is the "how does it KNOW" email. It describes her emotional patterns so accurately she screenshots it and sends to a friend. "Your Scorpio Moon means you feel everything at a 10, even when you act like it's a 3." Below: "Want to explore all 10 planets? → Open the app."</div></div>
+      <div class="tl-item"><div class="tl-dot" style="border-color:var(--rose)">📧</div><div class="tl-time" style="color:var(--rose)">Day 7 — Trial nudge (if still free)</div><div class="tl-title">"Your First Weekly Transit Report Is Waiting"</div><div class="tl-desc">Monday morning email. Shows the FIRST 2 paragraphs of her personalized weekly transit. Then: "This is what Premium members read every Monday at 8am. Start your free trial to get your complete week ahead." This email drives 6-8% trial starts. It works because she's had 7 days of daily insights and wants the next level.</div></div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-t" style="color:var(--gold)">Flow 2: Weekly Transit Email (Monday 8am · Premium)</div>
+    <div class="g2">
+      <div>
+        <div class="email-sim" style="max-width:340px">
+          <div class="email-header"><div class="email-logo">Celestia ✦</div></div>
+          <div class="email-body" style="padding:20px">
+            <div style="font-size:10px;color:#999;letter-spacing:1px;text-transform:uppercase;margin-bottom:4px">YOUR WEEK · MAR 17-23</div>
+            <div class="email-greeting">This week is about honesty, Mia.</div>
+            <div class="email-text">Venus enters your 7th house on Wednesday, which means the relationship conversations you've been avoiding? They're coming. Not aggressively — gently. The stars are giving you a window to say what's real.</div>
+            <div class="email-highlight">
+              <b style="color:var(--terra)">Best day:</b> Wednesday — Venus energy peaks. Say the thing.<br>
+              <b style="color:var(--terra)">Watch out:</b> Friday — Mercury squares your Mars. Re-read before you send.
+            </div>
+            <div class="email-text" style="font-size:12px;color:#888">Love: Open and flowing ✦ Career: Steady, focus on details ✦ Energy: Medium — pace yourself</div>
+            <a class="email-cta" style="background:var(--terra)">Read Full Weekly Report in App →</a>
+          </div>
+          <div class="email-footer">Celestia ✦ Your chart, explained like a friend would.<br>Unsubscribe</div>
+        </div>
+      </div>
+      <div style="font-size:12px;color:var(--dim);line-height:1.8">
+        <b style="color:var(--cream)">Why this email works:</b><br>
+        → Value IN the email — she doesn't have to click to get useful information<br>
+        → "Best day" and "Watch out" are immediately actionable<br>
+        → Three life area ratings in one line — she scans in 3 seconds<br>
+        → CTA goes to the full report in the app — deepens the habit<br><br>
+        <b style="color:var(--cream)">Open rate target:</b> 40-50% (astrology emails historically perform 2-3x industry average)<br>
+        <b style="color:var(--cream)">Click-through target:</b> 12-15%<br><br>
+        <b style="color:var(--cream)">Free users see a teaser version:</b><br>
+        Same structure but the highlight box is replaced with: "Your best and worst days this week are inside the full report. Start your free trial → $6.99/month after 7 days."<br><br>
+        <span style="color:var(--terra);font-style:italic">This is the #1 Premium conversion email. She's been reading the free daily for 2 weeks. Monday comes. She wants the weekly. She upgrades.</span>
+      </div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-t" style="color:var(--lav)">Flow 3: Birthday Solar Return Email (Once/Year)</div>
+    <p style="font-size:12.5px;color:var(--dim);line-height:1.7;margin-bottom:12px">Sent at 8am on her birthday. This is the single highest-converting email Celestia will ever send. She's emotional, reflective, and open to treating herself. The email is warm, personal, and offers her Year-Ahead Report.</p>
+    <div style="font-size:12px;color:var(--dim);line-height:1.8">
+      <b style="color:var(--cream)">Subject line:</b> "Happy Solar Return, Mia ✦ Your new year begins today."<br>
+      <b style="color:var(--cream)">Content:</b> Short, emotional. "The Sun returns to the exact position it was in when you were born. This is your astrological new year. Here's a glimpse of what's ahead..." → First paragraph of her Year-Ahead Forecast (free preview) → Blurred → "Read your complete Year-Ahead Forecast — 20 pages about the next 12 months of your life. $9.99 or included with Premium."<br>
+      <b style="color:var(--cream)">Conversion rate:</b> 8-12%. On her birthday, $9.99 feels like a birthday treat, not a purchase.<br>
+      <b style="color:var(--cream)">Timing:</b> 8am on the exact birthday. Not the day before. Not the day after. The EXACT day.
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-t" style="color:var(--sky)">Flow 4: Event-Triggered Emails</div>
+    <div class="g3">
+      <div style="font-size:11.5px;color:var(--dim);line-height:1.6">
+        <b style="color:var(--cream)">Mercury Retrograde Series</b><br>
+        3 emails: Day -3 ("It's coming"), Day -1 ("Tomorrow — your chart-specific guide"), Day 1 ("It's here — what to watch today"). Each personalized to how Rx hits HER chart. Drives app opens + Premium sign-ups.
+      </div>
+      <div style="font-size:11.5px;color:var(--dim);line-height:1.6">
+        <b style="color:var(--cream)">Eclipse Season Email</b><br>
+        Sent 1 week before eclipse. "Eclipse season is here — which house it hits in YOUR chart determines what shifts." Links to personalized eclipse guide in the app. Premium upsell for detailed guide.
+      </div>
+      <div style="font-size:11.5px;color:var(--dim);line-height:1.6">
+        <b style="color:var(--cream)">New Zodiac Season</b><br>
+        "Welcome to Scorpio Season, Mia ✦ Here's what it means for your chart." Sent on the first day of each zodiac season (12x/year). Light, fun, drives app open + social sharing.
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ═══════ 04 LIFECYCLE ═══════ -->
+<section class="sec" id="lifecycle">
+  <div class="sec-head">
+    <div class="sec-num" style="background:var(--sage)">04</div>
+    <span class="sec-label" style="color:var(--sage)">Mia's Full Messaging Lifecycle — Day 0 to Month 12</span>
+    <div class="sec-line" style="background:var(--sage)"></div>
+  </div>
+
+  <div class="card" style="overflow-x:auto">
+    <table class="cal-table" style="min-width:700px">
+      <tr><th style="width:80px">When</th><th>Push</th><th>Email</th><th>Goal</th></tr>
+      <tr><td style="font-weight:700;color:var(--terra)">Day 0</td><td>Welcome push after first chart view: "Your chart is beautiful, Mia ✦"</td><td>Welcome email with Big 3 summary</td><td>Confirm value. First "how does it know" moment.</td></tr>
+      <tr><td style="font-weight:700;color:var(--gold)">Day 1</td><td>First daily insight at 7:22am ✦</td><td>—</td><td>Establish the morning habit. She should expect this now.</td></tr>
+      <tr><td style="font-weight:700">Day 2</td><td>Daily insight</td><td>"Your Venus Has a Story" email</td><td>Deepen engagement. Introduce a new planet.</td></tr>
+      <tr><td style="font-weight:700">Day 3-4</td><td>Daily insights</td><td>"Have You Met Your Moon?" email (Day 4)</td><td>The emotional hook. Scorpio Moon description = screenshots.</td></tr>
+      <tr><td style="font-weight:700;color:var(--rose)">Day 5</td><td>Daily insight + suggested prompt: "Check compatibility with someone?"</td><td>—</td><td>Introduce compatibility. She probably has someone in mind by now.</td></tr>
+      <tr><td style="font-weight:700;color:var(--sage)">Day 7</td><td>Daily insight + "Your weekly report is waiting" (Monday)</td><td>"First Weekly Transit" email — blurred preview</td><td>#1 Premium conversion moment. She wants the weekly.</td></tr>
+      <tr><td style="font-weight:700">Day 8-13</td><td>Daily insights. If she checked compatibility: follow-up transit about that person.</td><td>—</td><td>Maintain habit. Deepen with context-specific content.</td></tr>
+      <tr><td style="font-weight:700;color:var(--terra)">Day 14</td><td>"You've been with Celestia for 2 weeks ✦" milestone push</td><td>"Two Weeks of Insights" recap email with her most-viewed planet</td><td>Celebrate the milestone. Reinforce the habit.</td></tr>
+      <tr><td style="font-weight:700">Day 15-29</td><td>Daily insights + weekly report pushes (Mon) + any transit alerts</td><td>Weekly transit email (Mon, Premium) + any event emails</td><td>The habit is established. She's either Premium or consistently free.</td></tr>
+      <tr><td style="font-weight:700;color:var(--gold)">Day 30</td><td>—</td><td>"Your First Month With Celestia ✦" — beautiful recap of her month, patterns explored, charts checked</td><td>Emotional lock-in. She sees 30 days of personalized history. Switching now = losing all of it.</td></tr>
+      <tr><td style="font-weight:700">Month 2-3</td><td>Daily + weekly + transit alerts + context follow-ups (Premium)</td><td>Monthly recap + birthday email (if applicable) + annual plan offer (after 2+ months Premium)</td><td>Deepen habit. Offer annual at $49.99 (saves 40%).</td></tr>
+      <tr><td style="font-weight:700;color:var(--rose)">Birthday</td><td>"Happy Solar Return, Mia ✦" at 8am</td><td>Birthday Solar Return email with Year-Ahead preview</td><td>Year-Ahead Report purchase (8-12% conversion). The biggest revenue day per user.</td></tr>
+      <tr><td style="font-weight:700">Month 6+</td><td>Daily + weekly + context + proactive check-ins ("how did the presentation go?")</td><td>Monthly recap + seasonal event emails + annual renewal offer</td><td>She's a lifer now. The memory layer makes switching impossible.</td></tr>
+    </table>
+  </div>
+</section>
+
+<!-- ═══════ 05 WIN-BACK ═══════ -->
+<section class="sec" id="winback">
+  <div class="sec-head">
+    <div class="sec-num" style="background:var(--sky)">05</div>
+    <span class="sec-label" style="color:var(--sky)">Win-Back Flows — When She Goes Quiet</span>
+    <div class="sec-line" style="background:var(--sky)"></div>
+  </div>
+
+  <div class="card">
+    <div class="card-t" style="color:var(--sky)">Re-Engagement Sequence — Gentle, Never Desperate</div>
+    <div class="timeline">
+      <div class="tl-item"><div class="tl-dot" style="border-color:var(--sage)">🔔</div><div class="tl-time" style="color:var(--sage)">Day 3 of inactivity — Push only</div><div class="tl-title">(No special message. Daily insight continues as normal.)</div><div class="tl-desc">The daily insight is itself the re-engagement. She sees it on her lock screen even if she doesn't open the app. The insight should be ESPECIALLY compelling on days 3-5 — tied to a real transit. "Something is shifting in your love life this week. Tap to see what." Don't say "we miss you." Just be useful.</div></div>
+      <div class="tl-item"><div class="tl-dot" style="border-color:var(--gold)">🔔</div><div class="tl-time" style="color:var(--gold)">Day 5-7 — Contextual push</div><div class="tl-title">"The full moon hits your 7th house tomorrow. You might want to see this."</div><div class="tl-desc">Tied to a REAL astrological event that's actually happening. Not fake urgency. Not "you haven't opened the app in 5 days." She comes back because something real is happening in her chart, not because we guilted her.</div></div>
+      <div class="tl-item"><div class="tl-dot" style="border-color:var(--rose)">📧</div><div class="tl-time" style="color:var(--rose)">Day 10 — Email: "A Lot Has Changed in Your Chart"</div><div class="tl-title">Email with specific transit updates she missed</div><div class="tl-desc">"While you were away, Mars entered your career house and Venus moved into your 8th house. Here's what that means for the next 2 weeks." Real content. Real value. She opens it, reads something that resonates, and taps "Open in App →".</div></div>
+      <div class="tl-item"><div class="tl-dot" style="border-color:var(--lav)">📧</div><div class="tl-time" style="color:var(--lav)">Day 21 — Last email: "Your Chart Misses You (kidding. but also not.)"</div><div class="tl-title">Warm, playful, one last try</div><div class="tl-desc">Light tone. "Your chart is still here. We haven't peeked at it without you (promise). But there's a LOT happening in your 7th house right now, and we think you'd want to know." If she doesn't return after this, stop emailing. No further messages. Respect the silence. If she ever re-opens the app, the daily insight resumes and Celestia says "Welcome back, Mia ✦ A lot has happened in your chart. Let me catch you up."</div></div>
+    </div>
+  </div>
+
+  <div class="mia">
+    <div class="mia-ava">🫣</div>
+    <div class="mia-txt">
+      <div class="mia-label">What respectful re-engagement feels like to Mia</div>
+      <div class="mia-q">"I didn't open the app for like 10 days because I was busy. I didn't get a single 'we miss you!!' notification. I just kept seeing the daily insight on my lock screen. Then I got an email that said Mars entered my career house and honestly that's exactly what I needed to hear because I've been stressed about work. I opened the app and it said 'welcome back — a lot has happened.' It felt like a friend who respected my space but was there when I came back."</div>
+      <div class="mia-ctx">Never desperate. Never guilty. Just useful, warm, and respectful. That's how you win someone back.</div>
+    </div>
+  </div>
+</section>
+
+<!-- ═══════ PART 2 HEADER ═══════ -->
+<div style="text-align:center;padding:32px 0 8px">
+  <div style="font-size:9px;letter-spacing:5px;color:var(--gold);text-transform:uppercase;margin-bottom:6px">Part Two</div>
+  <div style="font-family:'Playfair Display',serif;font-size:22px;color:var(--cream)">The Viral Loop</div>
+  <div style="font-size:11px;color:var(--muted);margin-top:4px">How One Mia Becomes a Thousand Mias</div>
+</div>
+
+<!-- ═══════ 06 VIRAL LOOP ═══════ -->
+<section class="sec" id="viral">
+  <div class="sec-head">
+    <div class="sec-num" style="background:var(--rose)">06</div>
+    <span class="sec-label" style="color:var(--rose)">The Viral Mechanics — 5 Sharing Triggers Built Into the Product</span>
+    <div class="sec-line" style="background:var(--rose)"></div>
+  </div>
+
+  <p style="font-size:12px;color:var(--dim);margin-bottom:16px">Celestia doesn't have a referral program. It doesn't need one. The product IS the viral mechanism. Every core feature has a sharing trigger built in. She doesn't share because we ask — she shares because the content is too personal and too accurate NOT to send to someone.</p>
+
+  <div class="g2">
+    <div class="card" style="border-top:3px solid var(--rose)">
+      <div style="font-size:22px;margin-bottom:6px">💕</div>
+      <div style="font-size:14px;font-weight:700;margin-bottom:4px">Trigger 1: Compatibility Check = 2 Users</div>
+      <div style="font-size:11.5px;color:var(--dim);line-height:1.6;margin-bottom:8px">Every compatibility check involves TWO people. She enters Jake's birthday. She gets the preview. Below: "Send to Jake — he can add his birth details for a deeper reading." Jake receives a link. He enters his data. He's now a user. <b style="color:var(--cream)">Cost per acquisition: $0. Every check = at minimum 1 new user acquired.</b></div>
+      <div style="font-size:10px;color:var(--rose)">Estimated viral coefficient: 0.7 new users per check</div>
+    </div>
+    <div class="card" style="border-top:3px solid var(--lav)">
+      <div style="font-size:22px;margin-bottom:6px">📸</div>
+      <div style="font-size:14px;font-weight:700;margin-bottom:4px">Trigger 2: Screenshot → Stories = 3-8 Viewers</div>
+      <div style="font-size:11.5px;color:var(--dim);line-height:1.6;margin-bottom:8px">She screenshots the daily insight, a planet card, a compatibility score, or a chat response. She posts it to IG Stories with "this app is scary accurate 😭." Her 800 followers see it. 12 tap through. 4 visit the site. 1-2 download. <b style="color:var(--cream)">Every screenshot = a mini billboard. Celestia ✦ branding visible on everything.</b></div>
+      <div style="font-size:10px;color:var(--lav)">Estimated viral coefficient: 0.3 new users per screenshot shared</div>
+    </div>
+    <div class="card" style="border-top:3px solid var(--terra)">
+      <div style="font-size:22px;margin-bottom:6px">🔗</div>
+      <div style="font-size:14px;font-weight:700;margin-bottom:4px">Trigger 3: Chart Link = Personal Landing Page</div>
+      <div style="font-size:11.5px;color:var(--dim);line-height:1.6;margin-bottom:8px">celestia.com/chart/mia — a beautiful web page showing her Big 3 summary. She shares this link in her social bios, group chats, or dating profiles. Every person who clicks sees her chart AND a "Get yours free →" CTA at the bottom. <b style="color:var(--cream)">Her chart link is a permanent funnel.</b></div>
+      <div style="font-size:10px;color:var(--terra)">Estimated viral coefficient: 0.15 new users per link shared</div>
+    </div>
+    <div class="card" style="border-top:3px solid var(--gold)">
+      <div style="font-size:22px;margin-bottom:6px">💬</div>
+      <div style="font-size:14px;font-weight:700;margin-bottom:4px">Trigger 4: Chat Screenshot = "What App Is This??"</div>
+      <div style="font-size:11.5px;color:var(--dim);line-height:1.6;margin-bottom:8px">She screenshots a chat response where the AI says something scarily accurate. She sends it to her group chat: "look what this app told me about why I self-sabotage 😭." 3 friends reply "WHAT APP." <b style="color:var(--cream)">The AI's specificity is the viral mechanic. Generic answers = no screenshots. Scary-accurate answers = instant sharing.</b></div>
+      <div style="font-size:10px;color:var(--gold)">Estimated viral coefficient: 0.5 new users per chat screenshot shared</div>
+    </div>
+  </div>
+
+  <div class="card" style="border-top:3px solid var(--sage)">
+    <div style="font-size:22px;margin-bottom:6px;text-align:center">📲</div>
+    <div style="font-size:14px;font-weight:700;margin-bottom:4px;text-align:center">Trigger 5: Compatibility Report Share = Revenue + New User</div>
+    <div style="font-size:11.5px;color:var(--dim);line-height:1.6;text-align:center;max-width:600px;margin:0 auto">She buys the $9.99 compatibility report. At the bottom: "Share this report with Jake — he'll see the same insights from his perspective." Jake clicks → enters the app → sees the report → gets hooked. She paid AND brought in a new user. <b style="color:var(--cream)">Revenue event + acquisition event in one action.</b></div>
+  </div>
+</section>
+
+<!-- ═══════ 07 GROUP CHAT ═══════ -->
+<section class="sec" id="groupchat">
+  <div class="sec-head">
+    <div class="sec-num" style="background:var(--lav)">07</div>
+    <span class="sec-label" style="color:var(--lav)">The Group Chat Contagion — Where the Real Growth Happens</span>
+    <div class="sec-line" style="background:var(--lav)"></div>
+  </div>
+
+  <div class="card" style="border-top:3px solid var(--lav)">
+    <div class="card-t" style="color:var(--lav)">The iMessage Chain Reaction</div>
+    <p style="font-size:12.5px;color:var(--dim);line-height:1.7;margin-bottom:14px">Mia's group chat with Sarah, Jess, and Amanda is where Celestia spreads. Not through ads. Not through influencers. Through 4 friends texting at 11pm. Here's how the chain reaction works:</p>
+
+    <div style="display:flex;flex-direction:column;gap:0">
+      <div style="display:flex;gap:14px;padding:14px 0;border-bottom:1px solid var(--border)">
+        <div style="width:36px;height:36px;border-radius:50%;background:rgba(193,127,89,.1);display:flex;align-items:center;justify-content:center;font-size:14px;flex-shrink:0;border:2px solid var(--terra)">M</div>
+        <div><div style="font-size:12px;font-weight:600;color:var(--terra)">Mia (Day 1)</div><div style="font-size:11px;color:var(--dim);line-height:1.5;margin-top:2px">Screenshots her compatibility score with Jake. Sends to group chat: "look at this 😭🔥 this app is insane. 78% match but the chemistry is 90% and the communication is 60% and honestly that TRACKS because he never texts back"</div></div>
+      </div>
+      <div style="display:flex;gap:14px;padding:14px 0;border-bottom:1px solid var(--border)">
+        <div style="width:36px;height:36px;border-radius:50%;background:rgba(196,145,138,.1);display:flex;align-items:center;justify-content:center;font-size:14px;flex-shrink:0;border:2px solid var(--rose)">S</div>
+        <div><div style="font-size:12px;font-weight:600;color:var(--rose)">Sarah (Day 1, 10 min later)</div><div style="font-size:11px;color:var(--dim);line-height:1.5;margin-top:2px">"WHAT APP IS THIS" → Mia sends the link → Sarah enters her birthday → checks compatibility with her boyfriend → screenshots HER score → "we got 84% omg" → she's now a daily user</div></div>
+      </div>
+      <div style="display:flex;gap:14px;padding:14px 0;border-bottom:1px solid var(--border)">
+        <div style="width:36px;height:36px;border-radius:50%;background:rgba(155,142,196,.1);display:flex;align-items:center;justify-content:center;font-size:14px;flex-shrink:0;border:2px solid var(--lav)">J</div>
+        <div><div style="font-size:12px;font-weight:600;color:var(--lav)">Jess (Day 2)</div><div style="font-size:11px;color:var(--dim);line-height:1.5;margin-top:2px">Sees both screenshots. Downloads the app. Checks compatibility with her EX. Reads "Where You'll Fight" and screenshots it: "this literally describes why we broke up." Sends to HER group chat (different friend group). 3 more people download.</div></div>
+      </div>
+      <div style="display:flex;gap:14px;padding:14px 0">
+        <div style="width:36px;height:36px;border-radius:50%;background:rgba(139,158,126,.1);display:flex;align-items:center;justify-content:center;font-size:14px;flex-shrink:0;border:2px solid var(--sage)">A</div>
+        <div><div style="font-size:12px;font-weight:600;color:var(--sage)">Amanda (Day 3)</div><div style="font-size:11px;color:var(--dim);line-height:1.5;margin-top:2px">Doesn't download immediately. But she sees 3 friends sharing Celestia screenshots over 3 days. On Day 3 she Googles "celestia astrology app" → lands on website → enters birthday → downloads. The social proof accumulated over days. She didn't need an ad — she needed to see her friends using it.</div></div>
+      </div>
+    </div>
+
+    <div style="background:rgba(155,142,196,.06);border-radius:10px;padding:16px;margin-top:14px;text-align:center">
+      <p style="font-size:13px;color:var(--cream);font-weight:600">1 Mia → 1 group chat → 3 new users in 3 days → each enters THEIR group chat → exponential</p>
+      <p style="font-size:11px;color:var(--dim);margin-top:6px">This is the real growth engine. Not TikTok. Not ads. Four friends texting at 11pm. Every product decision we make should ask: "will this generate a screenshot she sends to her group chat?"</p>
+    </div>
+  </div>
+</section>
+
+<!-- ═══════ 08 RULES ═══════ -->
+<section class="sec" id="rules">
+  <div class="sec-head">
+    <div class="sec-num" style="background:var(--terra)">08</div>
+    <span class="sec-label" style="color:var(--terra)">Non-Negotiable Rules</span>
+    <div class="sec-line" style="background:var(--terra)"></div>
+  </div>
+
+  <div class="g2">
+    <div class="card" style="border-left:3px solid var(--sage)">
+      <div class="card-t" style="color:var(--sage)">Retention — Always</div>
+      <div style="font-size:12px;color:var(--dim);line-height:1.9">
+        ✓ Daily push at 7:15-7:30am — never skip, never send 2<br>
+        ✓ Tie every push to her ACTUAL chart — never generic<br>
+        ✓ Re-engagement uses real transits, not guilt<br>
+        ✓ Email has value IN the email — not "click to find out"<br>
+        ✓ Birthday email at 8am on the EXACT day<br>
+        ✓ Stop emailing after Day 21 of inactivity — respect her silence<br>
+        ✓ "Welcome back" message when she re-opens after absence<br>
+        ✓ Weekly email on Monday 8am — the Premium conversion engine<br>
+        ✓ Max 2 emails per week (weekly + 1 event). Never more.
+      </div>
+    </div>
+    <div class="card" style="border-left:3px solid #D4605A">
+      <div class="card-t" style="color:#D4605A">Retention — Never</div>
+      <div style="font-size:12px;color:var(--dim);line-height:1.9">
+        ✗ "We miss you!" — desperate and generic<br>
+        ✗ Push notifications after 10pm — respect her sleep<br>
+        ✗ More than 1 push per day (except transit alerts on event days)<br>
+        ✗ Email with no value — every email must be worth reading even without clicking<br>
+        ✗ Fake urgency ("your chart is expiring!") — she'll lose trust permanently<br>
+        ✗ Emailing lapsed users forever — 3 attempts then stop<br>
+        ✗ Selling in every email — 80% value, 20% conversion<br>
+        ✗ Generic "all Virgos" push — it's HER chart or nothing
+      </div>
+    </div>
+    <div class="card" style="border-left:3px solid var(--sage)">
+      <div class="card-t" style="color:var(--sage)">Viral — Always</div>
+      <div style="font-size:12px;color:var(--dim);line-height:1.9">
+        ✓ Celestia ✦ branding on everything screenshottable<br>
+        ✓ Share buttons on every result (compatibility, chart, daily, chat)<br>
+        ✓ Compatibility link sends the OTHER person into the funnel<br>
+        ✓ Chart links are beautiful standalone web pages with CTA<br>
+        ✓ "Share to Stories" generates a pre-designed card, not a raw screenshot<br>
+        ✓ Design every feature asking "will she screenshot this?"<br>
+        ✓ The AI's responses must be specific enough to be share-worthy
+      </div>
+    </div>
+    <div class="card" style="border-left:3px solid #D4605A">
+      <div class="card-t" style="color:#D4605A">Viral — Never</div>
+      <div style="font-size:12px;color:var(--dim);line-height:1.9">
+        ✗ "Invite 3 friends for a free month!" — forced referral programs feel desperate<br>
+        ✗ Pop-ups asking her to share — she'll share when the content earns it<br>
+        ✗ Generic content that nobody would screenshot<br>
+        ✗ Making sharing complicated — 1 tap max<br>
+        ✗ Forgetting the branding on shared content — every screenshot must identify Celestia<br>
+        ✗ Blocking content behind "share to unlock" gates — manipulative<br>
+        ✗ Ignoring the group chat dynamic — this is where 60%+ of organic growth happens
+      </div>
+    </div>
+  </div>
+
+  <div style="background:linear-gradient(135deg,var(--terra),#A66842);border-radius:18px;padding:32px;margin-top:16px">
+    <p style="font-size:9px;letter-spacing:3px;text-transform:uppercase;opacity:.6;margin-bottom:12px">The Complete Engine in One Test</p>
+    <p style="font-family:'Playfair Display',serif;font-size:clamp(15px,2.5vw,19px);font-style:italic;line-height:1.5">"Does she open the daily push every morning? That's retention working. Does she send a screenshot to her group chat at least once a week? That's virality working. Does she buy the compatibility report on a Thursday night? That's the invisible funnel working. Does her friend download Celestia by Saturday? That's all three working together. One system. One Mia. A thousand new Mias."</p>
+  </div>
+</section>
+
+<footer class="footer">
+  <p>The daily push keeps her. The screenshot spreads her. The group chat multiplies her. All without spending a dollar on ads.</p>
+  <div class="brand">Celestia · Retention & Viral Engine · 2026</div>
+</footer>
+
+</div>
+
+<script>
+const secs=document.querySelectorAll('.sec');
+const navs=document.querySelectorAll('.topnav a');
+const obs=new IntersectionObserver(entries=>{entries.forEach(e=>{if(e.isIntersecting){navs.forEach(n=>n.classList.remove('active'));const a=document.querySelector(`.topnav a[href="#${e.target.id}"]`);if(a)a.classList.add('active')}})},{threshold:.15});
+secs.forEach(s=>obs.observe(s));
+</script>
+</body>
+</html>
