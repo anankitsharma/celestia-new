@@ -223,8 +223,8 @@ const s = StyleSheet.create({
     paddingTop: Platform.OS === 'ios' ? 70 : (StatusBar.currentHeight || 48) + 16,
     paddingBottom: 20,
     alignItems: 'center',
-    borderBottomLeftRadius: 24,
-    borderBottomRightRadius: 24,
+    
+    
     overflow: 'hidden',
   },
 

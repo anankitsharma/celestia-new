@@ -80,12 +80,22 @@ const getTimeMode = () => {
   return 'latenight';                          // Comfort mode, no upsells, soft tone
 };
 
-// Hero gradient adapts to time of day — warm morning, deep evening, soft latenight
+// Hero gradient adapts to time AND content type — warm, contextual, never cold
 const HERO_GRADIENTS = {
-  morning:   ['#0E0E22', '#1A1535', '#0F1628'],           // Default: balanced navy
-  afternoon: ['#0E0E22', '#1A1535', '#0F1628'],           // Same balanced navy
-  evening:   ['#0E0E22', '#1A1230', '#14102A'],           // Deeper, more intimate plum
-  latenight: ['#0C0C1C', '#110F24', '#0D0B1E'],           // Softest, most muted — comfort
+  morning:   ['#1A1228', '#1E1430', '#16122A'],           // Warm plum-navy (not cold blue)
+  afternoon: ['#1A1228', '#1E1430', '#16122A'],           // Same warm base
+  evening:   ['#16101E', '#1A1228', '#14102A'],           // Deeper plum, intimate
+  latenight: ['#110E1A', '#140F20', '#100D18'],           // Softest, muted — comfort
+};
+
+// Content-type gradient tints — subtle undertone shift based on today's energy
+const CONTENT_GRADIENTS = {
+  love:       ['#1E1020', '#201228', '#18101E'],           // Rose-plum undertone
+  career:     ['#141828', '#161A30', '#121628'],           // Blue-navy (structured)
+  energy:     ['#141E18', '#161A20', '#12181A'],           // Green-teal (vitality)
+  headsup:    ['#1E1610', '#201818', '#181410'],           // Amber undertone (alert)
+  greenlight: ['#101E14', '#142018', '#101A14'],           // Green (go)
+  reflection: ['#181020', '#1A1228', '#14101E'],           // Deep purple (introspective)
 };
 
 // Greeting adapts to emotional context by time
@@ -685,54 +695,54 @@ export default function HomeScreen({ navigation, route }) {
       <ScrollView ref={mainScrollRef} showsVerticalScrollIndicator={false} bounces={true}
         contentContainerStyle={{ paddingBottom: 110 }}
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={T.gold} colors={[T.gold]} />}>
-        {/* ── HERO ── */}
-        <LinearGradient colors={HERO_GRADIENTS[timeMode] || HERO_GRADIENTS.morning} locations={[0, 0.5, 1]} style={styles.hero}>
-          <View style={styles.heroGlow} />
-          <Text style={styles.greeting}>
-            {getAdaptiveGreeting(timeMode, firstName)}{userProfile?.chart ? ` · ${getElementGreeting(userProfile.chart)}` : ''}
-          </Text>
-          <View style={styles.nameRow}>
-            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
-              <Text style={styles.heroName}>{firstName}</Text>
-              {streakData && streakData.current_streak > 0 && (
-                <TouchableOpacity activeOpacity={0.8} onPress={() => { haptic.light(); setShowStreakModal(true); }}>
-                  <Animated.View style={[styles.streakBadge, { transform: [{ scale: streakAnim }] }]}>
-                    <Text style={styles.streakBadgeEmoji}>{getStreakEmoji(streakData.current_streak)}</Text>
-                    <Text style={styles.streakBadgeNum}>{streakData.current_streak}</Text>
-                  </Animated.View>
-                </TouchableOpacity>
-              )}
-            </View>
-            <TouchableOpacity style={[styles.avatar, xpData && { borderWidth: 0 }]} activeOpacity={0.8}
-              onPress={() => { haptic.light(); navigation.navigate('Profile'); }}>
-              <Text style={styles.avatarText}>{firstName[0]?.toUpperCase() || '✦'}</Text>
-              {xpData && (
-                <View style={[styles.avatarRing, { borderColor: xpData.levelInfo?.current?.ringColor || 'rgba(200,168,75,0.3)' }]} />
-              )}
-            </TouchableOpacity>
-          </View>
-
-          {/* Moon strip */}
-          <View style={styles.moonStrip}>
-            <Text style={{ fontSize: 18 }}>{moonIcon}</Text>
-            <Text style={styles.moonText}>
-              <Text style={{ color: 'rgba(250,248,242,0.82)', fontFamily: FONTS.sansMedium }}>{moonPhase}</Text>
-              {moonSign !== '—' ? ` in ${moonSign}` : ''}
-              {moonData?.illumination != null ? ` · ${moonData.illumination.toFixed(0)}%` : ''}
-            </Text>
-            <CosmicTooltip id="moon_phase" size={14} light />
-          </View>
-
-          {/* Cosmic archetype chip */}
-          {userProfile?.chart && (() => {
-            const arch = getCosmicArchetype(userProfile.chart);
-            return (
-              <View style={styles.archetypeChip}>
-                <Text style={styles.archetypeText}>{arch.name} · {arch.rarity}</Text>
+        {/* ── HERO — warm, personal, content-type-aware ── */}
+        {(() => {
+          // Pick gradient: content-type tint if available, else time-based
+          let ct = forecast?.contentType;
+          if (!ct && forecast?.lifeAreas) {
+            const areas = [{ key: 'love', type: 'love' }, { key: 'career', type: 'career' }, { key: 'vitality', type: 'energy' }, { key: 'growth', type: 'reflection' }, { key: 'social', type: 'greenlight' }];
+            const top = areas.filter(a => forecast.lifeAreas[a.key]).sort((a, b) => (forecast.lifeAreas[b.key].intensity || 3) - (forecast.lifeAreas[a.key].intensity || 3))[0];
+            if (top) ct = top.type;
+          }
+          const heroColors = (ct && CONTENT_GRADIENTS[ct]) || HERO_GRADIENTS[timeMode] || HERO_GRADIENTS.morning;
+          return (
+            <LinearGradient colors={heroColors} locations={[0, 0.5, 1]} style={styles.hero}>
+              {/* Top row: greeting + profile */}
+              <View style={styles.nameRow}>
+                <View>
+                  <Text style={styles.greeting}>{getAdaptiveGreeting(timeMode, firstName)}</Text>
+                  <Text style={styles.heroName}>{firstName}</Text>
+                </View>
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                  {streakData && streakData.current_streak > 0 && !isLateNight && (
+                    <TouchableOpacity activeOpacity={0.8} onPress={() => { haptic.light(); setShowStreakModal(true); }}>
+                      <Animated.View style={[styles.streakBadge, { transform: [{ scale: streakAnim }] }]}>
+                        <Text style={styles.streakBadgeEmoji}>{getStreakEmoji(streakData.current_streak)}</Text>
+                        <Text style={styles.streakBadgeNum}>{streakData.current_streak}</Text>
+                      </Animated.View>
+                    </TouchableOpacity>
+                  )}
+                  <TouchableOpacity style={[styles.avatar, xpData && { borderWidth: 0 }]} activeOpacity={0.8}
+                    onPress={() => { haptic.light(); navigation.navigate('Profile'); }}>
+                    <Text style={styles.avatarText}>{firstName[0]?.toUpperCase() || '✦'}</Text>
+                    {xpData && (
+                      <View style={[styles.avatarRing, { borderColor: xpData.levelInfo?.current?.ringColor || 'rgba(200,168,75,0.3)' }]} />
+                    )}
+                  </TouchableOpacity>
+                </View>
               </View>
-            );
-          })()}
-        </LinearGradient>
+
+              {/* Moon — integrated, not boxed */}
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 16 }}>
+                <Text style={{ fontSize: 20 }}>{moonIcon}</Text>
+                <Text style={{ fontSize: 13, color: 'rgba(250,248,242,0.7)', fontFamily: FONTS.sansMedium }}>
+                  {moonPhase}{moonSign !== '—' ? ` in ${moonSign}` : ''}{moonData?.illumination != null ? ` · ${moonData.illumination.toFixed(0)}%` : ''}
+                </Text>
+                <CosmicTooltip id="moon_phase" size={14} light />
+              </View>
+            </LinearGradient>
+          );
+        })()}
 
         {/* ── PERIOD TABS ── */}
         <ScrollView ref={tabScrollRef} horizontal showsHorizontalScrollIndicator={false}
@@ -756,21 +766,45 @@ export default function HomeScreen({ navigation, route }) {
         <View style={styles.content}>
 
           {/* ── ZODIAC SEASON CHANGE BANNER ── */}
-          {activeTab === 'today' && currentZodiacSeason && (
-            <View style={{ backgroundColor: colors.cardAlt, borderWidth: 1, borderColor: colors.border, borderRadius: 14, padding: 14, marginBottom: 12, flexDirection: 'row', alignItems: 'center', gap: 12 }}>
-              <Text style={{ fontSize: 24 }}>✦</Text>
-              <View style={{ flex: 1 }}>
-                <Text style={{ fontFamily: FONTS.serif, fontSize: 15, color: colors.text }}>
-                  {currentZodiacSeason.daysIn === 0 ? `Welcome to ${currentZodiacSeason.sign} Season` : `${currentZodiacSeason.sign} Season is here`}
-                </Text>
-                <Text style={{ fontSize: 11, color: colors.textSecondary, lineHeight: 16, marginTop: 2 }}>
-                  {userProfile?.chart?.planets?.find(p => p.name === 'Sun')?.sign === currentZodiacSeason.sign
-                    ? `The Sun returns to your sign — this is YOUR season. Energy, confidence, and clarity peak now.`
-                    : `The Sun enters ${currentZodiacSeason.sign} — see how this season's energy activates your chart.`}
-                </Text>
+          {activeTab === 'today' && currentZodiacSeason && !isLateNight && (() => {
+            const SIGN_SEASON = {
+              Aries: { glyph: '♈', element: 'Fire', color: '#E85050', emoji: '🔥', vibe: 'Bold energy. New beginnings. Time to initiate.' },
+              Taurus: { glyph: '♉', element: 'Earth', color: '#50A868', emoji: '🌿', vibe: 'Grounded energy. Slow down. Savor what you have.' },
+              Gemini: { glyph: '♊', element: 'Air', color: '#50A0C8', emoji: '💨', vibe: 'Curious energy. Conversations spark. Stay open.' },
+              Cancer: { glyph: '♋', element: 'Water', color: '#7090D0', emoji: '🌊', vibe: 'Emotional energy. Home and roots call. Nurture yourself.' },
+              Leo: { glyph: '♌', element: 'Fire', color: '#E8A040', emoji: '☀️', vibe: 'Radiant energy. Express yourself. Be seen.' },
+              Virgo: { glyph: '♍', element: 'Earth', color: '#8B9E7E', emoji: '🌾', vibe: 'Refined energy. Details matter. Serve with purpose.' },
+              Libra: { glyph: '♎', element: 'Air', color: '#C4918A', emoji: '⚖️', vibe: 'Harmonizing energy. Seek balance in relationships.' },
+              Scorpio: { glyph: '♏', element: 'Water', color: '#9B8EC4', emoji: '🦂', vibe: 'Intense energy. Go deep. Transform what no longer serves.' },
+              Sagittarius: { glyph: '♐', element: 'Fire', color: '#E87050', emoji: '🏹', vibe: 'Expansive energy. Adventure calls. Trust the journey.' },
+              Capricorn: { glyph: '♑', element: 'Earth', color: '#97907F', emoji: '🏔️', vibe: 'Ambitious energy. Build something lasting. Stay disciplined.' },
+              Aquarius: { glyph: '♒', element: 'Air', color: '#50C8E8', emoji: '⚡', vibe: 'Innovative energy. Break the mold. Think differently.' },
+              Pisces: { glyph: '♓', element: 'Water', color: '#A080E0', emoji: '🌙', vibe: 'Intuitive energy. Dreams speak. Trust what you feel.' },
+            };
+            const s = SIGN_SEASON[currentZodiacSeason.sign] || { glyph: '☉', element: '?', color: T.gold, emoji: '✦', vibe: 'A new season begins.' };
+            const isYourSeason = userProfile?.chart?.planets?.find(p => p.name === 'Sun')?.sign === currentZodiacSeason.sign;
+            return (
+              <View style={{ backgroundColor: s.color + '10', borderWidth: 1, borderColor: s.color + '25', borderRadius: 16, padding: 14, marginBottom: 12, flexDirection: 'row', alignItems: 'center', gap: 12 }}>
+                <View style={{ width: 44, height: 44, borderRadius: 22, backgroundColor: s.color + '18', alignItems: 'center', justifyContent: 'center' }}>
+                  <Text style={{ fontSize: 22 }}>{s.emoji}</Text>
+                </View>
+                <View style={{ flex: 1 }}>
+                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 2 }}>
+                    <Text style={{ fontSize: 9, fontFamily: FONTS.sansSemiBold, letterSpacing: 1.5, color: s.color }}>{s.glyph} {currentZodiacSeason.sign.toUpperCase()} SEASON</Text>
+                    {isYourSeason && (
+                      <View style={{ backgroundColor: s.color + '20', borderRadius: 6, paddingHorizontal: 6, paddingVertical: 1 }}>
+                        <Text style={{ fontSize: 7, fontFamily: FONTS.sansSemiBold, color: s.color, letterSpacing: 0.5 }}>YOUR SIGN</Text>
+                      </View>
+                    )}
+                  </View>
+                  <Text style={{ fontFamily: FONTS.serif, fontSize: 14, color: colors.heading, marginBottom: 2 }}>
+                    {isYourSeason ? `This is your season, ${firstName}` : `${currentZodiacSeason.sign} Season is here`}
+                  </Text>
+                  <Text style={{ fontSize: 11, color: colors.textSecondary, lineHeight: 16 }}>{s.vibe}</Text>
+                </View>
               </View>
-            </View>
-          )}
+            );
+          })()}
 
           {/* ── ECLIPSE SEASON BANNER ── */}
           {activeTab === 'today' && upcomingEclipse && (
@@ -802,7 +836,7 @@ export default function HomeScreen({ navigation, route }) {
                 style={styles.dailyHd}>
                 <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 4 }}>
                   <Text style={styles.dailyDate}>{formatDateHeader()}</Text>
-                  {forecast.contentType && (() => {
+                  {(() => {
                     const CONTENT_TYPE_META = {
                       love: { icon: '♡', label: 'LOVE DAY', color: '#E85090' },
                       career: { icon: '◆', label: 'CAREER DAY', color: '#5090E8' },
@@ -811,7 +845,22 @@ export default function HomeScreen({ navigation, route }) {
                       greenlight: { icon: '●', label: 'GREEN LIGHT', color: '#4CAF50' },
                       reflection: { icon: '◎', label: 'REFLECTION', color: '#9B8EC4' },
                     };
-                    const meta = CONTENT_TYPE_META[forecast.contentType];
+                    // Use AI-provided contentType, or fallback: detect from most intense life area
+                    let ct = forecast.contentType;
+                    if (!ct && forecast.lifeAreas) {
+                      const areas = [
+                        { key: 'love', type: 'love' },
+                        { key: 'career', type: 'career' },
+                        { key: 'vitality', type: 'energy' },
+                        { key: 'growth', type: 'reflection' },
+                        { key: 'social', type: 'greenlight' },
+                      ];
+                      const top = areas
+                        .filter(a => forecast.lifeAreas[a.key])
+                        .sort((a, b) => (forecast.lifeAreas[b.key].intensity || 3) - (forecast.lifeAreas[a.key].intensity || 3))[0];
+                      if (top) ct = top.type;
+                    }
+                    const meta = ct ? CONTENT_TYPE_META[ct] : null;
                     if (!meta) return null;
                     return (
                       <View style={{ backgroundColor: meta.color + '20', borderRadius: 100, paddingVertical: 2, paddingHorizontal: 8, flexDirection: 'row', alignItems: 'center', gap: 4 }}>
@@ -828,10 +877,10 @@ export default function HomeScreen({ navigation, route }) {
                     <View style={styles.tchip}><Text style={styles.tchipText}>✦ {forecast.powerCosmic}</Text></View>
                   )}
                   <View style={styles.tchip}><Text style={styles.tchipText}>{moonIcon} {moonPhase}</Text></View>
-                  {forecast.luckyStats && (
+                  {forecast.luckyStats && !isLateNight && (
                     <View style={styles.tchip}><Text style={styles.tchipText}>#{forecast.luckyStats.number}</Text></View>
                   )}
-                  {forecast.luckyStats?.crystal && (
+                  {forecast.luckyStats?.crystal && !isLateNight && (
                     <View style={styles.tchip}><Text style={styles.tchipText}>✧ {forecast.luckyStats.crystal}</Text></View>
                   )}
                 </View>
@@ -892,26 +941,31 @@ export default function HomeScreen({ navigation, route }) {
                   return <>{towardSection}{aroundSection}</>;
                 })()}
 
-                {/* Deep Dive */}
-                <View style={{ flexDirection: 'row', gap: 8 }}>
-                  <TouchableOpacity style={[styles.briefingMoreBtn, { flex: 1 }]} activeOpacity={0.7}
-                    onPress={() => {
-                      haptic.light();
-                      setShowBriefing(true);
-                      completeQuestAction('forecast_read').then(r => {
-                        if (r) { setQuestData(prev => prev ? { ...prev, quests: r.quests, allComplete: r.allComplete } : prev); }
-                        if (r?.justCompleted) {
-                          trackEvent('quest_complete').catch(() => { });
-                          awardXP(userProfile?.id || 'default', 'quest_bonus').then(xp => { if (xp) showXPGain(xp.amount); }).catch(() => { });
-                        }
-                      }).catch(() => { });
-                    }}>
-                    <Text style={styles.briefingMoreText}>Deep Dive</Text>
-                    <Text style={styles.briefingMoreArrow}>→</Text>
-                  </TouchableOpacity>
-                  {/* ── BRIDGE: Daily Insight → Chat ── */}
+                {/* ── Action Buttons — clear visual hierarchy ── */}
+                {/* Primary: Deep Dive (full width, prominent) */}
+                <TouchableOpacity
+                  style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, marginTop: 14, paddingVertical: 12, backgroundColor: isDark ? 'rgba(200,168,75,0.12)' : T.navy, borderRadius: 12 }}
+                  activeOpacity={0.7}
+                  onPress={() => {
+                    haptic.light();
+                    setShowBriefing(true);
+                    completeQuestAction('forecast_read').then(r => {
+                      if (r) { setQuestData(prev => prev ? { ...prev, quests: r.quests, allComplete: r.allComplete } : prev); }
+                      if (r?.justCompleted) {
+                        trackEvent('quest_complete').catch(() => { });
+                        awardXP(userProfile?.id || 'default', 'quest_bonus').then(xp => { if (xp) showXPGain(xp.amount); }).catch(() => { });
+                      }
+                    }).catch(() => { });
+                  }}>
+                  <Text style={{ fontSize: 14 }}>📖</Text>
+                  <Text style={{ fontSize: 13, fontFamily: FONTS.sansSemiBold, color: isDark ? T.gold : T.cream }}>Your Full Reading</Text>
+                  <Text style={{ fontSize: 13, color: isDark ? T.gold : T.cream, opacity: 0.6 }}>→</Text>
+                </TouchableOpacity>
+
+                {/* Secondary row: Ask Celestia + Share (side by side) */}
+                <View style={{ flexDirection: 'row', gap: 8, marginTop: 8 }}>
                   <TouchableOpacity
-                    style={[styles.briefingMoreBtn, { flex: 1, backgroundColor: 'rgba(200,168,75,0.08)', borderColor: 'rgba(200,168,75,0.2)' }]}
+                    style={{ flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, paddingVertical: 10, backgroundColor: isDark ? 'rgba(200,168,75,0.06)' : 'rgba(200,168,75,0.08)', borderRadius: 10, borderWidth: 1, borderColor: isDark ? 'rgba(200,168,75,0.12)' : 'rgba(200,168,75,0.18)' }}
                     activeOpacity={0.7}
                     onPress={() => {
                       haptic.light();
@@ -922,22 +976,25 @@ export default function HomeScreen({ navigation, route }) {
                         : `Tell me more about today's energy. "${forecast?.navigatorHeadline || ''}" — what does this mean for me specifically?`;
                       navigation.navigate('AskAI', { initialMessage: msg });
                     }}>
-                    <Text style={[styles.briefingMoreText, { color: T.gold }]}>Ask Celestia</Text>
-                    <Text style={[styles.briefingMoreArrow, { color: T.gold }]}>→</Text>
+                    <Text style={{ fontSize: 13 }}>💬</Text>
+                    <Text style={{ fontSize: 12, fontFamily: FONTS.sansMedium, color: T.gold }}>Ask Celestia</Text>
                   </TouchableOpacity>
-                  {/* ── Share to Stories — daily viral loop ── */}
-                  <TouchableOpacity
-                    style={[styles.briefingMoreBtn, { paddingHorizontal: 14, backgroundColor: 'rgba(193,127,89,0.08)', borderColor: 'rgba(193,127,89,0.18)' }]}
-                    activeOpacity={0.7}
-                    onPress={async () => {
-                      haptic.light();
-                      const sunSign = userProfile?.chart?.planets?.find(p => p.name === 'Sun')?.sign || '';
-                      await shareStory(`${forecast?.navigatorHeadline || 'My daily insight'} — ${sunSign} Sun ✦ Celestia`);
-                      trackEvent('share').catch(() => { });
-                      awardXP(userProfile?.id || 'default', 'share').catch(() => { });
-                    }}>
-                    <Text style={[styles.briefingMoreText, { color: '#C17F59' }]}>Share ↗</Text>
-                  </TouchableOpacity>
+
+                  {!isLateNight && (
+                    <TouchableOpacity
+                      style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, paddingVertical: 10, paddingHorizontal: 16, backgroundColor: isDark ? 'rgba(193,127,89,0.06)' : 'rgba(193,127,89,0.08)', borderRadius: 10, borderWidth: 1, borderColor: isDark ? 'rgba(193,127,89,0.12)' : 'rgba(193,127,89,0.18)' }}
+                      activeOpacity={0.7}
+                      onPress={async () => {
+                        haptic.light();
+                        const sunSign = userProfile?.chart?.planets?.find(p => p.name === 'Sun')?.sign || '';
+                        await shareStory(`${forecast?.navigatorHeadline || 'My daily insight'} — ${sunSign} Sun ✦ Celestia`);
+                        trackEvent('share').catch(() => { });
+                        awardXP(userProfile?.id || 'default', 'share').catch(() => { });
+                      }}>
+                      <Text style={{ fontSize: 13 }}>📸</Text>
+                      <Text style={{ fontSize: 12, fontFamily: FONTS.sansMedium, color: '#C17F59' }}>Share</Text>
+                    </TouchableOpacity>
+                  )}
                 </View>
               </View>
             </View>
@@ -1367,7 +1424,7 @@ export default function HomeScreen({ navigation, route }) {
           )}
 
           {/* ── NEW INSIGHT UNLOCKED (drip-feed) ── */}
-          {activeTab === 'today' && todayUnlock && (
+          {activeTab === 'today' && todayUnlock && !isLateNight && (
             <TouchableOpacity style={styles.unlockCard} activeOpacity={0.8}
               onPress={() => {
                 markUnlockShown();
@@ -1411,7 +1468,7 @@ export default function HomeScreen({ navigation, route }) {
           )}
 
           {/* ── DAILY QUESTS ── */}
-          {activeTab === 'today' && questData?.quests && (
+          {activeTab === 'today' && questData?.quests && !isLateNight && (
             <QuestCard
               quests={questData.quests}
               allComplete={questData.allComplete}
@@ -1420,7 +1477,7 @@ export default function HomeScreen({ navigation, route }) {
           )}
 
           {/* ── NEXT BADGE PROGRESS ── */}
-          {activeTab === 'today' && nextBadge && (
+          {activeTab === 'today' && nextBadge && !isLateNight && (
             <View style={[styles.nextBadgeCard, { backgroundColor: colors.card, borderColor: isDark ? 'rgba(200,168,75,0.15)' : 'rgba(200,168,75,0.2)' }]}>
               <View style={styles.nextBadgeHeader}>
                 <Text style={styles.nextBadgeIcon}>{nextBadge.badge.icon}</Text>
@@ -1458,7 +1515,7 @@ export default function HomeScreen({ navigation, route }) {
                 )}
               </View>
               <Text style={[styles.whisperText, { color: isDark ? colors.gold : '#8B6A28' }]}>✧ {cosmicWhisper}</Text>
-              <Text style={{ fontSize: 10, color: 'rgba(200,168,75,0.4)', marginTop: 6 }}>Tap to share ↗</Text>
+              {!isLateNight && <Text style={{ fontSize: 10, color: 'rgba(200,168,75,0.4)', marginTop: 6 }}>Tap to share ↗</Text>}
             </TouchableOpacity>
           )}
 
@@ -1550,26 +1607,40 @@ export default function HomeScreen({ navigation, route }) {
                   <Text style={styles.ddClose}>✕</Text>
                 </TouchableOpacity>
               </View>
-              {/* Decorative compass icon */}
-              <View style={styles.ddCompassWrap}>
-                <View style={styles.ddCompassGlow} />
-                <View style={styles.ddCompassRing}>
-                  <Text style={styles.ddCompassIcon}>✦</Text>
-                </View>
-              </View>
-              <Text style={styles.ddLabel}>YOUR NAVIGATOR BRIEFING</Text>
+              {/* Content type icon — contextual, not generic */}
+              {(() => {
+                const CT_EMOJI = { love: '💕', career: '💼', energy: '🔋', headsup: '⚡', greenlight: '🟢', reflection: '🌙' };
+                let ct = forecast?.contentType;
+                if (!ct && forecast?.lifeAreas) {
+                  const areas = [
+                    { key: 'love', type: 'love' }, { key: 'career', type: 'career' },
+                    { key: 'vitality', type: 'energy' }, { key: 'growth', type: 'reflection' },
+                    { key: 'social', type: 'greenlight' },
+                  ];
+                  const top = areas.filter(a => forecast.lifeAreas[a.key]).sort((a, b) => (forecast.lifeAreas[b.key].intensity || 3) - (forecast.lifeAreas[a.key].intensity || 3))[0];
+                  if (top) ct = top.type;
+                }
+                const emoji = CT_EMOJI[ct] || '✦';
+                const sunSign = userProfile?.chart?.planets?.find(p => p.name === 'Sun')?.sign || '';
+                const sunGlyph = sunSign ? (PLANET_GLYPHS.Sun || '☉') : '';
+                const CT_LABELS = { love: 'LOVE DAY', career: 'CAREER DAY', energy: 'ENERGY DAY', headsup: 'HEADS UP', greenlight: 'GREEN LIGHT', reflection: 'REFLECTION' };
+                const dayLabel = CT_LABELS[ct] || 'YOUR READING';
+                return (
+                  <>
+                    <Text style={{ fontSize: 36, marginBottom: 8 }}>{emoji}</Text>
+                    <Text style={styles.ddLabel}>{sunGlyph} {sunSign.toUpperCase()} · {dayLabel}</Text>
+                  </>
+                );
+              })()}
               <Text style={styles.ddHeadline}>{forecast?.navigatorHeadline}</Text>
               {forecast?.navigatorSummary && (
                 <Text style={styles.ddSummary}>{forecast.navigatorSummary}</Text>
               )}
-              {/* Glance chips in glass container */}
+              {/* Glance chips — moon + energy only (no lucky number) */}
               <View style={styles.ddChipsGlass}>
                 <View style={styles.ddChipItem}><Text style={styles.ddChipText}>{moonIcon} {moonPhase}</Text></View>
                 {forecast?.powerCosmic && (
                   <View style={styles.ddChipItem}><Text style={styles.ddChipText}>✦ {forecast.powerCosmic}</Text></View>
-                )}
-                {forecast?.luckyStats && (
-                  <View style={styles.ddChipItem}><Text style={styles.ddChipText}>#{forecast.luckyStats.number}</Text></View>
                 )}
               </View>
             </LinearGradient>
@@ -2359,9 +2430,8 @@ export default function HomeScreen({ navigation, route }) {
 
 const styles = StyleSheet.create({
   // Hero
-  hero: { paddingTop: Platform.OS === 'ios' ? 70 : (StatusBar.currentHeight || 48) + 16, paddingHorizontal: 22, paddingBottom: 30, position: 'relative', overflow: 'hidden', borderBottomLeftRadius: 24, borderBottomRightRadius: 24 },
-  heroGlow: { position: 'absolute', width: 260, height: 260, borderRadius: 130, backgroundColor: 'rgba(200,168,75,0.1)', right: -60, top: -60 },
-  greeting: { fontSize: 11, letterSpacing: 1.5, color: 'rgba(250,248,242,0.36)', marginBottom: 5 },
+  hero: { paddingTop: Platform.OS === 'ios' ? 70 : (StatusBar.currentHeight || 48) + 16, paddingHorizontal: 22, paddingBottom: 30, position: 'relative', overflow: 'hidden',  },
+  greeting: { fontSize: 12, letterSpacing: 1.5, color: 'rgba(250,248,242,0.6)', marginBottom: 4 },
   nameRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
   heroName: { fontFamily: FONTS.serif, fontSize: 30, color: T.cream },
   avatar: { width: 44, height: 44, borderRadius: 22, backgroundColor: 'rgba(200,168,75,0.15)', alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: 'rgba(200,168,75,0.3)', position: 'relative' },
@@ -2550,7 +2620,7 @@ const styles = StyleSheet.create({
 
   // Domain Modal
   // ── Life Area Modal (lam*) ──
-  lamHero: { paddingTop: Platform.OS === 'ios' ? 56 : 40, paddingHorizontal: 22, paddingBottom: 24, alignItems: 'center', borderBottomLeftRadius: 28, borderBottomRightRadius: 28 },
+  lamHero: { paddingTop: Platform.OS === 'ios' ? 56 : 40, paddingHorizontal: 22, paddingBottom: 24, alignItems: 'center',  },
   lamTopBar: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', width: '100%', marginBottom: 16 },
   lamDateLabel: { fontSize: 10, fontFamily: FONTS.sansMedium, letterSpacing: 2, color: 'rgba(250,248,242,0.3)' },
   lamCloseBtn: { fontSize: 18, color: 'rgba(250,248,242,0.5)', padding: 4 },
@@ -2712,7 +2782,7 @@ const styles = StyleSheet.create({
   briefingMoreText: { fontSize: 13, fontFamily: FONTS.sansSemiBold, color: T.gold },
   briefingMoreArrow: { fontSize: 14, color: T.gold, marginLeft: 6 },
   // Deep Dive Modal
-  ddHero: { paddingTop: Platform.OS === 'ios' ? 56 : 40, paddingBottom: 24, paddingHorizontal: 22, alignItems: 'center', borderBottomLeftRadius: 28, borderBottomRightRadius: 28 },
+  ddHero: { paddingTop: Platform.OS === 'ios' ? 56 : 40, paddingBottom: 24, paddingHorizontal: 22, alignItems: 'center' },
   ddHeaderRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', width: '100%', marginBottom: 14 },
   ddDate: { fontSize: 10, fontFamily: FONTS.sansMedium, letterSpacing: 2, color: 'rgba(250,248,242,0.3)' },
   ddClose: { fontSize: 18, color: 'rgba(250,248,242,0.5)', padding: 4 },

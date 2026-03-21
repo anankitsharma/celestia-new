@@ -529,7 +529,7 @@ export default function TransitsScreen({ navigation, route }) {
 }
 
 const styles = StyleSheet.create({
-  hero: { paddingTop: Platform.OS === 'ios' ? 70 : (StatusBar.currentHeight || 48) + 16, paddingHorizontal: 22, paddingBottom: 32, position: 'relative', overflow: 'hidden', borderBottomLeftRadius: 24, borderBottomRightRadius: 24 },
+  hero: { paddingTop: Platform.OS === 'ios' ? 70 : (StatusBar.currentHeight || 48) + 16, paddingHorizontal: 22, paddingBottom: 32, position: 'relative', overflow: 'hidden',  },
   heroGlow: { position: 'absolute', width: 260, height: 260, borderRadius: 130, backgroundColor: 'rgba(200,168,75,0.08)', left: -80, top: -40 },
   title: { fontFamily: FONTS.serif, fontSize: 30, color: T.cream, marginBottom: 5 },
   sub: { fontSize: 12.5, color: 'rgba(250,248,242,0.44)', marginBottom: 4 },

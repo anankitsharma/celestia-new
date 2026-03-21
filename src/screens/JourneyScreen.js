@@ -228,7 +228,6 @@ const s = StyleSheet.create({
   hero: {
     paddingTop: Platform.OS === 'ios' ? 70 : (StatusBar.currentHeight || 48) + 16,
     paddingHorizontal: 22, paddingBottom: 24,
-    borderBottomLeftRadius: 24, borderBottomRightRadius: 24,
   },
   backBtn: { position: 'absolute', top: Platform.OS === 'ios' ? 54 : (StatusBar.currentHeight || 48), left: 16, width: 36, height: 36, borderRadius: 18, backgroundColor: 'rgba(255,255,255,0.08)', alignItems: 'center', justifyContent: 'center', zIndex: 10 },
   heroTitle: { fontFamily: FONTS.serif, fontSize: 26, color: '#FAF8F2', marginBottom: 4 },

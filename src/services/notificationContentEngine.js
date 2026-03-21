@@ -8,7 +8,8 @@ const TEMPLATES = {
     {
       id: 'cm_navigator_excerpt',
       requires: ['forecast'],
-      weight: (d) => d.forecast?.navigatorHeadline ? 10 : 0,
+      // Weight 100 = ALWAYS wins when forecast exists. Guarantees notification matches homepage headline.
+      weight: (d) => d.forecast?.navigatorHeadline ? 100 : 0,
       generate: (d) => {
         const body = d.forecast.notificationExcerpt?.body || d.forecast.navigatorSummary || 'Your daily navigator briefing is ready.';
         return {

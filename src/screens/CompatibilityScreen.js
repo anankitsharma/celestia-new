@@ -1784,7 +1784,7 @@ const generateMatchReportHTML = (report, user, partner, synastry, role = 'partne
 
 const styles = StyleSheet.create({
   // Hero (compact)
-  hero: { paddingTop: Platform.OS === 'ios' ? 70 : (StatusBar.currentHeight || 48) + 16, paddingHorizontal: 22, paddingBottom: 24, borderBottomLeftRadius: 24, borderBottomRightRadius: 24, overflow: 'hidden' },
+  hero: { paddingTop: Platform.OS === 'ios' ? 70 : (StatusBar.currentHeight || 48) + 16, paddingHorizontal: 22, paddingBottom: 24, overflow: 'hidden' },
   title: { fontFamily: FONTS.serif, fontSize: 26, color: T.cream, marginBottom: 2 },
   sub: { fontSize: 12, fontFamily: FONTS.sans, color: 'rgba(250,248,242,0.45)' },
   heroAddBtn: { width: 38, height: 38, borderRadius: 19, backgroundColor: 'rgba(200,168,75,0.12)', borderWidth: 1, borderColor: 'rgba(200,168,75,0.25)', alignItems: 'center', justifyContent: 'center' },
@@ -1836,7 +1836,7 @@ const styles = StyleSheet.create({
   addCardSub: { fontSize: 11.5, color: T.stone },
 
   // Detail screen
-  ddHero: { paddingTop: Platform.OS === 'ios' ? 60 : (StatusBar.currentHeight || 48) + 12, paddingBottom: 22, paddingHorizontal: 22, borderBottomLeftRadius: 24, borderBottomRightRadius: 24, alignItems: 'center' },
+  ddHero: { paddingTop: Platform.OS === 'ios' ? 60 : (StatusBar.currentHeight || 48) + 12, paddingBottom: 22, paddingHorizontal: 22, alignItems: 'center' },
   ddBack: { position: 'absolute', top: Platform.OS === 'ios' ? 56 : (StatusBar.currentHeight || 48) + 8, left: 16, zIndex: 10, width: 36, height: 36, borderRadius: 18, backgroundColor: 'rgba(255,255,255,0.08)', alignItems: 'center', justifyContent: 'center' },
   ddPair: { flexDirection: 'row', alignItems: 'center', marginBottom: 10, marginTop: 10 },
   ddOrb: { width: 50, height: 50, borderRadius: 25, alignItems: 'center', justifyContent: 'center', borderWidth: 2, borderColor: 'rgba(255,255,255,0.15)' },
