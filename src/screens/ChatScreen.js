@@ -103,9 +103,10 @@ const Q_EVENING = [
   "Why do I keep attracting the same type?",
   "What's my biggest blind spot in relationships?",
   "Why am I so anxious lately?",
-  "Is this the right career for me?",
   "Why do I feel like something big is about to change?",
   "What does this month look like for me?",
+  "What's my chart say about what I really need?",
+  "Why can't I let go of this person?",
 ];
 
 const Q_FUN = [
@@ -153,7 +154,8 @@ function pickSuggestions(messages, userProfile, theme = 'open', transitCtx = nul
       if (hour >= 7 && hour < 10) {
         pool = [...Q_MORNING, ...Q_INITIAL.slice(0, 4)];
       } else if (hour >= 20 || hour < 3) {
-        pool = [...Q_EVENING, ...Q_INITIAL.slice(0, 3)];
+        // Evening/night: emotional + introspective only — no career/morning energy
+        pool = [...Q_EVENING, ...Q_FUN.slice(0, 2)];
       } else {
         pool = [...Q_INITIAL, ...Q_FUN.slice(0, 2)];
       }
@@ -344,12 +346,23 @@ export default function ChatScreen({ navigation, route }) {
     return parts.join(' ');
   };
 
-  const makeGreeting = (id = 'greeting', ctx = null) => ({
-    id,
-    role: 'model',
-    text: `Good day, ${name} ✦\n\n${ctx ? buildNarrativeGreeting(ctx) : `I am Celestia, your cosmic guide. ${sun ? `With your ${sun.sign} Sun${moon ? `, ${moon.sign} Moon` : ''}${rising ? ` and ${rising.sign} Rising` : ''}, ` : ''}I'm here to illuminate the celestial patterns shaping your journey.\n\nWhat would you like to explore?`}`,
-    timestamp: Date.now()
-  });
+  const makeGreeting = (id = 'greeting', ctx = null) => {
+    const hour = new Date().getHours();
+    const timeGreet = hour >= 22 || hour < 5 ? 'Hey' : hour >= 17 ? 'Good evening' : hour >= 12 ? 'Good afternoon' : 'Good morning';
+
+    let body;
+    if (ctx) {
+      body = buildNarrativeGreeting(ctx);
+    } else if (sun) {
+      // Chart-aware fallback — no "I am Celestia" intro
+      const moonNote = moon ? `Your ${moon.sign} Moon is ${hour >= 20 ? 'wide awake right now' : 'processing beneath the surface'}.` : '';
+      body = `${sun.sign} Sun${moon ? ` · ${moon.sign} Moon` : ''}${rising ? ` · ${rising.sign} Rising` : ''}. ${moonNote} What's on your mind?`;
+    } else {
+      body = 'What\'s on your mind tonight?';
+    }
+
+    return { id, role: 'model', text: `${timeGreet}, ${name} ✦\n\n${body}`, timestamp: Date.now() };
+  };
 
   // Keyboard handling: react-native-keyboard-controller's KeyboardStickyView
   // handles positioning automatically — no manual listeners needed
@@ -586,11 +599,12 @@ export default function ChatScreen({ navigation, route }) {
           </TouchableOpacity>
           <LinearGradient colors={['#0E0E22', '#1A1060']} style={styles.chatOrb}>
             <Text style={{ fontSize: 22, color: '#C8A84B' }}>☽</Text>
-            <View style={[styles.orbDot, { borderColor: colors.headerBg }]} />
           </LinearGradient>
           <View style={{ flex: 1 }}>
-            <Text style={[styles.aiName, { color: colors.heading }]}>Ask Celestia</Text>
-            <Text style={[styles.aiSub, { color: colors.textSecondary }]}>Your cosmic guide</Text>
+            <Text style={[styles.aiName, { color: colors.heading }]}>Celestia</Text>
+            <Text style={[styles.aiSub, { color: colors.textSecondary }]}>
+              {new Date().getHours() >= 22 || new Date().getHours() < 5 ? 'Night session' : new Date().getHours() >= 17 ? 'Evening session' : 'Always here'}
+            </Text>
           </View>
           <TouchableOpacity style={[styles.newChatBtn, { backgroundColor: colors.cardAlt, borderColor: colors.border }]} onPress={startNewSession}>
             <Text style={[styles.newChatBtnText, { color: colors.text }]}>New Chat</Text>
@@ -598,24 +612,7 @@ export default function ChatScreen({ navigation, route }) {
         </View>
       </View>
 
-      {/* Theme selector — only shown at start of conversation */}
-      {messages.filter(m => m.role === 'user').length === 0 && (
-        <ScrollView horizontal showsHorizontalScrollIndicator={false} style={[styles.themeStrip, { borderBottomColor: colors.border, backgroundColor: colors.bg }]} contentContainerStyle={{ paddingHorizontal: 17, gap: 7 }}>
-          {CHAT_THEMES.map(t => (
-            <TouchableOpacity
-              key={t.key}
-              style={[styles.themePill, { backgroundColor: colors.card, borderColor: colors.border }, chatTheme === t.key && styles.themePillActive]}
-              activeOpacity={0.7}
-              onPress={() => {
-                if (t.key !== chatTheme) startNewSession(t.key);
-              }}
-            >
-              <Text style={styles.themePillIcon}>{t.icon}</Text>
-              <Text style={[styles.themePillText, { color: colors.text }, chatTheme === t.key && styles.themePillTextActive]}>{t.label}</Text>
-            </TouchableOpacity>
-          ))}
-        </ScrollView>
-      )}
+      {/* Theme auto-detected from conversation context — no upfront choice needed */}
 
       {/* Messages */}
       <ScrollView
