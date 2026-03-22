@@ -1,0 +1,244 @@
+@import "tailwindcss";
+
+/* ── Celestia Design Tokens (CSS Custom Properties) ── */
+:root {
+  /* Dark mode (default) — from native ThemeContext */
+  --c-bg: #0F0E1A;
+  --c-card: #171529;
+  --c-card-alt: #1D1A30;
+  --c-card-elevated: #222040;
+  --c-text: #EDE6D8;
+  --c-text-secondary: #8B85A0;
+  --c-text-muted: #5E587A;
+  --c-heading: #F5EDE3;
+  --c-border: rgba(200,168,75,0.08);
+  --c-divider: rgba(200,168,75,0.05);
+  --c-input-bg: #1D1A30;
+  --c-input-border: rgba(200,168,75,0.12);
+  --c-input-placeholder: #5E587A;
+  --c-tab-bar-bg: rgba(15,14,26,0.92);
+  --c-header-bg: rgba(15,14,26,0.92);
+  --c-gold: #C8A84B;
+  --c-gold-lt: #E2C46A;
+  --c-gold-dim: rgba(200,168,75,0.15);
+  --c-modal-bg: #171529;
+  --c-modal-overlay: rgba(0,0,0,0.5);
+  --c-glass-bg: rgba(255,255,255,0.05);
+  --c-glass-border: rgba(255,255,255,0.08);
+  --c-glass-strong-bg: rgba(255,255,255,0.08);
+  --c-glass-strong-border: rgba(255,255,255,0.12);
+  --c-hero-gradient: linear-gradient(180deg, #0E0E22 0%, #1A1535 50%, #0F1628 100%);
+  --c-hero-text: #F5EDE3;
+  --c-hero-sub: rgba(250,248,242,0.6);
+  --c-card-bg-alpha: rgba(255,255,255,0.04);
+  --c-card-border-alpha: rgba(255,255,255,0.06);
+  --c-success: #5CB868;
+  --c-warning: #E8A840;
+  --c-error: #E86060;
+
+  /* Font families */
+  --font-serif: 'Playfair Display', serif;
+  --font-sans: 'DM Sans', sans-serif;
+}
+
+/* ── Light mode (Desert Dawn) — from native ThemeContext ── */
+[data-theme="light"] {
+  --c-bg: #FAF8F2;
+  --c-card: #FFFFFF;
+  --c-card-alt: #F3EDE2;
+  --c-card-elevated: #FFFFFF;
+  --c-text: #2A2418;
+  --c-text-secondary: #97907F;
+  --c-text-muted: #B0A898;
+  --c-heading: #2A2418;
+  --c-border: #EAE3D6;
+  --c-divider: #EDE6D8;
+  --c-input-bg: #FFFFFF;
+  --c-input-border: #EAE3D6;
+  --c-input-placeholder: #B0A898;
+  --c-tab-bar-bg: rgba(250,248,242,0.96);
+  --c-header-bg: rgba(250,248,242,0.96);
+  --c-gold: #C8A84B;
+  --c-gold-lt: #E2C46A;
+  --c-gold-dim: rgba(200,168,75,0.12);
+  --c-modal-bg: #FFFFFF;
+  --c-modal-overlay: rgba(0,0,0,0.4);
+  --c-glass-bg: rgba(0,0,0,0.02);
+  --c-glass-border: #EAE3D6;
+  --c-glass-strong-bg: rgba(0,0,0,0.04);
+  --c-glass-strong-border: #EAE3D6;
+  --c-hero-gradient: linear-gradient(180deg, #0E0E22 0%, #1A1535 50%, #0F1628 100%);
+  --c-hero-text: #F5EDE3;
+  --c-hero-sub: rgba(250,248,242,0.6);
+  --c-card-bg-alpha: rgba(0,0,0,0.03);
+  --c-card-border-alpha: #EAE3D6;
+  --c-success: #4CAF50;
+  --c-warning: #F5A623;
+  --c-error: #E85050;
+}
+
+/* Tailwind theme tokens */
+@theme {
+  --color-navy: #0E0E22;
+  --color-navy-mid: #16163A;
+  --color-navy-lt: #1E1E4A;
+  --color-gold: #C8A84B;
+  --color-gold-lt: #E2C46A;
+  --color-gold-dim: rgba(200, 168, 75, 0.12);
+  --color-cream: #FAF8F2;
+  --color-warm: #F3EDE2;
+  --color-stone: #97907F;
+  --color-ink: #2A2418;
+  --color-border: #EAE3D6;
+  --color-fire: #E6A8A1;
+  --color-earth: #A3C4A5;
+  --color-air: #F2C6A0;
+  --color-water: #A3C4DF;
+  --font-serif: 'Playfair Display', serif;
+  --font-sans: 'DM Sans', sans-serif;
+}
+
+/* ── Base ─────────────────────────────────────────── */
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+  -webkit-tap-highlight-color: transparent;
+  -webkit-touch-callout: none;
+}
+
+html, body {
+  height: 100%;
+  width: 100%;
+  overflow: hidden;
+  background: var(--c-bg);
+  color: var(--c-text);
+  font-family: var(--font-sans);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  -webkit-text-size-adjust: 100%;
+  user-select: none;
+  transition: background 0.3s ease, color 0.3s ease;
+}
+
+/* PWA standalone mode — iOS safe areas */
+@supports (padding: env(safe-area-inset-top)) {
+  .safe-top { padding-top: env(safe-area-inset-top); }
+  .safe-bottom { padding-bottom: env(safe-area-inset-bottom); }
+}
+
+@media all and (display-mode: standalone) {
+  .safe-top { padding-top: max(env(safe-area-inset-top, 0px), 44px); }
+}
+
+/* ── Scrollable content ──────────────────────────── */
+.scroll-container {
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior-y: contain;
+  scrollbar-width: none;
+}
+.scroll-container::-webkit-scrollbar { display: none; }
+
+/* ── Transitions ─────────────────────────────────── */
+.transition-smooth {
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* ── Glass card ──────────────────────────────────── */
+.glass {
+  background: var(--c-glass-bg);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid var(--c-glass-border);
+}
+
+.glass-strong {
+  background: var(--c-glass-strong-bg);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border: 1px solid var(--c-glass-strong-border);
+}
+
+/* ── Hero gradient — always dark (same in native light & dark) ── */
+.hero-gradient {
+  background: var(--c-hero-gradient);
+  border-bottom-left-radius: 24px;
+  border-bottom-right-radius: 24px;
+}
+
+.hero-gradient-evening {
+  background: linear-gradient(180deg, #16101E 0%, #1A1228 50%, #14102A 100%);
+  border-bottom-left-radius: 24px;
+  border-bottom-right-radius: 24px;
+}
+
+.hero-gradient-latenight {
+  background: linear-gradient(180deg, #110E1A 0%, #140F20 50%, #100D18 100%);
+  border-bottom-left-radius: 24px;
+  border-bottom-right-radius: 24px;
+}
+
+/* ── Gold shimmer animation ──────────────────────── */
+@keyframes shimmer {
+  0% { background-position: -200% 0; }
+  100% { background-position: 200% 0; }
+}
+
+.gold-shimmer {
+  background: linear-gradient(90deg, var(--c-gold) 0%, var(--c-gold-lt) 50%, var(--c-gold) 100%);
+  background-size: 200% auto;
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  animation: shimmer 3s ease-in-out infinite;
+}
+
+/* ── Breathing animation ─────────────────────────── */
+@keyframes breathe {
+  0%, 100% { transform: scale(1); opacity: 0.6; }
+  50% { transform: scale(1.05); opacity: 1; }
+}
+.animate-breathe { animation: breathe 4s ease-in-out infinite; }
+
+/* ── Fade in animation ───────────────────────────── */
+@keyframes fadeInUp {
+  from { opacity: 0; transform: translateY(16px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+.animate-fade-in { animation: fadeInUp 0.5s ease-out forwards; }
+
+/* ── Tab bar pill ────────────────────────────────── */
+.tab-pill-active {
+  background: rgba(200, 168, 75, 0.15);
+  border: 1px solid rgba(200, 168, 75, 0.3);
+}
+
+/* ── Light mode: body-level background classes ───── */
+[data-theme="light"] .bg-navy { background: var(--c-bg) !important; }
+
+/* ── Light mode: text ────────────────────────────── */
+[data-theme="light"] .text-cream { color: var(--c-text) !important; }
+[data-theme="light"] .text-stone { color: var(--c-text-secondary) !important; }
+
+/* ── Light mode: input styling ───────────────────── */
+[data-theme="light"] input,
+[data-theme="light"] textarea {
+  background: var(--c-input-bg) !important;
+  border-color: var(--c-input-border) !important;
+  color: var(--c-text) !important;
+}
+[data-theme="light"] input::placeholder,
+[data-theme="light"] textarea::placeholder {
+  color: var(--c-input-placeholder) !important;
+}
+
+/* ── Spinner ─────────────────────────────────────── */
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+.spinner {
+  border: 3px solid rgba(200,168,75,0.2);
+  border-top-color: var(--c-gold);
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+}
