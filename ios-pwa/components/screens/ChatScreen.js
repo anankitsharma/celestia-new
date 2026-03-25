@@ -256,6 +256,25 @@ export default function ChatScreen({ onClose, initialMessage: initialMessageProp
   const [chatTheme, setChatTheme] = useState('open');
   const [remainingMsgs, setRemainingMsgs] = useState(null);
   const [limitReached, setLimitReached] = useState(false);
+  const [showHistory, setShowHistory] = useState(false);
+  const [chatSessions, setChatSessions] = useState([]);
+  const [keyboardOffset, setKeyboardOffset] = useState(0);
+
+  // Track iOS keyboard via visualViewport — keeps input above keyboard
+  useEffect(() => {
+    if (typeof window === 'undefined' || !window.visualViewport) return;
+    const vv = window.visualViewport;
+    const handleResize = () => {
+      const offset = window.innerHeight - vv.height;
+      setKeyboardOffset(offset > 50 ? offset : 0);
+    };
+    vv.addEventListener('resize', handleResize);
+    vv.addEventListener('scroll', handleResize);
+    return () => {
+      vv.removeEventListener('resize', handleResize);
+      vv.removeEventListener('scroll', handleResize);
+    };
+  }, []);
 
   const shareResponse = async (text) => {
     try {
@@ -265,6 +284,45 @@ export default function ChatScreen({ onClose, initialMessage: initialMessageProp
           text: `${clean}\n\n\u2014 Celestia \u2726 Your cosmic guide\ncelestia.app`,
         });
       }
+    } catch (e) { }
+  };
+
+  // Intercept browser back when history panel is open
+  useEffect(() => {
+    if (!showHistory) return;
+    const handlePopState = () => { setShowHistory(false); };
+    window.addEventListener('popstate', handlePopState);
+    return () => window.removeEventListener('popstate', handlePopState);
+  }, [showHistory]);
+
+  const loadChatHistory = async () => {
+    try {
+      const sessions = await ChatRepository.getSessions(20);
+      setChatSessions(sessions || []);
+      setShowHistory(true);
+      // Push history entry so back button closes panel instead of navigating away
+      window.history.pushState({ chatHistory: true }, '');
+    } catch (e) { console.error('Failed to load chat history:', e); }
+  };
+
+  const switchToSession = async (s) => {
+    try {
+      const msgs = await ChatRepository.getMessages(s.id);
+      setMessages(msgs.map(m => ({ id: m.id || String(m.timestamp), role: m.role, text: m.text, timestamp: m.timestamp })));
+      // Re-create AI session for this context
+      if (userProfile) {
+        const chatSession = await createChatSession(userProfile, null, s.id, null, isPro);
+        setSession(chatSession);
+      }
+      setShowHistory(false);
+      setTimeout(() => { if (scrollRef.current) scrollRef.current.scrollTop = scrollRef.current.scrollHeight; }, 100);
+    } catch (e) { console.error('Failed to switch session:', e); }
+  };
+
+  const deleteSession = async (sessionId) => {
+    try {
+      await ChatRepository.deleteSession(sessionId);
+      setChatSessions(prev => prev.filter(s => s.id !== sessionId));
     } catch (e) { }
   };
 
@@ -521,28 +579,43 @@ export default function ChatScreen({ onClose, initialMessage: initialMessageProp
 
   return (
     <div style={styles.wrap}>
-      {/* Header */}
-      <div style={styles.header}>
-        <div style={styles.aiRow}>
-          <button
-            style={styles.dismissBtn}
-            onClick={() => onClose?.()}
-          >
-            <X size={18} color={'var(--c-text)'} strokeWidth={2.5} />
-          </button>
-          <div style={styles.chatOrb}>
-            <span style={{ fontSize: 22, color: '#C8A84B' }}>{'\u263d'}</span>
-          </div>
-          <div style={{ flex: 1 }}>
-            <p style={styles.aiName}>Celestia</p>
-            <p style={styles.aiSub}>
-              {new Date().getHours() >= 22 || new Date().getHours() < 5 ? 'Night session' : new Date().getHours() >= 17 ? 'Evening session' : 'Always here'}
-            </p>
-          </div>
-          <button style={styles.newChatBtn} onClick={() => startNewSession()}>
-            <span style={styles.newChatBtnText}>New Chat</span>
-          </button>
+      {/* Sticky top bar: X | ☽ Celestia | history | + new */}
+      <div style={{
+        display: 'flex', flexDirection: 'row', alignItems: 'center',
+        paddingTop: 54, paddingLeft: 16, paddingRight: 16, paddingBottom: 8,
+        backgroundColor: 'var(--c-bg)',
+      }}>
+        <button style={styles.dismissBtn} onClick={() => onClose?.()}>
+          <X size={18} color={'var(--c-text)'} strokeWidth={2.5} />
+        </button>
+        <div style={{ ...styles.chatOrb, width: 30, height: 30, borderRadius: 15, marginLeft: 8 }}>
+          <span style={{ fontSize: 15, color: '#C8A84B' }}>{'\u263d'}</span>
         </div>
+        <span style={{ fontFamily: 'var(--font-serif)', fontWeight: 500, fontSize: 16, color: 'var(--c-heading)', flex: 1, marginLeft: 8 }}>Celestia</span>
+        {/* History icon */}
+        <button
+          onClick={loadChatHistory}
+          style={{
+            width: 34, height: 34, borderRadius: 17,
+            backgroundColor: 'var(--c-card-bg-alpha)', border: '1px solid var(--c-border)',
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            cursor: 'pointer', marginRight: 8,
+          }}
+        >
+          <span style={{ fontSize: 15 }}>{'\ud83d\udd58'}</span>
+        </button>
+        {/* New chat + */}
+        <button
+          onClick={() => startNewSession()}
+          style={{
+            width: 34, height: 34, borderRadius: 17,
+            backgroundColor: '#C8A84B', border: 'none',
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            cursor: 'pointer',
+          }}
+        >
+          <span style={{ fontSize: 20, color: '#0E0E22', fontWeight: '300', marginTop: -1 }}>+</span>
+        </button>
       </div>
 
       {/* Messages */}
@@ -551,6 +624,19 @@ export default function ChatScreen({ onClose, initialMessage: initialMessageProp
         style={styles.msgs}
         className="scroll-container"
       >
+        {/* Greeting — only at start of new conversation */}
+        {messages.length <= 1 && (
+          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', paddingTop: 20, paddingBottom: 10 }}>
+            <div style={{ ...styles.chatOrb, width: 52, height: 52, borderRadius: 26, marginBottom: 10 }}>
+              <span style={{ fontSize: 28, color: '#C8A84B' }}>{'\u263d'}</span>
+            </div>
+            <p style={{ fontFamily: 'var(--font-serif)', fontWeight: 500, fontSize: 18, color: 'var(--c-heading)', marginBottom: 2, margin: 0 }}>Celestia</p>
+            <p style={{ fontSize: 12, color: 'var(--c-text-secondary)', margin: 0 }}>
+              {new Date().getHours() >= 22 || new Date().getHours() < 5 ? 'Night session' : new Date().getHours() >= 17 ? 'Evening session' : 'Always here'}
+            </p>
+          </div>
+        )}
+
         {/* Proactive Insight Card */}
         {proactiveInsight && messages.length <= 2 && (
           <button
@@ -623,7 +709,7 @@ export default function ChatScreen({ onClose, initialMessage: initialMessageProp
         )}
       </div>
 
-      <div style={{ paddingBottom: bottomPadding, backgroundColor: 'var(--c-bg)', zIndex: 100 }}>
+      <div style={{ paddingBottom: keyboardOffset > 0 ? 6 : bottomPadding, backgroundColor: 'var(--c-bg)', zIndex: 100, transform: keyboardOffset > 0 ? `translateY(-${keyboardOffset}px)` : 'none', transition: 'transform 0.15s ease-out' }}>
         {/* Suggestions */}
         <div style={styles.suggestStrip} className="scroll-container">
           <div style={{ display: 'flex', paddingLeft: 17, paddingRight: 17, gap: 7 }}>
@@ -718,6 +804,85 @@ export default function ChatScreen({ onClose, initialMessage: initialMessageProp
         @keyframes typingBounce {
           0%, 80%, 100% { transform: translateY(0); opacity: 0.4; }
           40% { transform: translateY(-4px); opacity: 1; }
+        }
+      `}</style>
+
+      {/* Chat History Panel */}
+      {showHistory && (
+        <div style={{
+          position: 'fixed', inset: 0, zIndex: 200,
+          display: 'flex', flexDirection: 'column',
+          backgroundColor: 'var(--c-bg)',
+          animation: 'slideInRight 0.25s ease-out',
+        }}>
+          {/* History Header */}
+          <div style={{
+            display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+            padding: '62px 20px 16px', borderBottom: '1px solid var(--c-border)',
+          }}>
+            <button onClick={() => setShowHistory(false)} style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 4 }}>
+              <span style={{ fontSize: 18, color: 'var(--c-text-secondary)' }}>{'\u2190'}</span>
+            </button>
+            <h2 style={{ fontFamily: 'var(--font-serif)', fontSize: 20, color: 'var(--c-heading)', flex: 1, textAlign: 'center' }}>Chat History</h2>
+            <button onClick={() => { setShowHistory(false); startNewSession(); }} style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 4 }}>
+              <span style={{ fontSize: 13, color: '#C8A84B', fontWeight: 600 }}>+ New</span>
+            </button>
+          </div>
+
+          {/* Session List */}
+          <div className="scroll-container" style={{ flex: 1, padding: '12px 16px' }}>
+            {chatSessions.length === 0 ? (
+              <div style={{ textAlign: 'center', paddingTop: 80 }}>
+                <span style={{ fontSize: 40, display: 'block', marginBottom: 12 }}>{'\u263d'}</span>
+                <p style={{ fontFamily: 'var(--font-serif)', fontSize: 18, color: 'var(--c-heading)', marginBottom: 6 }}>No past conversations</p>
+                <p style={{ fontSize: 13, color: 'var(--c-text-secondary)' }}>Start chatting and your history will appear here</p>
+              </div>
+            ) : (
+              chatSessions.map((s, i) => {
+                const date = new Date(s.lastUpdated || s.createdAt);
+                const isToday = date.toDateString() === new Date().toDateString();
+                const dateStr = isToday ? 'Today' : date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+                const timeStr = date.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });
+                return (
+                  <div key={s.id} style={{
+                    display: 'flex', alignItems: 'center', gap: 12,
+                    padding: '14px 12px', marginBottom: 6,
+                    backgroundColor: 'var(--c-card-bg-alpha)',
+                    border: '1px solid var(--c-border)',
+                    borderRadius: 14, cursor: 'pointer',
+                  }}>
+                    <button onClick={() => switchToSession(s)} style={{ flex: 1, display: 'flex', alignItems: 'center', gap: 12, background: 'none', border: 'none', cursor: 'pointer', textAlign: 'left' }}>
+                      <div style={{
+                        width: 38, height: 38, borderRadius: 19,
+                        background: 'linear-gradient(135deg, rgba(200,168,75,0.15), rgba(200,168,75,0.05))',
+                        display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0,
+                      }}>
+                        <span style={{ fontSize: 16, color: '#C8A84B' }}>{'\u263d'}</span>
+                      </div>
+                      <div style={{ flex: 1, minWidth: 0 }}>
+                        <p style={{ fontSize: 14, fontWeight: 500, color: 'var(--c-heading)', margin: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                          {s.title || 'Untitled chat'}
+                        </p>
+                        <p style={{ fontSize: 11, color: 'var(--c-text-secondary)', margin: '2px 0 0' }}>
+                          {dateStr} {'\u00b7'} {timeStr}
+                        </p>
+                      </div>
+                    </button>
+                    <button onClick={() => { if (window.confirm('Delete this conversation?')) deleteSession(s.id); }} style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 6 }}>
+                      <span style={{ fontSize: 14, color: 'var(--c-text-muted)' }}>{'\u2715'}</span>
+                    </button>
+                  </div>
+                );
+              })
+            )}
+          </div>
+        </div>
+      )}
+
+      <style>{`
+        @keyframes slideInRight {
+          from { transform: translateX(100%); }
+          to { transform: translateX(0); }
         }
       `}</style>
     </div>

@@ -39,23 +39,21 @@ const REPORT_THEMES = {
 };
 
 const REPORTS = [
-  { icon: '\u2640', bg: ['#3A0A3A','#1A1060'], accent: '#E85090', name: 'Love Report', desc: 'Venus, attachment style & why you love like this', type: 'love', price: '$9.99', tier: 'premium' },
-  { icon: '\u2644', bg: ['#0A2A3A','#1A1060'], accent: '#5090E8', name: 'Career Map', desc: 'Midheaven, Saturn & your professional destiny', type: 'career', price: '$9.99', tier: 'premium' },
-  { icon: '\u263d', bg: ['#1A0A3A','#0E0E22'], accent: '#A080E0', name: 'Lunar Guide', desc: 'Moon rituals aligned with your natal chart', type: 'lunar', price: '$9.99', tier: 'premium' },
-  { icon: '\u260a', bg: ['#2A1A0A','#1A1060'], accent: '#C8A84B', name: 'Life Purpose', desc: 'North Node decoded -- where your soul is headed', type: 'purpose', price: '$9.99', tier: 'premium' },
-  { icon: '\u2643', bg: ['#0A1A2A','#0E0E22'], accent: '#4ECDC4', name: 'Year-Ahead Forecast', desc: `Month-by-month roadmap for ${CURRENT_YEAR}`, type: 'yearly', price: '$9.99', tier: 'premium' },
-  { icon: '\u263f', bg: ['#1A0A1A','#2A0A2A'], accent: '#FF6B6B', name: 'Transit Report', desc: 'Current planetary weather hitting your chart', type: 'transit', price: '$9.99', tier: 'pro' },
-  { icon: '\u2609', bg: ['#0E0E22','#2A1A6E'], accent: '#C8A84B', name: `Solar Return ${CURRENT_YEAR}`, desc: 'Your complete year ahead from birthday to birthday', type: 'solar_return', price: '$9.99', tier: 'premium' },
+  { icon: '\u2640', bg: ['#3A0A3A','#1A1060'], accent: '#E85090', name: 'Love Report', desc: 'Venus, attachment style & why you love like this', type: 'love', tier: 'pro' },
+  { icon: '\u2644', bg: ['#0A2A3A','#1A1060'], accent: '#5090E8', name: 'Career Map', desc: 'Midheaven, Saturn & your professional destiny', type: 'career', tier: 'pro' },
+  { icon: '\u263d', bg: ['#1A0A3A','#0E0E22'], accent: '#A080E0', name: 'Lunar Guide', desc: 'Moon rituals aligned with your natal chart', type: 'lunar', tier: 'pro' },
+  { icon: '\u260a', bg: ['#2A1A0A','#1A1060'], accent: '#C8A84B', name: 'Life Purpose', desc: 'North Node decoded -- where your soul is headed', type: 'purpose', tier: 'pro' },
+  { icon: '\u2643', bg: ['#0A1A2A','#0E0E22'], accent: '#4ECDC4', name: 'Year-Ahead Forecast', desc: `Month-by-month roadmap for ${CURRENT_YEAR}`, type: 'yearly', tier: 'pro' },
+  { icon: '\u263f', bg: ['#1A0A1A','#2A0A2A'], accent: '#FF6B6B', name: 'Transit Report', desc: 'Current planetary weather hitting your chart', type: 'transit', tier: 'pro' },
+  { icon: '\u2609', bg: ['#0E0E22','#2A1A6E'], accent: '#C8A84B', name: `Solar Return ${CURRENT_YEAR}`, desc: 'Your complete year ahead from birthday to birthday', type: 'solar_return', tier: 'pro' },
 ];
 
 const isPro = false;
 
+// Simplified: Monthly = free, everything else = Pro subscription
 const isReportAccessible = (reportType) => {
   if (reportType === 'monthly') return true;
-  const report = REPORTS.find(r => r.type === reportType);
-  if (!report) return false;
-  if (report.tier === 'pro' && isPro) return true;
-  return false;
+  return isPro;
 };
 
 export default function ReportsScreen() {
@@ -118,7 +116,7 @@ export default function ReportsScreen() {
       return;
     }
     if (!isReportAccessible(r.type)) {
-      window.alert(`This report requires Pro access. ${r.price || '$9.99'}`);
+      window.alert('This report is included with Celestia Pro. Subscribe to unlock all reports.');
       return;
     }
     setReportTitle(r.name);
@@ -210,7 +208,7 @@ export default function ReportsScreen() {
                 <h4 style={{ fontFamily: 'var(--font-serif)', fontSize: 16, color: 'var(--c-heading)', marginBottom: 2 }}>{r.name}</h4>
                 <p style={{ fontSize: 10, color: 'var(--c-text-secondary)', lineHeight: 1.4, marginBottom: 9 }}>{getReportDescription(r.type)}</p>
                 <span style={{ fontFamily: 'var(--font-serif)', fontSize: isReportAccessible(r.type) ? 19 : 14, color: isReportAccessible(r.type) ? T.cream : T.gold }}>
-                  {isReportAccessible(r.type) ? (r.type === 'monthly' ? 'Free' : 'In Pro') : (r.price || '$9.99')}
+                  {isReportAccessible(r.type) ? (r.type === 'monthly' ? 'Free' : 'In Pro') : 'Pro'}
                 </span>
               </div>
             </button>

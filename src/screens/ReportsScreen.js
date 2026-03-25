@@ -256,25 +256,21 @@ const MONTH_ZODIAC_ENERGY = [
 ];
 
 const REPORTS = [
-  { icon: '♀', bg: ['#3A0A3A', '#1A1060'], accent: '#E85090', name: 'Love Report', desc: 'Venus, attachment style & why you love like this', type: 'love', price: '$9.99', tier: 'premium' },
-  { icon: '♄', bg: ['#0A2A3A', '#1A1060'], accent: '#5090E8', name: 'Career Map', desc: 'Midheaven, Saturn & your professional destiny', type: 'career', price: '$9.99', tier: 'premium' },
-  { icon: '☽', bg: ['#1A0A3A', '#0E0E22'], accent: '#A080E0', name: 'Lunar Guide', desc: 'Moon rituals aligned with your natal chart', type: 'lunar', price: '$9.99', tier: 'premium' },
-  { icon: '☊', bg: ['#2A1A0A', '#1A1060'], accent: '#C8A84B', name: 'Life Purpose', desc: 'North Node decoded — where your soul is headed', type: 'purpose', price: '$9.99', tier: 'premium' },
-  { icon: '♃', bg: ['#0A1A2A', '#0E0E22'], accent: '#4ECDC4', name: 'Year-Ahead Forecast', desc: `Month-by-month roadmap for ${CURRENT_YEAR}`, type: 'yearly', price: '$9.99', tier: 'premium' },
-  { icon: '☿', bg: ['#1A0A1A', '#2A0A2A'], accent: '#FF6B6B', name: 'Transit Report', desc: 'Current planetary weather hitting your chart', type: 'transit', price: '$9.99', tier: 'pro' },
-  { icon: '☉', bg: ['#0E0E22', '#2A1A6E'], accent: '#C8A84B', name: `Solar Return ${CURRENT_YEAR}`, desc: 'Your complete year ahead from birthday to birthday', type: 'solar_return', price: '$9.99', tier: 'premium' },
+  { icon: '♀', bg: ['#3A0A3A', '#1A1060'], accent: '#E85090', name: 'Love Report', desc: 'Venus, attachment style & why you love like this', type: 'love', tier: 'pro' },
+  { icon: '♄', bg: ['#0A2A3A', '#1A1060'], accent: '#5090E8', name: 'Career Map', desc: 'Midheaven, Saturn & your professional destiny', type: 'career', tier: 'pro' },
+  { icon: '☽', bg: ['#1A0A3A', '#0E0E22'], accent: '#A080E0', name: 'Lunar Guide', desc: 'Moon rituals aligned with your natal chart', type: 'lunar', tier: 'pro' },
+  { icon: '☊', bg: ['#2A1A0A', '#1A1060'], accent: '#C8A84B', name: 'Life Purpose', desc: 'North Node decoded — where your soul is headed', type: 'purpose', tier: 'pro' },
+  { icon: '♃', bg: ['#0A1A2A', '#0E0E22'], accent: '#4ECDC4', name: 'Year-Ahead Forecast', desc: `Month-by-month roadmap for ${CURRENT_YEAR}`, type: 'yearly', tier: 'pro' },
+  { icon: '☿', bg: ['#1A0A1A', '#2A0A2A'], accent: '#FF6B6B', name: 'Transit Report', desc: 'Current planetary weather hitting your chart', type: 'transit', tier: 'pro' },
+  { icon: '☉', bg: ['#0E0E22', '#2A1A6E'], accent: '#C8A84B', name: `Solar Return ${CURRENT_YEAR}`, desc: 'Your complete year ahead from birthday to birthday', type: 'solar_return', tier: 'pro' },
 ];
 
-// Report tier system (matching plan):
-// 'free'    — Monthly forecast (always free for everyone)
-// 'pro'     — Included with Pro subscription (Transit Report)
-// 'premium' — Always one-time purchase, even for Pro subscribers (revenue driver)
+// Report tier system (simplified):
+// 'free' — Monthly forecast (always free for everyone)
+// 'pro'  — All reports included with Pro subscription
 const isReportAccessible = (reportType, isPro) => {
   if (reportType === 'monthly') return true;
-  const report = REPORTS.find(r => r.type === reportType);
-  if (!report) return false;
-  if (report.tier === 'pro' && isPro) return true;
-  return false;
+  return isPro;
 };
 
 // ── Deep PDF HTML Generator ─────────────────────────────────────────────────
@@ -1187,13 +1183,11 @@ export default function ReportsScreen() {
       haptic.medium();
       const report = REPORTS.find(rep => rep.type === r.type);
       Alert.alert(
-        `Get Your ${r.name}`,
-        report?.tier === 'premium' ? 'This deep-dive report is a one-time purchase.' : 'This report is included with Pro.',
+        `Unlock ${r.name}`,
+        'This report is included with Celestia Pro. Subscribe to unlock all reports.',
         [
           { text: 'Cancel', style: 'cancel' },
-          report?.tier === 'premium'
-            ? { text: `${report.price || '$9.99'} — Get This Report`, onPress: () => navigation.navigate('Paywall', { source: `report_single_${r.type}`, reportName: r.name }) }
-            : { text: 'Go Pro', onPress: () => navigation.navigate('Paywall', { source: 'reports', reportName: r.name }) },
+          { text: 'Go Pro', onPress: () => navigation.navigate('Paywall', { source: 'reports', reportName: r.name }) },
         ]
       );
       return;
@@ -1241,13 +1235,11 @@ export default function ReportsScreen() {
       haptic.medium();
       const report = REPORTS.find(r => r.type === reportType);
       Alert.alert(
-        `Get Your ${theme.title}`,
-        report?.tier === 'premium' ? 'This deep-dive report is a one-time purchase.' : 'This report is included with Pro.',
+        `Unlock ${theme.title}`,
+        'This report is included with Celestia Pro. Subscribe to unlock all reports.',
         [
           { text: 'Cancel', style: 'cancel' },
-          report?.tier === 'premium'
-            ? { text: `${report?.price || '$9.99'} — Get This Report`, onPress: () => navigation.navigate('Paywall', { source: `report_single_${reportType}`, reportName: theme.title }) }
-            : { text: 'Go Pro', onPress: () => navigation.navigate('Paywall', { source: 'reports', reportName: theme.title }) },
+          { text: 'Go Pro', onPress: () => navigation.navigate('Paywall', { source: 'reports', reportName: theme.title }) },
         ]
       );
       return;
@@ -1384,7 +1376,7 @@ export default function ReportsScreen() {
                 <Text style={[styles.rtileName, { color: colors.heading }]}>{r.name}</Text>
                 <Text style={[styles.rtileDesc, { color: colors.textSecondary }]}>{getReportDescription(r.type)}</Text>
                 <Text style={[styles.rtilePrice, { color: colors.heading }, !isReportAccessible(r.type, isPro) && { color: colors.gold, fontSize: 14 }]}>
-                  {isReportAccessible(r.type, isPro) ? (r.type === 'monthly' ? 'Free' : 'In Pro') : (r.price || '$9.99')}
+                  {isReportAccessible(r.type, isPro) ? (r.type === 'monthly' ? 'Free' : 'In Pro') : 'Pro'}
                 </Text>
               </View>
             </TouchableOpacity>
