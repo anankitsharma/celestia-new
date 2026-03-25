@@ -397,6 +397,7 @@ export default function TransitsScreen({ navigation, route }) {
                           title="See How This Hits Your Chart"
                           description="Want to know exactly what this means for you? That's the deeper dive."
                           compact
+                          onPress={() => navigation.navigate('Paywall', { source: 'transit_ai' })}
                         />
                       </View>
                     ) : (

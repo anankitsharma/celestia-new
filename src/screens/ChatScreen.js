@@ -1,8 +1,9 @@
 import React, { useState, useRef, useEffect } from 'react';
 import {
   View, Text, ScrollView, TouchableOpacity, StyleSheet,
-  TextInput, Platform, ActivityIndicator, Keyboard, Share, Alert, KeyboardAvoidingView
+  TextInput, Platform, ActivityIndicator, Keyboard, Share, Alert, BackHandler
 } from 'react-native';
+import { KeyboardStickyView } from 'react-native-keyboard-controller';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
 import { T, FONTS } from '../constants/theme';
@@ -290,6 +291,8 @@ export default function ChatScreen({ navigation, route }) {
   const [remainingMsgs, setRemainingMsgs] = useState(null); // null = pro or unchecked
   const [limitReached, setLimitReached] = useState(false);
   const [keyboardVisible, setKeyboardVisible] = useState(false);
+  const [showHistory, setShowHistory] = useState(false);
+  const [chatSessions, setChatSessions] = useState([]);
 
   useEffect(() => {
     const showEvent = Platform.OS === 'ios' ? 'keyboardWillShow' : 'keyboardDidShow';
@@ -310,6 +313,51 @@ export default function ChatScreen({ navigation, route }) {
   };
   const scrollRef = useRef(null);
   const initialMessageSent = useRef(false);
+
+  // Intercept Android back button when history panel is open
+  useEffect(() => {
+    if (!showHistory) return;
+    const sub = BackHandler.addEventListener('hardwareBackPress', () => {
+      setShowHistory(false);
+      return true;
+    });
+    return () => sub.remove();
+  }, [showHistory]);
+
+  const loadChatHistory = async () => {
+    try {
+      const sessions = await ChatRepository.getSessions(20);
+      setChatSessions(sessions || []);
+      setShowHistory(true);
+    } catch (e) { console.error('Failed to load chat history:', e); }
+  };
+
+  const switchToSession = async (s) => {
+    try {
+      const msgs = await ChatRepository.getMessages(s.id);
+      setMessages(msgs.map(m => ({ id: m.id || String(m.timestamp), role: m.role, text: m.text, timestamp: m.timestamp })));
+      if (userProfile) {
+        const chatSession = await createChatSession(userProfile, null, s.id, null, isPro);
+        setSession(chatSession);
+      }
+      setShowHistory(false);
+      haptic.light();
+      setTimeout(() => scrollRef.current?.scrollToEnd?.({ animated: false }), 100);
+    } catch (e) { console.error('Failed to switch session:', e); }
+  };
+
+  const deleteSessionById = async (sessionId) => {
+    Alert.alert('Delete Chat', 'Delete this conversation?', [
+      { text: 'Cancel', style: 'cancel' },
+      { text: 'Delete', style: 'destructive', onPress: async () => {
+        try {
+          await ChatRepository.deleteSession(sessionId);
+          setChatSessions(prev => prev.filter(s => s.id !== sessionId));
+          haptic.light();
+        } catch (e) { }
+      }},
+    ]);
+  };
 
   const [proactiveInsight, setProactiveInsight] = useState(null);
   const [narrativeCtx, setNarrativeCtx] = useState(null);
@@ -583,45 +631,73 @@ export default function ChatScreen({ navigation, route }) {
   };
 
   return (
-    <KeyboardAvoidingView
+    <View
       style={[styles.wrap, { backgroundColor: colors.bg }]}
-      behavior={Platform.OS === 'ios' ? 'padding' : undefined}
     >
-      {/* Header */}
-      <View style={[styles.header, { backgroundColor: colors.headerBg, borderBottomColor: colors.border, paddingTop: insets.top + 12 }]}>
-        <View style={styles.aiRow}>
-          <TouchableOpacity
-            style={[styles.dismissBtn, { backgroundColor: colors.cardAlt, borderColor: colors.border }]}
-            activeOpacity={0.7}
-            onPress={() => { haptic.light(); navigation.navigate(previousTab); }}
-          >
-            <X size={18} color={colors.text} strokeWidth={2.5} />
-          </TouchableOpacity>
-          <LinearGradient colors={['#0E0E22', '#1A1060']} style={styles.chatOrb}>
-            <Text style={{ fontSize: 22, color: '#C8A84B' }}>☽</Text>
-          </LinearGradient>
-          <View style={{ flex: 1 }}>
-            <Text style={[styles.aiName, { color: colors.heading }]}>Celestia</Text>
-            <Text style={[styles.aiSub, { color: colors.textSecondary }]}>
-              {new Date().getHours() >= 22 || new Date().getHours() < 5 ? 'Night session' : new Date().getHours() >= 17 ? 'Evening session' : 'Always here'}
-            </Text>
-          </View>
-          <TouchableOpacity style={[styles.newChatBtn, { backgroundColor: colors.cardAlt, borderColor: colors.border }]} onPress={startNewSession}>
-            <Text style={[styles.newChatBtnText, { color: colors.text }]}>New Chat</Text>
-          </TouchableOpacity>
-        </View>
+      {/* Minimal sticky top bar — stays visible */}
+      {/* Sticky top bar: X | ☽ Celestia | history | + new */}
+      <View style={{
+        flexDirection: 'row', alignItems: 'center',
+        paddingTop: insets.top + 6, paddingHorizontal: 16, paddingBottom: 8,
+        backgroundColor: colors.bg,
+      }}>
+        <TouchableOpacity
+          style={[styles.dismissBtn, { backgroundColor: colors.cardAlt, borderColor: colors.border }]}
+          activeOpacity={0.7}
+          onPress={() => { haptic.light(); navigation.navigate(previousTab); }}
+        >
+          <X size={18} color={colors.text} strokeWidth={2.5} />
+        </TouchableOpacity>
+        <LinearGradient colors={['#0E0E22', '#1A1060']} style={[styles.chatOrb, { width: 30, height: 30, borderRadius: 15, marginLeft: 8 }]}>
+          <Text style={{ fontSize: 15, color: '#C8A84B' }}>☽</Text>
+        </LinearGradient>
+        <Text style={{ fontFamily: FONTS.serifMedium, fontSize: 16, color: colors.heading, flex: 1, marginLeft: 8 }}>Celestia</Text>
+        {/* History icon */}
+        <TouchableOpacity
+          onPress={loadChatHistory}
+          activeOpacity={0.7}
+          style={{
+            width: 34, height: 34, borderRadius: 17,
+            backgroundColor: colors.cardAlt, borderWidth: 1, borderColor: colors.border,
+            alignItems: 'center', justifyContent: 'center', marginRight: 8,
+          }}
+        >
+          <Text style={{ fontSize: 15 }}>🕘</Text>
+        </TouchableOpacity>
+        {/* New chat + icon */}
+        <TouchableOpacity
+          onPress={startNewSession}
+          activeOpacity={0.7}
+          style={{
+            width: 34, height: 34, borderRadius: 17,
+            backgroundColor: T.gold, alignItems: 'center', justifyContent: 'center',
+          }}
+        >
+          <Text style={{ fontSize: 20, color: T.navy, fontWeight: '300', marginTop: -1 }}>+</Text>
+        </TouchableOpacity>
       </View>
-
-      {/* Theme auto-detected from conversation context — no upfront choice needed */}
 
       {/* Messages */}
       <ScrollView
         ref={scrollRef}
         style={styles.msgs}
-        contentContainerStyle={{ paddingTop: 17, paddingBottom: bottomPadding + 20, paddingHorizontal: 17, gap: 15 }}
+        contentContainerStyle={{ paddingBottom: bottomPadding + 20, paddingHorizontal: 17, gap: 15 }}
         keyboardDismissMode="interactive"
         keyboardShouldPersistTaps="handled"
       >
+        {/* Greeting — only shown at start of new conversation */}
+        {messages.length <= 1 && (
+          <View style={{ alignItems: 'center', paddingTop: 20, paddingBottom: 10 }}>
+            <LinearGradient colors={['#0E0E22', '#1A1060']} style={[styles.chatOrb, { width: 52, height: 52, borderRadius: 26, marginBottom: 10 }]}>
+              <Text style={{ fontSize: 28, color: '#C8A84B' }}>☽</Text>
+            </LinearGradient>
+            <Text style={{ fontFamily: FONTS.serifMedium, fontSize: 18, color: colors.heading, marginBottom: 2 }}>Celestia</Text>
+            <Text style={{ fontSize: 12, color: colors.textSecondary }}>
+              {new Date().getHours() >= 22 || new Date().getHours() < 5 ? 'Night session' : new Date().getHours() >= 17 ? 'Evening session' : 'Always here'}
+            </Text>
+          </View>
+        )}
+
         {/* Proactive Insight Card */}
         {proactiveInsight && messages.length <= 2 && (
           <TouchableOpacity
@@ -678,7 +754,8 @@ export default function ChatScreen({ navigation, route }) {
         )}
       </ScrollView>
 
-      <View style={{ paddingBottom: keyboardVisible ? (Platform.OS === 'ios' ? 10 : 0) : bottomPadding, backgroundColor: colors.bg, zIndex: 100 }}>
+      <KeyboardStickyView offset={{ closed: 0, opened: Platform.OS === 'ios' ? 0 : 0 }}>
+      <View style={{ paddingBottom: keyboardVisible ? 6 : bottomPadding, backgroundColor: colors.bg, zIndex: 100 }}>
         {/* Suggestions */}
         <ScrollView horizontal showsHorizontalScrollIndicator={false} style={[styles.suggestStrip, { backgroundColor: colors.bg }]} contentContainerStyle={{ paddingHorizontal: 17, gap: 7 }}>
           {suggestions.map((s, i) => (
@@ -736,7 +813,59 @@ export default function ChatScreen({ navigation, route }) {
           </View>
         )}
       </View>
-    </KeyboardAvoidingView>
+      </KeyboardStickyView>
+
+      {/* Chat History Modal */}
+      {showHistory && (
+        <View style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: colors.bg, zIndex: 200 }}>
+          {/* History Header */}
+          <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingTop: Platform.OS === 'ios' ? 62 : 40, paddingHorizontal: 20, paddingBottom: 16, borderBottomWidth: 1, borderBottomColor: colors.border }}>
+            <TouchableOpacity onPress={() => setShowHistory(false)} style={{ padding: 4 }}>
+              <Text style={{ fontSize: 18, color: colors.textSecondary }}>←</Text>
+            </TouchableOpacity>
+            <Text style={{ fontFamily: FONTS.serifMedium, fontSize: 20, color: colors.heading, flex: 1, textAlign: 'center' }}>Chat History</Text>
+            <TouchableOpacity onPress={() => { setShowHistory(false); startNewSession(); }} style={{ padding: 4 }}>
+              <Text style={{ fontSize: 13, color: T.gold, fontFamily: FONTS.sansSemiBold }}>+ New</Text>
+            </TouchableOpacity>
+          </View>
+
+          {/* Session List */}
+          <ScrollView style={{ flex: 1, paddingHorizontal: 16, paddingTop: 12 }}>
+            {chatSessions.length === 0 ? (
+              <View style={{ alignItems: 'center', paddingTop: 80 }}>
+                <Text style={{ fontSize: 40, marginBottom: 12 }}>☽</Text>
+                <Text style={{ fontFamily: FONTS.serifMedium, fontSize: 18, color: colors.heading, marginBottom: 6 }}>No past conversations</Text>
+                <Text style={{ fontSize: 13, color: colors.textSecondary }}>Start chatting and your history will appear here</Text>
+              </View>
+            ) : (
+              chatSessions.map((s) => {
+                const date = new Date(s.lastUpdated || s.createdAt);
+                const isToday = date.toDateString() === new Date().toDateString();
+                const dateStr = isToday ? 'Today' : date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+                const timeStr = date.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });
+                return (
+                  <View key={s.id} style={{ flexDirection: 'row', alignItems: 'center', backgroundColor: colors.cardAlt, borderWidth: 1, borderColor: colors.border, borderRadius: 14, padding: 14, marginBottom: 8 }}>
+                    <TouchableOpacity onPress={() => switchToSession(s)} style={{ flex: 1, flexDirection: 'row', alignItems: 'center', gap: 12 }}>
+                      <View style={{ width: 38, height: 38, borderRadius: 19, backgroundColor: 'rgba(200,168,75,0.1)', alignItems: 'center', justifyContent: 'center' }}>
+                        <Text style={{ fontSize: 16, color: T.gold }}>☽</Text>
+                      </View>
+                      <View style={{ flex: 1 }}>
+                        <Text numberOfLines={1} style={{ fontSize: 14, fontFamily: FONTS.sansMedium, color: colors.heading }}>{s.title || 'Untitled chat'}</Text>
+                        <Text style={{ fontSize: 11, color: colors.textSecondary, marginTop: 2 }}>{dateStr} · {timeStr}</Text>
+                      </View>
+                    </TouchableOpacity>
+                    <TouchableOpacity onPress={() => deleteSessionById(s.id)} style={{ padding: 6 }}>
+                      <Text style={{ fontSize: 14, color: colors.textMuted }}>✕</Text>
+                    </TouchableOpacity>
+                  </View>
+                );
+              })
+            )}
+            <View style={{ height: 40 }} />
+          </ScrollView>
+        </View>
+      )}
+    </View>
   );
 }
 

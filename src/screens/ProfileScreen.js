@@ -376,7 +376,7 @@ export default function ProfileScreen({ navigation }) {
               }
               return (
                 <TouchableOpacity style={[styles.prow, { borderBottomColor: colors.divider }, { borderBottomWidth: 0 }]} activeOpacity={0.7}
-                  onPress={() => navigation.navigate('Paywall')}>
+                  onPress={() => navigation.navigate('Paywall', { source: 'profile_upgrade' })}>
                   <View style={[styles.prowIcon, { backgroundColor: '#FFF8E1' }]}><Text style={{ fontSize: 16 }}>{'🔒'}</Text></View>
                   <View style={{ flex: 1 }}>
                     <Text style={[styles.prowLabel, textStyle]}>Free Plan</Text>
