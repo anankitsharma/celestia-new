@@ -291,6 +291,7 @@ export default function ChatScreen({ navigation, route }) {
   const [chatTheme, setChatTheme] = useState('open');
   const [remainingMsgs, setRemainingMsgs] = useState(null); // null = pro or unchecked
   const [limitReached, setLimitReached] = useState(false);
+  const [showUpgradeNudge, setShowUpgradeNudge] = useState(false);
   const [keyboardVisible, setKeyboardVisible] = useState(false);
   const [showHistory, setShowHistory] = useState(false);
   const [chatSessions, setChatSessions] = useState([]);
@@ -563,8 +564,9 @@ export default function ChatScreen({ navigation, route }) {
     const text = (textOverride || inputText || '').trim();
     if (!text || sending) return;
 
-    // Check message limit for free users — gentle inline upgrade, NOT hard block
-    const FREE_DAILY_LIMIT = 5;
+    // Check message limit for free users — soft nudge at 5, hard block at 10
+    const FREE_DAILY_LIMIT = 10;
+    const UPGRADE_NUDGE_AT = 5;
     if (!isPro) {
       try {
         const count = await ChatRepository.getUserMessageCountForDay(Date.now());
@@ -574,6 +576,10 @@ export default function ChatScreen({ navigation, route }) {
           haptic.light();
           setLimitReached(true);
           return;
+        }
+        // Show upgrade nudge after 5 messages
+        if (count === UPGRADE_NUDGE_AT) {
+          setShowUpgradeNudge(true);
         }
       } catch (e) {
         console.error('Failed to check message count:', e);
@@ -775,8 +781,24 @@ export default function ChatScreen({ navigation, route }) {
           ))}
         </ScrollView>
 
-        {/* Remaining messages counter (free users only) */}
-        {!isPro && remainingMsgs !== null && remainingMsgs <= 3 && remainingMsgs > 0 && (
+        {/* Upgrade nudge at 5 messages — dismissible */}
+        {showUpgradeNudge && (
+          <View style={[styles.limitBanner, { backgroundColor: isDark ? 'rgba(200,168,75,0.08)' : 'rgba(200,168,75,0.1)', borderTopColor: isDark ? 'rgba(200,168,75,0.15)' : 'rgba(200,168,75,0.12)' }]}>
+            <View style={{ flex: 1 }}>
+              <Text style={{ fontFamily: FONTS.sansMedium, fontSize: 13, color: colors.heading }}>Loving the conversation? ✨</Text>
+              <Text style={{ fontSize: 11, color: colors.textSecondary, marginTop: 2 }}>Go Pro for unlimited chats — share with friends too</Text>
+            </View>
+            <TouchableOpacity onPress={() => { setShowUpgradeNudge(false); navigation.navigate('Paywall', { source: 'chat_nudge' }); }}>
+              <Text style={styles.limitLink}>Upgrade →</Text>
+            </TouchableOpacity>
+            <TouchableOpacity onPress={() => setShowUpgradeNudge(false)} style={{ marginLeft: 8, padding: 4 }}>
+              <Text style={{ fontSize: 14, color: colors.textSecondary }}>✕</Text>
+            </TouchableOpacity>
+          </View>
+        )}
+
+        {/* Remaining messages counter (free users, shows at ≤5 remaining) */}
+        {!isPro && remainingMsgs !== null && remainingMsgs <= 5 && remainingMsgs > 0 && !showUpgradeNudge && (
           <View style={[styles.limitBanner, { backgroundColor: colors.goldDim, borderTopColor: isDark ? 'rgba(200,168,75,0.15)' : 'rgba(200,168,75,0.12)' }]}>
             <Text style={[styles.limitText, { color: colors.textSecondary }]}>{remainingMsgs} {remainingMsgs === 1 ? 'message' : 'messages'} left today</Text>
             <TouchableOpacity onPress={() => navigation.navigate('Paywall', { source: 'chat_soft' })}>
@@ -789,7 +811,7 @@ export default function ChatScreen({ navigation, route }) {
         {limitReached ? (
           <View style={[styles.inputBar, { flexDirection: 'column', alignItems: 'center', gap: 10, paddingVertical: 16, backgroundColor: colors.bg, borderTopColor: colors.border }]}>
             <Text style={{ fontFamily: FONTS.serif, fontSize: 15, color: colors.heading, textAlign: 'center' }}>
-              You've explored 5 conversations today
+              You've used all 10 messages today
             </Text>
             <Text style={{ fontSize: 12, color: colors.textSecondary, textAlign: 'center', lineHeight: 18, paddingHorizontal: 20 }}>
               They reset at midnight. Or keep the conversation going now.

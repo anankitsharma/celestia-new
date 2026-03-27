@@ -257,6 +257,7 @@ export default function ChatScreen({ onClose, initialMessage: initialMessageProp
   const [chatTheme, setChatTheme] = useState('open');
   const [remainingMsgs, setRemainingMsgs] = useState(null);
   const [limitReached, setLimitReached] = useState(false);
+  const [showUpgradeNudge, setShowUpgradeNudge] = useState(false);
   const [showHistory, setShowHistory] = useState(false);
   const [chatSessions, setChatSessions] = useState([]);
   const [keyboardOffset, setKeyboardOffset] = useState(0);
@@ -521,7 +522,8 @@ export default function ChatScreen({ onClose, initialMessage: initialMessageProp
     const text = (textOverride || inputText || '').trim();
     if (!text || sending) return;
 
-    const FREE_DAILY_LIMIT = 5;
+    const FREE_DAILY_LIMIT = 10;
+    const UPGRADE_NUDGE_AT = 5;
     if (!isPro) {
       try {
         const count = await ChatRepository.getUserMessageCountForDay(Date.now());
@@ -530,6 +532,9 @@ export default function ChatScreen({ onClose, initialMessage: initialMessageProp
         if (count >= FREE_DAILY_LIMIT) {
           setLimitReached(true);
           return;
+        }
+        if (count === UPGRADE_NUDGE_AT) {
+          setShowUpgradeNudge(true);
         }
       } catch (e) {
         console.error('Failed to check message count:', e);
@@ -751,11 +756,25 @@ export default function ChatScreen({ onClose, initialMessage: initialMessageProp
           </div>
         )}
 
-        {/* Remaining messages counter (free users only) */}
-        {!isPro && remainingMsgs !== null && remainingMsgs <= 3 && remainingMsgs > 0 && (
+        {/* Upgrade nudge at 5 messages — dismissible */}
+        {showUpgradeNudge && (
+          <div style={{ ...styles.limitBanner, background: 'rgba(200,168,75,0.08)' }}>
+            <div style={{ flex: 1 }}>
+              <span style={{ fontFamily: 'var(--font-sans)', fontWeight: 500, fontSize: 13, color: 'var(--c-heading)' }}>Loving the conversation? ✨</span>
+              <span style={{ display: 'block', fontSize: 11, color: 'var(--c-text-secondary)', marginTop: 2 }}>Go Pro for unlimited chats — share with friends too</span>
+            </div>
+            <button onClick={() => setShowUpgradeNudge(false)} style={{ background: 'none', border: 'none', cursor: 'pointer' }}>
+              <span style={styles.limitLink}>{'Upgrade \u2192'}</span>
+            </button>
+            <button onClick={() => setShowUpgradeNudge(false)} style={{ marginLeft: 8, padding: 4, background: 'none', border: 'none', cursor: 'pointer', fontSize: 14, color: 'var(--c-text-secondary)' }}>✕</button>
+          </div>
+        )}
+
+        {/* Remaining messages counter (free users, shows at ≤5 remaining) */}
+        {!isPro && remainingMsgs !== null && remainingMsgs <= 5 && remainingMsgs > 0 && !showUpgradeNudge && (
           <div style={styles.limitBanner}>
             <span style={styles.limitText}>{remainingMsgs} {remainingMsgs === 1 ? 'message' : 'messages'} left today</span>
-            <button onClick={() => {}}>
+            <button onClick={() => {}} style={{ background: 'none', border: 'none', cursor: 'pointer' }}>
               <span style={styles.limitLink}>{'Go unlimited \u2192'}</span>
             </button>
           </div>
@@ -765,7 +784,7 @@ export default function ChatScreen({ onClose, initialMessage: initialMessageProp
         {limitReached ? (
           <div style={{ ...styles.inputBar, flexDirection: 'column', alignItems: 'center', gap: 10, paddingTop: 16, paddingBottom: 16 }}>
             <p style={{ fontFamily: 'var(--font-serif)', fontSize: 15, color: 'var(--c-heading)', textAlign: 'center', margin: 0 }}>
-              You've explored 5 conversations today
+              You've used all 10 messages today
             </p>
             <p style={{ fontSize: 12, color: 'var(--c-text-secondary)', textAlign: 'center', lineHeight: '18px', paddingLeft: 20, paddingRight: 20, margin: 0 }}>
               They reset at midnight. Or keep the conversation going now.
