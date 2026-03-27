@@ -10,6 +10,7 @@ import { T, FONTS } from '../constants/theme';
 import { useTheme } from '../contexts/ThemeContext';
 import { useUserProfile } from '../contexts/UserProfileContext';
 import { createChatSession, sendChatMessage } from '../services/geminiService';
+import { defaultConversationState } from '../services/chat/conversationTypes';
 import { ChatRepository } from '../services/database/rep_chats';
 import { haptic } from '../services/hapticService';
 import { trackEvent } from '../services/achievementService';
@@ -338,6 +339,12 @@ export default function ChatScreen({ navigation, route }) {
       setMessages(msgs.map(m => ({ id: m.id || String(m.timestamp), role: m.role, text: m.text, timestamp: m.timestamp })));
       if (userProfile) {
         const chatSession = await createChatSession(userProfile, null, s.id, null, isPro);
+        // Initialize conversation state for resumed sessions — set exchange count from history
+        chatSession.conversationState = {
+          ...defaultConversationState(),
+          exchangeCount: Math.floor(msgs.length / 2),
+          mode: msgs.length > 4 ? 'insight' : msgs.length > 2 ? 'orient' : 'intake',
+        };
         setSession(chatSession);
       }
       setShowHistory(false);
@@ -493,6 +500,14 @@ export default function ChatScreen({ navigation, route }) {
     // Create the AI session object (with full chart context in system instruction)
     try {
       const chatSession = await createChatSession(userProfile, null, loadedSessionId, ctx, isPro);
+      // Initialize conversation state
+      chatSession.conversationState = defaultConversationState();
+      if (loadedSessionId) {
+        // Resumed session — estimate exchange count from loaded history
+        const histLen = chatSession.history?.length || 0;
+        chatSession.conversationState.exchangeCount = Math.floor(histLen / 2);
+        chatSession.conversationState.mode = histLen > 8 ? 'insight' : histLen > 4 ? 'orient' : 'intake';
+      }
       setSession(chatSession);
     } catch (e) {
       console.error('Failed to create chat session:', e);
@@ -526,6 +541,7 @@ export default function ChatScreen({ navigation, route }) {
 
     try {
       const chatSession = await createChatSession(userProfile, null, null, narrativeCtx, isPro);
+      chatSession.conversationState = defaultConversationState();
       // Inject theme context into session
       if (activeTheme !== 'open' && chatSession?.systemInstruction) {
         const themePrompts = {
@@ -578,6 +594,7 @@ export default function ChatScreen({ navigation, route }) {
       let currentSession = session;
       if (!currentSession && userProfile) {
         currentSession = await createChatSession(userProfile, null, null, null, isPro);
+        currentSession.conversationState = defaultConversationState();
         setSession(currentSession);
       }
 
@@ -585,15 +602,8 @@ export default function ChatScreen({ navigation, route }) {
         throw new Error('No session available');
       }
 
-      // Reflective mode: after 3+ user messages, hint AI to ask reflective questions
-      const userMsgCount = messages.filter(m => m.role === 'user').length;
-      let reflectiveText = text;
-      if (userMsgCount >= 3 && userMsgCount % 2 === 1) {
-        // Every other message after 3rd, nudge AI to reflect
-        reflectiveText = text + '\n\n[SYSTEM HINT: This is message ' + (userMsgCount + 1) + '. End your response with ONE short, reflective question that connects what they said to their chart. E.g. "When you read that about your Venus, what came up for you?" or "You\'ve mentioned this pattern before — what does your gut tell you?"]';
-      }
-
-      const responseText = await sendChatMessage(currentSession, reflectiveText);
+      // Conversation intelligence now handles reflective questions via response contracts
+      const responseText = await sendChatMessage(currentSession, text);
       capture(EVENTS.AI_CHAT_MESSAGE_SENT, { is_pro: isPro, message_number: messages.length + 1 });
 
       // Update session ref if ID was assigned (transient → persisted)

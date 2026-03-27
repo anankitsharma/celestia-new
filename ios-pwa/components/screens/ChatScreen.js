@@ -2,6 +2,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { useUserProfile } from '@/lib/UserProfileContext';
 import { createChatSession, sendChatMessage } from '@/lib/geminiService';
+import { defaultConversationState } from '@/lib/chat/conversationTypes';
 import { ChatRepository } from '@/lib/database/rep_chats';
 import { getActiveCosmicWindows, getMoonDataForDate } from '@/lib/astrologyService';
 import { getNarrativeContext } from '@/lib/narrativeService';
@@ -309,9 +310,14 @@ export default function ChatScreen({ onClose, initialMessage: initialMessageProp
     try {
       const msgs = await ChatRepository.getMessages(s.id);
       setMessages(msgs.map(m => ({ id: m.id || String(m.timestamp), role: m.role, text: m.text, timestamp: m.timestamp })));
-      // Re-create AI session for this context
+      // Re-create AI session with conversation intelligence
       if (userProfile) {
         const chatSession = await createChatSession(userProfile, null, s.id, null, isPro);
+        chatSession.conversationState = {
+          ...defaultConversationState(),
+          exchangeCount: Math.floor(msgs.length / 2),
+          mode: msgs.length > 4 ? 'insight' : msgs.length > 2 ? 'orient' : 'intake',
+        };
         setSession(chatSession);
       }
       setShowHistory(false);
@@ -453,6 +459,12 @@ export default function ChatScreen({ onClose, initialMessage: initialMessageProp
 
     try {
       const chatSession = await createChatSession(userProfile, null, loadedSessionId, ctx, isPro);
+      chatSession.conversationState = defaultConversationState();
+      if (loadedSessionId) {
+        const histLen = chatSession.history?.length || 0;
+        chatSession.conversationState.exchangeCount = Math.floor(histLen / 2);
+        chatSession.conversationState.mode = histLen > 8 ? 'insight' : histLen > 4 ? 'orient' : 'intake';
+      }
       setSession(chatSession);
     } catch (e) {
       console.error('Failed to create chat session:', e);
@@ -489,6 +501,7 @@ export default function ChatScreen({ onClose, initialMessage: initialMessageProp
 
     try {
       const chatSession = await createChatSession(userProfile, null, null, narrativeCtx, isPro);
+      chatSession.conversationState = defaultConversationState();
       if (activeTheme !== 'open' && chatSession?.systemInstruction) {
         const themePrompts = {
           love: '\nSESSION THEME: Love & Relationships. Focus all responses on love, relationships, emotional bonds, Venus/Moon dynamics. The user wants to explore their love life.',
@@ -533,6 +546,7 @@ export default function ChatScreen({ onClose, initialMessage: initialMessageProp
       let currentSession = session;
       if (!currentSession && userProfile) {
         currentSession = await createChatSession(userProfile, null, null, null, isPro);
+        currentSession.conversationState = defaultConversationState();
         setSession(currentSession);
       }
 
@@ -540,13 +554,8 @@ export default function ChatScreen({ onClose, initialMessage: initialMessageProp
         throw new Error('No session available');
       }
 
-      const userMsgCount = messages.filter(m => m.role === 'user').length;
-      let reflectiveText = text;
-      if (userMsgCount >= 3 && userMsgCount % 2 === 1) {
-        reflectiveText = text + '\n\n[SYSTEM HINT: This is message ' + (userMsgCount + 1) + '. End your response with ONE short, reflective question that connects what they said to their chart. E.g. "When you read that about your Venus, what came up for you?" or "You\'ve mentioned this pattern before \u2014 what does your gut tell you?"]';
-      }
-
-      const responseText = await sendChatMessage(currentSession, reflectiveText);
+      // Conversation intelligence now handles reflective questions via response contracts
+      const responseText = await sendChatMessage(currentSession, text);
 
       // Track engagement
       try { const { incrementCounter, awardXP } = await import('@/lib/engagementService'); incrementCounter('chats'); awardXP('chat_message'); } catch {}
