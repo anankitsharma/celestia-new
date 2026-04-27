@@ -1,0 +1,231 @@
+<!DOCTYPE html>
+
+<html class="light" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>The Ethereal Editorial - Dashboard</title>
+<!-- Fonts -->
+<link href="https://fonts.googleapis.com" rel="preconnect"/>
+<link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect"/>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Serif:ital,wght@0,400;0,700;1,400;1,700&amp;family=Plus+Jakarta+Sans:wght@300;400;500;600;700&amp;display=swap" rel="stylesheet"/>
+<!-- Icons -->
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<!-- Tailwind CSS -->
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<script id="tailwind-config">
+      tailwind.config = {
+        darkMode: "class",
+        theme: {
+          extend: {
+            colors: {
+              "on-error-container": "#93000a",
+              "surface-bright": "#fdf9f4",
+              "surface-container-high": "#ebe8e3",
+              "on-secondary-container": "#5c6652",
+              "surface-dim": "#ddd9d5",
+              "surface": "#fdf9f4",
+              "surface-container": "#f1ede8",
+              "surface-variant": "#e6e2dd",
+              "error": "#ba1a1a",
+              "on-secondary": "#ffffff",
+              "surface-tint": "#8a4f3a",
+              "surface-container-highest": "#e6e2dd",
+              "on-surface-variant": "#53433f",
+              "secondary": "#58614e",
+              "inverse-primary": "#ffb59d",
+              "error-container": "#ffdad6",
+              "primary-fixed": "#ffdbd0",
+              "surface-container-lowest": "#ffffff",
+              "tertiary": "#6e592c",
+              "on-background": "#1c1c19",
+              "tertiary-container": "#897142",
+              "on-primary-fixed": "#370e02",
+              "secondary-fixed-dim": "#c0cab2",
+              "secondary-fixed": "#dce6cd",
+              "primary-fixed-dim": "#ffb59d",
+              "on-tertiary-container": "#fffbff",
+              "tertiary-fixed": "#fddfa6",
+              "on-tertiary-fixed-variant": "#574419",
+              "on-tertiary-fixed": "#261a00",
+              "tertiary-fixed-dim": "#dfc38d",
+              "inverse-on-surface": "#f4f0eb",
+              "inverse-surface": "#121118", /* Darker background for main card */
+              "on-primary-container": "#fffbff",
+              "on-secondary-fixed-variant": "#404a37",
+              "on-primary-fixed-variant": "#6e3825",
+              "primary": "#874c38",
+              "outline": "#85736e",
+              "surface-container-low": "#f7f3ee",
+              "on-error": "#ffffff",
+              "on-tertiary": "#ffffff",
+              "on-primary": "#ffffff",
+              "on-secondary-fixed": "#161e0e",
+              "secondary-container": "#fcf1f0", /* Softer secondary color */
+              "outline-variant": "#d8c2bb",
+              "primary-container": "#a4644e",
+              "on-surface": "#1c1c19",
+              "background": "#fdf9f4"
+            },
+            fontFamily: {
+              "headline": ["Noto Serif"],
+              "body": ["Plus Jakarta Sans"],
+              "label": ["Plus Jakarta Sans"]
+            },
+            borderRadius: {
+                "DEFAULT": "0.25rem", 
+                "lg": "0.5rem", 
+                "xl": "0.75rem", 
+                "2xl": "1rem",
+                "3xl": "1.5rem",
+                "full": "9999px"
+            },
+          },
+        },
+      }
+    </script>
+<style>
+      .material-symbols-outlined {
+        font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+      }
+      body {
+        background-color: #fdf9f4;
+        color: #1c1c19;
+        font-family: 'Plus Jakarta Sans', sans-serif;
+      }
+      .no-scrollbar::-webkit-scrollbar {
+        display: none;
+      }
+      .no-scrollbar {
+        -ms-overflow-style: none;
+        scrollbar-width: none;
+      }
+      .terracotta-glow {
+        background: linear-gradient(135deg, #874c38 0%, #a4644e 100%);
+      }
+    </style>
+</head>
+<body class="bg-[#fdf9f4] text-on-surface min-h-screen pb-32">
+<!-- Header Section (Dark Background Area) -->
+<header class="bg-[#121118] text-white pt-10 pb-12 px-6 rounded-b-[2.5rem]">
+<div class="flex justify-between items-center mb-8">
+<div>
+<p class="font-body text-sm opacity-60">Good evening,</p>
+<h1 class="font-headline text-4xl font-bold mt-1">Mia</h1>
+</div>
+<div class="flex items-center gap-4">
+<!-- Moon Phase Pill -->
+<div class="bg-white/10 px-3 py-1.5 rounded-full flex items-center gap-2 border border-white/5">
+<span class="material-symbols-outlined text-[#fddfa6] text-lg" style="font-variation-settings: 'FILL' 1;">brightness_3</span>
+<span class="text-xs font-bold">1</span>
+</div>
+<!-- Profile Avatar with Initial Circle style -->
+<div class="w-12 h-12 rounded-full border border-white/20 flex items-center justify-center bg-white/5 overflow-hidden">
+<img alt="Profile" class="w-full h-full object-cover" src="https://lh3.googleusercontent.com/aida-public/AB6AXuA-dw3x5UMRSxXw9c-7UIFMcf616wCf1LGR00u7p_lIMbNywfeqrUyM5SBlJbIGV1lknqIKRgPDxSkSUYXoHsowZO2Pl9sS3THU2i3AmxNOjQ8YLVkGxmbuqH81CyWEtKlEtRR5xjUdw4zVKMMAAr75mBwtXSaohusiAhu0j-cCn_Jv4nXaJT-kSnxKGwmIJqOINsjhHeLHARZvv1ff_dR1uIl4EpNOtEWGYXXOp6QISfol5jzTcYLvUJLw1Fl1-5gViXMB9JG4gQ"/>
+</div>
+</div>
+</div>
+<div class="flex items-center gap-3">
+<div class="flex -space-x-1">
+<span class="material-symbols-outlined text-[#fddfa6] scale-x-[-1]" style="font-variation-settings: 'FILL' 1;">brightness_2</span>
+</div>
+<p class="font-body text-sm">
+<span class="font-semibold">Waxing Crescent</span> in <span class="font-semibold">Taurus</span> • 9% 
+            <span class="ml-2 bg-white/10 rounded-full px-1.5 py-0.5 text-[10px]">?</span>
+</p>
+</div>
+</header>
+<main class="-mt-6 px-4 space-y-6">
+<!-- Tab Navigation -->
+<nav class="flex justify-between gap-2 bg-[#fdf9f4]/80 backdrop-blur-sm p-1 rounded-full border border-outline-variant/10 shadow-sm mx-2">
+<button class="flex-1 py-3 px-4 rounded-full bg-[#121118] text-white font-bold text-sm transition-all">Today</button>
+<button class="flex-1 py-3 px-4 rounded-full text-outline font-medium text-sm hover:bg-surface-container transition-all">This Week</button>
+<button class="flex-1 py-3 px-4 rounded-full text-outline font-medium text-sm hover:bg-surface-container transition-all">This Month</button>
+</nav>
+<!-- Seasonal Alert (Secondary Card) -->
+<section class="bg-secondary-container/50 rounded-3xl p-5 flex items-center gap-4 border border-[#f0dedd]">
+<div class="relative">
+<span class="material-symbols-outlined text-4xl text-orange-500" data-icon="local_fire_department">local_fire_department</span>
+</div>
+<div>
+<div class="flex items-center gap-1.5 mb-0.5">
+<span class="material-symbols-outlined text-[14px] text-red-400" data-icon="nest_eco_leaf">nest_eco_leaf</span>
+<span class="font-label text-[10px] uppercase tracking-widest text-red-400 font-bold">Aries Season</span>
+</div>
+<h3 class="font-headline text-lg text-on-surface">Aries Season is here</h3>
+<p class="font-body text-xs text-on-surface/60">Bold energy. New beginnings. Time to initiate.</p>
+</div>
+</section>
+<!-- Primary Insight Card -->
+<section class="bg-[#121118] text-white rounded-[2rem] overflow-hidden shadow-2xl">
+<div class="p-8 pb-6">
+<div class="flex justify-between items-center mb-4">
+<span class="text-[10px] uppercase tracking-widest opacity-40 font-bold">Saturday · March 21, 2026</span>
+<span class="bg-white/10 px-2 py-0.5 rounded text-[8px] uppercase tracking-widest border border-white/10 flex items-center gap-1">
+<span class="w-1 h-1 rounded-full bg-blue-400"></span> Reflection
+                </span>
+</div>
+<h2 class="font-headline text-3xl mb-8 leading-tight">Intuition Guides Your Path</h2>
+<div class="flex flex-wrap gap-2 mb-4">
+<span class="bg-white/5 border border-white/10 px-3 py-1.5 rounded-full text-[10px] uppercase tracking-widest flex items-center gap-2">
+<span class="material-symbols-outlined text-[12px] text-tertiary-fixed">sparkles</span> Inner Wisdom Flows
+                </span>
+<span class="bg-white/5 border border-white/10 px-3 py-1.5 rounded-full text-[10px] uppercase tracking-widest flex items-center gap-2">
+<span class="material-symbols-outlined text-[12px] text-tertiary-fixed" style="font-variation-settings: 'FILL' 1;">brightness_3</span> Waxing Crescent
+                </span>
+<span class="bg-white/5 border border-white/10 px-3 py-1.5 rounded-full text-[10px] uppercase tracking-widest">#21</span>
+<span class="bg-white/5 border border-white/10 px-3 py-1.5 rounded-full text-[10px] uppercase tracking-widest flex items-center gap-2">
+<span class="material-symbols-outlined text-[12px] text-tertiary-fixed">diamond</span> Aquamarine
+                </span>
+</div>
+</div>
+<!-- Content Area -->
+<div class="bg-white text-[#121118] p-8 space-y-8 rounded-t-[2.5rem]">
+<p class="font-body text-lg leading-relaxed text-on-surface/90">
+                Your Taurus Moon meets Mercury's Piscean whispers, amplifying inner knowing. Trust this gentle guidance to illuminate your way.
+            </p>
+<!-- Today's Nudge (Secondary Card nested) -->
+<div class="bg-surface-container-low rounded-2xl p-6 border-l-[3px] border-[#874c38] space-y-2">
+<h4 class="font-label text-[10px] font-bold uppercase tracking-[0.15em] text-outline">Today's Nudge</h4>
+<p class="font-body text-base italic leading-snug">
+                    Tune into subtle feelings — moon in taurus offers deep comfort.
+                </p>
+</div>
+<button class="w-full py-4 rounded-full terracotta-glow text-on-primary font-label font-bold uppercase tracking-[0.2em] text-xs active:scale-95 transition-transform shadow-lg">
+                Dive Deeper Into Today
+            </button>
+</div>
+</section>
+<!-- Footer Spacer -->
+<div class="h-10"></div>
+</main>
+<!-- BottomNavBar -->
+<nav class="fixed bottom-0 left-0 w-full z-50 flex justify-around items-center px-4 pb-8 pt-4 bg-[#fdf9f4]/90 backdrop-blur-xl rounded-t-[2rem] border-t border-outline-variant/10 shadow-[0_-8px_32px_rgba(0,0,0,0.03)]">
+<!-- Dashboard (Active) -->
+<a class="flex flex-col items-center justify-center text-[#874c38] transition-all tap-highlight-transparent active:scale-90" href="#">
+<div class="bg-primary/10 p-2 rounded-xl mb-1">
+<span class="material-symbols-outlined text-2xl" data-icon="explore" style="font-variation-settings: 'FILL' 1;">explore</span>
+</div>
+<span class="font-body text-[10px] font-bold uppercase tracking-wider">Today</span>
+</a>
+<!-- Ask -->
+<a class="flex flex-col items-center justify-center text-outline opacity-50 hover:opacity-100 transition-all tap-highlight-transparent active:scale-90" href="#">
+<span class="material-symbols-outlined text-2xl mb-1" data-icon="auto_stories">auto_stories</span>
+<span class="font-body text-[10px] font-semibold uppercase tracking-wider">Ask</span>
+</a>
+<!-- Chart -->
+<a class="flex flex-col items-center justify-center text-outline opacity-50 hover:opacity-100 transition-all tap-highlight-transparent active:scale-90" href="#">
+<span class="material-symbols-outlined text-2xl mb-1" data-icon="explore">explore</span>
+<span class="font-body text-[10px] font-semibold uppercase tracking-wider">Chart</span>
+</a>
+<!-- Circle -->
+<a class="flex flex-col items-center justify-center text-outline opacity-50 hover:opacity-100 transition-all tap-highlight-transparent active:scale-90" href="#">
+<span class="material-symbols-outlined text-2xl mb-1" data-icon="group">group</span>
+<span class="font-body text-[10px] font-semibold uppercase tracking-wider">Circle</span>
+</a>
+<!-- Reports -->
+<a class="flex flex-col items-center justify-center text-outline opacity-50 hover:opacity-100 transition-all tap-highlight-transparent active:scale-90" href="#">
+<span class="material-symbols-outlined text-2xl mb-1" data-icon="article">article</span>
+<span class="font-body text-[10px] font-semibold uppercase tracking-wider">Reports</span>
+</a>
+</nav>
+</body></html>
