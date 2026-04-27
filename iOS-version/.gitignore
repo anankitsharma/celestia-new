@@ -1,7 +1,7 @@
 node_modules/
 .expo/
 dist/
-.DS_Store
+npm-debug.*
 *.jks
 *.p8
 *.p12
@@ -9,4 +9,7 @@ dist/
 *.mobileprovision
 *.orig.*
 web-build/
-references/
+.DS_Store
+ios/
+android/
+Pods/

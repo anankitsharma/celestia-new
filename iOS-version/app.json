@@ -1,0 +1,57 @@
+{
+  "expo": {
+    "name": "Celestia: Relationship Pattern",
+    "slug": "celestia",
+    "version": "1.1.0",
+    "orientation": "portrait",
+    "icon": "./assets/icon.png",
+    "userInterfaceStyle": "light",
+    "splash": {
+      "image": "./assets/splash-icon.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#FAF8F2"
+    },
+    "ios": {
+      "supportsTablet": false,
+      "bundleIdentifier": "com.celestia.app",
+      "buildNumber": "1",
+      "infoPlist": {
+        "CFBundleDisplayName": "Celestia",
+        "ITSAppUsesNonExemptEncryption": false
+      }
+    },
+    "android": {
+      "package": "com.celestia.app",
+      "versionCode": 11,
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/android-icon-foreground.png",
+        "backgroundColor": "#3A1A28"
+      },
+      "splash": {
+        "image": "./assets/splash-icon.png",
+        "resizeMode": "contain",
+        "backgroundColor": "#3A1A28"
+      }
+    },
+    "scheme": "celestia",
+    "web": {
+      "favicon": "./assets/favicon.png"
+    },
+    "plugins": [
+      "expo-sqlite",
+      "@react-native-community/datetimepicker",
+      [
+        "expo-notifications",
+        {
+          "icon": "./assets/icon.png",
+          "color": "#5C2434"
+        }
+      ]
+    ],
+    "extra": {
+      "eas": {
+        "projectId": "6f7ddec7-387e-4481-8f11-2f66971afad6"
+      }
+    }
+  }
+}
