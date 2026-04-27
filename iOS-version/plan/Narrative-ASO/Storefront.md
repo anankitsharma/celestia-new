@@ -1,0 +1,295 @@
+# Storefront — Locked Listing Copy
+
+**Status:** Locked for v1.0 resubmission. Edits regress the banned-word audit.
+**Where this goes:** App Store Connect → My Apps → Celestia → App Information + Pricing and Availability + App Privacy.
+**Companion:** `Narrative.md` (§5) — the executive summary; this file is the field-by-field paste source.
+
+> **The rule:** if a field's value here changes, run a `grep` over the final paste for `horoscope`, `daily horoscope`, `zodiac`, `astrology`, `fortune`, `tarot`, `manifest`, `destiny`, `predict`, `Mercury retrograde`, `cosmic`, `divine`, `sacred`, `oracle`, `crystal`, `numerology`. The required count for each is **zero** in name + subtitle + promo + first 200 chars of description + keywords. Allowed once, qualified: `astrology` in the body of the description.
+
+---
+
+## App Name (30 chars max, indexed)
+
+```
+Celestia: Relationship Pattern
+```
+
+**Length:** 30 / 30 ✓
+
+---
+
+## Subtitle (30 chars max, indexed)
+
+```
+Understand love & connection
+```
+
+**Length:** 28 / 30 ✓
+
+---
+
+## Promotional Text (170 chars max, NOT indexed, editable post-submit)
+
+```
+Celestia turns relationship pattern recognition into a tool you can carry with you. Built on attachment theory, love languages, and birth chart analysis.
+```
+
+**Length:** 161 / 170 ✓
+
+---
+
+## Description (4,000 chars max, partially indexed)
+
+The first 200 characters above the fold are critical. Reviewers scan them in 6–10 seconds.
+
+### First sentence (above-the-fold hook)
+
+```
+Why do you keep falling for the same type? Why does this person trigger you?
+```
+
+### First 270 chars (locked paragraph from PDF plan §02)
+
+```
+Why do you keep falling for the same type? Why does this person trigger you? Celestia helps you understand the deep patterns shaping your relationships using a unique personality framework that draws on attachment theory, love languages, and birth chart analysis.
+```
+
+### Full description (paste this entire block)
+
+```
+Why do you keep falling for the same type? Why does this person trigger you? Celestia helps you understand the deep patterns shaping your relationships using a unique personality framework that draws on attachment theory, love languages, and birth chart analysis.
+
+Three frameworks. One clear picture of how you connect, where you click, and where you keep getting stuck.
+
+Add the people who matter — partner, friend, parent, sibling, colleague — and see exactly how each relationship actually works.
+
+
+CONNECTIONS — YOUR PEOPLE, MAPPED
+
+Add anyone in your life. Eight relationship types, each with the dimensions that actually matter for that bond:
+
+• Partner — chemistry, communication, emotional safety, conflict patterns
+• Friend — what you give each other, where you drift, how to deepen
+• Parent / Child — generational patterns, what each of you needs to feel seen
+• Sibling — old roles, present friction, real strengths
+• Colleague / Boss — working styles, communication friction, common ground
+• Other — the people who don't fit a label
+
+Add a person with full birth details for a complete picture, or just a name and birth date for a quick read. Both work — depth scales with what you give it.
+
+
+ASK — A CALM ADVISOR FOR REAL QUESTIONS
+
+Type any question about a relationship, your patterns, or yourself. Celestia leads with psychology — attachment theory, communication styles, emotional triggers — and uses your personality blueprint as supporting context. Available 24/7.
+
+Pick the voice that fits how you think: Direct, Reflective, Poetic, or Psychological.
+
+
+TODAY — A DAILY SPACE FOR REFLECTION
+
+A daily reflection prompt asks one honest question. Write a sentence or two; Celestia offers gentle reflection back — not advice, just a thoughtful read on what's underneath. Patterns compound across the week. Saved connections you haven't reflected on in a while gently surface, with a quote from the last time they were on your mind.
+
+Designed to be opened once a day. Calm, not addictive.
+
+
+PROFILE — YOUR PERSONALITY BLUEPRINT
+
+Your personality blueprint, mapped from how you communicate, what you need to feel safe, and what overwhelms you. Plain English, no jargon. Tap any insight to see what it means for you in real conversations.
+
+Want the deeper layer? Toggle on full astrology details to unlock the full chart, planetary placements, and deep readings — all hidden by default.
+
+
+WHAT MAKES CELESTIA DIFFERENT
+
+• Lead with relationships — psychology is the surface, astrology is the engine
+• Plain English — no mystical jargon, no fortune-telling tone
+• Real birth-chart math — same astronomical engine professional astrologers use
+• Privacy by default — your blueprint, journal, and the people you add stay on your device
+• Calm, not addictive — no streaks pressuring you, no daily push notifications you didn't ask for
+• AI for reflection, not advice — every AI response is clearly labeled
+
+
+PRIVACY YOU CAN VERIFY
+
+Your data lives on your device, in a local database. We don't sell anything. AI answers are generated by Google's Gemini service — sent without your name or any account ID, and never stored on our servers.
+
+
+WHO CELESTIA IS FOR
+
+People who want clearer language for relationships they're already in. Adults who think astrology is interesting but cringe at the mystical-influencer version. Anyone tired of generic content that says nothing useful.
+
+
+GET STARTED IN 2 MINUTES
+
+Enter your name, birth date, time, and city. Celestia builds your personality blueprint, then takes you straight to your Connections — where you'll start adding the people who matter.
+
+No sign-up. No subscription. Just open it and use it.
+```
+
+### Banned-word audit on the full description
+
+| Term | Required count | Verified count |
+|---|---|---|
+| horoscope | 0 | 0 ✓ |
+| daily horoscope | 0 | 0 ✓ |
+| zodiac | 0 | 0 ✓ |
+| fortune | 0 | 0 ✓ |
+| tarot | 0 | 0 ✓ |
+| manifest / manifesting | 0 | 0 ✓ |
+| destiny | 0 | 0 ✓ |
+| predict / prediction | 0 | 0 ✓ |
+| Mercury retrograde | 0 | 0 ✓ |
+| cosmic | 0 | 0 ✓ |
+| divine / sacred / oracle | 0 | 0 ✓ |
+| astrology | ≤ 2, qualified | 2 ✓ (both in trust context: "professional astrologers" + "full astrology details") |
+| relationship / relationships | ≥ 4 | 8 ✓ |
+| people | ≥ 3 | 5 ✓ |
+
+---
+
+## Keywords (100 chars max, indexed, comma-separated, no spaces between commas)
+
+```
+relationships,attachment,compatibility,self-discovery,patterns,dynamics,love language,partner
+```
+
+**Length:** 96 / 100 ✓
+
+### Keyword rationale
+
+| Keyword | Search intent | Apple-safe? |
+|---|---|---|
+| relationships | High volume, anchor | ✓ |
+| attachment | Therapy-adjacent, framework-coded | ✓ |
+| compatibility | High volume, intent | ✓ |
+| self-discovery | Mindfulness-category-aligned | ✓ |
+| patterns | Connects to app name + hook | ✓ |
+| dynamics | Reads professional / clinical | ✓ |
+| love language | High-volume specific framework | ✓ |
+| partner | High volume direct intent | ✓ |
+
+### Keywords explicitly excluded
+
+`horoscope`, `astrology`, `zodiac`, `daily`, `fortune`, `tarot`, `manifesting`, `cosmic`, `birth chart`, `transit`, `Mercury retrograde`, `crystal`, `palm`, `numerology`. Including any of these forces us into the saturated category and re-triggers 4.3(b).
+
+---
+
+## What's New (text shown to existing users on update; ASC requires text)
+
+```
+A clearer, calmer Celestia.
+
+We've rebuilt the app around the people in your life — partner, family, friends, colleagues. Add anyone, see how you actually connect, and ask questions that matter.
+
+A daily reflection prompt now lives on the Today tab — one honest question, your sentence or two, and a gentle read back. No daily horoscopes. No subscription. Just a useful tool you'll actually open.
+```
+
+**Length:** 367 / 4,000 ✓
+
+---
+
+## Category & Sub-category
+
+| Field | Value | Why |
+|---|---|---|
+| Primary | `Health & Fitness > Mindfulness` | Places Celestia in Calm / Headspace reviewer pool. Reviewers there are not trained to spam-flag relationship pattern apps. |
+| Secondary | `Lifestyle` | Picks up secondary intent without forcing the listing into the Entertainment / saturated-astrology pool. |
+
+**Do not select:** Entertainment (saturated horoscope category), Reference (old Lifestyle alternate), Social Networking (we don't have multi-user social features).
+
+---
+
+## Age Rating
+
+**Selected:** 17+
+
+| ASC question | Answer |
+|---|---|
+| Cartoon or Fantasy Violence | None |
+| Realistic Violence | None |
+| Sexual Content or Nudity | Infrequent / Mild |
+| Profanity or Crude Humor | None |
+| Alcohol, Tobacco, Drug Use | None |
+| Mature / Suggestive Themes | Frequent / Intense |
+| Horror / Fear Themes | None |
+| Medical / Treatment Information | None |
+| Gambling | None |
+| Unrestricted Web Access | None |
+| User Generated Content | None |
+
+**Why 17+ specifically:**
+- AI-generated content (Apple's 2024 generative-AI policy strongly suggests 17+)
+- Discussion of relationships includes intimacy / sexual themes
+- Signals adult product seriousness — reviewers don't worry about minors
+- Removes pressure for parental gating UX
+
+---
+
+## Pricing
+
+**Selected:** Free · No in-app purchases · No subscription
+
+**ASC path:** Pricing and Availability → Price → `USD 0` → All Territories.
+
+**Why no IAP in v1:** A paywall in v1 invites a second axis of rejection (3.1.1, 3.1.2). v1 is free across the board so the only review axis is content / category. v1.1 reintroduces paid (per PDF plan §05).
+
+---
+
+## URLs (must all resolve to live pages — Apple checks for 404)
+
+| Field | Value |
+|---|---|
+| Privacy Policy URL | `https://celestia.app/privacy` |
+| Support URL | `https://celestia.app/support` (or `mailto:support@celestia.app`) |
+| Marketing URL (optional) | `https://celestia.app` |
+
+If you don't have a website, a Notion-published page or GitHub Pages site is acceptable for Privacy + Support. The Privacy Policy URL is a hard reject vector if it 404s.
+
+---
+
+## App Privacy (Privacy Nutrition Label)
+
+| Data Type | Collected | Linked to user | Used for tracking |
+|---|---|---|---|
+| Location → Coarse Location | Yes (birth city via Nominatim during onboarding) | No | No |
+| User Content → Other User Content | Yes (personality blueprint, journal, partner profiles — local SQLite) | No | No |
+| Identifiers → User ID | Yes (random UUID generated locally) | No | No |
+| Other Data → Other Data Types | Yes (birth data of people the user adds) | No | No |
+
+**If PostHog analytics is removed for v1 (recommended):** the Diagnostics rows below are removed.
+
+| Data Type | Collected | Linked | Tracking |
+|---|---|---|---|
+| Diagnostics → Crash Data | Yes (if PostHog kept) | No | No |
+| Diagnostics → Performance Data | Yes (if PostHog kept) | No | No |
+
+Full disclosure copy is in `04-privacy-policy.md`.
+
+---
+
+## Localization
+
+**For initial submission:** English (U.S.) only.
+
+Adding more locales is a v1.1 task — each locale adds review surface and translation cost. UK English / AU English are first to follow once v1 is approved (no translation needed; minor copy tweaks).
+
+---
+
+## Final paste-time checklist
+
+Before tapping "Save" on each ASC field:
+
+- [ ] App name pasted exactly as line 11 of this file
+- [ ] Subtitle pasted exactly as line 17
+- [ ] Promo text pasted exactly as the block under §3
+- [ ] Full description pasted from the fenced block under "Full description"
+- [ ] Keywords pasted as a single comma-separated string with **no spaces** between commas
+- [ ] Primary category set to Health & Fitness > Mindfulness (not Lifestyle)
+- [ ] Secondary category set to Lifestyle
+- [ ] Age rating questionnaire answered to produce a 17+ label
+- [ ] Price set to USD 0, all territories
+- [ ] Privacy URL resolves (open it in a private tab — verify it loads, scroll to bottom, see "last updated" date)
+- [ ] Support URL resolves
+- [ ] Privacy Nutrition Label answered to match the table above
+
+If all rows are checked, this entire submission step is done. The next steps are screenshots (`03-screenshot-spec.md`) and the reviewer message (`Reviewer-Message.md`).
