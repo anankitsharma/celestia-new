@@ -43,7 +43,8 @@ const TAGS = [
   { key: 'career', icon: '◆', label: 'Career', color: '#5A8AAA' },
   { key: 'growth', icon: '◎', label: 'Growth', color: '#F59E0B' },
   { key: 'health', icon: '✦', label: 'Health', color: '#7AAA80' },
-  { key: 'dreams', icon: '☽', label: 'Dreams', color: '#A88BA0' },
+  // V1.2 — Replaced ☽ (Moon glyph, astrology) with neutral mark.
+  { key: 'dreams', icon: '◐', label: 'Dreams', color: '#A88BA0' },
   { key: 'gratitude', icon: '✧', label: 'Gratitude', color: '#C8A84B' },
 ];
 

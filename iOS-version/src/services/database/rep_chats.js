@@ -1,30 +1,57 @@
 import { getDB } from './client';
 import * as Crypto from 'expo-crypto';
+import { isForeignKeyError } from './sqliteHelpers';
 
 export const ChatRepository = {
     createSession: async (title, partnerId) => {
         const db = await getDB();
         const id = Crypto.randomUUID();
         const now = Date.now();
-        await db.runAsync(
-            `INSERT INTO chat_sessions (id, title, partner_id, created_at, last_updated) VALUES (?, ?, ?, ?, ?);`,
-            [id, title, partnerId || null, now, now]
-        );
-        return { id, title, partnerId, createdAt: now, lastUpdated: now };
+        try {
+            await db.runAsync(
+                `INSERT INTO chat_sessions (id, title, partner_id, created_at, last_updated) VALUES (?, ?, ?, ?, ?);`,
+                [id, title, partnerId || null, now, now]
+            );
+            return { id, title, partnerId, createdAt: now, lastUpdated: now };
+        } catch (e) {
+            // V1.2 — partner_id may reference a profile that was just deleted.
+            // Retry without the partner_id rather than throwing — the chat can
+            // still proceed standalone, and the caller's withRetry won't bail.
+            if (isForeignKeyError(e)) {
+                console.warn(`[SQLite] createSession FK: retrying with null partner_id (was ${partnerId})`);
+                await db.runAsync(
+                    `INSERT INTO chat_sessions (id, title, partner_id, created_at, last_updated) VALUES (?, ?, NULL, ?, ?);`,
+                    [id, title, now, now]
+                );
+                return { id, title, partnerId: null, createdAt: now, lastUpdated: now };
+            }
+            throw e;
+        }
     },
 
     addMessage: async (sessionId, role, text) => {
         const db = await getDB();
         const id = Crypto.randomUUID();
         const now = Date.now();
-        await db.withTransactionAsync(async () => {
-            await db.runAsync(
-                `INSERT INTO chat_messages (id, session_id, role, text, created_at) VALUES (?, ?, ?, ?, ?);`,
-                [id, sessionId, role, text, now]
-            );
-            await db.runAsync(`UPDATE chat_sessions SET last_updated = ? WHERE id = ?;`, [now, sessionId]);
-        });
-        return { id, role, text, timestamp: now };
+        try {
+            await db.withTransactionAsync(async () => {
+                await db.runAsync(
+                    `INSERT INTO chat_messages (id, session_id, role, text, created_at) VALUES (?, ?, ?, ?, ?);`,
+                    [id, sessionId, role, text, now]
+                );
+                await db.runAsync(`UPDATE chat_sessions SET last_updated = ? WHERE id = ?;`, [now, sessionId]);
+            });
+            return { id, role, text, timestamp: now };
+        } catch (e) {
+            // V1.2 — Session may have been deleted (e.g. via factoryReset)
+            // between message generation and persistence. Drop the message
+            // silently — the user already saw the AI response in memory.
+            if (isForeignKeyError(e)) {
+                console.warn(`[SQLite] addMessage FK skipped (session ${sessionId} deleted)`);
+                return { id, role, text, timestamp: now };
+            }
+            throw e;
+        }
     },
 
     getMessages: async (sessionId) => {

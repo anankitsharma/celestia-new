@@ -19,18 +19,28 @@ const V1_DISABLED_TEMPLATES = new Set([
   'cm_love',              // "Venus has something to say"
   'cm_mantra',            // "Your cosmic mantra"
   'cm_journal_follow',    // "Moon moved to Cancer overnight"
-  // Evening reflection — moon/lunar leads
+  // Evening reflection — moon/lunar leads + chart wording
   'er_moon',
   'er_phase',
+  'er_whisper',           // "Something shifted in your chart today"
   // Pattern alerts (formerly transit alerts) — astrology jargon leads
   'ta_window',
   'ta_moon_aspect',
   'ta_lunation',
   'ta_retrograde',
   'ta_energy_shift',
+  // Placement unlock — chart-reveal framing
+  'pu_reveal',            // "your chart reveals"
+  'pu_tease',             // "in your birth chart"
   // Weekly digest — explicit astro framing
+  'wd_preview',           // "powerCosmic", "The cosmos has events lined up"
+  'wd_love',              // "Venus has mapped out your week"
+  'wd_career',            // "Jupiter supports … energy"
   'wd_retrograde',
   'wd_moon',
+  // Cosmic milestone — astro-coded victory copy
+  'mile_badge',           // "Your cosmic collection grows … celestial identity"
+  'mile_level',           // "The cosmos recognizes you"
 ]);
 // ── TEMPLATE CATALOG ────────────────────────────────────────
 
@@ -231,9 +241,10 @@ const TEMPLATES = {
       id: 'er_streak',
       requires: ['streakData'],
       weight: (d) => d.streakData?.current_streak > 1 ? 4 : 0,
+      // V1.2 — Banned-word swap: "cosmic journaling" / "the universe" stripped.
       generate: (d) => ({
-        title: `Day ${d.streakData.current_streak} of cosmic journaling`,
-        body: `You've shown up ${d.streakData.current_streak} days in a row. Tonight's prompt: What did the universe teach you?`,
+        title: `Day ${d.streakData.current_streak} of reflection`,
+        body: `You've shown up ${d.streakData.current_streak} days in a row. Tonight's prompt: What's the pattern you're noticing this week?`,
       }),
     },
     {

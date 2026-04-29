@@ -46,7 +46,7 @@ const REPORT_THEMES = {
       '"Venus in your chart reveals how you love — and how you want to be loved."',
       '"How you choose partners says everything about how you see yourself."',
       '"The Moon knows what your heart needs before you do."',
-      '"Love isn\'t written in the stars — it\'s written in your chart."',
+      '"Love isn\'t a mystery — it\'s a pattern you can learn to read."',
       '"Mars shows your passion. Venus shows your poetry."',
       '"Every connection is a conversation between two patterns."',
     ],
@@ -202,7 +202,7 @@ const REPORT_THEMES = {
       '"The transits don\'t happen to you — they happen for you."',
       '"Jupiter expands whatever it touches. Watch where it lands."',
       '"Saturn builds slowly, but what it builds lasts forever."',
-      '"Your year ahead is already written in the stars."',
+      '"Your year ahead unfolds in patterns — once you see them, you can shape them."',
     ],
   },
   transit: {

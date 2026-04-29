@@ -27,7 +27,8 @@ const TAG_META = {
   career: { icon: '◆', color: '#5A8AAA' },
   growth: { icon: '◎', color: '#F59E0B' },
   health: { icon: '✦', color: '#7AAA80' },
-  dreams: { icon: '☽', color: '#A88BA0' },
+  // V1.2 — Replaced ☽ (Moon glyph) with neutral mark to match JournalScreen TAGS.
+  dreams: { icon: '◐', color: '#A88BA0' },
   gratitude: { icon: '✧', color: '#C8A84B' },
 };
 
@@ -235,7 +236,7 @@ export default function JournalHistoryScreen({ navigation }) {
           accessibilityLabel="Go back">
           <Text style={[s.backText, { color: colors.heading }]} accessibilityElementsHidden importantForAccessibility="no-hide-descendants">‹</Text>
         </TouchableOpacity>
-        <Text accessibilityRole="header" style={[s.headerTitle, { color: colors.heading }]}>Cosmic Journal</Text>
+        <Text accessibilityRole="header" style={[s.headerTitle, { color: colors.heading }]}>Journal</Text>
         <TouchableOpacity onPress={() => navigation.navigate('Journal')} style={s.writeBtn}
           accessibilityRole="button"
           accessibilityLabel="Write new journal entry">
@@ -244,15 +245,15 @@ export default function JournalHistoryScreen({ navigation }) {
       </View>
 
       <ScrollView showsVerticalScrollIndicator={false}>
-        {/* Stats row */}
+        {/* V1.2 — Stats row reduced from 3 tiles to 2. The "Day Streak" tile
+            was removed because the listing copy explicitly markets the app as
+            "no streaks pressuring you". A streak counter on the Journal screen
+            contradicts that claim and creates a 4.3(b)/2.3.1 disclosure mismatch.
+            Streak is still tracked silently for potential v1.x reactivation. */}
         <View style={s.statsRow}>
           <View style={[s.statCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
             <Text style={[s.statNum, { color: colors.heading }]}>{totalCount}</Text>
             <Text style={[s.statLbl, { color: colors.textSecondary }]}>Entries</Text>
-          </View>
-          <View style={[s.statCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
-            <Text style={[s.statNum, { color: colors.heading }]}>{journalStreak}</Text>
-            <Text style={[s.statLbl, { color: colors.textSecondary }]}>Day Streak</Text>
           </View>
           <View style={[s.statCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
             <Text style={[s.statNum, { color: colors.heading }]}>{entries.length}</Text>

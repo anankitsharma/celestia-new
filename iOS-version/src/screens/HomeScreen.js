@@ -17,7 +17,8 @@ import { recordDailyCheckIn, getStreakEmoji, getMilestoneMessage } from '../serv
 import { trackEvent } from '../services/achievementService';
 import { awardXP, getXPStatus } from '../services/xpService';
 import { getLevelInfo } from '../constants/levels';
-import WelcomeBackModal from '../components/WelcomeBackModal';
+import { useFocusEffect } from '@react-navigation/native';
+import SetupRequiredState from '../components/SetupRequiredState';
 import BadgeUnlockModal from '../components/BadgeUnlockModal';
 import QuestCard from '../components/QuestCard';
 import CosmicTooltip from '../components/CosmicTooltip';
@@ -226,27 +227,38 @@ export default function HomeScreen({ navigation, route }) {
         const now = Date.now();
         const THREE_WEEKS = 21 * 24 * 60 * 60 * 1000;
         const WEEK_MS = 7 * 24 * 60 * 60 * 1000;
+        // V1.2 — Bound the drift age so a missing `touched` AND missing
+        // `createdAt` (which previously fell through to epoch zero and
+        // produced "2938 weeks") clamps to 0 instead. If we don't have a
+        // real timestamp, we treat the partner as "just added" — no false
+        // drift alert. Also caps any computed value at 52 weeks max to
+        // prevent absurd display values.
+        const computeAge = (p) => {
+          const touched = map[p.id] || 0;
+          if (touched) return Math.max(0, now - touched);
+          const createdMs = p.createdAt ? new Date(p.createdAt).getTime() : 0;
+          if (!createdMs || Number.isNaN(createdMs)) return 0;
+          return Math.max(0, now - createdMs);
+        };
         // Per-partner drift weeks (for circle strip badges)
         const drifts = {};
         for (const p of partnerProfiles) {
-          const touched = map[p.id] || 0;
-          const age = touched ? (now - touched) : (now - new Date(p.createdAt || 0).getTime());
-          drifts[p.id] = Math.floor(age / WEEK_MS);
+          const age = computeAge(p);
+          drifts[p.id] = Math.min(52, Math.floor(age / WEEK_MS));
         }
         setPartnerDriftMap(drifts);
         // Find the longest-untouched partner (or one never opened)
         let stalest = null;
         let stalestAge = 0;
         for (const p of partnerProfiles) {
-          const touched = map[p.id] || 0;
-          const age = touched ? (now - touched) : (now - new Date(p.createdAt || 0).getTime());
+          const age = computeAge(p);
           if (age > THREE_WEEKS && age > stalestAge) {
             stalest = p;
             stalestAge = age;
           }
         }
         if (stalest) {
-          const weeks = Math.floor(stalestAge / (7 * 24 * 60 * 60 * 1000));
+          const weeks = Math.min(52, Math.floor(stalestAge / WEEK_MS));
           setDriftPartner({ name: stalest.name, weeks, partner: stalest });
         } else {
           setDriftPartner(null);
@@ -409,6 +421,20 @@ export default function HomeScreen({ navigation, route }) {
   const [narrativeCtx, setNarrativeCtx] = useState(null);
   const [showNotifModal, setShowNotifModal] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
+  // V1.2 — Placeholder profile flag. Re-read on every focus so the banner
+  // disappears the moment the user fills real birth details from the
+  // OnboardingFlow re-entry.
+  const [isPlaceholderProfile, setIsPlaceholderProfile] = useState(false);
+  useFocusEffect(
+    useCallback(() => {
+      let mounted = true;
+      (async () => {
+        const v = await loadBoolean('celestia_profile_is_placeholder');
+        if (mounted) setIsPlaceholderProfile(v);
+      })();
+      return () => { mounted = false; };
+    }, [])
+  );
 
   const mainScrollRef = useRef(null);
   // tabScrollRef removed — tabs now inside hero
@@ -534,78 +560,13 @@ export default function HomeScreen({ navigation, route }) {
       }
     }).catch(() => { });
 
-    // Streak + engagement
+    // V1.2 — Session counting + notification soft-ask. The streak / XP / badges /
+    // daily-quests / next-badge / WelcomeBackModal logic that lived here was
+    // removed for the minimum-approval submission. State variables (streakData,
+    // xpData, etc.) remain declared but are never populated; nothing in the UI
+    // reads them after the strip pass.
     (async () => {
       try {
-        const profileId = userProfile.id || 'default';
-        // Record check-in
-        const streak = await recordDailyCheckIn(profileId);
-        setStreakData(streak);
-
-        // Show welcome back if returning after 2+ days
-        if (streak?.daysAbsent >= 2 && streak?.isNew) {
-          setShowWelcomeBack(true);
-        }
-
-        // Streak animation on new check-in
-        if (streak?.isNew && !streak?.streakBroken) {
-          haptic.success();
-          Animated.sequence([
-            Animated.spring(streakAnim, { toValue: 1.3, tension: 80, friction: 4, useNativeDriver: true }),
-            Animated.spring(streakAnim, { toValue: 1, tension: 60, friction: 6, useNativeDriver: true }),
-          ]).start();
-
-          // Detect streak milestone (3, 7, 14, 30, 50, 100, 365)
-          const milestones = [3, 7, 14, 30, 50, 100, 365];
-          if (milestones.includes(streak.current_streak)) {
-            setStreakMilestone({
-              streak: streak.current_streak,
-              emoji: getStreakEmoji(streak.current_streak),
-              message: getMilestoneMessage(streak.current_streak),
-            });
-          }
-        }
-
-        // Award XP for daily check-in
-        if (streak?.isNew) {
-          const xp = await awardXP(profileId, 'daily_check_in');
-          setXpData(xp?.levelInfo || null);
-          if (xp) showXPGain(xp.amount);
-          // Detect level-up
-          if (xp?.leveledUp && xp?.newLevel) {
-            setLevelUpData({ levelName: xp.newLevel.name, totalXP: xp.levelInfo?.total_xp || 0 });
-          }
-        } else {
-          const xpStatus = await getXPStatus(profileId);
-          setXpData(xpStatus?.levelInfo || null);
-        }
-
-        // Check streak badges
-        if (streak?.isNew) {
-          const badges = await trackEvent('streak_update', { current_streak: streak.current_streak });
-          processBadges(badges);
-        }
-
-        // Check moon phase badge
-        if (moon) {
-          const moonBadges = await trackEvent('moon_phase', { phaseName: moon.phaseName });
-          if (moonBadges?.length > 0 && !pendingBadge) processBadges(moonBadges);
-        }
-
-        // Check Mercury retrograde badge
-        const mercury = getTransitPlanets(today)?.find(p => p.name === 'Mercury');
-        if (mercury?.isRetrograde) {
-          const rxBadges = await trackEvent('mercury_retrograde');
-          if (rxBadges?.length > 0 && !pendingBadge) processBadges(rxBadges);
-        }
-
-        // Load daily quests
-        getTodayQuests().then(qd => setQuestData(qd)).catch(() => { });
-
-        // Load next badge progress
-        getNextBadgeProgress().then(nb => setNextBadge(nb)).catch(() => { });
-
-        // Session counting + notification soft-ask (after 3rd session)
         const todayKey = today.toISOString().split('T')[0];
         const lastSessionDate = await loadString(StorageKeys.SESSION_COUNT + '_date');
         if (lastSessionDate !== todayKey) {
@@ -622,7 +583,7 @@ export default function HomeScreen({ navigation, route }) {
           }
         }
       } catch (e) {
-        console.error('Engagement init error:', e);
+        console.error('Session init error:', e);
       }
     })();
   }, [userProfile]);
@@ -904,6 +865,17 @@ export default function HomeScreen({ navigation, route }) {
     return PARA_LABELS_DAILY;
   };
 
+  // V1.2 — When the user skipped onboarding via × (placeholder profile in DB),
+  // short-circuit to a shared empty state. Hooks above still run safely.
+  if (isPlaceholderProfile) {
+    return (
+      <SetupRequiredState
+        subtitle={"Add your birth details to unlock your daily reading,\nreflections, and personalized chat."}
+        onAddDetails={() => navigation.navigate('OnboardingFlow', { startAt: 6 })}
+      />
+    );
+  }
+
   return (
     <View style={{ flex: 1, backgroundColor: colors.bg }}>
       <ScrollView ref={mainScrollRef} showsVerticalScrollIndicator={false} bounces={true}
@@ -918,14 +890,18 @@ export default function HomeScreen({ navigation, route }) {
             const top = areas.filter(a => forecast.lifeAreas[a.key]).sort((a, b) => (forecast.lifeAreas[b.key].intensity || 3) - (forecast.lifeAreas[a.key].intensity || 3))[0];
             if (top) ct = top.type;
           }
-          const heroColors = (ct && CONTENT_GRADIENTS[ct]) || HERO_GRADIENTS[timeMode] || HERO_GRADIENTS.morning;
+          // V1.2 — Light mode: time/content-specific cream gradients.
+          // Dark mode: theme's burgundy ramp (single hero color, consistent across tabs).
+          const heroColors = isDark
+            ? colors.heroGradient
+            : ((ct && CONTENT_GRADIENTS[ct]) || HERO_GRADIENTS[timeMode] || HERO_GRADIENTS.morning);
           return (
             <LinearGradient colors={heroColors} locations={[0, 0.5, 1]} style={styles.hero}>
               {/* Row 1: Greeting + Name (left) | Streak pill + Avatar (right) */}
               <View style={styles.nameRow}>
                 <View style={{ flex: 1 }}>
-                  <Text style={styles.greeting} accessibilityRole="text">{getAdaptiveGreeting(timeMode, firstName)},</Text>
-                  <Text style={styles.heroName} accessibilityRole="header">{firstName}</Text>
+                  <Text style={[styles.greeting, { color: colors.textSecondary }]} accessibilityRole="text">{getAdaptiveGreeting(timeMode, firstName)},</Text>
+                  <Text style={[styles.heroName, { color: colors.heading }]} accessibilityRole="header">{firstName}</Text>
                 </View>
                 <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
                   {/* V1: Streak pill + XP ring removed for the minimal-approval
@@ -2441,13 +2417,8 @@ export default function HomeScreen({ navigation, route }) {
           submission. awardXP calls remain (they write to SQLite silently); the
           visible "+N XP" floating toast is what's stripped. v1.1 reactivation. */}
 
-      {/* ── WELCOME BACK MODAL ── */}
-      <WelcomeBackModal
-        visible={showWelcomeBack}
-        onDismiss={() => setShowWelcomeBack(false)}
-        streakData={streakData}
-        moonData={moonData}
-      />
+      {/* V1: WelcomeBackModal removed — streak-driven re-engagement modal
+          out of scope for minimum-approval submission. */}
 
       {/* V1: Badge / Streak Milestone / Level Up modals removed for the
           minimal-approval submission. All three were celebratory pop-ups

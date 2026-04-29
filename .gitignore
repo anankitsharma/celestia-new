@@ -10,3 +10,12 @@ dist/
 *.orig.*
 web-build/
 references/
+
+# Claude Code local session/skill state — never commit
+.claude/
+
+# Next.js screenshot generator build artifacts and deps
+iOS-version/plan/screenshots/generator/node_modules/
+iOS-version/plan/screenshots/generator/.next/
+iOS-version/plan/screenshots/generator/dist/
+iOS-version/plan/screenshots/generator/out/

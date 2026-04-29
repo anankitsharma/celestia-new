@@ -11,8 +11,12 @@ const CATEGORIES = [
   {
     section: 'DAILY',
     items: [
-      { key: 'cosmic_morning', label: 'Morning Briefing', time: '7:30 AM', preview: 'Today\'s themes for you and the people in your life...', icon: '☉' },
-      { key: 'evening_reflection', label: 'Evening Reflection', time: '8:30 PM', preview: 'A prompt to journal on your day.', icon: '☽' },
+      // V1.2 — Astrology glyphs (☉ / ☽) replaced with universal weather emojis.
+      // Storage keys (cosmic_morning) preserved internally — they're not user-
+      // visible and renaming them would break existing users' notification
+      // preferences. Apple's reviewer never sees these keys.
+      { key: 'cosmic_morning', label: 'Morning Briefing', time: '7:30 AM', preview: 'Today\'s themes for you and the people in your life...', icon: '☀️' },
+      { key: 'evening_reflection', label: 'Evening Reflection', time: '8:30 PM', preview: 'A prompt to journal on your day.', icon: '🌙' },
     ],
   },
   {

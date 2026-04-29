@@ -9,6 +9,7 @@ import DateTimePicker from '@react-native-community/datetimepicker';
 import { T, FONTS } from '../constants/theme';
 import { useTheme } from '../contexts/ThemeContext';
 import ChartWheel from '../components/ChartWheel';
+import SimpleTimePicker from '../components/SimpleTimePicker';
 import { useUserProfile } from '../contexts/UserProfileContext';
 import { calculateChart, getTransitPlanets, getMoonDataForDate } from '../services/astrologyService';
 import { saveBoolean } from '../services/storage';
@@ -78,6 +79,13 @@ const ATTACHMENT_FROM_DEPTH = {
   sometimes: { name: 'Earned-Secure',    desc: 'You\'ve learned to read people. Trust comes slowly but lands well.' },
   aware:   { name: 'Self-Aware Anxious', desc: 'You see your patterns clearly. Naming them is half the work.' },
 };
+
+// V1.2 — "a" vs "an" article picker. Earlier the First Hit copy hardcoded
+// "an" — wrong for Fearful-Avoidant ("a") and Self-Aware Anxious ("a").
+// First-letter vowel check is sufficient for the four attachment names we
+// have; if more names are added later that start with silent-H ("honest")
+// or Y-sound ("European"), this needs widening.
+const indefiniteArticle = (word) => /^[aeiouAEIOU]/.test(word || '') ? 'an' : 'a';
 
 // V1 PDF plan: short astrological accent that pairs with attachment style.
 // Format: "{Sign} Venus magnetism" — Venus = how you give and receive love.
@@ -150,11 +158,20 @@ const GoldButton = ({ text, onPress, disabled, loading, sub, colors: c }) => (
 // ══════════════════════════════════════════════════════════
 // MAIN COMPONENT
 // ══════════════════════════════════════════════════════════
-export default function OnboardingFlowScreen({ navigation }) {
-  const { setUserProfile } = useUserProfile();
+export default function OnboardingFlowScreen({ navigation, route }) {
+  // V1.2 — When entered from the in-app placeholder banner ("Personalize
+  // Celestia"), startAt lands the user at step 6 (birth data) so they don't
+  // re-walk the quiz. Clamped to the valid range; defaults to 1 for the
+  // standard fresh-install flow.
+  const startAtRaw = route?.params?.startAt;
+  const initialStep = (typeof startAtRaw === 'number' && startAtRaw >= 1 && startAtRaw <= 12) ? startAtRaw : 1;
+  const { setUserProfile, userProfile } = useUserProfile();
   const { isDark, colors } = useTheme();
   const { capture, identify } = useAnalytics();
-  const [step, setStep] = useState(1);
+  const [step, setStep] = useState(initialStep);
+  // entryStep gates the Back button so users can't navigate past where they
+  // came in. Frozen at mount.
+  const [entryStep] = useState(initialStep);
   const slideAnim = useRef(new Animated.Value(0)).current;
   // V1 hybrid: Big Reveal step 10 hides chart wheel + sign captions by default.
   // User taps "See your chart" to reveal — astrology becomes opt-in.
@@ -172,6 +189,19 @@ export default function OnboardingFlowScreen({ navigation }) {
   const [isTimeUnknown, setIsTimeUnknown] = useState(false);
   const [showDatePicker, setShowDatePicker] = useState(false);
   const [showTimePicker, setShowTimePicker] = useState(false);
+  // Initial value handed to the iOS time picker — set ONCE when the picker
+  // opens, never updated while it's open. The native UIDatePicker (wheels
+  // style) snaps back to a default near 5:30 if `value` is reapplied during
+  // an active AM↔PM scroll, so we must avoid re-rendering it mid-gesture.
+  const [pickerInitialTime, setPickerInitialTime] = useState(null);
+  // The picker's most recent draft state, written on every scroll without
+  // triggering a React re-render. Committed to birthTime only on Done.
+  const draftTimeRef = useRef(null);
+  // Same uncontrolled-while-open pattern for the birth date picker — avoids
+  // the controlled-component race documented above and stops the fallback
+  // `new Date(...)` from being reconstructed on every render.
+  const [pickerInitialDate, setPickerInitialDate] = useState(null);
+  const draftDateRef = useRef(null);
   const [citySearch, setCitySearch] = useState('');
   const [selectedCity, setSelectedCity] = useState(null);
   const [citySuggestions, setCitySuggestions] = useState([]);
@@ -260,12 +290,14 @@ export default function OnboardingFlowScreen({ navigation }) {
   }, [step]);
 
   // ── Save & finish ────────────────────────────────
-  const finishOnboarding = async () => {
+  const finishOnboarding = async (opts = {}) => {
     try {
       const dateStr = `${birthDate.getFullYear()}-${(birthDate.getMonth() + 1).toString().padStart(2, '0')}-${birthDate.getDate().toString().padStart(2, '0')}`;
       const timeStr = (isTimeUnknown || !birthTime) ? '12:00' : `${birthTime.getHours().toString().padStart(2, '0')}:${birthTime.getMinutes().toString().padStart(2, '0')}`;
       const profile = {
-        id: Crypto.randomUUID(),
+        // V1.2 — Reuse existing profile id when the user is completing details
+        // from a placeholder state (banner re-entry). Otherwise mint new.
+        id: userProfile?.id || Crypto.randomUUID(),
         name: firstName.trim(),
         gender: 'unknown',
         birthDate: dateStr,
@@ -279,15 +311,27 @@ export default function OnboardingFlowScreen({ navigation }) {
         depth,
       };
       await setUserProfile(profile);
+      // V1.2 — Real birth data entered → clear the placeholder flag so the
+      // banner disappears the moment the user lands back on Today / Profile.
+      await saveBoolean('celestia_profile_is_placeholder', false);
       // Persist persona preferences for AI tone across the app
       try {
         const { saveObject } = require('../services/storage');
         await saveObject('celestia_persona_prefs', { motivation, painPoint, depth });
       } catch (e) {}
       identify(profile.id, { sun_sign: chart?.sun?.sign, motivation, pain_point: painPoint });
-      capture(EVENTS.ONBOARDING_COMPLETED, { sun_sign: chart?.sun?.sign, motivation, pain_point: painPoint });
-      // V1: no auth, go straight to Main (lands on Circle by initialRouteName).
-      navigation.replace('Main');
+      capture(EVENTS.ONBOARDING_COMPLETED, { sun_sign: chart?.sun?.sign, motivation, pain_point: painPoint, opened_add_partner: !!opts.openAddPartner });
+      // V1: no auth, go straight to Main. If the user tapped "Add Someone"
+      // on the connections-add-prompt step, deep-link into the Connections
+      // tab with a one-shot param that auto-opens the Add Partner modal.
+      if (opts.openAddPartner) {
+        navigation.replace('Main', {
+          screen: 'Connections',
+          params: { openAddPartner: true },
+        });
+      } else {
+        navigation.replace('Main');
+      }
     } catch (e) {
       console.error('Save error:', e);
     }
@@ -306,18 +350,29 @@ export default function OnboardingFlowScreen({ navigation }) {
   // ══════════════════════════════════════════════════
 
   // ── 1. HOOK ──────────────────────────────────────
+  // V1.2 — Mirrors SplashScreen so the Splash → Onboarding transition reads as
+  // one continuous canvas: cream gradient backdrop, ✦ + hairline divider,
+  // serif statement, sans tagline, clay CTA (NOT gold gradient — matches Splash).
   const renderHook = () => (
-    <View style={s.center}>
-      <View style={s.hookGlow} />
+    <LinearGradient
+      colors={['#FBF5EA', '#F7F0E2', '#F4ECDB']}
+      locations={[0, 0.5, 1]}
+      style={s.center}>
       <Text style={s.hookPre}>✦</Text>
+      <View style={s.hookHairline} />
       <Text style={[s.hookH1, { color: colors.heading }]}>Understand the patterns{'\n'}in your relationships.</Text>
       <Text style={[s.hookSub, { color: colors.textSecondary }]}>Why you love who you love.{'\n'}Why you keep doing what you do.</Text>
       <View style={{ height: 40, width: '100%' }} />
-      <View style={{ width: '100%', paddingHorizontal: 8 }}>
-        <GoldButton text="Begin" onPress={() => advance()} />
-      </View>
+      <TouchableOpacity
+        activeOpacity={0.85}
+        accessibilityRole="button"
+        accessibilityLabel="Begin. See your patterns."
+        onPress={() => advance()}
+        style={s.heroCta}>
+        <Text style={s.heroCtaText}>Begin</Text>
+      </TouchableOpacity>
       <Text style={[s.hookDisclaimer, { color: colors.textSecondary }]}>2 minutes · no sign-in</Text>
-    </View>
+    </LinearGradient>
   );
 
   // ── 2. PATTERN IN LOVE (PDF screen 2) ──────────────
@@ -430,7 +485,18 @@ export default function OnboardingFlowScreen({ navigation }) {
         <Text style={[s.fieldLabel, { color: colors.textSecondary }]}>BIRTH DATE</Text>
         <TouchableOpacity
           style={[s.field, { backgroundColor: colors.inputBg, borderColor: colors.inputBorder }, birthDate && { borderColor: colors.gold }]}
-          onPress={() => setShowDatePicker(s => !s)}>
+          onPress={() => {
+            if (showDatePicker) {
+              // Closing without Done — commit any pending draft.
+              if (draftDateRef.current) setBirthDate(draftDateRef.current);
+              setShowDatePicker(false);
+              return;
+            }
+            const seed = birthDate || new Date(2000, 0, 1);
+            draftDateRef.current = seed;
+            setPickerInitialDate(seed);
+            setShowDatePicker(true);
+          }}>
           <Text style={{ color: birthDate ? colors.heading : colors.inputPlaceholder, fontFamily: FONTS.sans, fontSize: 16 }}>
             {birthDate ? birthDate.toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' }) : 'Select your birth date'}
           </Text>
@@ -443,14 +509,18 @@ export default function OnboardingFlowScreen({ navigation }) {
       {showDatePicker && (
         <View style={s.inlinePickerBox}>
           <DateTimePicker
-            value={birthDate || new Date(2000, 0, 1)}
+            value={pickerInitialDate || new Date(2000, 0, 1)}
             mode="date"
             display={Platform.OS === 'ios' ? 'spinner' : 'default'}
             maximumDate={new Date()}
             themeVariant="light"
             onChange={(e, d) => {
-              if (Platform.OS === 'android') setShowDatePicker(false);
-              if (d) setBirthDate(d);
+              if (Platform.OS === 'android') {
+                setShowDatePicker(false);
+                if (d && e?.type === 'set') setBirthDate(d);
+                return;
+              }
+              if (d) draftDateRef.current = d;
             }}
             style={{ height: Platform.OS === 'ios' ? 200 : undefined }}
           />
@@ -458,7 +528,10 @@ export default function OnboardingFlowScreen({ navigation }) {
             <TouchableOpacity style={s.pickerDoneBtn} activeOpacity={0.7}
               accessibilityRole="button"
               accessibilityLabel="Done"
-              onPress={() => setShowDatePicker(false)}>
+              onPress={() => {
+                if (draftDateRef.current) setBirthDate(draftDateRef.current);
+                setShowDatePicker(false);
+              }}>
               <Text style={s.pickerDoneText}>Done</Text>
             </TouchableOpacity>
           )}
@@ -483,7 +556,16 @@ export default function OnboardingFlowScreen({ navigation }) {
           sub={birthTime ? `Selected: ${birthTime.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })}` : 'Tap to add'}
           icon="🕐"
           selected={!isTimeUnknown && birthTime !== null}
-          onPress={() => { setIsTimeUnknown(false); setShowTimePicker(true); }}
+          onPress={() => {
+            // Seed away from the 12:00 boundary — that exact time is the
+            // worst initial value for iOS UIDatePicker because it sits on
+            // the AM/PM line internally (00:00 vs 12:00 ambiguity).
+            const seed = birthTime || new Date(2000, 0, 1, 10, 0);
+            draftTimeRef.current = seed;
+            setPickerInitialTime(seed);
+            setIsTimeUnknown(false);
+            setShowTimePicker(true);
+          }}
           colors={colors}
                  />
         <OptionCard
@@ -496,28 +578,40 @@ export default function OnboardingFlowScreen({ navigation }) {
                  />
       </View>
 
-      {/* V1.2 — Same inline-with-Done pattern as Birth Date. */}
+      {/* V1.2 — Inline-with-Done picker.
+          iOS: `value` is set ONCE per open (pickerInitialTime) so the native
+          wheels picker isn't re-rendered mid-scroll; onChange only updates a
+          ref, so AM↔PM scrolls don't trigger a React re-render that would
+          snap the picker. Committed to birthTime when Done is pressed.
+          Android: picker is a modal that auto-dismisses, so we commit on
+          the dismiss event as before. */}
+      {/* Custom 24-hour wheel picker. The native @react-native-community/
+          datetimepicker has a documented bug on iPadOS 26.1 where the AM/PM
+          column resets hour/minute when toggled, and `is24Hour={true}` is a
+          hint iOS can ignore based on device locale. SimpleTimePicker is
+          pure RN — no native UIDatePicker — so neither failure mode applies.
+          The "Selected:" label still formats in 12-hour for the user. */}
       {showTimePicker && (
         <View style={s.inlinePickerBox}>
-          <DateTimePicker
-            value={birthTime || new Date(2000, 0, 1, 12, 0)}
-            mode="time"
-            display={Platform.OS === 'ios' ? 'spinner' : 'default'}
-            themeVariant="light"
-            onChange={(e, t) => {
-              if (Platform.OS === 'android') setShowTimePicker(false);
-              if (t) setBirthTime(t);
+          <SimpleTimePicker
+            value={pickerInitialTime || new Date(2000, 0, 1, 10, 0)}
+            onChange={(d) => { draftTimeRef.current = d; }}
+            theme={{
+              selectedColor: colors.gold,
+              dimColor: colors.textSecondary,
+              highlightBg: 'rgba(200,168,75,0.10)',
+              highlightBorder: 'rgba(200,168,75,0.32)',
             }}
-            style={{ height: Platform.OS === 'ios' ? 180 : undefined }}
           />
-          {Platform.OS === 'ios' && (
-            <TouchableOpacity style={s.pickerDoneBtn} activeOpacity={0.7}
-              accessibilityRole="button"
-              accessibilityLabel="Done"
-              onPress={() => setShowTimePicker(false)}>
-              <Text style={s.pickerDoneText}>Done</Text>
-            </TouchableOpacity>
-          )}
+          <TouchableOpacity style={s.pickerDoneBtn} activeOpacity={0.7}
+            accessibilityRole="button"
+            accessibilityLabel="Done"
+            onPress={() => {
+              if (draftTimeRef.current) setBirthTime(draftTimeRef.current);
+              setShowTimePicker(false);
+            }}>
+            <Text style={s.pickerDoneText}>Done</Text>
+          </TouchableOpacity>
         </View>
       )}
 
@@ -597,13 +691,15 @@ export default function OnboardingFlowScreen({ navigation }) {
   );
 
   // ── 8. CALCULATING ───────────────────────────────
+  // V1.2 — Light Liquid Glass theme. No mystical orb / gold radial glow.
+  // Clay hairline anchors the title; clay-filling dots show progress.
   const calcPhases = ['Reading your birth details...', 'Mapping your patterns...', 'Connecting the dots...', 'Almost ready...'];
   const renderCalculating = () => (
-    <View style={s.center}>
-      <View style={s.calcGlow} />
-      <View style={s.calcOrbWrap}>
-        <LinearGradient colors={['#EDD060', '#C8A84B', '#8C6C18']} style={s.calcOrb} />
-      </View>
+    <LinearGradient
+      colors={['#FBF5EA', '#F7F0E2', '#F4ECDB']}
+      locations={[0, 0.5, 1]}
+      style={s.center}>
+      <View style={s.hookHairline} />
       <Text style={[s.calcTitle, { color: colors.heading }]}>Building your personality blueprint</Text>
       <Text style={[s.calcPhase, { color: colors.textSecondary }]}>{calcPhases[calcPhase] || calcPhases[0]}</Text>
       <View style={s.calcDots}>
@@ -611,7 +707,7 @@ export default function OnboardingFlowScreen({ navigation }) {
           <View key={i} style={[s.calcDot, { backgroundColor: colors.border }, i <= calcPhase && s.calcDotOn]} />
         ))}
       </View>
-    </View>
+    </LinearGradient>
   );
 
   // ── 10. FIRST HIT — V1 PDF plan: attachment + astrology combined ─────
@@ -622,11 +718,13 @@ export default function OnboardingFlowScreen({ navigation }) {
     const venus = chart?.planets?.find(p => p.name === 'Venus');
     const venusAccent = venus?.sign ? VENUS_MAGNETISM[venus.sign] : null;
     return (
-      <View style={s.center}>
-        <View style={s.hitGlow} />
+      <LinearGradient
+        colors={['#FBF5EA', '#F7F0E2', '#F4ECDB']}
+        locations={[0, 0.5, 1]}
+        style={s.center}>
         <Text style={s.hitPre}>YOUR PATTERN</Text>
         <Text style={[s.hitTagline, { color: colors.heading, fontSize: 24, lineHeight: 32, marginBottom: 14, marginTop: 8 }]}>
-          You have an <Text style={{ fontFamily: FONTS.serifItalic || FONTS.serif, fontStyle: 'italic' }}>{attachment.name}</Text> attachment pattern{venusAccent ? <> with <Text style={{ fontFamily: FONTS.serifItalic || FONTS.serif, fontStyle: 'italic' }}>{venusAccent}</Text></> : null}.
+          You have {indefiniteArticle(attachment.name)} <Text style={{ fontFamily: FONTS.serifItalic || FONTS.serif, fontStyle: 'italic' }}>{attachment.name}</Text> attachment pattern{venusAccent ? <> with <Text style={{ fontFamily: FONTS.serifItalic || FONTS.serif, fontStyle: 'italic' }}>{venusAccent}</Text></> : null}.
         </Text>
         <Text style={[s.hitTagline, { color: colors.text, fontSize: 16, lineHeight: 23, marginBottom: 8, paddingHorizontal: 8 }]}>
           {attachment.desc}
@@ -643,10 +741,15 @@ export default function OnboardingFlowScreen({ navigation }) {
             : "There's so much more beneath the surface."}
         </Text>
         <View style={{ height: 32, width: '100%' }} />
-        <View style={{ width: '100%', paddingHorizontal: 8 }}>
-          <GoldButton text="Continue" onPress={() => advance()} />
-        </View>
-      </View>
+        <TouchableOpacity
+          activeOpacity={0.85}
+          accessibilityRole="button"
+          accessibilityLabel="Continue"
+          onPress={() => advance()}
+          style={s.heroCta}>
+          <Text style={s.heroCtaText}>Continue</Text>
+        </TouchableOpacity>
+      </LinearGradient>
     );
   };
 
@@ -756,7 +859,10 @@ export default function OnboardingFlowScreen({ navigation }) {
       </View>
 
       <View style={{ height: 24 }} />
-      <GoldButton text="This Is Just The Beginning" onPress={() => advance()} />
+      {/* Big Reveal is now the final onboarding step. Tapping the CTA finishes
+          onboarding directly — the old step 12 (Connections-Add Prompt) is
+          no longer shown because it felt redundant after the Big Reveal. */}
+      <GoldButton text="This Is Just The Beginning" onPress={() => finishOnboarding()} />
       <View style={{ height: 40 }} />
     </ScrollView>
   );
@@ -764,23 +870,35 @@ export default function OnboardingFlowScreen({ navigation }) {
   // ── 12. CONNECTIONS ADD PROMPT (PDF screen 8) ──────
   // PDF: "Want to compare your patterns with someone? Add a partner, ex, or
   // person you're curious about." Or "Skip — explore on your own."
-  // Replaces the 3-card teaser with a focused next-action.
+  // V1.2 — Light Liquid Glass: cream gradient + clay hairline + clay CTA.
+  // No ↻ glyph (it read as "refresh", not "compare"), no gold radial glow.
   const renderDailyHook = () => (
-    <View style={s.center}>
-      <View style={s.hookGlow} />
-      <Text style={s.hookPre}>↻</Text>
+    <LinearGradient
+      colors={['#FBF5EA', '#F7F0E2', '#F4ECDB']}
+      locations={[0, 0.5, 1]}
+      style={s.center}>
+      <View style={s.hookHairline} />
       <Text style={[s.hookH1, { color: colors.heading }]}>Want to compare{'\n'}your patterns{'\n'}<Text style={s.h1em}>with someone</Text>?</Text>
       <Text style={[s.hookSub, { color: colors.textSecondary }]}>Add a partner, ex, or someone{'\n'}you're curious about.</Text>
       <View style={{ height: 32, width: '100%' }} />
-      <View style={{ width: '100%', paddingHorizontal: 8 }}>
-        <GoldButton text="Add Someone" onPress={finishOnboarding} />
-      </View>
-      <TouchableOpacity onPress={finishOnboarding} style={{ marginTop: 16, alignSelf: 'center', padding: 8 }}>
+      <TouchableOpacity
+        activeOpacity={0.85}
+        accessibilityRole="button"
+        accessibilityLabel="Add someone to compare patterns"
+        onPress={() => finishOnboarding({ openAddPartner: true })}
+        style={s.heroCta}>
+        <Text style={s.heroCtaText}>Add Someone</Text>
+      </TouchableOpacity>
+      <TouchableOpacity
+        accessibilityRole="button"
+        accessibilityLabel="Skip and explore the app on your own"
+        onPress={() => finishOnboarding()}
+        style={{ marginTop: 16, alignSelf: 'center', padding: 8 }}>
         <Text style={{ fontSize: 13, color: colors.textSecondary, textDecorationLine: 'underline' }}>
           Skip — explore on your own
         </Text>
       </TouchableOpacity>
-    </View>
+    </LinearGradient>
   );
 
   // V1: steps 12 (Soft Paywall), 13 (Reassurance), 14 (Hard Close) removed.
@@ -811,7 +929,9 @@ export default function OnboardingFlowScreen({ navigation }) {
   // RENDER
   // ══════════════════════════════════════════════════
   const showProgress = step >= 2 && step <= 12;
-  const showBack = step >= 2 && step <= 12;
+  // V1.2 — Back button hidden on the entry step when entering mid-flow (e.g.
+  // from the placeholder banner). User can't navigate to screens they never saw.
+  const showBack = step > entryStep && step <= 12;
   // V1.2 — Show "Skip" only on the 3 quiz screens (2-4). Skipping past birth-data
   // collection isn't allowed because the chart calc needs DOB; skipping the
   // quiz answers is fine because they're optional persona hints.
@@ -888,10 +1008,16 @@ const s = StyleSheet.create({
 
   // Hook (screen 1)
   hookGlow: { position: 'absolute', width: 300, height: 300, borderRadius: 150, backgroundColor: 'rgba(200,168,75,0.06)' },
-  hookPre: { fontSize: 32, color: T.gold, marginBottom: 20, opacity: 0.6 },
+  hookPre: { fontSize: 32, color: T.gold, marginBottom: 14, opacity: 0.6 },
+  // V1.2 — Hairline divider mirroring SplashScreen for Splash → Onboarding continuity.
+  hookHairline: { width: 36, height: 1, backgroundColor: 'rgba(92,36,52,0.35)', marginBottom: 22 },
   hookH1: { fontFamily: FONTS.serif, fontSize: 34, color: T.navy, textAlign: 'center', lineHeight: 46, marginBottom: 14 },
   hookSub: { fontSize: 15, fontFamily: FONTS.sansLight, color: T.stone, textAlign: 'center', lineHeight: 24, marginBottom: 8 },
   hookDisclaimer: { fontSize: 11, color: T.stone, marginTop: 16, opacity: 0.5 },
+  // V1.2 — Clay CTA matching SplashScreen exactly. Not gold-gradient: keeps Splash
+  // and Onboarding-step-1 visually identical so the transition feels like one screen.
+  heroCta: { width: 292, height: 56, borderRadius: 28, alignItems: 'center', justifyContent: 'center', backgroundColor: T.clay, shadowColor: '#000', shadowOffset: { width: 0, height: 6 }, shadowOpacity: 0.10, shadowRadius: 16, elevation: 4 },
+  heroCtaText: { fontFamily: FONTS.sansSemiBold, fontSize: 15, color: T.cream, letterSpacing: 0.4 },
 
   // Option cards
   optWrap: { gap: 10 },
@@ -939,21 +1065,20 @@ const s = StyleSheet.create({
   selectedCityText: { fontSize: 13, color: T.gold },
 
   // Calculating (screen 8)
-  calcGlow: { position: 'absolute', width: 280, height: 280, borderRadius: 140, backgroundColor: 'rgba(200,168,75,0.06)' },
-  calcOrbWrap: { marginBottom: 40 },
-  calcOrb: { width: 80, height: 80, borderRadius: 40, shadowColor: T.gold, shadowOffset: { width: 0, height: 0 }, shadowOpacity: 0.4, shadowRadius: 30 },
-  calcTitle: { fontFamily: FONTS.serif, fontSize: 26, color: T.navy, marginBottom: 14 },
+  // V1.2 — calcGlow + calcOrb removed. Light Liquid Glass: clay hairline anchors,
+  // clay-filling dots indicate progress.
+  calcTitle: { fontFamily: FONTS.serif, fontSize: 26, color: T.navy, textAlign: 'center', marginBottom: 14 },
   calcPhase: { fontSize: 14, fontFamily: FONTS.sansLight, color: T.stone, textAlign: 'center', marginBottom: 20, minHeight: 20 },
   calcDots: { flexDirection: 'row', gap: 8 },
   calcDot: { width: 6, height: 6, borderRadius: 3, backgroundColor: T.border },
-  calcDotOn: { backgroundColor: T.gold },
+  calcDotOn: { backgroundColor: T.clay },
 
-  // First Hit (screen 9)
-  hitGlow: { position: 'absolute', width: 340, height: 340, borderRadius: 170, backgroundColor: 'rgba(200,168,75,0.08)' },
-  hitPre: { fontSize: 13, fontFamily: FONTS.sansSemiBold, letterSpacing: 3, color: T.gold, marginBottom: 8 },
+  // First Hit (screen 9) — V1.2 Light Liquid Glass: hitGlow removed,
+  // hitPre + hitDivider rethemed gold → clay-burgundy for Splash continuity.
+  hitPre: { fontSize: 13, fontFamily: FONTS.sansSemiBold, letterSpacing: 3, color: T.clay, marginBottom: 8 },
   hitSign: { fontFamily: FONTS.serif, fontSize: 52, color: T.navy, marginBottom: 14 },
   hitTagline: { fontSize: 17, fontFamily: FONTS.serifItalic || FONTS.serif, fontStyle: 'italic', color: T.ink, textAlign: 'center', lineHeight: 26, paddingHorizontal: 16, marginBottom: 24 },
-  hitDivider: { width: 40, height: 1, backgroundColor: T.gold, marginBottom: 24, opacity: 0.4 },
+  hitDivider: { width: 40, height: 1, backgroundColor: 'rgba(92,36,52,0.35)', marginBottom: 24 },
   hitWhisper: { fontSize: 14, fontFamily: FONTS.sansLight, color: T.stone, textAlign: 'center', lineHeight: 22 },
 
   // Big Reveal (screen 10)

@@ -1,14 +1,17 @@
-import React, { useMemo, useState, useEffect } from 'react';
+import React, { useMemo, useState, useEffect, useCallback } from 'react';
 import { View, Text, ScrollView, TouchableOpacity, StyleSheet, Alert, Modal, Linking, Platform } from 'react-native';
+import { useFocusEffect } from '@react-navigation/native';
+import SetupRequiredState from '../components/SetupRequiredState';
 
 // V1 legal URLs — replace with hosted URLs before submission.
 // (See iOS-version/plan/04-privacy-policy.md and 05-terms-of-service.md.)
 const PRIVACY_URL = 'https://celestia.app/privacy';
 const TERMS_URL = 'https://celestia.app/terms';
 import { LinearGradient } from 'expo-linear-gradient';
+import Svg, { Path } from 'react-native-svg';
 import { T, FONTS } from '../constants/theme';
 import { useUserProfile } from '../contexts/UserProfileContext';
-import { loadObject, saveObject, StorageKeys } from '../services/storage';
+import { loadObject, saveObject, loadBoolean, StorageKeys } from '../services/storage';
 import { invalidatePersonaCache } from '../services/geminiService';
 import { useTheme } from '../contexts/ThemeContext';
 import { getStreakData, getStreakEmoji } from '../services/streakService';
@@ -24,6 +27,7 @@ import { getNotificationSettings, scheduleAllNotifications, cancelAllNotificatio
 import { generateNotificationContent, buildNotificationData } from '../services/notificationContentEngine';
 import { ForecastRepository } from '../services/database/rep_forecasts';
 import { ReportRepository } from '../services/database/rep_reports';
+import { loadDemoData } from '../services/database/demoData';
 import * as Notifications from 'expo-notifications';
 import { getCosmicSeason, getMoonDataForDate, getActiveCosmicWindows, calculateCosmicEnergy } from '../services/astrologyService';
 import { shareReferralLink, getReferralStats, getOrCreateReferralCode } from '../services/referralService';
@@ -45,7 +49,7 @@ const VOICE_OPTIONS = ['Poetic', 'Psychological', 'Direct', 'Reflective'];
 const DEPTH_OPTIONS = ['Beginner', 'Intermediate', 'Advanced'];
 
 export default function ProfileScreen({ navigation }) {
-  const { userProfile, setUserProfile } = useUserProfile();
+  const { userProfile, setUserProfile, reloadProfiles } = useUserProfile();
   const { deleteAccount } = useAuth();
   const { customerInfo, isPro, debugOverridePro, setDebugOverridePro } = useRevenueCat();
   const { preference: themePref, setThemePreference } = useTheme();
@@ -71,6 +75,19 @@ export default function ProfileScreen({ navigation }) {
   // Solves "where's my chart?" without showing astrology by default.
   const [bannerViews, setBannerViews] = useState(99);
   const [bannerDismissed, setBannerDismissed] = useState(false);
+  // V1.2 — Placeholder profile flag (set by × close button on onboarding).
+  // Re-read on focus so banner disappears the moment user fills real details.
+  const [isPlaceholderProfile, setIsPlaceholderProfile] = useState(false);
+  useFocusEffect(
+    useCallback(() => {
+      let mounted = true;
+      (async () => {
+        const v = await loadBoolean('celestia_profile_is_placeholder');
+        if (mounted) setIsPlaceholderProfile(v);
+      })();
+      return () => { mounted = false; };
+    }, [])
+  );
 
   useEffect(() => {
     (async () => {
@@ -294,13 +311,29 @@ export default function ProfileScreen({ navigation }) {
   const headingStyle = { color: colors.heading };
   const subStyle = { color: colors.textSecondary };
 
+  // V1.2 — Empty state when user skipped onboarding (placeholder profile).
+  if (isPlaceholderProfile) {
+    return (
+      <SetupRequiredState
+        subtitle={"Add your birth details to unlock your\nfull profile, chart, and reflections."}
+        onAddDetails={() => navigation.navigate('OnboardingFlow', { startAt: 6 })}
+      />
+    );
+  }
+
   return (
     <View style={{ flex: 1, backgroundColor: colors.bg }}>
       <ScrollView showsVerticalScrollIndicator={false}>
-        {/* Hero — V1.2 Light Liquid Glass: slate-cream signal wash, ink type. */}
-        <LinearGradient colors={['#F2EEE5', '#EFEADE', '#EBE5D5']} start={{ x: 0.3, y: 0 }} end={{ x: 0.7, y: 1 }} style={styles.hero}>
+        {/* Hero — V1.2: theme-aware. Light: slate-cream wash + ink type.
+            Dark: burgundy ramp + cream type. Avatar gradient is clay in both
+            modes (it's the brand mark, not a hero treatment). */}
+        <LinearGradient
+          colors={isDark ? colors.heroGradient : ['#F2EEE5', '#EFEADE', '#EBE5D5']}
+          start={{ x: 0.3, y: 0 }}
+          end={{ x: 0.7, y: 1 }}
+          style={styles.hero}>
           {showAstrology && (
-            <View style={styles.heroGlyph} accessibilityElementsHidden importantForAccessibility="no-hide-descendants"><Text style={{ fontFamily: FONTS.serif, fontSize: 128, color: 'rgba(92,36,52,0.06)' }}>{signGlyph}</Text></View>
+            <View style={styles.heroGlyph} accessibilityElementsHidden importantForAccessibility="no-hide-descendants"><Text style={{ fontFamily: FONTS.serif, fontSize: 128, color: isDark ? 'rgba(245,237,227,0.06)' : 'rgba(92,36,52,0.06)' }}>{signGlyph}</Text></View>
           )}
           <TouchableOpacity activeOpacity={0.8}
             accessibilityElementsHidden
@@ -309,8 +342,8 @@ export default function ProfileScreen({ navigation }) {
               <Text style={styles.avatarText}>{firstName[0]?.toUpperCase() || '✦'}</Text>
             </LinearGradient>
           </TouchableOpacity>
-          <Text style={styles.heroName} accessibilityRole="header">{name}</Text>
-          {birthInfo ? <Text style={styles.heroBirth}>{birthInfo}</Text> : null}
+          <Text style={[styles.heroName, { color: colors.heading }]} accessibilityRole="header">{name}</Text>
+          {birthInfo ? <Text style={[styles.heroBirth, { color: colors.textSecondary }]}>{birthInfo}</Text> : null}
           {/* V1 hybrid: sign badges hidden unless user opts in via Preferences */}
           {showAstrology && (
             <View style={styles.signsRow} accessibilityElementsHidden importantForAccessibility="no-hide-descendants">
@@ -327,18 +360,33 @@ export default function ProfileScreen({ navigation }) {
           {/* V1: Discovery banner — solves "where's my chart?" without showing
               astrology by default. Visible first 3 Profile visits when toggle is OFF. */}
           {showDiscoveryBanner && (
-            <View style={[{
-              backgroundColor: 'rgba(200,168,75,0.08)',
+            <View style={{
+              backgroundColor: isDark ? 'rgba(200,168,75,0.14)' : 'rgba(200,168,75,0.10)',
               borderRadius: 14, padding: 14, marginBottom: 14,
-              borderWidth: 1, borderColor: 'rgba(200,168,75,0.25)',
+              borderWidth: 1,
+              borderColor: isDark ? 'rgba(200,168,75,0.40)' : 'rgba(200,168,75,0.28)',
               flexDirection: 'row', alignItems: 'center', gap: 12,
-            }]}>
-              <Text style={{ fontSize: 22 }}>✦</Text>
+            }}>
+              {/* Sparkle badge — replaces the bare ✦ text glyph that rendered
+                  inconsistently across iOS/iPadOS (sometimes as a colored emoji,
+                  sometimes as a thin stroke). SVG path is theme-aware. */}
+              <View style={{
+                width: 36, height: 36, borderRadius: 18,
+                backgroundColor: isDark ? 'rgba(200,168,75,0.18)' : 'rgba(200,168,75,0.16)',
+                alignItems: 'center', justifyContent: 'center',
+              }}>
+                <Svg width={18} height={18} viewBox="0 0 24 24">
+                  <Path
+                    d="M12 1.5 L13.6 9.4 L21.5 11 L13.6 12.6 L12 20.5 L10.4 12.6 L2.5 11 L10.4 9.4 Z"
+                    fill={T.gold}
+                  />
+                </Svg>
+              </View>
               <View style={{ flex: 1 }}>
-                <Text style={[{ fontSize: 13, fontFamily: FONTS.sansSemiBold, color: T.gold, marginBottom: 2 }]}>
+                <Text style={{ fontSize: 13, fontFamily: FONTS.sansSemiBold, color: T.gold, marginBottom: 2 }}>
                   Want the deeper layer?
                 </Text>
-                <Text style={[{ fontSize: 11, color: T.stone, lineHeight: 16 }]}>
+                <Text style={{ fontSize: 11, color: colors.textSecondary, lineHeight: 16 }}>
                   Turn on details to unlock your full reading, chart, and Deep Readings reports.
                 </Text>
                 <TouchableOpacity
@@ -354,7 +402,7 @@ export default function ProfileScreen({ navigation }) {
                 hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
                 accessibilityRole="button"
                 accessibilityLabel="Dismiss banner">
-                <Text style={{ fontSize: 14, color: T.stone }} accessibilityElementsHidden importantForAccessibility="no-hide-descendants">×</Text>
+                <Text style={{ fontSize: 14, color: colors.textSecondary }} accessibilityElementsHidden importantForAccessibility="no-hide-descendants">×</Text>
               </TouchableOpacity>
             </View>
           )}
@@ -541,6 +589,54 @@ export default function ProfileScreen({ navigation }) {
             </TouchableOpacity>
           </View>
 
+          {/* V1.2 — Developer-only demo data loader. Gated behind __DEV__ so it
+              compiles out of EAS production builds (Apple never sees this). */}
+          {__DEV__ && (
+            <>
+              <Text accessibilityRole="header" style={[styles.secLbl, subStyle]}>DEVELOPER</Text>
+              <View style={[styles.settingsCard, cardStyle]}>
+                <TouchableOpacity
+                  style={[styles.prow, { borderBottomWidth: 0 }]}
+                  activeOpacity={0.7}
+                  accessibilityRole="button"
+                  accessibilityLabel="Fill demo data for screenshots. Replaces existing data with curated fixtures."
+                  onPress={() => Alert.alert(
+                    'Fill Demo Data',
+                    'This will replace your existing data with curated demo content for App Store screenshots:\n\n• 1 user profile (Sasha)\n• 3 Connections (partner, friend, parent)\n• 5 journal entries\n• 1 chat session\n\nThis cannot be undone.',
+                    [
+                      { text: 'Cancel', style: 'cancel' },
+                      {
+                        text: 'Fill',
+                        onPress: async () => {
+                          try {
+                            const result = await loadDemoData();
+                            // V1.2 — Force the UserProfileContext to re-read from
+                            // SQLite. Without this, the in-memory userProfile +
+                            // partnerProfiles state is stale (still the previous
+                            // user) and Splash routes to Main with old data.
+                            if (typeof reloadProfiles === 'function') {
+                              await reloadProfiles();
+                            }
+                            Alert.alert(
+                              'Demo Data Loaded',
+                              `Seeded ${result.connectionCount} connections, ${result.journalCount} journal entries, and 1 chat session.\n\nThe app will reload now.`,
+                              [{ text: 'OK', onPress: () => navigation.reset({ index: 0, routes: [{ name: 'Splash' }] }) }]
+                            );
+                          } catch (e) {
+                            Alert.alert('Error', e?.message || 'Demo data load failed. Check the console.');
+                          }
+                        },
+                      },
+                    ]
+                  )}>
+                  <View style={[styles.prowIcon, { backgroundColor: '#F0F4F8' }]} accessibilityElementsHidden importantForAccessibility="no-hide-descendants"><Text style={{ fontSize: 16 }}>{'✦'}</Text></View>
+                  <Text style={[styles.prowLabel, textStyle]}>Fill Demo Data</Text>
+                  <Text style={[styles.prowArr, subStyle]}>›</Text>
+                </TouchableOpacity>
+              </View>
+            </>
+          )}
+
           {/* App Data — Apple 5.1.1(v) requires data deletion */}
           <Text accessibilityRole="header" style={[styles.secLbl, subStyle]}>APP DATA</Text>
           <View style={[styles.settingsCard, cardStyle]}>
@@ -558,6 +654,14 @@ export default function ProfileScreen({ navigation }) {
                     onPress: async () => {
                       try {
                         await deleteAccount();
+                        // Force the React tree to re-read profiles from a now-
+                        // empty SQLite. Without this, UserProfileContext's
+                        // cached state still holds the old profile until the
+                        // next mount, which can briefly leak the old name /
+                        // avatar between the wipe and the navigation reset.
+                        if (typeof reloadProfiles === 'function') {
+                          try { await reloadProfiles(); } catch {}
+                        }
                         Alert.alert('App Data Reset', 'All local data has been cleared.', [
                           { text: 'OK', onPress: () => navigation.reset({ index: 0, routes: [{ name: 'Splash' }] }) },
                         ]);

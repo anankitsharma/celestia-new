@@ -1,4 +1,5 @@
 import { getDB } from './client';
+import { isForeignKeyError } from './sqliteHelpers';
 
 export const ForecastRepository = {
     getForecast: async (key) => {
@@ -17,12 +18,24 @@ export const ForecastRepository = {
 
     saveForecast: async (key, profileId, type, dateLabel, content, expiresAt) => {
         const db = await getDB();
-        await db.runAsync(
-            `INSERT OR REPLACE INTO forecasts (id, profile_id, type, date_label, content, created_at, expires_at)
-             VALUES (?, ?, ?, ?, ?, ?, ?);`,
-            [key, profileId, type, dateLabel, JSON.stringify(content), Date.now(), expiresAt]
-        );
-        console.log(`[SQLite] Saved forecast: ${key}`);
+        try {
+            await db.runAsync(
+                `INSERT OR REPLACE INTO forecasts (id, profile_id, type, date_label, content, created_at, expires_at)
+                 VALUES (?, ?, ?, ?, ?, ?, ?);`,
+                [key, profileId, type, dateLabel, JSON.stringify(content), Date.now(), expiresAt]
+            );
+            console.log(`[SQLite] Saved forecast: ${key}`);
+        } catch (e) {
+            // V1.2 — Swallow FK errors. Same rationale as ReportRepository.saveReport:
+            // a Gemini call resolved after the referenced profile was deleted (e.g.
+            // user removed a partner from Connections mid-call). The AI result has
+            // already been returned to the caller; dropping the cache write is fine.
+            if (isForeignKeyError(e)) {
+                console.warn(`[SQLite] saveForecast FK skipped (profile ${profileId} deleted): ${key}`);
+                return;
+            }
+            throw e;
+        }
     },
 
     pruneExpired: async () => {

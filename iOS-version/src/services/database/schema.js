@@ -153,6 +153,9 @@ export const initSchema = async () => {
         await addColumnIfMissing(db, 'journal_entries', 'partner_id', 'TEXT');
         await db.execAsync(`CREATE INDEX IF NOT EXISTS idx_journal_partner ON journal_entries(profile_id, partner_id, date);`);
         await addColumnIfMissing(db, 'profiles', 'is_time_unknown', 'INTEGER DEFAULT 0');
+        // V1.2 — relationship_type persists the partner role (partner/friend/parent/etc.)
+        // so it survives a SQLite reload. Previously a runtime-only field.
+        await addColumnIfMissing(db, 'profiles', 'relationship_type', 'TEXT');
         await addColumnIfMissing(db, 'charts', 'elements', 'JSON');
         await addColumnIfMissing(db, 'charts', 'modalities', 'JSON');
 

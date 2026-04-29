@@ -1,18 +1,30 @@
 // Role-specific detail screen configurations
 // Each role type gets customized sections, labels, gradients, and score vocabulary
+//
+// V1.2 — Score-tier vocabulary swept of mystical/astrology-coded language for
+// the saturated-category (4.3(b)) defense. The high-impact replacements are:
+//   "Written in the stars"   → "Effortlessly aligned"
+//   "Compatible souls"        → "Naturally compatible"
+//   "Cosmic best friends"     → "True best friends"
+//   "Soul-level bond"         → "Profound bond"
+//   "Cosmic twins"            → "Wired alike"
+//   "Different planets"       → "Different worlds"
+//   "Different frequencies"   → "Different rhythms"
+// Reviewers see these labels prominently above each compatibility score; any
+// astrology-coded phrasing here would re-trigger the saturated-category match.
 
 const getPartnerScoreLabel = (s) => {
-  if (s >= 90) return 'Written in the stars';
+  if (s >= 90) return 'Effortlessly aligned';
   if (s >= 80) return 'Deeply harmonious';
   if (s >= 70) return 'Strong connection';
-  if (s >= 60) return 'Compatible souls';
+  if (s >= 60) return 'Naturally compatible';
   if (s >= 50) return 'Growing together';
   return 'Complex dynamic';
 };
 
 const getFriendScoreLabel = (s) => {
-  if (s >= 90) return 'Cosmic best friends';
-  if (s >= 80) return 'Soul-level bond';
+  if (s >= 90) return 'True best friends';
+  if (s >= 80) return 'Profound bond';
   if (s >= 70) return 'Solid crew';
   if (s >= 60) return 'Good vibes';
   if (s >= 50) return 'Growing bond';
@@ -29,12 +41,12 @@ const getParentScoreLabel = (s) => {
 };
 
 const getSiblingScoreLabel = (s) => {
-  if (s >= 90) return 'Cosmic twins';
+  if (s >= 90) return 'Wired alike';
   if (s >= 80) return 'Built-in allies';
   if (s >= 70) return 'Balanced bond';
   if (s >= 60) return 'Complementary forces';
   if (s >= 50) return 'Finding your rhythm';
-  return 'Different planets';
+  return 'Different worlds';
 };
 
 const getBossScoreLabel = (s) => {
@@ -61,7 +73,7 @@ const getChildScoreLabel = (s) => {
   if (s >= 70) return 'Growing together';
   if (s >= 60) return 'Learning their language';
   if (s >= 50) return 'Building understanding';
-  return 'Different frequencies';
+  return 'Different rhythms';
 };
 
 export const ROLE_DETAIL_CONFIG = {

@@ -12,8 +12,8 @@
       "backgroundColor": "#FAF8F2"
     },
     "ios": {
-      "supportsTablet": false,
-      "bundleIdentifier": "com.celestia.app",
+      "supportsTablet": true,
+      "bundleIdentifier": "com.ask.celestia",
       "buildNumber": "1",
       "infoPlist": {
         "CFBundleDisplayName": "Celestia",
@@ -25,12 +25,12 @@
       "versionCode": 11,
       "adaptiveIcon": {
         "foregroundImage": "./assets/android-icon-foreground.png",
-        "backgroundColor": "#3A1A28"
+        "backgroundColor": "#FAF8F2"
       },
       "splash": {
         "image": "./assets/splash-icon.png",
         "resizeMode": "contain",
-        "backgroundColor": "#3A1A28"
+        "backgroundColor": "#FAF8F2"
       }
     },
     "scheme": "celestia",

@@ -4,7 +4,9 @@ import {
   ActivityIndicator, Modal, TextInput, Alert, Platform, StatusBar,
   Dimensions, Animated, Easing, BackHandler, Share, KeyboardAvoidingView
 } from 'react-native';
-import { useNavigation } from '@react-navigation/native';
+import { useNavigation, useFocusEffect, useRoute } from '@react-navigation/native';
+import SetupRequiredState from '../components/SetupRequiredState';
+import SimpleTimePicker from '../components/SimpleTimePicker';
 import { LinearGradient } from 'expo-linear-gradient';
 import Svg, { Circle } from 'react-native-svg';
 import DateTimePicker from '@react-native-community/datetimepicker';
@@ -242,12 +244,39 @@ const getQuickScore = (userChart, partner) => {
 
 export default function CompatibilityScreen() {
   const navigation = useNavigation();
+  const route = useRoute();
   const { isPro } = useRevenueCat();
   const { capture } = useAnalytics();
   const { colors, isDark } = useTheme();
 
   const { userProfile, partnerProfiles, addPartner, updatePartner, removePartner } = useUserProfile();
   const [selectedPartner, setSelectedPartner] = useState(null);
+  // V1.2 — Placeholder profile flag (set by × close button on onboarding).
+  // Re-read on focus so Connections re-enables the moment user fills real details.
+  const [isPlaceholderProfile, setIsPlaceholderProfile] = useState(false);
+  useFocusEffect(
+    useCallback(() => {
+      let mounted = true;
+      (async () => {
+        const v = await loadBoolean('celestia_profile_is_placeholder');
+        if (mounted) setIsPlaceholderProfile(v);
+      })();
+      return () => { mounted = false; };
+    }, [])
+  );
+
+  // Onboarding deep-link: when the user taps "Add Someone" on the final
+  // onboarding step, OnboardingFlowScreen navigates here with
+  // route.params.openAddPartner === true. Auto-open the modal once, then
+  // clear the param so back-navigation / re-focus doesn't re-open it.
+  useFocusEffect(
+    useCallback(() => {
+      if (route.params?.openAddPartner) {
+        setShowAddModal(true);
+        navigation.setParams({ openAddPartner: undefined });
+      }
+    }, [route.params?.openAddPartner, navigation])
+  );
 
   // V1 PDF plan §04: drift-alert tracking. Record when each partner was last
   // opened so HomeScreen Today can surface "you haven't reflected on X in N weeks".
@@ -310,6 +339,11 @@ export default function CompatibilityScreen() {
   const [deepenCitySearching, setDeepenCitySearching] = useState(false);
   const [deepenShowDatePicker, setDeepenShowDatePicker] = useState(false);
   const [deepenShowTimePicker, setDeepenShowTimePicker] = useState(false);
+  // Same uncontrolled-while-open pattern for the Deepen modal pickers.
+  const [pickerInitialDeepenDate, setPickerInitialDeepenDate] = useState(null);
+  const [pickerInitialDeepenTime, setPickerInitialDeepenTime] = useState(null);
+  const draftDeepenDateRef = useRef(null);
+  const draftDeepenTimeRef = useRef(null);
   const [deepenSaving, setDeepenSaving] = useState(false);
   const [successToast, setSuccessToast] = useState(null);
   const toastAnim = useRef(new Animated.Value(0)).current;
@@ -318,6 +352,15 @@ export default function CompatibilityScreen() {
   const [partnerName, setPartnerName] = useState('');
   const [partnerDate, setPartnerDate] = useState(null);
   const [partnerTime, setPartnerTime] = useState(null);
+  // Uncontrolled-while-open pattern for the partner date/time pickers — see
+  // the same comment in OnboardingFlowScreen.js. iOS UIDatePicker (wheels)
+  // snaps back to a default near 5:30 if `value` is reapplied during an
+  // active AM↔PM scroll, so we set the picker's `value` once on open and
+  // buffer subsequent changes in a ref, committing only on Done.
+  const [pickerInitialPartnerDate, setPickerInitialPartnerDate] = useState(null);
+  const [pickerInitialPartnerTime, setPickerInitialPartnerTime] = useState(null);
+  const draftPartnerDateRef = useRef(null);
+  const draftPartnerTimeRef = useRef(null);
   const [isTimeUnknown, setIsTimeUnknown] = useState(false);
   const [showDatePicker, setShowDatePicker] = useState(false);
   const [showTimePicker, setShowTimePicker] = useState(false);
@@ -830,23 +873,34 @@ export default function CompatibilityScreen() {
     })).filter(g => g.count > 0 || g.key === 'love');
   }, [groupedPartners]);
 
+  // V1.2 — Empty state when user skipped onboarding (placeholder profile).
+  // Compatibility math compares the user's chart against partner charts; with
+  // a placeholder DOB the comparison is meaningless. Block the entire screen
+  // until real details exist.
+  if (isPlaceholderProfile) {
+    return (
+      <SetupRequiredState
+        subtitle={"Add your birth details to compare patterns\nwith the people in your life."}
+        onAddDetails={() => navigation.navigate('OnboardingFlow', { startAt: 6 })}
+      />
+    );
+  }
+
   return (
     <View style={{ flex: 1, backgroundColor: colors.bg }}>
       {/* ─── MAIN CIRCLE VIEW ─── */}
       {!showDetailScreen && (
         <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 110 }}>
-          {/* Hero — V1.2 Light Liquid Glass: mauve-clay signal wash, ink type. */}
-          <LinearGradient colors={['#F4ECE5', '#F0E4DC', '#ECDCD3']} style={styles.hero}>
-            <Text style={styles.title}>Compatibility</Text>
+          {/* Hero — V1.2: theme-aware. Light: mauve-clay cream wash, ink type.
+              Dark: burgundy ramp from theme, cream type. */}
+          <LinearGradient colors={colors.heroGradient} style={styles.hero}>
+            <Text style={[styles.title, { color: colors.heading }]}>Compatibility</Text>
             <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 4, marginBottom: 4 }}>
-              <Text style={styles.sub}>
+              <Text style={[styles.sub, { color: colors.textSecondary }]}>
                 {partnerProfiles.length === 0 ? 'Check anyone — a crush, a friend, or a celebrity' : `${partnerProfiles.length} ${partnerProfiles.length === 1 ? 'person' : 'people'} in your circle`}
               </Text>
-              {/* V1.2 — Synastry tooltip removed. Default users don't need a
-                  "?" inviting them to learn astrology vocabulary. The subtitle
-                  carries the meaning. */}
             </View>
-            <TouchableOpacity style={styles.heroAddBtn} activeOpacity={0.7}
+            <TouchableOpacity style={[styles.heroAddBtn, { backgroundColor: colors.card, borderColor: isDark ? colors.border : 'rgba(92,36,52,0.18)' }]} activeOpacity={0.7}
               hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
               accessibilityRole="button"
               accessibilityLabel="Add someone"
@@ -854,7 +908,7 @@ export default function CompatibilityScreen() {
                 // V1: 3-partner free limit removed — all users unlimited adds.
                 setShowAddModal(true);
               }}>
-              <Text style={styles.heroAddBtnText}>+ Add Someone</Text>
+              <Text style={[styles.heroAddBtnText, { color: isDark ? colors.gold : T.clay }]}>+ Add Someone</Text>
             </TouchableOpacity>
           </LinearGradient>
 
@@ -1071,7 +1125,9 @@ export default function CompatibilityScreen() {
                 <View key={idx} style={[styles.ddAiCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
                   <Text style={[styles.ddSectionLbl, { color: colors.textSecondary }]}>{lbl.aiAnalysis}</Text>
                   <AstroText style={[styles.ddAiText, { color: colors.text }]} text={aiAnalysis} />
-                  {synastry.discepoloAnalysis?.isDestinySign && <View style={styles.destinyBadge}><Text style={styles.destinyBadgeText}>✦ DESTINY SIGN MATCH</Text></View>}
+                  {/* V1.2 — Gated. "Destiny Sign Match" uses banned word + astrology framing.
+                      Only show when user has explicitly opted into Discovery (showAstrology). */}
+                  {showAstrology && synastry.discepoloAnalysis?.isDestinySign && <View style={styles.destinyBadge}><Text style={styles.destinyBadgeText}>✦ DESTINY SIGN MATCH</Text></View>}
                 </View>
               );
 
@@ -1082,7 +1138,16 @@ export default function CompatibilityScreen() {
                   <View style={[styles.ddDimCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
                     {roleDims.map((d, i) => (
                       <View key={i} style={styles.dimRow}>
-                        <View style={styles.dimTop}><Text style={styles.dimIcon}>{d.icon}</Text><Text style={styles.dimLabel}>{d.label}</Text><Text style={styles.dimPct}>{d.pct}%</Text></View>
+                        {/* V1.2 — Planet glyphs (☽♀☿♄ etc.) gated behind Discovery toggle.
+                            Default surface uses a colored dot driven by d.color so the chip
+                            still has a visual anchor without leaking astrology vocabulary. */}
+                        <View style={styles.dimTop}>
+                          {showAstrology
+                            ? <Text style={styles.dimIcon}>{d.icon}</Text>
+                            : <View style={[styles.dimDot, { backgroundColor: d.color }]} />}
+                          <Text style={styles.dimLabel}>{d.label}</Text>
+                          <Text style={styles.dimPct}>{d.pct}%</Text>
+                        </View>
                         <View style={styles.dimTrack}><View style={[styles.dimFill, { width: `${d.pct}%`, backgroundColor: d.color }]} /></View>
                       </View>
                     ))}
@@ -1126,7 +1191,15 @@ export default function CompatibilityScreen() {
                     return (
                       <View key={i} style={[styles.ddAreaCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
                         <View style={styles.ddAreaHeader}>
-                          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>{dim && <Text style={{ fontSize: 14, color: dim.color }}>{dim.icon}</Text>}<Text style={[styles.ddAreaName, { color: colors.heading }]}>{dim?.label || key.charAt(0).toUpperCase() + key.slice(1)}</Text></View>
+                          {/* V1.2 — Same gate as dim chips above. The "RELATIONSHIP DYNAMICS"
+                              section header was leaking ☽ ♀ ☿ ♄ planet glyphs in default
+                              mode (Screenshot 6 audit). Now uses colored-dot fallback. */}
+                          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                            {dim && (showAstrology
+                              ? <Text style={{ fontSize: 14, color: dim.color }}>{dim.icon}</Text>
+                              : <View style={[styles.dimDot, { backgroundColor: dim.color }]} />)}
+                            <Text style={[styles.ddAreaName, { color: colors.heading }]}>{dim?.label || key.charAt(0).toUpperCase() + key.slice(1)}</Text>
+                          </View>
                           <Text style={styles.ddAreaScore}>{area.score}%</Text>
                         </View>
                         <View style={[styles.dimTrack, { marginBottom: 10 }]}><View style={[styles.dimFill, { width: `${area.score}%`, backgroundColor: dim?.color || T.gold }]} /></View>
@@ -1456,7 +1529,10 @@ export default function CompatibilityScreen() {
                 <View style={styles.ddChips}>
                   {roleDims.map((d, i) => (
                     <View key={i} style={[styles.ddChip, { borderColor: d.color + '40' }]}>
-                      <Text style={{ fontSize: 10, color: d.color }}>{d.icon}</Text>
+                      {/* V1.2 — Same gate as the dimRow icons above. */}
+                      {showAstrology
+                        ? <Text style={{ fontSize: 10, color: d.color }}>{d.icon}</Text>
+                        : <View style={[styles.dimDot, { backgroundColor: d.color }]} />}
                       <Text style={styles.ddChipLabel}>{d.label}</Text>
                       <Text style={[styles.ddChipVal, { color: d.color }]}>{d.pct}%</Text>
                     </View>
@@ -1642,20 +1718,33 @@ export default function CompatibilityScreen() {
                 <TouchableOpacity style={styles.input}
                   accessibilityRole="button"
                   accessibilityLabel={partnerDate ? `Birth date ${partnerDate.toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })}. Tap to ${showDatePicker ? 'collapse picker' : 'change'}.` : 'Select birth date'}
-                  onPress={() => { setShowTimePicker(false); setShowDatePicker(s => !s); }}>
+                  onPress={() => {
+                    setShowTimePicker(false);
+                    if (showDatePicker) {
+                      // Closing without Done — commit any pending draft.
+                      if (draftPartnerDateRef.current) setPartnerDate(draftPartnerDateRef.current);
+                      setShowDatePicker(false);
+                      return;
+                    }
+                    const seed = partnerDate || new Date(2000, 0, 1);
+                    draftPartnerDateRef.current = seed;
+                    setPickerInitialPartnerDate(seed);
+                    setShowDatePicker(true);
+                  }}>
                   <Text style={{ color: partnerDate ? T.navy : T.stone, fontFamily: FONTS.sansMedium }}>{partnerDate ? partnerDate.toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' }) : 'Select date'}</Text>
                 </TouchableOpacity>
                 <Text style={styles.fieldHint}>The only field we really need.</Text>
-                {/* V1.2 — Inline iOS picker with Done button. Tap field to expand,
-                    spin wheels (commits via onChange), tap Done to collapse. */}
+                {/* V1.2 — Inline iOS picker with Done button. `value` is set
+                    once on open; subsequent scrolls go to a ref so the
+                    native wheels picker doesn't get re-rendered mid-gesture. */}
                 {showDatePicker && (
                   <View style={styles.inlinePickerBox}>
                     <DateTimePicker
-                      value={partnerDate || new Date(2000, 0, 1)}
+                      value={pickerInitialPartnerDate || new Date(2000, 0, 1)}
                       mode="date"
                       display="spinner"
                       maximumDate={new Date()}
-                      onChange={(e, d) => { if (d) setPartnerDate(d); }}
+                      onChange={(e, d) => { if (d) draftPartnerDateRef.current = d; }}
                       themeVariant="light"
                       style={{ height: 200 }}
                     />
@@ -1664,7 +1753,10 @@ export default function CompatibilityScreen() {
                       activeOpacity={0.7}
                       accessibilityRole="button"
                       accessibilityLabel="Done"
-                      onPress={() => setShowDatePicker(false)}>
+                      onPress={() => {
+                        if (draftPartnerDateRef.current) setPartnerDate(draftPartnerDateRef.current);
+                        setShowDatePicker(false);
+                      }}>
                       <Text style={styles.pickerDoneText}>Done</Text>
                     </TouchableOpacity>
                   </View>
@@ -1678,27 +1770,35 @@ export default function CompatibilityScreen() {
                   onPress={() => {
                     if (isTimeUnknown) return;
                     setShowDatePicker(false);
-                    setShowTimePicker(s => !s);
+                    if (showTimePicker) {
+                      // Closing without Done — commit any pending draft.
+                      if (draftPartnerTimeRef.current) setPartnerTime(draftPartnerTimeRef.current);
+                      setShowTimePicker(false);
+                      return;
+                    }
+                    const seed = partnerTime || new Date(2000, 0, 1, 10, 0);
+                    draftPartnerTimeRef.current = seed;
+                    setPickerInitialPartnerTime(seed);
+                    setShowTimePicker(true);
                   }}>
                   <Text style={{ color: (isTimeUnknown || partnerTime) ? T.navy : T.stone, fontFamily: FONTS.sansMedium }}>{isTimeUnknown ? 'Unknown' : (partnerTime ? partnerTime.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' }) : 'Select time')}</Text>
                 </TouchableOpacity>
                 <Text style={styles.fieldHint}>Adds nuance to their emotional rhythm — skip if unknown.</Text>
                 {showTimePicker && (
                   <View style={styles.inlinePickerBox}>
-                    <DateTimePicker
-                      value={partnerTime || new Date(2000, 0, 1, 12, 0)}
-                      mode="time"
-                      display="spinner"
-                      onChange={(e, t) => { if (t) setPartnerTime(t); }}
-                      themeVariant="light"
-                      style={{ height: 180 }}
+                    <SimpleTimePicker
+                      value={pickerInitialPartnerTime || new Date(2000, 0, 1, 10, 0)}
+                      onChange={(d) => { draftPartnerTimeRef.current = d; }}
                     />
                     <TouchableOpacity
                       style={styles.pickerDoneBtn}
                       activeOpacity={0.7}
                       accessibilityRole="button"
                       accessibilityLabel="Done"
-                      onPress={() => setShowTimePicker(false)}>
+                      onPress={() => {
+                        if (draftPartnerTimeRef.current) setPartnerTime(draftPartnerTimeRef.current);
+                        setShowTimePicker(false);
+                      }}>
                       <Text style={styles.pickerDoneText}>Done</Text>
                     </TouchableOpacity>
                   </View>
@@ -1817,10 +1917,50 @@ export default function CompatibilityScreen() {
                 <TouchableOpacity style={styles.input}
                   accessibilityRole="button"
                   accessibilityLabel={deepenDate ? `Birth date ${deepenDate.toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })}` : 'Select birth date'}
-                  onPress={() => setDeepenShowDatePicker(true)}>
+                  onPress={() => {
+                    if (deepenShowDatePicker) {
+                      if (draftDeepenDateRef.current) setDeepenDate(draftDeepenDateRef.current);
+                      setDeepenShowDatePicker(false);
+                      return;
+                    }
+                    const seed = deepenDate || new Date(2000, 0, 1);
+                    draftDeepenDateRef.current = seed;
+                    setPickerInitialDeepenDate(seed);
+                    setDeepenShowDatePicker(true);
+                  }}>
                   <Text style={{ color: deepenDate ? T.navy : T.stone, fontFamily: FONTS.sansMedium }}>{deepenDate ? deepenDate.toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' }) : 'Select date'}</Text>
                 </TouchableOpacity>
-                {deepenShowDatePicker && <DateTimePicker value={deepenDate || new Date(2000, 0, 1)} mode="date" display={Platform.OS === 'ios' ? 'spinner' : 'default'} maximumDate={new Date()} onChange={(e, d) => { setDeepenShowDatePicker(Platform.OS === 'ios'); if (d) setDeepenDate(d); }} />}
+                {deepenShowDatePicker && (
+                  <View style={styles.inlinePickerBox}>
+                    <DateTimePicker
+                      value={pickerInitialDeepenDate || new Date(2000, 0, 1)}
+                      mode="date"
+                      display={Platform.OS === 'ios' ? 'spinner' : 'default'}
+                      maximumDate={new Date()}
+                      onChange={(e, d) => {
+                        if (Platform.OS === 'android') {
+                          setDeepenShowDatePicker(false);
+                          if (d && e?.type === 'set') setDeepenDate(d);
+                          return;
+                        }
+                        if (d) draftDeepenDateRef.current = d;
+                      }}
+                      themeVariant="light"
+                      style={{ height: Platform.OS === 'ios' ? 200 : undefined }}
+                    />
+                    {Platform.OS === 'ios' && (
+                      <TouchableOpacity style={styles.pickerDoneBtn} activeOpacity={0.7}
+                        accessibilityRole="button"
+                        accessibilityLabel="Done"
+                        onPress={() => {
+                          if (draftDeepenDateRef.current) setDeepenDate(draftDeepenDateRef.current);
+                          setDeepenShowDatePicker(false);
+                        }}>
+                        <Text style={styles.pickerDoneText}>Done</Text>
+                      </TouchableOpacity>
+                    )}
+                  </View>
+                )}
               </>
             )}
 
@@ -1830,10 +1970,39 @@ export default function CompatibilityScreen() {
               accessibilityRole="button"
               accessibilityLabel={deepenTimeUnknown ? 'Birth time unknown' : (deepenTime ? `Birth time ${deepenTime.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })}` : 'Select birth time')}
               accessibilityState={{ disabled: !!deepenTimeUnknown }}
-              onPress={() => !deepenTimeUnknown && setDeepenShowTimePicker(true)}>
+              onPress={() => {
+                if (deepenTimeUnknown) return;
+                if (deepenShowTimePicker) {
+                  if (draftDeepenTimeRef.current) setDeepenTime(draftDeepenTimeRef.current);
+                  setDeepenShowTimePicker(false);
+                  return;
+                }
+                const seed = deepenTime || new Date(2000, 0, 1, 10, 0);
+                draftDeepenTimeRef.current = seed;
+                setPickerInitialDeepenTime(seed);
+                setDeepenShowTimePicker(true);
+              }}>
               <Text style={{ color: (deepenTimeUnknown || deepenTime) ? T.navy : T.stone, fontFamily: FONTS.sansMedium }}>{deepenTimeUnknown ? 'Unknown' : (deepenTime ? deepenTime.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' }) : 'Select time')}</Text>
             </TouchableOpacity>
-            {deepenShowTimePicker && <DateTimePicker value={deepenTime || new Date(2000, 0, 1, 12, 0)} mode="time" display={Platform.OS === 'ios' ? 'spinner' : 'default'} onChange={(e, t) => { setDeepenShowTimePicker(Platform.OS === 'ios'); if (t) setDeepenTime(t); }} />}
+            {deepenShowTimePicker && (
+              <View style={styles.inlinePickerBox}>
+                <SimpleTimePicker
+                  value={pickerInitialDeepenTime || new Date(2000, 0, 1, 10, 0)}
+                  onChange={(d) => { draftDeepenTimeRef.current = d; }}
+                />
+                {Platform.OS === 'ios' && (
+                  <TouchableOpacity style={styles.pickerDoneBtn} activeOpacity={0.7}
+                    accessibilityRole="button"
+                    accessibilityLabel="Done"
+                    onPress={() => {
+                      if (draftDeepenTimeRef.current) setDeepenTime(draftDeepenTimeRef.current);
+                      setDeepenShowTimePicker(false);
+                    }}>
+                    <Text style={styles.pickerDoneText}>Done</Text>
+                  </TouchableOpacity>
+                )}
+              </View>
+            )}
             <TouchableOpacity style={styles.checkRow}
               accessibilityRole="checkbox"
               accessibilityLabel="I don't know the exact birth time"
@@ -2051,6 +2220,9 @@ const styles = StyleSheet.create({
   dimRow: { gap: 4 },
   dimTop: { flexDirection: 'row', alignItems: 'center', gap: 5 },
   dimIcon: { fontSize: 12, width: 18 },
+  // V1.2 — Replaces the planet glyph as the dim-row visual anchor when
+  // showAstrology is OFF. 8×8 colored dot, same color as the dim's progress bar.
+  dimDot: { width: 8, height: 8, borderRadius: 4, marginRight: 2 },
   dimLabel: { fontSize: 12, color: T.ink, fontFamily: FONTS.sansMedium, flex: 1 },
   dimPct: { fontSize: 12, color: T.clay, fontFamily: FONTS.sansSemiBold },
   dimTrack: { flex: 1, height: 5, backgroundColor: 'rgba(42,36,24,0.06)', borderRadius: 3, overflow: 'hidden' },
