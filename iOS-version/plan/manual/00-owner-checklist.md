@@ -129,24 +129,36 @@ If any item fails, send me the symptom and I'll patch in minutes.
 
 ---
 
-## 5. Host Privacy Policy + Terms publicly
+## 5. Host Privacy Policy + Terms (and the supporting legal pages) publicly
 
 `src/screens/ProfileScreen.js` references `https://celestia.app/privacy` and `/terms`. Both URLs must return a real page in incognito before submission. Apple **hard-rejects** apps where the Privacy URL 404s.
 
+The legal pages were rewritten this round to reflect the current v1 build (no PostHog, no IAP, no auth) and live in `iOS-version/plan/privacy/`:
+
+| File | Suggested URL | Required by |
+|---|---|---|
+| `privacy-policy.md` | `/privacy` | Apple 5.1.1 — **mandatory** |
+| `terms-of-service.md` | `/terms` | App self-protection — **strongly recommended** |
+| `data-deletion.md` | `/delete-data` | Apple 5.1.1(v) — **mandatory** |
+| `ai-disclaimer.md` | `/ai-disclaimer` | 4.3 / 5.5 defense — recommended |
+| `eula.md` | `/eula` | Only needed if you upload a Custom EULA in ASC; for v1, **keep Apple's Standard EULA** and skip this |
+| `index.md` | `/legal` | Optional landing page |
+
 ### Steps
 
-1. Open `iOS-version/plan/04-privacy-policy.md` and `05-terms-of-service.md`
-2. Substitute placeholders:
+1. Open the files in `iOS-version/plan/privacy/`. Read `README.md` first — it lists every substitution.
+2. Substitute placeholders across the 5 files (find-and-replace is fastest):
    - `[YOUR LEGAL ENTITY / YOUR NAME]` → your actual entity
-   - `[COUNTRY]` / `[YOUR COUNTRY / STATE]` → jurisdiction
+   - `[YOUR COUNTRY]` / `[YOUR COUNTRY / STATE]` → jurisdiction
    - `[INSERT DATE BEFORE PUBLISHING]` → today's ISO date (`2026-MM-DD`)
    - `support@celestia.app` → your real support email (or keep this if it's monitored)
-3. **Remove the PostHog references** in §3.2 of the Privacy Policy + the row in §4 (PostHog is no longer in the build)
+   - `https://celestia.app/...` → wherever you host
+3. **Delete each file's "Editor's notes" block** before publishing (the section starts with `## Editor's notes (delete this entire block before publishing)`).
 4. Pick a host (free options):
    - **GitHub Pages** (free, custom domain optional)
    - **Notion publish-to-web** (free, ugly URL but works)
-   - **Vercel** static site (free, custom domain free)
-5. Verify both URLs return 200 OK in incognito
+   - **Vercel / Cloudflare Pages** static site (free, custom domain free)
+5. Verify both `/privacy` and `/terms` return 200 OK in incognito. Verify `/delete-data` is reachable too — you'll paste its URL into ASC's Account Deletion field in step 7.
 6. If hosting at a different domain, update the constants in `src/screens/ProfileScreen.js`:
    ```js
    const PRIVACY_URL = 'https://your-actual-host/privacy';
@@ -230,9 +242,11 @@ Open `iOS-version/plan/Narrative-ASO/Storefront.md` — every field is paste-rea
 | Age rating | 17+ (run questionnaire to produce) |
 | Pricing | Free · all territories |
 | What's New | block in `Storefront.md` §6 |
-| Privacy Policy URL | `https://celestia.app/privacy` (whatever you host at) |
+| Privacy Policy URL | `https://celestia.app/privacy` (whatever you host at — see Step 5) |
+| Account Deletion URL | `https://celestia.app/delete-data` (from Step 5) — fills Apple 5.1.1(v) |
 | Support URL | `https://celestia.app/support` or `mailto:support@celestia.app` |
 | Marketing URL (optional) | `https://celestia.app` |
+| License Agreement | Keep at **Standard EULA** for v1 (only switch to custom if you upload `eula.md` in Step 5) |
 
 ### App Review Information (the message to the reviewer)
 

@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, useCallback } from 'react';
 import {
   View, Text, ScrollView, TouchableOpacity, StyleSheet,
   TextInput, Platform, ActivityIndicator, Keyboard, Share, Alert, BackHandler,
@@ -21,7 +21,8 @@ import { completeQuestAction } from '../services/questService';
 import { getActiveCosmicWindows, getMoonDataForDate } from '../services/astrologyService';
 import { getNarrativeContext } from '../services/narrativeService';
 import { useRevenueCat } from '../contexts/RevenueCatContext';
-import { useNavigation } from '@react-navigation/native';
+import { useNavigation, useFocusEffect } from '@react-navigation/native';
+import SetupRequiredState from '../components/SetupRequiredState';
 import { useAnalytics, EVENTS } from '../services/analytics';
 import { X } from 'lucide-react-native';
 
@@ -64,10 +65,13 @@ const Q_AFTER_LOVE = [
 ];
 
 const Q_AFTER_CAREER = [
-  "Is this year good for a career change?",
+  // V1.2 — Softened from forecast-coded ("Is this year good for…", "When will
+  // things start clicking…") to reflective career questions that don't read
+  // as fortune-telling.
+  "Is now the right moment for a career change?",
   "What's blocking my success right now?",
   "Am I in the right field for who I am?",
-  "When will things start clicking professionally?",
+  "What's making professional progress feel slow?",
   "What's my real career direction?",
 ];
 
@@ -80,11 +84,14 @@ const Q_AFTER_SELF = [
 ];
 
 const Q_AFTER_TRANSIT = [
-  "How long will this last?",
-  "What should I do differently right now?",
-  "Is this affecting my relationships too?",
-  "When does this shift?",
-  "What's coming up that I should know about?",
+  // V1.2 — Rewritten from fortune-telling-coded ("How long will this last?",
+  // "When does this shift?", "What's coming up?") to today/now reflective
+  // prompts that match the "Today's Energy" theme without forecasting.
+  "Where is this showing up most for me?",
+  "What do I want to do differently today?",
+  "How is this showing up in my relationships?",
+  "What needs to shift in me?",
+  "What pattern am I noticing this week?",
 ];
 
 const Q_GENERIC_FOLLOWUP = [
@@ -282,7 +289,8 @@ const CHAT_THEMES = [
   { key: 'love', label: 'Love', icon: '♡' },
   { key: 'career', label: 'Career', icon: '◆' },
   { key: 'growth', label: 'Growth', icon: '🌱' },
-  { key: 'today', label: "Today's Energy", icon: '☉' },
+  // V1.2 — Replaced ☉ (Sun glyph, astrology) with ☀️ emoji.
+  { key: 'today', label: "Today's Energy", icon: '☀️' },
 ];
 
 // V1.2 — Apple compliance constants for AI chat (App Review 1.2 / 1.4.1 / 5.1.2(i)).
@@ -355,6 +363,19 @@ export default function ChatScreen({ navigation, route }) {
   const [showConsent, setShowConsent] = useState(false);
   const [consentChecked, setConsentChecked] = useState(false);
   const [showFirstSendNotice, setShowFirstSendNotice] = useState(false);
+  // V1.2 — Placeholder profile flag (set by × close button on onboarding).
+  // Re-read on focus so chat re-enables the moment user fills real details.
+  const [isPlaceholderProfile, setIsPlaceholderProfile] = useState(false);
+  useFocusEffect(
+    useCallback(() => {
+      let mounted = true;
+      (async () => {
+        const v = await loadBoolean('celestia_profile_is_placeholder');
+        if (mounted) setIsPlaceholderProfile(v);
+      })();
+      return () => { mounted = false; };
+    }, [])
+  );
 
   // Load consent + first-send-notice flags on mount. If either is unset,
   // we present them at the appropriate moment.
@@ -769,6 +790,19 @@ export default function ChatScreen({ navigation, route }) {
       setSending(false);
     }
   };
+
+  // V1.2 — Empty state when user skipped onboarding (placeholder profile).
+  // The chat itself depends on a real chart for the persona prompt; rendering
+  // the chat with placeholder DOB would mean the AI's "knows you" framing
+  // refers to Friend/Jan-1-1990, which is misleading.
+  if (isPlaceholderProfile) {
+    return (
+      <SetupRequiredState
+        subtitle={"Add your birth details so Celestia can chat\nwith you in your voice."}
+        onAddDetails={() => navigation.navigate('OnboardingFlow', { startAt: 6 })}
+      />
+    );
+  }
 
   return (
     <View

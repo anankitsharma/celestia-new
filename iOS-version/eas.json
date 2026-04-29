@@ -16,6 +16,12 @@
         }
     },
     "submit": {
-        "production": {}
+        "production": {
+            "ios": {
+                "appleId": "nandinipalakodeti0@gmail.com",
+                "ascAppId": "6757995238",
+                "bundleIdentifier": "com.ask.celestia"
+            }
+        }
     }
 }

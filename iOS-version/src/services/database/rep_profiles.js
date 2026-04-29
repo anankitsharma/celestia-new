@@ -6,8 +6,8 @@ export const ProfileRepository = {
         try {
             await db.withTransactionAsync(async () => {
                 await db.runAsync(
-                    `INSERT OR REPLACE INTO profiles (id, name, type, gender, birth_date, birth_time, lat, lng, location_name, is_time_unknown, created_at)
-                     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);`,
+                    `INSERT OR REPLACE INTO profiles (id, name, type, gender, birth_date, birth_time, lat, lng, location_name, is_time_unknown, relationship_type, created_at)
+                     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);`,
                     [
                         profile.id,
                         profile.name,
@@ -19,6 +19,7 @@ export const ProfileRepository = {
                         profile.birthLocation.lng,
                         profile.birthLocation.name,
                         profile.isTimeUnknown ? 1 : 0,
+                        profile.relationshipType || null,
                         Date.now()
                     ]
                 );
@@ -66,6 +67,10 @@ export const ProfileRepository = {
             birthTime: row.birth_time,
             birthLocation: { name: row.location_name, lat: row.lat, lng: row.lng },
             isTimeUnknown: row.is_time_unknown === 1,
+            relationshipType: row.relationship_type || undefined,
+            // V1.2 — Expose created_at as createdAt so HomeScreen drift-alert
+            // math has a real timestamp for partners added without a manual touch.
+            createdAt: row.created_at || null,
             chart: row.planets ? {
                 planets: JSON.parse(row.planets),
                 aspects: JSON.parse(row.aspects),
@@ -95,6 +100,10 @@ export const ProfileRepository = {
             birthTime: row.birth_time,
             birthLocation: { name: row.location_name, lat: row.lat, lng: row.lng },
             isTimeUnknown: row.is_time_unknown === 1,
+            relationshipType: row.relationship_type || undefined,
+            // V1.2 — Expose created_at as createdAt so HomeScreen drift-alert
+            // math has a real timestamp for partners added without a manual touch.
+            createdAt: row.created_at || null,
             chart: row.planets ? {
                 planets: JSON.parse(row.planets),
                 aspects: JSON.parse(row.aspects),
