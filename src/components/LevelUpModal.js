@@ -41,7 +41,7 @@ export default function LevelUpModal({ visible, levelName, totalXP, onDismiss, o
     <Modal visible={visible} animationType="fade" transparent>
       <View style={s.overlay}>
         <Animated.View style={[s.card, { opacity: opacityAnim, transform: [{ scale: scaleAnim }] }]}>
-          <LinearGradient colors={['#1E1840', '#0E0E22']} style={s.gradient}>
+          <LinearGradient colors={['#5A2840', '#3A1A28']} style={s.gradient}>
             <Animated.View style={[s.glowRing, { opacity: glowAnim }]} />
 
             <Text style={s.label}>LEVEL UP</Text>

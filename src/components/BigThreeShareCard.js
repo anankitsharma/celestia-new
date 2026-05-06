@@ -16,7 +16,7 @@ export default function BigThreeShareCard({ name, sun, moon, rising, archetype, 
 
   return (
     <View ref={innerRef} collapsable={false} style={s.outer}>
-      <LinearGradient colors={['#0E0E22', '#1A1060', '#0C2040']} style={s.card}>
+      <LinearGradient colors={['#3A1A28', '#1A1060', '#0C2040']} style={s.card}>
         <Text style={s.label}>MY BIRTH CHART</Text>
         <Text style={s.name}>{name || 'Stargazer'}</Text>
 

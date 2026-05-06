@@ -7,10 +7,10 @@ import { ShareWatermark } from './ShareCard';
 export default function StreakShareCard({ streak, emoji, message, innerRef }) {
   return (
     <View ref={innerRef} collapsable={false} style={s.outer}>
-      <LinearGradient colors={['#0E0E22', '#1A1535', '#0F1628']} style={s.card}>
+      <LinearGradient colors={['#5A2840', '#3A1A28', '#1F0F18']} style={s.card}>
         <Text style={s.emoji}>{emoji}</Text>
         <Text style={s.streak}>{streak}</Text>
-        <Text style={s.days}>days of cosmic alignment</Text>
+        <Text style={s.days}>days in a row</Text>
         {message && <Text style={s.message}>{message}</Text>}
         <ShareWatermark />
       </LinearGradient>

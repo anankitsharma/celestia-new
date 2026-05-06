@@ -66,7 +66,7 @@ const getChildScoreLabel = (s) => {
 
 export const ROLE_DETAIL_CONFIG = {
   partner: {
-    heroGradient: ['#0E0E22', '#1E1228', '#14101E'],
+    heroGradient: ['#3A1A28', '#5A2840', '#3A1A28'],
     getScoreLabel: getPartnerScoreLabel,
     sectionOrder: [
       'aiAnalysis',
@@ -93,7 +93,7 @@ export const ROLE_DETAIL_CONFIG = {
   },
 
   friend: {
-    heroGradient: ['#0E0E22', '#160E28', '#0E1628'],
+    heroGradient: ['#3A1A28', '#3A1A28', '#3A1A28'],
     getScoreLabel: getFriendScoreLabel,
     sectionOrder: [
       'aiAnalysis',
@@ -120,7 +120,7 @@ export const ROLE_DETAIL_CONFIG = {
   },
 
   parent: {
-    heroGradient: ['#0E0E22', '#1A1510', '#14101E'],
+    heroGradient: ['#3A1A28', '#3A1A28', '#3A1A28'],
     getScoreLabel: getParentScoreLabel,
     sectionOrder: [
       'aiAnalysis',
@@ -147,7 +147,7 @@ export const ROLE_DETAIL_CONFIG = {
   },
 
   sibling: {
-    heroGradient: ['#0E0E22', '#1A1208', '#14101E'],
+    heroGradient: ['#3A1A28', '#3A1A28', '#3A1A28'],
     getScoreLabel: getSiblingScoreLabel,
     sectionOrder: [
       'aiAnalysis',
@@ -173,7 +173,7 @@ export const ROLE_DETAIL_CONFIG = {
   },
 
   boss: {
-    heroGradient: ['#0E0E22', '#0A1520', '#0E1628'],
+    heroGradient: ['#3A1A28', '#1F0F18', '#3A1A28'],
     getScoreLabel: getBossScoreLabel,
     sectionOrder: [
       'aiAnalysis',
@@ -199,7 +199,7 @@ export const ROLE_DETAIL_CONFIG = {
   },
 
   colleague: {
-    heroGradient: ['#0E0E22', '#0A1520', '#0E1628'],
+    heroGradient: ['#3A1A28', '#1F0F18', '#3A1A28'],
     getScoreLabel: getColleagueScoreLabel,
     sectionOrder: [
       'aiAnalysis',
@@ -225,7 +225,7 @@ export const ROLE_DETAIL_CONFIG = {
   },
 
   child: {
-    heroGradient: ['#0E0E22', '#0E1A14', '#14101E'],
+    heroGradient: ['#3A1A28', '#1F0F18', '#3A1A28'],
     getScoreLabel: getChildScoreLabel,
     sectionOrder: [
       'aiAnalysis',
@@ -251,7 +251,7 @@ export const ROLE_DETAIL_CONFIG = {
   },
 
   other: {
-    heroGradient: ['#0E0E22', '#1A1228', '#14101E'],
+    heroGradient: ['#3A1A28', '#5A2840', '#3A1A28'],
     getScoreLabel: getPartnerScoreLabel,
     sectionOrder: [
       'aiAnalysis',

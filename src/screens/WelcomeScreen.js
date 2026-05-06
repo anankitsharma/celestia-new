@@ -1,11 +1,17 @@
 import React, { useEffect, useRef, useState, useMemo } from 'react';
-import { View, Text, TouchableOpacity, StyleSheet, Animated, Easing, ScrollView } from 'react-native';
+import { View, Text, TouchableOpacity, StyleSheet, Animated, Easing, ScrollView, Share } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { T, FONTS } from '../constants/theme';
 import Stars from '../components/Stars';
 import ChartWheel from '../components/ChartWheel';
 import { useUserProfile } from '../contexts/UserProfileContext';
 import { useTheme } from '../contexts/ThemeContext';
+import { useAnalytics, EVENTS } from '../services/analytics';
+import { haptic } from '../services/hapticService';
+import { requestNotificationPermission, hasNotificationPermission, scheduleAllNotifications } from '../services/notificationService';
+import NotificationPermissionModal from '../components/NotificationPermissionModal';
+import { saveBoolean, loadBoolean, saveString, StorageKeys } from '../services/storage';
+import { getComboRarity } from '../services/cosmicIdentityService';
 
 // Deeply specific placement statements — these feel personal, not generic
 const MOON_HOUSE_INSIGHTS = {
@@ -70,6 +76,7 @@ function getElement(sign) {
 export default function WelcomeScreen({ navigation }) {
   const { colors, isDark } = useTheme();
   const { userProfile } = useUserProfile();
+  const { capture } = useAnalytics();
   const chart = userProfile?.chart;
   const firstName = userProfile?.name?.split(' ')[0] || 'Stargazer';
   const sun = chart?.planets?.find(p => p.name === 'Sun');
@@ -125,6 +132,12 @@ export default function WelcomeScreen({ navigation }) {
   const revealSlide1 = useRef(new Animated.Value(16)).current;
   const revealSlide2 = useRef(new Animated.Value(16)).current;
   const ctaFade = useRef(new Animated.Value(0)).current;
+  // Subtle gold-shimmer pulse on the wheel when CTA appears (celebration moment)
+  const wheelShimmer = useRef(new Animated.Value(0)).current;
+
+  // Permission modal state — shown once when user first chooses a CTA
+  const [showNotifModal, setShowNotifModal] = useState(false);
+  const pendingNavRef = useRef(null);
 
   useEffect(() => {
     Animated.loop(
@@ -147,8 +160,101 @@ export default function WelcomeScreen({ navigation }) {
       Animated.timing(reveal2, { toValue: 1, duration: 500, delay: 2000, useNativeDriver: true }),
       Animated.timing(revealSlide2, { toValue: 0, duration: 500, delay: 2000, useNativeDriver: true }),
     ]).start();
-    Animated.timing(ctaFade, { toValue: 1, duration: 400, delay: 2600, useNativeDriver: true }).start();
+    Animated.timing(ctaFade, { toValue: 1, duration: 400, delay: 2600, useNativeDriver: true }).start(() => {
+      // Celebration moment — subtle gold shimmer pulse over the wheel + soft haptic
+      try { haptic.success(); } catch {}
+      Animated.sequence([
+        Animated.timing(wheelShimmer, { toValue: 1, duration: 800, easing: Easing.out(Easing.ease), useNativeDriver: true }),
+        Animated.timing(wheelShimmer, { toValue: 0, duration: 1200, easing: Easing.in(Easing.ease), useNativeDriver: true }),
+      ]).start();
+      capture(EVENTS.POST_CHART_CTA_SHOWN, {
+        has_first_reveal: !!revealStatements[0],
+        first_reveal_label: revealStatements[0]?.label || null,
+      });
+    });
+
+    // Analytics — fires once when the chart-reveal screen mounts
+    capture(EVENTS.CHART_REVEALED, {
+      sun_sign: sun?.sign || null,
+      moon_sign: moon?.sign || null,
+      rising_sign: rising?.sign || null,
+      venus_sign: venus?.sign || null,
+      has_birth_time: !userProfile?.isTimeUnknown,
+    });
+
+    // Persist the first reveal statement so the D1 morning push can reference
+    // exactly what the user just learned. Closes the activation funnel.
+    try {
+      const first = revealStatements[0];
+      if (first?.text) {
+        saveString(StorageKeys.FIRST_REVEAL_STATEMENT, first.text);
+      }
+    } catch {}
   }, []);
+
+  // The pre-filled chat question — picks up from the strongest reveal statement
+  // the user just read. Stays in psychological frame (no astro jargon in the
+  // visible string), but uses the actual chart-derived statement so it never
+  // feels generic.
+  const prefilledChatMessage = useMemo(() => {
+    const stmt = revealStatements[0];
+    if (!stmt) return "Tell me what's most surprising about my chart.";
+    // Strip surrounding quotes if any, then wrap once cleanly
+    const text = (stmt.text || '').trim().replace(/^["'""]|["'""]$/g, '');
+    return `Tell me more about this — "${text}"`;
+  }, [revealStatements]);
+
+  // Handle a CTA tap: ask for notification permission once (peak motivation),
+  // then navigate to the requested target.
+  const handleCtaTap = async (target) => {
+    haptic.light();
+    capture(EVENTS.POST_CHART_CTA_TAPPED, { target });
+
+    const navigateNow = async () => {
+      if (target === 'chat') {
+        navigation.replace('Main', {
+          screen: 'AskAI',
+          params: { prefilledMessage: prefilledChatMessage, source: 'post_chart' },
+        });
+      } else {
+        navigation.replace('Main');
+      }
+    };
+
+    try {
+      const alreadyAsked = await loadBoolean(StorageKeys.NOTIFICATION_ASKED);
+      const hasPerm = await hasNotificationPermission();
+      if (!alreadyAsked && !hasPerm) {
+        pendingNavRef.current = navigateNow;
+        setShowNotifModal(true);
+        return;
+      }
+    } catch {}
+
+    navigateNow();
+  };
+
+  const handleNotifModalEnable = async () => {
+    setShowNotifModal(false);
+    try { await saveBoolean(StorageKeys.NOTIFICATION_ASKED, true); } catch {}
+    try {
+      const granted = await requestNotificationPermission('post_chart');
+      if (granted) {
+        scheduleAllNotifications(userProfile, null, null, null, null, null).catch(() => {});
+      }
+    } catch {}
+    if (pendingNavRef.current) {
+      const fn = pendingNavRef.current; pendingNavRef.current = null; fn();
+    }
+  };
+
+  const handleNotifModalDismiss = async () => {
+    setShowNotifModal(false);
+    try { await saveBoolean(StorageKeys.NOTIFICATION_ASKED, true); } catch {}
+    if (pendingNavRef.current) {
+      const fn = pendingNavRef.current; pendingNavRef.current = null; fn();
+    }
+  };
 
   const revealAnims = [
     { opacity: reveal1, translateY: revealSlide1 },
@@ -156,13 +262,15 @@ export default function WelcomeScreen({ navigation }) {
   ];
 
   return (
-    <LinearGradient colors={['#0E0E22', '#1A1060', '#0C1E3C']} locations={[0, 0.5, 1]} style={styles.container}>
+    <LinearGradient colors={['#5A2840', '#3A1A28', '#1F0F18']} locations={[0, 0.5, 1]} style={styles.container}>
       <Stars count={28} />
 
       <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
         <Animated.View style={[styles.wheelWrap, { transform: [{ translateY: float }, { scale: scaleIn }], opacity: scaleIn }]}>
           <View style={styles.zodiacRing}>
             <ChartWheel size={200} planets={chart?.planets} aspects={chart?.aspects} />
+            {/* Subtle gold-shimmer pulse — fires once when CTA appears (celebration) */}
+            <Animated.View pointerEvents="none" style={[styles.shimmerHalo, { opacity: wheelShimmer }]} />
           </View>
         </Animated.View>
 
@@ -175,9 +283,42 @@ export default function WelcomeScreen({ navigation }) {
               </View>
             ))}
           </View>
+
+          {/* Cosmic-identity share — unity framing.
+              Names the user's combo as "rare" via real combo-rarity lookup.
+              Made for the questioners, not the believers. */}
+          {(() => {
+            const combo = chart ? getComboRarity(chart) : null;
+            if (!combo) return null;
+            return (
+              <TouchableOpacity
+                activeOpacity={0.85}
+                hitSlop={{ top: 14, bottom: 14, left: 14, right: 14 }}
+                onPress={async () => {
+                  try { haptic.light(); } catch {}
+                  capture(EVENTS.SHARE_INITIATED, { source: 'cosmic_identity', rarity: combo.label });
+                  try {
+                    const sunSign = sun?.sign || '?';
+                    const moonSign = moon?.sign || '?';
+                    const risingSign = rising?.sign || '?';
+                    await Share.share({
+                      message: `${sunSign} Sun · ${moonSign} Moon · ${risingSign} Rising\n\nA ${combo.label.toLowerCase()} combination — ${combo.text}.\nFor the questioners, not the believers.\n\n— Celestia ✦`,
+                    });
+                  } catch {}
+                }}
+                style={styles.cosmicIdShareBtn}
+              >
+                <Text style={styles.cosmicIdShareText}>
+                  ↗  {combo.label} · Share
+                </Text>
+              </TouchableOpacity>
+            );
+          })()}
         </Animated.View>
 
-        {/* Personality Reveal Statements — the "this app knows me" moment */}
+        {/* Personality Reveal Statements — the "this app knows me" moment.
+            Share affordance per CA-B4 — these statements are Celestia's
+            equivalent of The Pattern's quotable personality portrait. */}
         {revealStatements.map((stmt, i) => (
           <Animated.View
             key={i}
@@ -186,24 +327,53 @@ export default function WelcomeScreen({ navigation }) {
               transform: [{ translateY: revealAnims[i]?.translateY || revealSlide1 }],
             }]}
           >
-            <Text style={styles.revealLabel}>{stmt.label}</Text>
+            <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 6 }}>
+              <Text style={styles.revealLabel}>{stmt.label}</Text>
+              <TouchableOpacity
+                activeOpacity={0.7}
+                hitSlop={{ top: 14, bottom: 14, left: 14, right: 14 }}
+                onPress={async () => {
+                  try { haptic.light(); } catch {}
+                  capture(EVENTS.SHARE_INITIATED, {
+                    source: i === 0 ? 'first_reveal' : 'reveal',
+                    label: stmt.label,
+                    reveal_index: i,
+                  });
+                  try {
+                    await Share.share({ message: `"${stmt.text}"\n\n— Celestia ✦` });
+                  } catch {}
+                }}
+                style={{ marginLeft: 'auto', padding: 4 }}
+              >
+                <Text style={{ fontSize: 13, color: 'rgba(200,168,75,0.85)' }}>↗</Text>
+              </TouchableOpacity>
+            </View>
             <Text style={styles.revealText}>{stmt.text}</Text>
           </Animated.View>
         ))}
 
         <Animated.View style={{ opacity: ctaFade, alignItems: 'center', width: '100%' }}>
           <Text style={styles.desc}>
-            Your natal chart has been cast. This is just the beginning.
+            Surprised? There's a lot more in here. Ask Celestia anything.
           </Text>
-          <TouchableOpacity activeOpacity={0.85} onPress={() => navigation.replace('Main')}>
+          <TouchableOpacity activeOpacity={0.85} onPress={() => handleCtaTap('chat')}>
             <LinearGradient colors={['#E2C46A', '#C8A84B', '#A07820']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={styles.goldBtn}>
-              <Text style={styles.goldBtnText}>Explore Your Chart →</Text>
+              <Text style={styles.goldBtnText}>Ask Celestia about this →</Text>
             </LinearGradient>
+          </TouchableOpacity>
+          <TouchableOpacity activeOpacity={0.7} onPress={() => handleCtaTap('dashboard')} style={styles.secondaryBtn}>
+            <Text style={styles.secondaryBtnText}>Or continue to your dashboard</Text>
           </TouchableOpacity>
         </Animated.View>
 
         <View style={{ height: 50 }} />
       </ScrollView>
+
+      <NotificationPermissionModal
+        visible={showNotifModal}
+        onEnable={handleNotifModalEnable}
+        onDismiss={handleNotifModalDismiss}
+      />
     </LinearGradient>
   );
 }
@@ -225,6 +395,9 @@ const styles = StyleSheet.create({
     borderRadius: 100, paddingVertical: 5, paddingHorizontal: 14,
   },
   b3text: { fontSize: 12, color: 'rgba(250,248,242,0.72)' },
+
+  cosmicIdShareBtn: { marginTop: 10, paddingVertical: 6, paddingHorizontal: 14, borderRadius: 100, borderWidth: 1, borderColor: 'rgba(200,168,75,0.35)', backgroundColor: 'rgba(200,168,75,0.05)' },
+  cosmicIdShareText: { fontSize: 11, letterSpacing: 1.4, fontFamily: FONTS.sansSemiBold, color: T.gold },
 
   // Reveal cards — the "wow moment"
   revealCard: {
@@ -262,4 +435,22 @@ const styles = StyleSheet.create({
     shadowColor: T.gold, shadowOffset: { width: 0, height: 7 }, shadowOpacity: 0.35, shadowRadius: 26,
   },
   goldBtnText: { fontFamily: FONTS.sansMedium, fontSize: 15, color: T.navy },
+  secondaryBtn: { marginTop: 14, paddingVertical: 8, paddingHorizontal: 16 },
+  secondaryBtnText: {
+    fontFamily: FONTS.sansLight,
+    fontSize: 13,
+    color: 'rgba(250,248,242,0.45)',
+    textAlign: 'center',
+  },
+  shimmerHalo: {
+    position: 'absolute',
+    top: -10, left: -10, right: -10, bottom: -10,
+    borderRadius: 110,
+    borderWidth: 2,
+    borderColor: 'rgba(200,168,75,0.55)',
+    shadowColor: T.gold,
+    shadowOffset: { width: 0, height: 0 },
+    shadowOpacity: 0.6,
+    shadowRadius: 18,
+  },
 });

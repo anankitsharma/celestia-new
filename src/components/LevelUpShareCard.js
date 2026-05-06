@@ -5,11 +5,11 @@ import { T, FONTS } from '../constants/theme';
 import { ShareWatermark } from './ShareCard';
 
 const LEVEL_GRADIENTS = {
-  Starling:      ['#0E0E22', '#1A1535', '#0F1628'],
-  Voyager:       ['#0E0E22', '#0F1628', '#0C2040'],
-  Constellation: ['#0E0E22', '#1A1060', '#0C2040'],
-  Nebula:        ['#0E0E22', '#1A0A2E', '#201050'],
-  Cosmos:        ['#0E0E22', '#1A1535', '#201040'],
+  Starling:      ['#3A1A28', '#5A2840', '#3A1A28'],
+  Voyager:       ['#3A1A28', '#3A1A28', '#0C2040'],
+  Constellation: ['#3A1A28', '#1A1060', '#0C2040'],
+  Nebula:        ['#3A1A28', '#1A0A2E', '#201050'],
+  Cosmos:        ['#3A1A28', '#5A2840', '#201040'],
 };
 
 export default function LevelUpShareCard({ levelName, totalXP, innerRef }) {

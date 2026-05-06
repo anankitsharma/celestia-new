@@ -30,7 +30,7 @@ export default function StreakMilestoneModal({ visible, streak, emoji, message, 
     <Modal visible={visible} animationType="fade" transparent>
       <View style={s.overlay}>
         <Animated.View style={[s.card, { opacity: opacityAnim, transform: [{ scale: scaleAnim }] }]}>
-          <LinearGradient colors={['#1E1840', '#0E0E22']} style={s.gradient}>
+          <LinearGradient colors={['#5A2840', '#3A1A28']} style={s.gradient}>
             <Text style={s.label}>STREAK MILESTONE</Text>
             <Text style={s.emoji}>{emoji}</Text>
             <Text style={s.streak}>{streak}</Text>

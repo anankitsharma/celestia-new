@@ -1,10 +1,34 @@
 import { HOUSE_THEMES } from '../constants/AstrologyCore';
 import { isMercuryRetrograde, getMercuryRetrogradeProximity } from './astrologyService';
 
+// Truncate a string to N chars with an ellipsis. Used to keep partner/chat
+// references in lapsed-push copy from spilling past iOS 4-line limits.
+function truncate(str, max = 50) {
+  if (!str) return '';
+  return str.length > max ? `${str.slice(0, max - 1).trim()}…` : str;
+}
+
 // ── TEMPLATE CATALOG ────────────────────────────────────────
 
 const TEMPLATES = {
   COSMIC_MORNING: [
+    {
+      id: 'cm_d1_personal',
+      requires: [],
+      // Highest priority on D1 only — references the deeply-specific reveal
+      // statement the user saw on WelcomeScreen. Closes the activation funnel.
+      // Voice per plan/competitive-audit/voice-guide-pushes.md.
+      weight: (d) => (d.daysSinceInstall === 1 && d.firstRevealStatement ? 110 : 0),
+      generate: (d) => {
+        const reveal = (d.firstRevealStatement || '').trim().replace(/^["'""]|["'""]$/g, '');
+        // Truncate the reveal if extremely long to keep the body screenshot-able
+        const trimmedReveal = reveal.length > 80 ? reveal.slice(0, 78).trim() + '…' : reveal;
+        return {
+          title: 'Yesterday you read this about yourself:',
+          body: `"${trimmedReveal}" Today watch for the second part.`,
+        };
+      },
+    },
     {
       id: 'cm_navigator_excerpt',
       requires: ['forecast'],
@@ -148,6 +172,46 @@ const TEMPLATES = {
       generate: (d) => ({
         title: `Good morning, ${d.userName}`,
         body: `You felt ${d.yesterdayJournal.mood} yesterday. The Moon moved to ${d.moonData?.sign || 'a new sign'} overnight — see what today brings.`,
+      }),
+    },
+    // ── Internal-trigger templates (week 3+) ──
+    // Hook Model: transitions external trigger toward internal trigger.
+    // Voice per plan/competitive-audit/voice-guide-pushes.md — literary,
+    // specific, slightly unsettling. No "your cosmic anything."
+    {
+      id: 'cm_internal_trigger_decision',
+      requires: [],
+      weight: (d) => (d.weeksSinceInstall >= 2 ? 12 : 0),
+      generate: () => ({
+        title: 'Stuck on something? Your chart has an opinion.',
+        body: "One question. One tap. Less generic than asking the internet.",
+      }),
+    },
+    {
+      id: 'cm_internal_trigger_person',
+      requires: [],
+      weight: (d) => (d.weeksSinceInstall >= 2 && d.lastPartnerName ? 14 : 0),
+      generate: (d) => ({
+        title: `${d.lastPartnerName}.`,
+        body: `Their chart shifted twice this week. Yours did too. Worth seeing what happens between them.`,
+      }),
+    },
+    {
+      id: 'cm_internal_trigger_pattern',
+      requires: [],
+      weight: (d) => (d.weeksSinceInstall >= 2 ? 11 : 0),
+      generate: () => ({
+        title: 'What you keep coming back to.',
+        body: "There's a pattern forming in what you ask. Today's the day to see it whole.",
+      }),
+    },
+    {
+      id: 'cm_internal_trigger_quiet',
+      requires: [],
+      weight: (d) => (d.weeksSinceInstall >= 3 ? 10 : 0),
+      generate: () => ({
+        title: "What's heavier than it should be right now?",
+        body: 'Sometimes naming it is enough. Your chart is here when you are.',
       }),
     },
   ],
@@ -325,68 +389,141 @@ const TEMPLATES = {
   ],
 
   LAPSED: [
+    // Tiered personalization: partner-name > chat-thread > chart placement.
+    // Voice per plan/competitive-audit/voice-guide-pushes.md — specific,
+    // unsettling, never "we miss you" or "things kept moving."
     {
       id: 'sg_lapsed_2',
-      requires: ['moonData'],
+      requires: [],
       weight: () => 5,
-      generate: (d) => ({
-        title: 'The stars noticed you\'re gone',
-        body: `The Moon moved to ${d.moonData?.sign || 'a new sign'} while you were away.`,
-      }),
+      generate: (d) => {
+        if (d.lastPartnerName) return {
+          title: `${d.lastPartnerName}. Two days.`,
+          body: `Their chart did something this morning yours has an opinion about.`,
+        };
+        if (d.lastChatTitle) return {
+          title: 'You started something.',
+          body: `"${truncate(d.lastChatTitle, 60)}" — and then stopped. There's more underneath.`,
+        };
+        return {
+          title: 'Two days. The Moon\'s in ' + (d.moonData?.sign || 'somewhere new') + '.',
+          body: 'You\'re going to want to know what that means.',
+        };
+      },
     },
     {
       id: 'sg_lapsed_3',
       requires: [],
       weight: () => 5,
-      generate: (d) => ({
-        title: `${d.userName}, your chart kept moving`,
-        body: `3 days of cosmic insights are waiting. The sky didn't stop.`,
-      }),
+      generate: (d) => {
+        if (d.lastPartnerName) return {
+          title: `Three days. ${d.lastPartnerName}'s chart shifted.`,
+          body: 'A window opened between the two of you. You haven\'t looked.',
+        };
+        if (d.lastChatTitle) return {
+          title: 'The question you didn\'t finish asking.',
+          body: 'Three days on. The answer\'s shifted. Worth seeing what changed.',
+        };
+        return {
+          title: 'Your chart moved twice without you.',
+          body: 'Three days. Most of what you wanted to know is still here.',
+        };
+      },
     },
     {
       id: 'sg_lapsed_5',
       requires: [],
       weight: () => 5,
-      generate: (d) => ({
-        title: `✦ ${d.userName}, something unusual happened`,
-        body: `Your weekly cosmic summary is ready. 5 days of insights in one view.`,
-      }),
+      generate: (d) => {
+        if (d.lastPartnerName) return {
+          title: `${d.lastPartnerName} would explain a lot right now.`,
+          body: 'Their chart entered a window you\'d want to read together.',
+        };
+        if (d.lastChatTitle) return {
+          title: 'Five days. Same question, new context.',
+          body: `"${truncate(d.lastChatTitle, 50)}" — there's an angle you didn't try.`,
+        };
+        return {
+          title: 'Five days. Three transits hit your chart.',
+          body: 'You don\'t have to come back for them — but they happened to you.',
+        };
+      },
     },
     {
       id: 'sg_lapsed_7',
       requires: [],
       weight: () => 5,
-      generate: (d) => ({
-        title: 'A full week of cosmic wisdom',
-        body: `7 days. Multiple Moon sign changes. All personalized to your chart.`,
-      }),
+      generate: (d) => {
+        if (d.lastPartnerName) return {
+          title: `A week. ${d.lastPartnerName} is in your chart twice.`,
+          body: 'Two windows crossed yours. You missed both. They\'re still happening.',
+        };
+        if (d.lastChatTitle) return {
+          title: 'Seven days since you asked.',
+          body: 'The thing you wanted to know about — it\'s clearer now.',
+        };
+        return {
+          title: 'A full week. The Sun moved 7 degrees.',
+          body: 'A small thing. But it\'s the kind of small thing that changes a month.',
+        };
+      },
     },
     {
       id: 'sg_lapsed_10',
       requires: [],
       weight: () => 5,
-      generate: (d) => ({
-        title: `Your cosmic portrait has evolved`,
-        body: `${d.userName}, the transits shifted while you were away. Something new is waiting in your chart.`,
-      }),
+      generate: (d) => {
+        if (d.lastPartnerName) return {
+          title: `Ten days. ${d.lastPartnerName} came up twice.`,
+          body: 'Two placements about them you\'d want to know. Still here.',
+        };
+        if (d.lastChatTitle) return {
+          title: 'Ten days. Your thread got more relevant.',
+          body: `"${truncate(d.lastChatTitle, 50)}" — the answer rewrote itself.`,
+        };
+        return {
+          title: 'Ten days. Ten days of you, missed.',
+          body: 'Not a guilt trip. Just an inventory. Something\'s waiting.',
+        };
+      },
     },
     {
       id: 'sg_lapsed_14',
       requires: [],
       weight: () => 5,
-      generate: (d) => ({
-        title: `We found something in your chart`,
-        body: `${d.userName}, 14 days of cosmic data reveal a pattern. Open to see what the stars are saying.`,
-      }),
+      generate: (d) => {
+        if (d.lastPartnerName) return {
+          title: `Two weeks since you saved ${d.lastPartnerName}.`,
+          body: 'What shifted between the two of you. One tap.',
+        };
+        if (d.lastChatTitle) return {
+          title: 'Two weeks. Same question. New answer.',
+          body: 'The version of you who asked it has more information now.',
+        };
+        return {
+          title: 'Two weeks. A pattern showed up.',
+          body: 'You don\'t need to be here to see it — but you\'d want to.',
+        };
+      },
     },
     {
       id: 'sg_lapsed_21',
       requires: [],
       weight: () => 5,
-      generate: (d) => ({
-        title: `${d.userName}, your chart reveals something about this month`,
-        body: `3 weeks of transits have shaped your path. Your monthly cosmic reading is ready.`,
-      }),
+      generate: (d) => {
+        if (d.lastPartnerName) return {
+          title: `Three weeks. ${d.lastPartnerName}\'s window is opening.`,
+          body: 'A real moment is forming. And yours is shifting too.',
+        };
+        if (d.lastChatTitle) return {
+          title: 'Three weeks. The thought is still here.',
+          body: 'You almost finished it. The stars have been holding the rest.',
+        };
+        return {
+          title: 'Three weeks. Your month, in one read.',
+          body: 'You don\'t owe us anything. Just letting you know it\'s ready.',
+        };
+      },
     },
   ],
 

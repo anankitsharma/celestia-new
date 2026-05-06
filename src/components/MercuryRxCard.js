@@ -19,7 +19,7 @@ export default function MercuryRxCard({ sunSign, innerRef }) {
 
   return (
     <View ref={innerRef} collapsable={false} style={s.outer}>
-      <LinearGradient colors={['#1A0A12', '#0E0E22', '#12081E']} style={s.card}>
+      <LinearGradient colors={['#1A0A12', '#3A1A28', '#12081E']} style={s.card}>
         <Text style={s.label}>☿ MERCURY RETROGRADE</Text>
         <Text style={s.title}>Survival Kit</Text>
         {sunSign && (

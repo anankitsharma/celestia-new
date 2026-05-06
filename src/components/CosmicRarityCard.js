@@ -18,7 +18,7 @@ export default function CosmicRarityCard({ archetype, comboRarity, innerRef }) {
 
   return (
     <View ref={innerRef} collapsable={false} style={s.outer}>
-      <LinearGradient colors={['#0E0E22', '#1A0A2E', '#0C1040']} style={s.card}>
+      <LinearGradient colors={['#3A1A28', '#1A0A2E', '#0C1040']} style={s.card}>
         <Text style={s.label}>COSMIC ARCHETYPE</Text>
 
         {/* Archetype name */}

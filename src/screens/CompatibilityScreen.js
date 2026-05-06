@@ -33,6 +33,8 @@ import { createAndShareInvite } from '../services/inviteService';
 import { useRevenueCat } from '../contexts/RevenueCatContext';
 import LockedFeatureOverlay from '../components/LockedFeatureOverlay';
 import { useAnalytics, EVENTS } from '../services/analytics';
+import { scheduleEventPush } from '../services/notificationService';
+import { recordPendingPush } from '../services/engagementSignals';
 import { useTheme } from '../contexts/ThemeContext';
 
 import { ROLE_DETAIL_CONFIG } from '../constants/roleDetailConfig';
@@ -78,7 +80,7 @@ const ROLE_REPORT_THEMES = {
     quotes: ['"Venus shows how you love. Their Venus shows how they need to be loved."', '"The Moon knows what your heart needs before you do."', '"Some connections are written in the stars. Others are written in Saturn."'],
   },
   friend: {
-    gradient: ['#0A0828', '#160E28', '#0D0515'], accent: '#7E8CE8', accentSoft: 'rgba(126,140,232,0.12)', accentGlow: 'rgba(126,140,232,0.35)', title: 'Friendship Report', coverBadge: 'Friendship Compatibility Report', coverIcon: '★', fileName: 'Friendship',
+    gradient: ['#0A0828', '#3A1A28', '#0D0515'], accent: '#7E8CE8', accentSoft: 'rgba(126,140,232,0.12)', accentGlow: 'rgba(126,140,232,0.35)', title: 'Friendship Report', coverBadge: 'Friendship Compatibility Report', coverIcon: '★', fileName: 'Friendship',
     steps: [
       { icon: '★', label: 'Reading both charts', sub: 'Mapping your cosmic blueprints...' },
       { icon: '☽', label: 'Comparing emotional styles', sub: 'How you vibe together...' },
@@ -92,7 +94,7 @@ const ROLE_REPORT_THEMES = {
     quotes: ['"True friendships are written in Jupiter — generous, expansive, and built to last."', '"Your Mercury signs reveal how deeply you truly understand each other."'],
   },
   parent: {
-    gradient: ['#1A1510', '#14100E', '#0D0515'], accent: '#C8A060', accentSoft: 'rgba(200,160,96,0.12)', accentGlow: 'rgba(200,160,96,0.35)', title: 'Family Bond Report', coverBadge: 'Parent-Child Bond Report', coverIcon: '◎', fileName: 'Family',
+    gradient: ['#3A1A28', '#14100E', '#0D0515'], accent: '#C8A060', accentSoft: 'rgba(200,160,96,0.12)', accentGlow: 'rgba(200,160,96,0.35)', title: 'Family Bond Report', coverBadge: 'Parent-Child Bond Report', coverIcon: '◎', fileName: 'Family',
     steps: [
       { icon: '◎', label: 'Reading both charts', sub: 'Mapping generational patterns...' },
       { icon: '☽', label: 'Comparing Moon signs', sub: 'Emotional inheritance...' },
@@ -106,7 +108,7 @@ const ROLE_REPORT_THEMES = {
     quotes: ['"Saturn connects the generations — what they learned, you inherited."', '"The Moon carries your family\'s emotional DNA."'],
   },
   sibling: {
-    gradient: ['#1A1208', '#14100A', '#0D0515'], accent: '#E8A050', accentSoft: 'rgba(232,160,80,0.12)', accentGlow: 'rgba(232,160,80,0.35)', title: 'Sibling Report', coverBadge: 'Sibling Bond Report', coverIcon: '◇', fileName: 'Sibling',
+    gradient: ['#3A1A28', '#14100A', '#0D0515'], accent: '#E8A050', accentSoft: 'rgba(232,160,80,0.12)', accentGlow: 'rgba(232,160,80,0.35)', title: 'Sibling Report', coverBadge: 'Sibling Bond Report', coverIcon: '◇', fileName: 'Sibling',
     steps: [
       { icon: '◇', label: 'Reading both charts', sub: 'Mapping your shared origins...' },
       { icon: '☽', label: 'Comparing emotional wiring', sub: 'How you feel vs. how they feel...' },
@@ -120,7 +122,7 @@ const ROLE_REPORT_THEMES = {
     quotes: ['"Siblings share a sky but read it differently."', '"Mars between siblings shows where rivalry becomes alliance."'],
   },
   boss: {
-    gradient: ['#0A1520', '#0D1527', '#060D18'], accent: '#50A0C8', accentSoft: 'rgba(80,160,200,0.12)', accentGlow: 'rgba(80,160,200,0.35)', title: 'Work Dynamic Report', coverBadge: 'Professional Dynamic Report', coverIcon: '◆', fileName: 'Work',
+    gradient: ['#1F0F18', '#0D1527', '#060D18'], accent: '#50A0C8', accentSoft: 'rgba(80,160,200,0.12)', accentGlow: 'rgba(80,160,200,0.35)', title: 'Work Dynamic Report', coverBadge: 'Professional Dynamic Report', coverIcon: '◆', fileName: 'Work',
     steps: [
       { icon: '◆', label: 'Reading both charts', sub: 'Mapping professional blueprints...' },
       { icon: '♄', label: 'Analyzing authority dynamics', sub: 'Saturn & power structures...' },
@@ -148,7 +150,7 @@ const ROLE_REPORT_THEMES = {
     quotes: ['"The best teams are built when Mercury signs understand each other."', '"Mars shows your work style — theirs shows what drives them."'],
   },
   child: {
-    gradient: ['#0E1A14', '#0A1410', '#0D0515'], accent: '#7EC8A0', accentSoft: 'rgba(126,200,160,0.12)', accentGlow: 'rgba(126,200,160,0.35)', title: 'Parenting Report', coverBadge: 'Parenting Compatibility Report', coverIcon: '☽', fileName: 'Parenting',
+    gradient: ['#1F0F18', '#0A1410', '#0D0515'], accent: '#7EC8A0', accentSoft: 'rgba(126,200,160,0.12)', accentGlow: 'rgba(126,200,160,0.35)', title: 'Parenting Report', coverBadge: 'Parenting Compatibility Report', coverIcon: '☽', fileName: 'Parenting',
     steps: [
       { icon: '☽', label: 'Reading both charts', sub: 'Mapping your bond...' },
       { icon: '☉', label: 'Analyzing their temperament', sub: 'Sun sign nature...' },
@@ -162,7 +164,7 @@ const ROLE_REPORT_THEMES = {
     quotes: ['"Their Moon sign tells you what they need to feel safe."', '"Understanding their chart is the deepest form of parenting."'],
   },
   other: {
-    gradient: ['#1A1228', '#14101E', '#0D0515'], accent: '#B080E0', accentSoft: 'rgba(176,128,224,0.12)', accentGlow: 'rgba(176,128,224,0.35)', title: 'Connection Report', coverBadge: 'Compatibility Report', coverIcon: '✦', fileName: 'Connection',
+    gradient: ['#5A2840', '#3A1A28', '#0D0515'], accent: '#B080E0', accentSoft: 'rgba(176,128,224,0.12)', accentGlow: 'rgba(176,128,224,0.35)', title: 'Connection Report', coverBadge: 'Compatibility Report', coverIcon: '✦', fileName: 'Connection',
     steps: [
       { icon: '✦', label: 'Reading both charts', sub: 'Mapping your cosmic blueprints...' },
       { icon: '☽', label: 'Comparing Moon signs', sub: 'How you feel together...' },
@@ -197,7 +199,7 @@ RELATIONSHIP_TYPES.forEach(r => { ROLE_LABELS[r.key] = r; });
 const CATEGORY_GROUPS = [
   { key: 'love', label: 'LOVE', roles: ['partner', 'ex'], gradient: ['#2D0A1E', '#1A0828'], icon: '♡' },
   { key: 'family', label: 'FAMILY', roles: ['parent', 'sibling', 'child'], gradient: ['#1A1A08', '#14120A'], icon: '◎' },
-  { key: 'friends', label: 'FRIENDS', roles: ['friend'], gradient: ['#0E0A28', '#14101E'], icon: '★' },
+  { key: 'friends', label: 'FRIENDS', roles: ['friend'], gradient: ['#0E0A28', '#3A1A28'], icon: '★' },
   { key: 'work', label: 'WORK', roles: ['boss', 'colleague'], gradient: ['#081A28', '#0A1420'], icon: '◆' },
   { key: 'other', label: 'OTHER', roles: ['other'], gradient: ['#141210', '#0E0E0E'], icon: '✦' },
 ];
@@ -416,6 +418,25 @@ export default function CompatibilityScreen() {
       try {
         const partner = { id: await Crypto.randomUUID(), type: 'other', name: partnerName.trim(), relationshipType, isZodiacOnly: true, zodiacSign: selectedZodiacSign, birthDate: '2000-01-01', birthTime: '12:00', birthLocation: 'Unknown', isTimeUnknown: true, chart: { planets: [{ name: 'Sun', sign: selectedZodiacSign, degree: 15, house: 1 }], aspects: [], houses: [] } };
         await addPartner(partner);
+        capture(EVENTS.PARTNER_ADDED_TO_CIRCLE, {
+          relationship_type: relationshipType,
+          zodiac_only_mode: true,
+          total_partner_count: (partnerProfiles?.length || 0) + 1,
+        });
+        // Schedule a +2-day insight push referencing this partner.
+        // Investment loads the next trigger (Hook Model).
+        try {
+          const pName = partner.name?.split(' ')[0] || 'them';
+          const notifId = await scheduleEventPush({
+            type: 'event_partner_insight',
+            daysFromNow: 2,
+            title: `${pName} came up in your chart`,
+            body: `I noticed something about you and ${pName} that's worth a read.`,
+            channel: 'transit_alerts',
+            data: { tab: 'circle', partnerId: partner.id },
+          });
+          if (notifId) await recordPendingPush(notifId, { type: 'event_partner_insight', partnerId: partner.id });
+        } catch {}
         setShowAddModal(false);
         resetForm();
       } catch (e) { Alert.alert('Error', 'Failed to save.'); }
@@ -431,6 +452,25 @@ export default function CompatibilityScreen() {
       const chart = await calculateChart(dateStr, timeStr, { lat: selectedCity.lat, lng: selectedCity.lng, name: selectedCity.name }, isTimeUnknown, 'whole');
       const partner = { id: await Crypto.randomUUID(), type: 'other', name: partnerName.trim(), relationshipType, birthDate: dateStr, birthTime: timeStr, birthLocation: selectedCity.name, isTimeUnknown, chart };
       await addPartner(partner);
+      capture(EVENTS.PARTNER_ADDED_TO_CIRCLE, {
+        relationship_type: relationshipType,
+        zodiac_only_mode: false,
+        time_unknown: isTimeUnknown,
+        total_partner_count: (partnerProfiles?.length || 0) + 1,
+      });
+      // Schedule a +2-day insight push referencing this partner.
+      try {
+        const pName = partner.name?.split(' ')[0] || 'them';
+        const notifId = await scheduleEventPush({
+          type: 'event_partner_insight',
+          daysFromNow: 2,
+          title: `${pName} came up in your chart`,
+          body: `I noticed something about you and ${pName} that's worth a read.`,
+          channel: 'transit_alerts',
+          data: { tab: 'circle', partnerId: partner.id },
+        });
+        if (notifId) await recordPendingPush(notifId, { type: 'event_partner_insight', partnerId: partner.id });
+      } catch {}
       setShowAddModal(false);
       resetForm();
     } catch (e) { Alert.alert('Error', 'Failed to calculate chart.'); }
@@ -750,15 +790,23 @@ export default function CompatibilityScreen() {
       {!showDetailScreen && (
         <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 110 }}>
           {/* Hero — rounded bottom, centered */}
-          <LinearGradient colors={['#0E0E22', '#1A1228', '#14101E']} style={styles.hero}>
-            <Text style={styles.title}>Compatibility</Text>
+          {(() => {
+            const heroColors = isDark ? ['#3A1A28', '#5A2840', '#3A1A28'] : (colors.heroGradientLight || ['#F4ECE5', '#F0E4DC', '#ECDCD3']);
+            const heroFg = isDark ? T.cream : colors.heading;
+            const heroFgMuted = isDark ? 'rgba(250,248,242,0.45)' : colors.textSecondary;
+            const addPillBg = isDark ? 'rgba(200,168,75,0.12)' : 'rgba(160,120,32,0.14)';
+            const addPillBorder = isDark ? 'rgba(200,168,75,0.25)' : 'rgba(160,120,32,0.32)';
+            const addPillText = isDark ? T.gold : T.goldText;
+            return (
+          <LinearGradient colors={heroColors} style={styles.hero}>
+            <Text style={[styles.title, { color: heroFg }]}>Compatibility</Text>
             <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 4, marginBottom: 4 }}>
-              <Text style={styles.sub}>
+              <Text style={[styles.sub, { color: heroFgMuted }]}>
                 {partnerProfiles.length === 0 ? 'Check anyone — a crush, a friend, or a celebrity' : `${partnerProfiles.length} ${partnerProfiles.length === 1 ? 'person' : 'people'} in your circle`}
               </Text>
-              <CosmicTooltip id="synastry" size={14} light />
+              <CosmicTooltip id="synastry" size={14} light={isDark} />
             </View>
-            <TouchableOpacity style={styles.heroAddBtn} activeOpacity={0.7}
+            <TouchableOpacity style={[styles.heroAddBtn, { backgroundColor: addPillBg, borderColor: addPillBorder }]} activeOpacity={0.7}
               onPress={() => {
                 if (!isPro && partnerProfiles.length >= 3) {
                   haptic.medium();
@@ -767,9 +815,11 @@ export default function CompatibilityScreen() {
                 }
                 setShowAddModal(true);
               }}>
-              <Text style={styles.heroAddBtnText}>+ Add Someone</Text>
+              <Text style={[styles.heroAddBtnText, { color: addPillText }]}>+ Add Someone</Text>
             </TouchableOpacity>
           </LinearGradient>
+            );
+          })()}
 
           {/* ─── CONCENTRIC ORBIT SYSTEM — collapsed when partners exist, visible when empty ─── */}
           {partnerProfiles.length === 0 && <View style={styles.orbitSystemWrap}>
@@ -1784,10 +1834,10 @@ const generateMatchReportHTML = (report, user, partner, synastry, role = 'partne
 </style></head><body>
 <div class="cover"><div class="cover-border"></div><div class="cover-inner"><div class="cover-brand">CELESTIA</div><div class="cover-rule"></div><div class="cover-badge">${esc(theme.coverBadge)}</div><div class="cover-zodiac">${ZR}</div><div class="cover-names">${esc(p1Name)} <span class="cover-amp">&</span> ${esc(p2Name)}</div><div class="cover-signs">${p1Sun?.sign || '—'} ${cfg.icon} ${p2Sun?.sign || '—'}</div><div class="cover-divider"><div class="cover-line"></div><div class="cover-star">${cfg.icon}</div><div class="cover-line"></div></div><div class="cover-headline">"${esc(report.headline || '')}"</div><div class="cover-score">${score}%</div><div class="cover-score-label">COMPATIBILITY SCORE</div><div class="cover-pills"><div class="cover-pill"><div class="cover-pill-sign">${esc(p1Name)}</div><div class="cover-pill-role">☉ ${p1Sun?.sign || '—'} · ☽ ${p1Moon?.sign || '—'}</div></div><div class="cover-pill"><div class="cover-pill-sign">${esc(p2Name)}</div><div class="cover-pill-role">☉ ${p2Sun?.sign || '—'} · ☽ ${p2Moon?.sign || '—'}</div></div></div></div><div class="cover-foot"><div class="cover-foot-text">YOUR STARS, YOUR STORY</div><div class="cover-foot-date">${esc(genDate)}</div></div></div>
 <div class="ph"><span class="ph-left">CELESTIA</span><span class="ph-right">${esc(p1Name.toUpperCase())} & ${esc(p2Name.toUpperCase())} · OVERVIEW</span></div><div class="pc"><div class="sl">${esc(theme.title.toUpperCase())} OVERVIEW</div><div class="sr"></div><p class="body" style="font-style:italic;color:#C49A2A;font-size:12px;margin-bottom:16px">"${esc(report.tagline || '')}"</p>${nl2p(report.overview)}<div class="ornament">· · ·</div><div class="sl">SCORE BREAKDOWN</div><div class="sr"></div>${scoreBars.map(b => `<div class="sbar-row"><div class="sbar-top"><span class="sbar-name">${b.label}</span><span class="sbar-pct">${b.pct}%</span></div><div class="sbar-track"><div class="sbar-fill" style="width:${b.pct}%;background:${b.color}"></div></div></div>`).join('')}</div><div class="pf">Celestia · ${esc(theme.title)} · ${esc(p1Name)} & ${esc(p2Name)}</div>
-<div class="page-break"></div><div class="ph"><span class="ph-left">CELESTIA</span><span class="ph-right">${esc(p1Name.toUpperCase())} & ${esc(p2Name.toUpperCase())} · DEEP DIVE</span></div><div class="pc"><div class="section-band" style="margin:0 -45px;padding:14px 45px"><span class="section-icon">${cfg.icon}</span><div><div class="section-title">${esc(report.soulConnection?.title || 'Soul Connection')}</div><div class="section-sub">${cfg.connectionSub}</div></div></div><div class="section-content">${nl2p(report.soulConnection?.description)}</div><div class="ornament">· · ·</div><div class="section-band" style="margin:0 -45px;padding:14px 45px;background:#1A1228"><span class="section-icon">☽</span><div><div class="section-title">${esc(report.emotionalDynamic?.title || 'Emotional Dynamic')}</div><div class="section-sub">${cfg.emotionalSub}</div></div></div><div class="section-content"><div class="callout pink-callout"><div class="callout-icon">☽</div><div><div class="callout-label pink-label">${esc(report.emotionalDynamic?.section1Label || p1Name.toUpperCase())}</div><p class="callout-text">${esc(report.emotionalDynamic?.section1 || report.emotionalDynamic?.howYouLove || '')}</p></div></div><div class="callout blue-callout"><div class="callout-icon">☽</div><div><div class="callout-label blue-label">${esc(report.emotionalDynamic?.section2Label || p2Name.toUpperCase())}</div><p class="callout-text">${esc(report.emotionalDynamic?.section2 || report.emotionalDynamic?.howTheyLove || '')}</p></div></div><div class="callout gold-callout"><div class="callout-icon">${cfg.icon}</div><div><div class="callout-label gold-label">TOGETHER</div><p class="callout-text">${esc(report.emotionalDynamic?.together)}</p></div></div></div></div><div class="pf">Celestia · ${esc(p1Name)} & ${esc(p2Name)}</div>
+<div class="page-break"></div><div class="ph"><span class="ph-left">CELESTIA</span><span class="ph-right">${esc(p1Name.toUpperCase())} & ${esc(p2Name.toUpperCase())} · DEEP DIVE</span></div><div class="pc"><div class="section-band" style="margin:0 -45px;padding:14px 45px"><span class="section-icon">${cfg.icon}</span><div><div class="section-title">${esc(report.soulConnection?.title || 'Soul Connection')}</div><div class="section-sub">${cfg.connectionSub}</div></div></div><div class="section-content">${nl2p(report.soulConnection?.description)}</div><div class="ornament">· · ·</div><div class="section-band" style="margin:0 -45px;padding:14px 45px;background:#3A1A28"><span class="section-icon">☽</span><div><div class="section-title">${esc(report.emotionalDynamic?.title || 'Emotional Dynamic')}</div><div class="section-sub">${cfg.emotionalSub}</div></div></div><div class="section-content"><div class="callout pink-callout"><div class="callout-icon">☽</div><div><div class="callout-label pink-label">${esc(report.emotionalDynamic?.section1Label || p1Name.toUpperCase())}</div><p class="callout-text">${esc(report.emotionalDynamic?.section1 || report.emotionalDynamic?.howYouLove || '')}</p></div></div><div class="callout blue-callout"><div class="callout-icon">☽</div><div><div class="callout-label blue-label">${esc(report.emotionalDynamic?.section2Label || p2Name.toUpperCase())}</div><p class="callout-text">${esc(report.emotionalDynamic?.section2 || report.emotionalDynamic?.howTheyLove || '')}</p></div></div><div class="callout gold-callout"><div class="callout-icon">${cfg.icon}</div><div><div class="callout-label gold-label">TOGETHER</div><p class="callout-text">${esc(report.emotionalDynamic?.together)}</p></div></div></div></div><div class="pf">Celestia · ${esc(p1Name)} & ${esc(p2Name)}</div>
 <div class="page-break"></div><div class="ph"><span class="ph-left">CELESTIA</span><span class="ph-right">${esc(p1Name.toUpperCase())} & ${esc(p2Name.toUpperCase())} · DYNAMICS</span></div><div class="pc"><div class="section-band" style="margin:0 -45px;padding:14px 45px;background:#0D2535"><span class="section-icon">☿</span><div><div class="section-title">${esc(report.communicationStyle?.title || 'Communication')}</div><div class="section-sub">How you connect mentally</div></div></div><div class="section-content">${nl2p(report.communicationStyle?.dynamic)}<div class="callout gold-callout"><div class="callout-icon">✦</div><div><div class="callout-label gold-label">PRO TIP</div><p class="callout-text">${esc(report.communicationStyle?.tip)}</p></div></div></div><div class="ornament">· · ·</div><div class="section-band" style="margin:0 -45px;padding:14px 45px;background:#2A1008"><span class="section-icon">${cfg.uniqueIcon}</span><div><div class="section-title">${esc(report.uniqueSection?.title || report.attraction?.title || 'Connection')}</div><div class="section-sub">The dynamic between you</div></div></div><div class="section-content"><div class="callout red-callout"><div class="callout-icon">${cfg.uniqueIcon}</div><div><div class="callout-label red-label">THE SPARK</div><p class="callout-text">${esc(report.uniqueSection?.spark || report.attraction?.spark || '')}</p></div></div><div class="callout gold-callout"><div class="callout-icon">△</div><div><div class="callout-label gold-label">THE TENSION</div><p class="callout-text">${esc(report.uniqueSection?.tension || report.attraction?.tension || '')}</p></div></div></div></div><div class="pf">Celestia · ${esc(p1Name)} & ${esc(p2Name)}</div>
 <div class="page-break"></div><div class="ph"><span class="ph-left">CELESTIA</span><span class="ph-right">${esc(p1Name.toUpperCase())} & ${esc(p2Name.toUpperCase())} · GROWTH</span></div><div class="pc"><div class="sl">GROWTH AREAS</div><div class="sr"></div><div class="growth-row">${(report.growthAreas || []).map(g => `<div class="growth-card"><div class="growth-title">${esc(g.title)}</div><div class="growth-text">${esc(g.insight)}</div></div>`).join('')}</div></div><div class="pf">Celestia · ${esc(p1Name)} & ${esc(p2Name)}</div>
-<div class="page-break"></div><div class="ph"><span class="ph-left">CELESTIA</span><span class="ph-right">${esc(p1Name.toUpperCase())} & ${esc(p2Name.toUpperCase())} · FUTURE</span></div><div class="pc"><div class="section-band" style="margin:0 -45px;padding:14px 45px;background:#1A1228"><span class="section-icon">♄</span><div><div class="section-title">Long-Term Outlook</div><div class="section-sub">Where this is heading</div></div></div><div class="section-content">${nl2p(report.longTerm?.forecast)}<div class="callout gold-callout"><div class="callout-icon">✦</div><div><div class="callout-label gold-label">THE VERDICT</div><p class="callout-text" style="font-weight:700">${esc(report.longTerm?.verdict)}</p></div></div></div><div class="ornament">· · ·</div><div class="sl">${cfg.adviceLabel}</div><div class="sr"></div>${(report.advice || []).map((a, i) => `<div class="advice-item"><span class="advice-num">${i + 1}.</span><span class="advice-text">${esc(a)}</span></div>`).join('')}</div><div class="pf">Celestia · ${esc(p1Name)} & ${esc(p2Name)}</div>
+<div class="page-break"></div><div class="ph"><span class="ph-left">CELESTIA</span><span class="ph-right">${esc(p1Name.toUpperCase())} & ${esc(p2Name.toUpperCase())} · FUTURE</span></div><div class="pc"><div class="section-band" style="margin:0 -45px;padding:14px 45px;background:#3A1A28"><span class="section-icon">♄</span><div><div class="section-title">Long-Term Outlook</div><div class="section-sub">Where this is heading</div></div></div><div class="section-content">${nl2p(report.longTerm?.forecast)}<div class="callout gold-callout"><div class="callout-icon">✦</div><div><div class="callout-label gold-label">THE VERDICT</div><p class="callout-text" style="font-weight:700">${esc(report.longTerm?.verdict)}</p></div></div></div><div class="ornament">· · ·</div><div class="sl">${cfg.adviceLabel}</div><div class="sr"></div>${(report.advice || []).map((a, i) => `<div class="advice-item"><span class="advice-num">${i + 1}.</span><span class="advice-text">${esc(a)}</span></div>`).join('')}</div><div class="pf">Celestia · ${esc(p1Name)} & ${esc(p2Name)}</div>
 <div class="closing"><div class="ph" style="background:rgba(255,255,255,0.04)"><span class="ph-left">CELESTIA</span><span class="ph-right">${esc(p1Name.toUpperCase())} & ${esc(p2Name.toUpperCase())} · YOUR JOURNEY</span></div><div class="closing-content"><div style="margin-bottom:32px">${nl2p(report.closingMessage, 'closing-body')}</div><div style="color:#C49A2A;text-align:center;letter-spacing:12px;font-size:12px;margin:26px 0;opacity:0.6">· · ·</div><div class="closing-verdict"><div class="closing-verdict-text">${esc(report.cosmicVerdict || '')}</div></div></div><div class="closing-brand"><div class="closing-brand-name">CELESTIA</div><div class="closing-tagline">Your stars, your story</div><div class="closing-disclaimer">Generated using astronomical calculations and AI.<br/>For entertainment and self-reflection. ${esc(genDate)}</div></div></div>
 </body></html>`;
 };

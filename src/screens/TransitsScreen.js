@@ -258,46 +258,59 @@ export default function TransitsScreen({ navigation, route }) {
   return (
     <View style={{ flex: 1, backgroundColor: colors.bg }}>
       <ScrollView showsVerticalScrollIndicator={false}>
-        <LinearGradient colors={['#0E0E22', '#161230', '#101420']} locations={[0, 0.5, 1]} style={styles.hero}>
-          <View style={styles.heroGlow} />
+        {(() => {
+          const heroColors = isDark ? ['#3A1A28', '#5A2840', '#1F0F18'] : (colors.heroGradientLight || ['#F4ECE5', '#F0E4DC', '#ECDCD3']);
+          const heroFg = isDark ? T.cream : colors.heading;
+          const heroFgMuted = isDark ? 'rgba(250,248,242,0.44)' : colors.textSecondary;
+          const heroFgSoft = isDark ? 'rgba(250,248,242,0.5)' : colors.textMuted;
+          const heroFgWarm = isDark ? 'rgba(250,248,242,0.7)' : colors.text;
+          const tooltipFg = isDark ? 'rgba(250,248,242,0.4)' : colors.textMuted;
+          const stripBg = isDark ? 'rgba(255,255,255,0.05)' : 'rgba(92,36,52,0.06)';
+          const stripBorder = isDark ? 'rgba(255,255,255,0.07)' : 'rgba(42,36,24,0.08)';
+          const seasonBg = isDark ? 'rgba(200,168,75,0.1)' : 'rgba(160,120,32,0.1)';
+          return (
+        <LinearGradient colors={heroColors} locations={[0, 0.5, 1]} style={styles.hero}>
+          {isDark && <View style={styles.heroGlow} />}
           {navigation.canGoBack() && (
             <TouchableOpacity onPress={() => navigation.goBack()} style={{ flexDirection: 'row', alignItems: 'center', gap: 4, marginBottom: 10 }}>
-              <Text style={{ fontSize: 16, color: 'rgba(250,248,242,0.5)' }}>‹</Text>
-              <Text style={{ fontSize: 13, color: 'rgba(250,248,242,0.5)', fontFamily: FONTS.sans }}>Back</Text>
+              <Text style={{ fontSize: 16, color: heroFgSoft }}>‹</Text>
+              <Text style={{ fontSize: 13, color: heroFgSoft, fontFamily: FONTS.sans }}>Back</Text>
             </TouchableOpacity>
           )}
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-            <Text style={styles.title}>Today's Sky</Text>
-            <CosmicTooltip id="transit" size={16} color="rgba(250,248,242,0.4)" />
+            <Text style={[styles.title, { color: heroFg }]}>Today's Sky</Text>
+            <CosmicTooltip id="transit" size={16} color={tooltipFg} light={isDark} />
           </View>
-          <Text style={styles.sub}>
+          <Text style={[styles.sub, { color: heroFgMuted }]}>
             {loading
               ? 'Reading the sky…'
-              : `${transits.length} cosmic chapter${transits.length !== 1 ? 's' : ''} unfolding in your sky`
+              : `${transits.length} chapter${transits.length !== 1 ? 's' : ''} unfolding in your sky`
             }
           </Text>
           {!loading && transits.length > 0 && (
-            <View style={styles.skyStrip}>
+            <View style={[styles.skyStrip, { backgroundColor: stripBg, borderColor: stripBorder }]}>
               <View style={styles.skyStripItem}>
                 <Text style={styles.skyStripGlyph}>{transits[0]?.icons?.[0] || '★'}</Text>
-                <Text style={styles.skyStripLabel}>{transits[0]?.transitPlanet} in {transits[0]?.transitSign}</Text>
+                <Text style={[styles.skyStripLabel, !isDark && { color: colors.text }]}>{transits[0]?.transitPlanet} in {transits[0]?.transitSign}</Text>
               </View>
               <View style={styles.skyStripDot} />
-              <Text style={styles.skyStripAspect}>{transits[0]?.aspectType}</Text>
+              <Text style={[styles.skyStripAspect, !isDark && { color: colors.textSecondary }]}>{transits[0]?.aspectType}</Text>
               <View style={styles.skyStripDot} />
               <View style={styles.skyStripItem}>
                 <Text style={styles.skyStripGlyph}>{transits[0]?.icons?.[1] || '★'}</Text>
-                <Text style={styles.skyStripLabel}>Natal {transits[0]?.natalPlanet}</Text>
+                <Text style={[styles.skyStripLabel, !isDark && { color: colors.text }]}>Natal {transits[0]?.natalPlanet}</Text>
               </View>
             </View>
           )}
           {cosmicSeason && (
-            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 10, backgroundColor: 'rgba(200,168,75,0.1)', borderRadius: 8, paddingHorizontal: 10, paddingVertical: 6 }}>
-              <Text style={{ fontSize: 10, color: 'rgba(250,248,242,0.5)', fontFamily: FONTS.sansSemiBold, letterSpacing: 1 }}>YOUR SEASON</Text>
-              <Text style={{ fontSize: 11, color: 'rgba(250,248,242,0.7)', fontFamily: FONTS.sans }}>{cosmicSeason.planet} in {cosmicSeason.natalTarget} · {cosmicSeason.progress}%</Text>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 10, backgroundColor: seasonBg, borderRadius: 8, paddingHorizontal: 10, paddingVertical: 6 }}>
+              <Text style={{ fontSize: 10, color: heroFgSoft, fontFamily: FONTS.sansSemiBold, letterSpacing: 1 }}>YOUR SEASON</Text>
+              <Text style={{ fontSize: 11, color: heroFgWarm, fontFamily: FONTS.sans }}>{cosmicSeason.planet} in {cosmicSeason.natalTarget} · {cosmicSeason.progress}%</Text>
             </View>
           )}
         </LinearGradient>
+          );
+        })()}
 
         {/* ── MERCURY RETROGRADE — compact notice ── */}
         {mercuryRxData && (
@@ -488,7 +501,7 @@ export default function TransitsScreen({ navigation, route }) {
         {upcomingEvents.length > 0 && (
           <View style={styles.timelineSection}>
             <Text style={[styles.timelineTitle, { color: colors.heading }]}>Coming Up</Text>
-            <Text style={[styles.timelineSub, { color: colors.textSecondary }]}>Key cosmic events in the next 2 weeks</Text>
+            <Text style={[styles.timelineSub, { color: colors.textSecondary }]}>Key transits in the next 2 weeks</Text>
             <View style={styles.timeline}>
               {upcomingEvents.map((ev, i) => (
                 <View key={i} style={styles.tlRow}>

@@ -14,7 +14,7 @@ export default function NotificationPermissionModal({ visible, onEnable, onDismi
     <Modal visible={visible} transparent animationType="fade">
       <View style={s.overlay}>
         <View style={s.card}>
-          <LinearGradient colors={['#0E0E22', '#1A1060', '#0C2040']} style={s.gradient}>
+          <LinearGradient colors={['#3A1A28', '#1A1060', '#0C2040']} style={s.gradient}>
             {/* Header */}
             <Text style={s.icon}>🔔</Text>
             <Text style={s.title}>Never miss a cosmic window</Text>

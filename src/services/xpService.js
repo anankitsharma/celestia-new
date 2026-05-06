@@ -2,6 +2,7 @@ import { XPRepository } from './database/rep_xp';
 import { XP_ACTIONS, getLevelInfo, getStreakMultiplier } from '../constants/levels';
 import { StreakRepository } from './database/rep_streaks';
 import { loadObject, saveObject } from './storage';
+import { captureEvent, EVENTS } from './analytics';
 
 const FIRST_ACTION_KEY = 'celestia_first_actions_today';
 
@@ -49,6 +50,16 @@ export async function awardXP(profileId, action) {
   const levelInfo = getLevelInfo(result.total_xp);
   const prevLevelInfo = getLevelInfo(result.total_xp - amount);
   const leveledUp = levelInfo.current.level > prevLevelInfo.current.level;
+
+  if (leveledUp) {
+    captureEvent(EVENTS.LEVEL_UP, {
+      from_level: prevLevelInfo.current.level,
+      to_level: levelInfo.current.level,
+      to_tier_name: levelInfo.current.name || null,
+      total_xp: result.total_xp,
+      action,
+    });
+  }
 
   return {
     ...result,

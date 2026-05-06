@@ -4,6 +4,9 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { T, FONTS } from '../constants/theme';
 import Stars from '../components/Stars';
 import { useUserProfile } from '../contexts/UserProfileContext';
+import { fetchExtendedForecast } from '../services/geminiService';
+import { getTransitPlanets } from '../services/astrologyService';
+import { loadString, StorageKeys } from '../services/storage';
 
 const { width } = Dimensions.get('window');
 
@@ -17,6 +20,36 @@ export default function SplashScreen({ navigation }) {
 
   useEffect(() => {
     if (!isLoading && userProfile?.chart) {
+      // Pre-warm today's forecast cache so HomeScreen renders without a
+      // visible spinner. Fire-and-forget: ForecastRepository handles the
+      // store. If HomeScreen mounts before this completes, it hits the
+      // cache as soon as this resolves; if it beats us, no harm done.
+      (async () => {
+        try {
+          const today = new Date();
+          const transits = getTransitPlanets(today);
+          let briefingMode = 'standard';
+          try {
+            const firstUse = await loadString(StorageKeys.FIRST_USE_DATE);
+            if (firstUse) {
+              const start = new Date(firstUse + 'T00:00:00');
+              const todayMid = new Date(); todayMid.setHours(0, 0, 0, 0);
+              const days = Math.max(0, Math.floor((todayMid - start) / 86400000));
+              const weeks = Math.floor(days / 7);
+              const modes = ['standard', 'pattern', 'partner', 'archetype'];
+              briefingMode = modes[weeks % 4];
+              // Don't speculate 'partner' mode — HomeScreen will downgrade it
+              // if the user has no Circle entries, causing a cache miss.
+              if (briefingMode === 'partner') briefingMode = 'standard';
+            }
+          } catch {}
+          const planetaryData = {
+            dateLabel: today.toISOString().split('T')[0],
+            transits: transits.map(p => `${p.name}: ${p.sign} ${p.degree.toFixed(0)}°`).join(', '),
+          };
+          fetchExtendedForecast(userProfile, 'today', planetaryData, 0, null, briefingMode).catch(() => {});
+        } catch {}
+      })();
       navigation.replace('Main');
     }
   }, [isLoading, userProfile]);
@@ -47,7 +80,7 @@ export default function SplashScreen({ navigation }) {
   const spinCCW = rotationCCW.interpolate({ inputRange: [-1, 0], outputRange: ['-360deg', '0deg'] });
 
   return (
-    <LinearGradient colors={['#1A0A55', '#0E0E22', '#07070F']} locations={[0, 0.45, 1]} style={styles.container}>
+    <LinearGradient colors={['#5A2840', '#3A1A28', '#1F0F18']} locations={[0, 0.45, 1]} style={styles.container}>
       <Stars count={34} />
 
       {/* Glow halo */}

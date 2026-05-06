@@ -212,7 +212,7 @@ export default function CosmicTooltip({ id, size = 16, color = T.stone, light = 
           light ? styles.triggerLight : { backgroundColor: isDark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.05)' },
         ]}
         onPress={() => setVisible(true)}
-        hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
+        hitSlop={{ top: 14, bottom: 14, left: 14, right: 14 }}>
         <Text style={[styles.triggerText, { fontSize: size - 4, color: light ? 'rgba(250,248,242,0.4)' : (isDark ? colors.textMuted : color) }]}>?</Text>
       </TouchableOpacity>
 
@@ -223,7 +223,7 @@ export default function CosmicTooltip({ id, size = 16, color = T.stone, light = 
             <View style={{ height: 3, backgroundColor: colors.gold, borderRadius: 2, marginBottom: 14, width: 40 }} />
             <View style={styles.header}>
               <Text style={[styles.title, { color: colors.heading }]}>{data.title}</Text>
-              <TouchableOpacity onPress={() => setVisible(false)} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
+              <TouchableOpacity onPress={() => setVisible(false)} hitSlop={{ top: 14, bottom: 14, left: 14, right: 14 }}>
                 <Text style={{ fontSize: 16, color: colors.textMuted, padding: 4 }}>✕</Text>
               </TouchableOpacity>
             </View>

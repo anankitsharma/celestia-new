@@ -19,6 +19,10 @@ import { getNotificationSettings, scheduleAllNotifications, cancelAllNotificatio
 import { generateNotificationContent, buildNotificationData } from '../services/notificationContentEngine';
 import { ForecastRepository } from '../services/database/rep_forecasts';
 import { ReportRepository } from '../services/database/rep_reports';
+import { JournalRepository } from '../services/database/rep_journal';
+import { ChatRepository } from '../services/database/rep_chats';
+import { loadString } from '../services/storage';
+import { exportUserData } from '../services/dataExportService';
 import * as Notifications from 'expo-notifications';
 import { getCosmicSeason, getMoonDataForDate, getActiveCosmicWindows, calculateCosmicEnergy } from '../services/astrologyService';
 import { shareReferralLink, getReferralStats, getOrCreateReferralCode } from '../services/referralService';
@@ -40,7 +44,7 @@ const VOICE_OPTIONS = ['Poetic', 'Psychological', 'Direct', 'Spiritual'];
 const DEPTH_OPTIONS = ['Beginner', 'Intermediate', 'Advanced'];
 
 export default function ProfileScreen({ navigation }) {
-  const { userProfile, setUserProfile } = useUserProfile();
+  const { userProfile, setUserProfile, partnerProfiles } = useUserProfile();
   const { user, signOut: authSignOut, deleteAccount } = useAuth();
   const { customerInfo, isPro, debugOverridePro, setDebugOverridePro } = useRevenueCat();
   const { preference: themePref, setThemePreference } = useTheme();
@@ -59,6 +63,9 @@ export default function ProfileScreen({ navigation }) {
   const { cardRef: rarityCardRef, captureAndShare: shareRarity } = useShareCard();
   const [debugData, setDebugData] = useState(null);
   const [debugExpanded, setDebugExpanded] = useState(false);
+  // IKEA-effect counters — surfaces what the user has actually built.
+  // Switching cost made visible.
+  const [stickyCounts, setStickyCounts] = useState(null);
 
   useEffect(() => {
     loadSettings();
@@ -69,18 +76,36 @@ export default function ProfileScreen({ navigation }) {
   const loadEngagementData = async () => {
     try {
       const profileId = userProfile?.id || 'default';
-      const [streak, xp, allBadges, refStats, refCode] = await Promise.all([
+      const [streak, xp, allBadges, refStats, refCode, journalCount, chatSessions, firstUse] = await Promise.all([
         getStreakData(profileId),
         getXPStatus(profileId),
         getAllBadges(),
         getReferralStats(),
         getOrCreateReferralCode(profileId),
+        JournalRepository.getEntryCount(profileId).catch(() => 0),
+        ChatRepository.getSessions(100).catch(() => []),
+        loadString(StorageKeys.FIRST_USE_DATE).catch(() => null),
       ]);
       setStreakInfo(streak);
       setXpInfo(xp);
       setBadges(allBadges);
       setReferralStats(refStats);
       setReferralCode(refCode);
+
+      // Compute IKEA counters
+      let daysWithUs = 0;
+      if (firstUse) {
+        const start = new Date(firstUse + 'T00:00:00');
+        const today = new Date(); today.setHours(0, 0, 0, 0);
+        daysWithUs = Math.max(1, Math.floor((today - start) / 86400000) + 1);
+      }
+      setStickyCounts({
+        daysWithUs,
+        journalCount: journalCount || 0,
+        chatCount: (chatSessions || []).length,
+        partnerCount: partnerProfiles?.length || 0,
+        badgeCount: (allBadges || []).filter(b => b.unlocked).length,
+      });
     } catch (e) { console.error('Engagement load error:', e); }
     try {
       if (userProfile?.chart) {
@@ -220,21 +245,33 @@ export default function ProfileScreen({ navigation }) {
     <View style={{ flex: 1, backgroundColor: colors.bg }}>
       <ScrollView showsVerticalScrollIndicator={false}>
         {/* Hero */}
-        <LinearGradient colors={['#0E0E22', '#2A1A6E', '#0C2040']} start={{ x: 0.3, y: 0 }} end={{ x: 0.7, y: 1 }} style={styles.hero}>
-          <View style={styles.heroGlyph}><Text style={{ fontFamily: FONTS.serif, fontSize: 128, color: 'rgba(200,168,75,0.04)' }}>{signGlyph}</Text></View>
+        {(() => {
+          const heroColors = isDark ? ['#3A1A28', '#2A1A6E', '#0C2040'] : (colors.heroGradientLight || ['#F4ECE5', '#F0E4DC', '#ECDCD3']);
+          const heroFg = isDark ? 'white' : colors.heading;
+          const heroFgMuted = isDark ? 'rgba(250,248,242,0.4)' : colors.textSecondary;
+          const heroFgSoft = isDark ? 'rgba(250,248,242,0.58)' : colors.text;
+          const glyphColor = isDark ? 'rgba(200,168,75,0.04)' : 'rgba(92,36,52,0.05)';
+          const avatarBorder = isDark ? 'rgba(255,255,255,0.14)' : 'rgba(92,36,52,0.18)';
+          const badgeBg = isDark ? 'rgba(255,255,255,0.07)' : 'rgba(92,36,52,0.06)';
+          const badgeBorder = isDark ? 'rgba(255,255,255,0.11)' : 'rgba(42,36,24,0.08)';
+          return (
+        <LinearGradient colors={heroColors} start={{ x: 0.3, y: 0 }} end={{ x: 0.7, y: 1 }} style={styles.hero}>
+          <View style={styles.heroGlyph}><Text style={{ fontFamily: FONTS.serif, fontSize: 128, color: glyphColor }}>{signGlyph}</Text></View>
           <TouchableOpacity activeOpacity={0.8}>
-            <LinearGradient colors={['#E2C46A', '#8C6C18']} style={styles.avatar}>
+            <LinearGradient colors={['#E2C46A', '#8C6C18']} style={[styles.avatar, { borderColor: avatarBorder }]}>
               <Text style={styles.avatarText}>{firstName[0]?.toUpperCase() || '✦'}</Text>
             </LinearGradient>
           </TouchableOpacity>
-          <Text style={styles.heroName}>{name}</Text>
-          {birthInfo ? <Text style={styles.heroBirth}>{birthInfo}</Text> : null}
+          <Text style={[styles.heroName, { color: heroFg }]}>{name}</Text>
+          {birthInfo ? <Text style={[styles.heroBirth, { color: heroFgMuted }]}>{birthInfo}</Text> : null}
           <View style={styles.signsRow}>
             {signBadges.map((s, i) => (
-              <View key={i} style={styles.signBadge}><Text style={styles.signBadgeText}>{s}</Text></View>
+              <View key={i} style={[styles.signBadge, { backgroundColor: badgeBg, borderColor: badgeBorder }]}><Text style={[styles.signBadgeText, { color: heroFgSoft }]}>{s}</Text></View>
             ))}
           </View>
         </LinearGradient>
+          );
+        })()}
 
         {/* Connect Account nudge */}
         {!user && (
@@ -278,6 +315,32 @@ export default function ProfileScreen({ navigation }) {
               )}
               <Text style={{ fontSize: 16, color: colors.textMuted, marginLeft: 'auto' }}>›</Text>
             </TouchableOpacity>
+          )}
+
+          {/* IKEA-EFFECT: what the user has actually built. Switching cost
+              made visible. Shows only when there's something meaningful to show. */}
+          {stickyCounts && (stickyCounts.daysWithUs > 1 || stickyCounts.journalCount > 0 || stickyCounts.chatCount > 0) && (
+            <View style={[styles.ikeaCard, cardStyle]}>
+              <Text style={[styles.ikeaLabel, subStyle]}>YOU'VE BUILT</Text>
+              <View style={styles.ikeaGrid}>
+                <View style={styles.ikeaCell}>
+                  <Text style={[styles.ikeaNum, headingStyle]}>{stickyCounts.daysWithUs}</Text>
+                  <Text style={[styles.ikeaSub, subStyle]}>{stickyCounts.daysWithUs === 1 ? 'day' : 'days'} with us</Text>
+                </View>
+                <View style={styles.ikeaCell}>
+                  <Text style={[styles.ikeaNum, headingStyle]}>{stickyCounts.journalCount}</Text>
+                  <Text style={[styles.ikeaSub, subStyle]}>{stickyCounts.journalCount === 1 ? 'journal' : 'journals'}</Text>
+                </View>
+                <View style={styles.ikeaCell}>
+                  <Text style={[styles.ikeaNum, headingStyle]}>{stickyCounts.chatCount}</Text>
+                  <Text style={[styles.ikeaSub, subStyle]}>{stickyCounts.chatCount === 1 ? 'chat' : 'chats'} saved</Text>
+                </View>
+                <View style={styles.ikeaCell}>
+                  <Text style={[styles.ikeaNum, headingStyle]}>{stickyCounts.partnerCount}</Text>
+                  <Text style={[styles.ikeaSub, subStyle]}>in your Circle</Text>
+                </View>
+              </View>
+            </View>
           )}
 
           {/* Share Identity — single tap shares her Big 3 */}
@@ -362,16 +425,21 @@ export default function ProfileScreen({ navigation }) {
                   planLabel = diffDays > 35 ? 'Yearly' : 'Monthly';
                 }
                 return (
-                  <View style={[styles.prow, { borderBottomColor: colors.divider }, { borderBottomWidth: 0 }]}>
+                  <TouchableOpacity
+                    style={[styles.prow, { borderBottomColor: colors.divider }, { borderBottomWidth: 0 }]}
+                    activeOpacity={0.7}
+                    onPress={() => { haptic.light(); navigation.navigate('CancelFlow'); }}
+                  >
                     <View style={[styles.prowIcon, { backgroundColor: '#FFF8E1' }]}><Text style={{ fontSize: 16 }}>{'⭐'}</Text></View>
                     <View style={{ flex: 1 }}>
                       <Text style={[styles.prowLabel, textStyle]}>Celestia Pro{planLabel ? ` (${planLabel})` : ''}</Text>
                       {purchaseDate && (
-                        <Text style={{ fontSize: 11, color: T.stone, marginTop: 1 }}>Purchased {purchaseDate.toLocaleDateString()}</Text>
+                        <Text style={{ fontSize: 11, color: T.stone, marginTop: 1 }}>Manage subscription</Text>
                       )}
                     </View>
                     <Text style={{ fontSize: 11, color: '#4CAF50', fontWeight: '700' }}>Active</Text>
-                  </View>
+                    <Text style={[styles.prowArr, { marginLeft: 8 }]}>›</Text>
+                  </TouchableOpacity>
                 );
               }
               return (
@@ -391,6 +459,37 @@ export default function ProfileScreen({ navigation }) {
           {/* Account */}
           <Text style={[styles.secLbl, subStyle]}>ACCOUNT</Text>
           <View style={[styles.settingsCard, cardStyle]}>
+            {/* Data export — GDPR transparency + churn-signal trigger */}
+            <TouchableOpacity
+              style={[styles.prow, { borderBottomColor: colors.divider }, { borderBottomWidth: 1 }]}
+              activeOpacity={0.7}
+              onPress={async () => {
+                haptic.light();
+                Alert.alert(
+                  'Export your data',
+                  'We\'ll generate a JSON file with your chart, journals, chats, partners, and engagement history. You can save or share it from there.',
+                  [
+                    { text: 'Cancel', style: 'cancel' },
+                    {
+                      text: 'Export',
+                      onPress: async () => {
+                        const result = await exportUserData(userProfile?.id || 'default', userProfile?.name);
+                        if (!result.ok) {
+                          Alert.alert('Export failed', result.error || 'Please try again.');
+                        }
+                      },
+                    },
+                  ]
+                );
+              }}
+            >
+              <View style={[styles.prowIcon, { backgroundColor: '#EAF1FB' }]}><Text style={{ fontSize: 16 }}>{'⬇'}</Text></View>
+              <View style={{ flex: 1 }}>
+                <Text style={[styles.prowLabel, textStyle]}>Export my data</Text>
+                <Text style={{ fontSize: 11, color: T.stone, marginTop: 1 }}>Download a JSON copy of everything you've created</Text>
+              </View>
+              <Text style={styles.prowArr}>{'›'}</Text>
+            </TouchableOpacity>
             {user ? (
               <>
                 <View style={[styles.prow, { borderBottomColor: colors.divider }, { borderBottomWidth: 1 }]}>
@@ -542,7 +641,7 @@ export default function ProfileScreen({ navigation }) {
                     try {
                       const perm = await hasNotificationPermission();
                       if (!perm) {
-                        await requestNotificationPermission();
+                        await requestNotificationPermission('profile_dev_test');
                       }
                       const now = new Date();
                       const profileId = userProfile?.id || 'default';
@@ -706,11 +805,11 @@ export default function ProfileScreen({ navigation }) {
                         return;
                       }
                       const perm = await hasNotificationPermission();
-                      if (!perm) await requestNotificationPermission();
+                      if (!perm) await requestNotificationPermission('profile_dev_navigator');
                       await Notifications.scheduleNotificationAsync({
                         content: {
                           title: forecast.notificationExcerpt.title || 'Navigator Update',
-                          body: forecast.notificationExcerpt.body || forecast.navigatorHeadline || 'Your cosmic briefing is ready.',
+                          body: forecast.notificationExcerpt.body || forecast.navigatorHeadline || 'Your morning briefing is ready.',
                           data: { type: 'cosmic_morning', screen: 'Today' },
                         },
                         trigger: { type: 'timeInterval', seconds: 2, repeats: false },
@@ -952,6 +1051,13 @@ const styles = StyleSheet.create({
   journeyStripItem: { flex: 1, alignItems: 'center', gap: 2, paddingHorizontal: 8 },
   journeyStripNum: { fontFamily: FONTS.serif, fontSize: 18 },
   journeyStripLbl: { fontSize: 9, letterSpacing: 0.5 },
+  // IKEA-effect "you've built" section
+  ikeaCard: { borderRadius: 16, padding: 16, marginBottom: 14, borderWidth: 1 },
+  ikeaLabel: { fontSize: 10, letterSpacing: 1.6, fontFamily: FONTS.sansSemiBold, marginBottom: 12, textTransform: 'uppercase' },
+  ikeaGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 0 },
+  ikeaCell: { width: '50%', paddingVertical: 6, alignItems: 'flex-start' },
+  ikeaNum: { fontFamily: FONTS.serif, fontSize: 22, lineHeight: 26 },
+  ikeaSub: { fontSize: 11, marginTop: 2, letterSpacing: 0.3 },
   // Referral section
   referralCard: { borderRadius: 20, overflow: 'hidden', marginBottom: 18 },
   referralGrad: { padding: 22, alignItems: 'center' },

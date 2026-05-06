@@ -303,10 +303,24 @@ export default function ChartScreen() {
   return (
     <View style={{ flex: 1, backgroundColor: colors.bg }}>
       <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 110 }}>
-        <LinearGradient colors={colors.heroGradient} locations={[0, 0.5, 1]} style={styles.hero}>
+        {(() => {
+          // Chart hero stays dark even in light mode — the chart wheel SVG strokes
+          // need a dark backdrop for legibility. Light mode uses a burgundy ramp
+          // (on-brand with the new palette) instead of cream-ivory.
+          const heroColors = isDark ? colors.heroGradient : (colors.heroGradientBurgundy || colors.heroGradient);
+          const heroFg = T.cream;
+          const heroFgMuted = 'rgba(250,248,242,0.45)';
+          const heroFgSoft = 'rgba(250,248,242,0.4)';
+          const dividerColor = 'rgba(255,255,255,0.1)';
+          const tooltipFg = 'rgba(250,248,242,0.35)';
+          const sharePillBg = 'rgba(200,168,75,0.15)';
+          const sharePillBorder = 'rgba(200,168,75,0.3)';
+          const sharePillText = T.gold;
+          return (
+        <LinearGradient colors={heroColors} locations={[0, 0.5, 1]} style={styles.hero}>
           {/* Centered title + subtitle */}
-          <Text style={styles.title}>Birth Chart</Text>
-          <Text style={styles.heroSub}>
+          <Text style={[styles.title, { color: heroFg }]}>Birth Chart</Text>
+          <Text style={[styles.heroSub, { color: heroFgMuted }]}>
             {sun ? `${sun.sign} Sun` : ''}
             {moon ? ` · ${moon.sign} Moon` : ''}
             {rising ? ` · ${rising.sign} Rising` : ''}
@@ -318,49 +332,51 @@ export default function ChartScreen() {
               {sun && <View style={styles.big3Item}>
                 <Text style={styles.big3Glyph}>☉</Text>
                 <View style={{ flexDirection: 'row', alignItems: 'center', gap: 2 }}>
-                  <Text style={styles.big3Sign}>{sun.sign}</Text>
-                  <CosmicTooltip id="sun_sign" size={12} color="rgba(250,248,242,0.35)" />
+                  <Text style={[styles.big3Sign, { color: heroFg }]}>{sun.sign}</Text>
+                  <CosmicTooltip id="sun_sign" size={12} color={tooltipFg} light />
                 </View>
-                <Text style={styles.big3Label}>SUN</Text>
+                <Text style={[styles.big3Label, { color: heroFgSoft }]}>SUN</Text>
               </View>}
-              {moon && <View style={[styles.big3Item, styles.big3Divider]}>
+              {moon && <View style={[styles.big3Item, styles.big3Divider, { borderColor: dividerColor }]}>
                 <Text style={styles.big3Glyph}>☽</Text>
                 <View style={{ flexDirection: 'row', alignItems: 'center', gap: 2 }}>
-                  <Text style={styles.big3Sign}>{moon.sign}</Text>
-                  <CosmicTooltip id="moon_sign" size={12} color="rgba(250,248,242,0.35)" />
+                  <Text style={[styles.big3Sign, { color: heroFg }]}>{moon.sign}</Text>
+                  <CosmicTooltip id="moon_sign" size={12} color={tooltipFg} light />
                 </View>
-                <Text style={styles.big3Label}>MOON</Text>
+                <Text style={[styles.big3Label, { color: heroFgSoft }]}>MOON</Text>
               </View>}
               {rising && <View style={styles.big3Item}>
                 <Text style={styles.big3Glyph}>↑</Text>
                 <View style={{ flexDirection: 'row', alignItems: 'center', gap: 2 }}>
-                  <Text style={styles.big3Sign}>{rising.sign}</Text>
-                  <CosmicTooltip id="rising_sign" size={12} color="rgba(250,248,242,0.35)" />
+                  <Text style={[styles.big3Sign, { color: heroFg }]}>{rising.sign}</Text>
+                  <CosmicTooltip id="rising_sign" size={12} color={tooltipFg} light />
                 </View>
-                <Text style={styles.big3Label}>RISING</Text>
+                <Text style={[styles.big3Label, { color: heroFgSoft }]}>RISING</Text>
               </View>}
             </View>
           )}
 
           {/* Share My Chart */}
-          <TouchableOpacity style={styles.shareChartBtn} activeOpacity={0.75} onPress={async () => {
+          <TouchableOpacity style={[styles.shareChartBtn, { backgroundColor: sharePillBg, borderColor: sharePillBorder }]} activeOpacity={0.75} onPress={async () => {
             haptic.light();
             await shareBigThree(`My cosmic identity: ${sun?.sign} Sun · ${moon?.sign} Moon · ${rising?.sign} Rising`);
             trackEvent('share');
             awardXP(userProfile?.id, 'share');
           }}>
-            <Text style={styles.shareChartText}>Share My Chart</Text>
+            <Text style={[styles.shareChartText, { color: sharePillText }]}>Share My Chart</Text>
           </TouchableOpacity>
 
-          {/* Chart Wheel — inside dark hero */}
+          {/* Chart Wheel — inside hero */}
           <View style={{ alignItems: 'center', marginTop: 12 }}>
             <ChartWheel size={280} planets={chart.planets} aspects={chart.aspects} />
           </View>
         </LinearGradient>
+          );
+        })()}
 
         {/* Floating tab pill — overlaps hero bottom edge */}
         <View style={styles.chartTabWrap}>
-          <View style={[styles.chartTabBar, { backgroundColor: isDark ? colors.card : colors.bg, borderColor: isDark ? colors.border : 'rgba(0,0,0,0.04)' }]}>
+          <View style={[styles.chartTabBar, { backgroundColor: colors.card, borderColor: isDark ? colors.border : 'rgba(0,0,0,0.06)' }]}>
             {tabs.filter((t) => {
               if (t === 'Aspects' && !detailedMode) return false;
               return true;
@@ -542,6 +558,10 @@ export default function ChartScreen() {
             );
           })}
         </View>
+        <View style={{ height: 8 }} />
+        <Text style={styles.methodologyFooter}>
+          Astronomical positions calculated from NASA JPL DE-441 ephemeris.
+        </Text>
         <View style={{ height: 20 }} />
       </ScrollView>
 
@@ -808,7 +828,7 @@ export default function ChartScreen() {
                   awardXP(userProfile?.id, 'share');
                 }}>
                   <View ref={quoteRef} collapsable={false}>
-                    <LinearGradient colors={['#0E0E22', '#1A1060']} style={styles.ddQuoteCard}>
+                    <LinearGradient colors={['#3A1A28', '#1A1060']} style={styles.ddQuoteCard}>
                       <Text style={styles.ddQuote}>"{deepDive.share_quote}"</Text>
                       <Text style={styles.ddShareHint}>Tap to share ↗</Text>
                     </LinearGradient>
@@ -847,6 +867,7 @@ const toRoman = (n) => {
 
 const styles = StyleSheet.create({
   hero: { paddingTop: Platform.OS === 'ios' ? 70 : (StatusBar.currentHeight || 48) + 16, paddingBottom: 40, alignItems: 'center', position: 'relative', borderBottomLeftRadius: 36, borderBottomRightRadius: 36 },
+  methodologyFooter: { fontSize: 10, color: 'rgba(151,144,127,0.65)', fontFamily: FONTS.sans, fontStyle: 'italic', textAlign: 'center', paddingHorizontal: 24, marginTop: 12 },
   title: { fontFamily: FONTS.serif, fontSize: 32, color: T.cream, textAlign: 'center' },
   heroSub: { fontSize: 12, color: 'rgba(250,248,242,0.45)', marginTop: 4, textAlign: 'center', marginBottom: 16 },
   housePill: { backgroundColor: 'rgba(255,255,255,0.08)', borderWidth: 1, borderColor: 'rgba(255,255,255,0.1)', borderRadius: 100, paddingVertical: 5, paddingHorizontal: 14 },

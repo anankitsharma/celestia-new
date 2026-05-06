@@ -4,6 +4,7 @@ import { usePostHog } from 'posthog-react-native';
 
 import { RevenueCatService } from '../services/revenueCatService';
 import { useUserProfile } from './UserProfileContext';
+import { buildUserProperties } from '../services/analytics';
 
 const RevenueCatContext = createContext(null);
 
@@ -27,7 +28,11 @@ export const RevenueCatProvider = ({ children }) => {
             const info = await RevenueCatService.getCustomerInfo();
             setCustomerInfo(info);
             setIsPro(RevenueCatService.isPro(info));
-            posthog?.identify(userProfile.id, { is_pro: RevenueCatService.isPro(info) });
+            const userProps = await buildUserProperties(userProfile.id).catch(() => ({}));
+            posthog?.identify(userProfile.id, {
+              ...userProps,
+              is_pro: RevenueCatService.isPro(info),
+            });
 
             const currentOfferings = await RevenueCatService.getOfferings();
             setOfferings(currentOfferings);

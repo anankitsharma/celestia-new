@@ -16,7 +16,7 @@ export default function LockedFeatureOverlay({ title, description, source, compa
                 onPress={() => navigation.navigate('Paywall', { source })}
             >
                 <LinearGradient
-                    colors={['#1A1228', '#100C1A']}
+                    colors={['#5A2840', '#1F0F18']}
                     style={styles.compactGradient}
                 >
                     <View style={styles.compactRow}>

@@ -18,7 +18,7 @@ export default function CompatibilityShareCard({ user, partner, score, verdict, 
 
   return (
     <View ref={innerRef} collapsable={false} style={s.outer}>
-      <LinearGradient colors={['#1A0A2E', '#0E0E22', '#0A1A3A']} style={s.card}>
+      <LinearGradient colors={['#1A0A2E', '#3A1A28', '#0A1A3A']} style={s.card}>
         {/* Title */}
         <Text style={s.label}>COSMIC COMPATIBILITY</Text>
 

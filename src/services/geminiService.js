@@ -578,6 +578,322 @@ NEVER: Generic platitudes, emoji, "the universe", "stars align".`;
     }, null);
 };
 
+// --- FIRST WEEK RECAP ---
+// Personalized "Your first 7 days" card shown when user hits the D7 streak.
+// Variable-reward layer over the expected stargazer-badge unlock.
+
+const firstWeekRecapSchema = {
+    type: Type.OBJECT,
+    properties: {
+        headline: { type: Type.STRING },
+        observation: { type: Type.STRING },
+        threadForward: { type: Type.STRING },
+    },
+    required: ["headline", "observation", "threadForward"]
+};
+
+export const generateFirstWeekRecap = async (chart, stats) => {
+    let chartContext = '';
+    if (chart) {
+        if (chart.planets && chart.planets.length > 0) {
+            const placements = chart.planets.slice(0, 8).map(p => {
+                let entry = `${p.name} in ${p.sign}`;
+                if (p.house != null) entry += ` (H${p.house})`;
+                return entry;
+            }).join(', ');
+            chartContext += `PLACEMENTS: ${placements}\n`;
+        }
+        if (chart.aspects && chart.aspects.length > 0) {
+            const keyAspects = chart.aspects.slice(0, 5).map(a =>
+                `${a.planet1} ${a.type} ${a.planet2}`
+            ).join(', ');
+            chartContext += `KEY ASPECTS: ${keyAspects}\n`;
+        }
+    }
+    if (!chartContext) chartContext = 'Chart data unavailable.\n';
+
+    // If the user saw a deeply-specific reveal statement at onboarding,
+    // reference it for continuity — closes the loop The Pattern's "scarily
+    // accurate portrait" leaves open. Per Gap 8 in competitive-audit.
+    const firstRevealBlock = stats.firstReveal
+        ? `\nWHAT YOU TOLD THEM AT ONBOARDING (one week ago):\n"${stats.firstReveal}"\n`
+        : '';
+
+    const prompt = `Generate a personalized "first week with Celestia" recap for this user.
+
+USER'S NATAL CHART:
+${chartContext}${firstRevealBlock}
+THEIR FIRST 7 DAYS:
+- Days active: ${stats.daysActive || 7}
+- Journal entries: ${stats.journalEntries || 0}
+- Chats sent: ${stats.chatCount || 0}
+- Partners added to Circle: ${stats.partnerCount || 0}
+- Top journal theme (if any): ${stats.topTheme || 'N/A'}
+
+Generate three short pieces:
+
+1. HEADLINE: 4-7 words. Names what their first week revealed about them. NOT generic ("Your cosmic journey begins"). Specific to their chart + behavior. Examples: "A week of careful watching", "You came back for the moon", "Quiet questions, big answers".
+
+2. OBSERVATION: 2 sentences (max 40 words). ${stats.firstReveal ? 'CONTINUITY: lightly reference the onboarding statement above — confirm or extend it based on what they actually did this week. Make them feel REMEMBERED, not just seen.' : 'Reflect back something the user did this week, anchored to a specific placement.'} The "I noticed something about you" voice. Reference an actual placement (e.g. "Your Moon in the 4th") and tie it to their behavior (e.g. "of course you wrote about home"). Make them feel SEEN.
+
+3. THREAD FORWARD: 1 sentence (max 18 words). What's next — frames week 2 with a small question or hint. Not a CTA. Not a sales pitch. A whisper.
+
+TONE: Psychological-first, intimate, knowing. Like a friend who's been paying attention, not a horoscope. Use astrology vocabulary sparingly — at most one placement reference per piece. Never: emoji, "the universe", "stars align", "destiny", generic "your cosmic", exclamation marks.`;
+
+    return withRetry(async () => {
+        const response = await generateWithFallback({
+            contents: [{ role: 'user', parts: [{ text: prompt }] }],
+            config: { responseMimeType: "application/json", responseSchema: firstWeekRecapSchema }
+        });
+        return cleanAndParseJson(response.text, null);
+    }, null);
+};
+
+// --- SURPRISE INSIGHT ---
+// Variable-reward layer over the daily briefing on weeks 1-4 trigger days.
+// One-shot, never repeats — text is grounded in the user's chart.
+
+const surpriseInsightSchema = {
+    type: Type.OBJECT,
+    properties: {
+        kicker: { type: Type.STRING },
+        insight: { type: Type.STRING },
+    },
+    required: ["kicker", "insight"]
+};
+
+export const generateSurpriseInsight = async (chart, context = {}) => {
+    let chartContext = '';
+    if (chart) {
+        if (chart.planets && chart.planets.length > 0) {
+            const placements = chart.planets.slice(0, 8).map(p => {
+                let entry = `${p.name} in ${p.sign}`;
+                if (p.house != null) entry += ` (H${p.house})`;
+                return entry;
+            }).join(', ');
+            chartContext += `PLACEMENTS: ${placements}\n`;
+        }
+        if (chart.aspects && chart.aspects.length > 0) {
+            const tightAspects = chart.aspects
+                .slice()
+                .sort((a, b) => (a.orb ?? 99) - (b.orb ?? 99))
+                .slice(0, 5)
+                .map(a => `${a.planet1} ${a.type} ${a.planet2}${a.orb != null ? ` (orb ${a.orb.toFixed(1)}°)` : ''}`).join(', ');
+            chartContext += `TIGHTEST ASPECTS: ${tightAspects}\n`;
+        }
+    }
+    if (!chartContext) chartContext = 'Chart data unavailable.\n';
+
+    const previouslyShown = (context.shownInsightIds || []).slice(0, 12);
+
+    const prompt = `Generate a SURPRISE INSIGHT for this user — one observation about their chart that most apps would miss.
+
+USER'S NATAL CHART:
+${chartContext}
+DAYS WITH CELESTIA: ${context.daysSinceInstall || 'unknown'}
+
+Constraints:
+- This is meant to feel UNEXPECTED — not the standard daily briefing.
+- Pick ONE specific placement, aspect, or pattern (NOT Sun sign).
+- Reveal something the user probably hasn't been told before.
+- Anchor the insight in PSYCHOLOGY, not astrology jargon. Translate the chart into how it shows up in their life.
+- Avoid these previously-shown ideas (don't repeat themes): ${previouslyShown.length ? previouslyShown.join(' / ') : '(none yet)'}.
+
+Return:
+1. KICKER: 2-4 words, all lowercase. The "tag" for this insight. Example: "about your moon", "what your saturn does", "the venus pattern".
+2. INSIGHT: 2-3 sentences (max 50 words). The actual observation. Specific. Personal. Grounded in their chart but spoken in psychological/behavioral terms. NEVER: "the universe", "stars align", "destiny", emoji, exclamation marks.`;
+
+    return withRetry(async () => {
+        const response = await generateWithFallback({
+            contents: [{ role: 'user', parts: [{ text: prompt }] }],
+            config: { responseMimeType: "application/json", responseSchema: surpriseInsightSchema }
+        });
+        return cleanAndParseJson(response.text, null);
+    }, null);
+};
+
+// --- PRO WEEK-1 RECAP ---
+// Generated at Day 7 post-purchase. Two flavors based on usage:
+//   • If user tried 2+ Pro features → "Your first week as a Pro" recap
+//   • If user tried 0-1 → "Most Pros use [feature] in week 1" nudge
+
+const proWeek1RecapSchema = {
+    type: Type.OBJECT,
+    properties: {
+        headline: { type: Type.STRING },
+        body: { type: Type.STRING },
+        cta: { type: Type.STRING },
+    },
+    required: ["headline", "body", "cta"]
+};
+
+export const generateProWeek1Recap = async (chart, usage) => {
+    let chartContext = '';
+    if (chart) {
+        const sun = chart.planets?.find(p => p.name === 'Sun');
+        const moon = chart.planets?.find(p => p.name === 'Moon');
+        chartContext = `${sun?.sign || ''} Sun, ${moon?.sign || ''} Moon`;
+    }
+
+    const featuresUsed = [
+      usage.weeklyReports > 0 && `${usage.weeklyReports} weekly report${usage.weeklyReports === 1 ? '' : 's'}`,
+      usage.deepDives > 0 && `${usage.deepDives} placement deep-dive${usage.deepDives === 1 ? '' : 's'}`,
+      usage.compatibilityChecks > 0 && `${usage.compatibilityChecks} compatibility read${usage.compatibilityChecks === 1 ? '' : 's'}`,
+      usage.partnersAdded > 0 && `${usage.partnersAdded} partner${usage.partnersAdded === 1 ? '' : 's'} added to Circle`,
+    ].filter(Boolean).join(', ');
+
+    const isLightUser = usage.totalProActions <= 1;
+
+    const prompt = `Generate a Day-7-of-Pro recap for this user.
+
+USER: ${chartContext}
+PRO USAGE THIS WEEK:
+- ${featuresUsed || 'No Pro features used yet'}
+- Total Pro actions: ${usage.totalProActions}
+
+Mode: ${isLightUser ? 'NUDGE (user has barely used Pro)' : 'RECAP (user is engaged with Pro)'}
+
+${isLightUser
+  ? `Light-touch nudge — most Pros use 2-3 features in their first week. Suggest the highest-value untried feature: ${usage.suggestedFeature || 'weekly chart report'}. Don't shame; reframe with curiosity.`
+  : `Recap their week — name 1-2 specific things they did and connect it back to their chart. Make them feel observed, not flattered.`}
+
+Generate three pieces:
+
+1. HEADLINE: 4-7 words. ${isLightUser ? 'A gentle pivot toward what they haven\'t tried.' : 'Names what their week revealed.'}
+
+2. BODY: 2 sentences (max 45 words). ${isLightUser ? 'Frame the suggested feature as the natural next step. Reference their chart context once.' : 'Reflect back what they did this week, anchored to one chart placement.'}
+
+3. CTA: Short button label (max 4 words). ${isLightUser ? `e.g. "Try ${usage.suggestedFeature || 'a weekly read'}"` : 'e.g. "Keep exploring" or "See week 2 ahead"'}
+
+NEVER: emoji, "the universe", "stars align", exclamation marks. TONE: a friend who notices what you've been doing, no pressure.`;
+
+    return withRetry(async () => {
+        const response = await generateWithFallback({
+            contents: [{ role: 'user', parts: [{ text: prompt }] }],
+            config: { responseMimeType: "application/json", responseSchema: proWeek1RecapSchema }
+        });
+        return cleanAndParseJson(response.text, null);
+    }, null);
+};
+
+// --- PRO DAILY INSIGHT ---
+// Extra paragraph for Pro users only. Gives a daily moment where the
+// subscription delivers measurable extra depth. Cached per (user, day).
+
+const proDailyInsightSchema = {
+    type: Type.OBJECT,
+    properties: {
+        headline: { type: Type.STRING },
+        body: { type: Type.STRING },
+    },
+    required: ["headline", "body"]
+};
+
+export const generateProDailyInsight = async (chart, transitContext = '', dateLabel = '') => {
+    let chartContext = '';
+    if (chart) {
+        if (chart.planets && chart.planets.length > 0) {
+            const placements = chart.planets.slice(0, 8).map(p => {
+                let entry = `${p.name} in ${p.sign}`;
+                if (p.house != null) entry += ` (H${p.house})`;
+                if (p.isRetrograde) entry += ' [Rx]';
+                return entry;
+            }).join(', ');
+            chartContext += `PLACEMENTS: ${placements}\n`;
+        }
+        if (chart.aspects && chart.aspects.length > 0) {
+            const tightAspects = chart.aspects.slice().sort((a, b) => (a.orb ?? 99) - (b.orb ?? 99)).slice(0, 5)
+                .map(a => `${a.planet1} ${a.type} ${a.planet2}${a.orb != null ? ` (orb ${a.orb.toFixed(1)}°)` : ''}`).join(', ');
+            chartContext += `TIGHTEST ASPECTS: ${tightAspects}\n`;
+        }
+    }
+    if (!chartContext) chartContext = 'Chart data unavailable.\n';
+
+    const prompt = `Generate a "PRO INSIGHT" for this user — an extra layer of depth that goes beyond the standard daily briefing they're already seeing.
+
+USER'S NATAL CHART:
+${chartContext}
+TODAY: ${dateLabel || 'today'}
+TODAY'S TRANSITS: ${transitContext || '(transit data unavailable)'}
+
+This is shown only to paying subscribers. They've already read their daily navigator briefing on the same screen — your job is to add the LAYER UNDER it: the deeper psychological read most users don't get.
+
+Generate:
+
+1. HEADLINE: 4-7 words. Names the deeper pattern at play today. Specific to chart + transits. Examples: "Why today feels like a question", "The Saturn pattern under your day", "What this transit asks of your Mars".
+
+2. BODY: 2-3 sentences (max 55 words). The actual psychological read of how today's transits intersect with their natal placements. Translate the astrology into BEHAVIOR — what they'll likely feel, why, what to do with it. Reference one specific placement.
+
+NEVER: emoji, "the universe", "stars align", "destiny", generic "your cosmic", exclamation marks. NEVER repeat what the standard briefing already said.
+
+TONE: a friend who knows astrology deeply, talking to you over coffee. Specific, behavioral, observational. Not mystical.`;
+
+    return withRetry(async () => {
+        const response = await generateWithFallback({
+            contents: [{ role: 'user', parts: [{ text: prompt }] }],
+            config: { responseMimeType: "application/json", responseSchema: proDailyInsightSchema }
+        });
+        return cleanAndParseJson(response.text, null);
+    }, null);
+};
+
+// --- MOON CYCLE PATTERN (D28) ---
+// Earned content for users who hit a 28-day streak. One full lunar cycle of
+// consistency. Generated once, cached forever.
+
+const moonCyclePatternSchema = {
+    type: Type.OBJECT,
+    properties: {
+        headline: { type: Type.STRING },
+        observation: { type: Type.STRING },
+        threadForward: { type: Type.STRING },
+    },
+    required: ["headline", "observation", "threadForward"]
+};
+
+export const generateMoonCyclePattern = async (chart, stats) => {
+    let chartContext = '';
+    if (chart) {
+        if (chart.planets && chart.planets.length > 0) {
+            const placements = chart.planets.slice(0, 8).map(p => {
+                let entry = `${p.name} in ${p.sign}`;
+                if (p.house != null) entry += ` (H${p.house})`;
+                return entry;
+            }).join(', ');
+            chartContext += `PLACEMENTS: ${placements}\n`;
+        }
+    }
+    if (!chartContext) chartContext = 'Chart data unavailable.\n';
+
+    const prompt = `Generate a "Moon Cycle Pattern" reflection for a user who just completed a 28-day streak — one full lunar cycle of daily Celestia use.
+
+USER'S NATAL CHART:
+${chartContext}
+THEIR FIRST 28 DAYS:
+- Days active: 28
+- Journal entries: ${stats.journalEntries || 0}
+- Chats sent: ${stats.chatCount || 0}
+- Partners in Circle: ${stats.partnerCount || 0}
+
+Generate three pieces. The voice is "I've been watching you for a moon cycle now" — not "your cosmic journey".
+
+1. HEADLINE: 4-7 words. Names what the moon cycle revealed about them. Specific, observational. NOT mystical-cliché. Examples: "What you keep returning to", "A pattern through one lunar cycle", "The shape of your 28 days".
+
+2. OBSERVATION: 2-3 sentences (max 55 words). The actual pattern Celestia noticed across the cycle. Reference one specific placement and tie it to a behavior the user repeated. Anchor in psychology, not astrology jargon. Make them feel observed, not flattered.
+
+3. THREAD FORWARD: 1 sentence (max 20 words). The next chapter — frames the next moon cycle with a small question or hint. A whisper, not a CTA.
+
+NEVER: emoji, "the universe", "stars align", "destiny", "mystical", exclamation marks. Avoid generic "your cosmic journey".`;
+
+    return withRetry(async () => {
+        const response = await generateWithFallback({
+            contents: [{ role: 'user', parts: [{ text: prompt }] }],
+            config: { responseMimeType: "application/json", responseSchema: moonCyclePatternSchema }
+        });
+        return cleanAndParseJson(response.text, null);
+    }, null);
+};
+
 // --- MOON RITUAL ---
 
 const moonRitualSchema = {
@@ -1169,16 +1485,20 @@ export const fetchExtendedForecast = async (
     period: 'today' | 'yesterday' | 'tomorrow' | 'weekly' | 'monthly' | 'yearly',
     planetaryData,
     transitSignificance = 0,
-    narrativeContext = null
+    narrativeContext = null,
+    briefingMode = 'standard'
 ) => {
     // Use the actual forecast date from planetaryData, not always "now"
     const forecastDate = planetaryData?.dateLabel || new Date().toISOString().split('T')[0];
-    let key = `${profile.id}_${period}_${forecastDate}`;
+    // Cache key includes briefing mode so each mode gets its own daily generation —
+    // prevents serving "pattern" content when a user has rotated into "partner" week.
+    const modeSuffix = (briefingMode && briefingMode !== 'standard') ? `_${briefingMode}` : '';
+    let key = `${profile.id}_${period}_${forecastDate}${modeSuffix}`;
     let expiration = Date.now() + 24 * 60 * 60 * 1000;
 
     if (period === 'weekly') {
         const week = getISOWeekLabel(new Date());
-        key = `${profile.id}_weekly_${week}`;
+        key = `${profile.id}_weekly_${week}${modeSuffix}`;
         // Expire at end of current week (next Monday midnight)
         const now = new Date();
         const daysUntilMonday = (8 - now.getDay()) % 7 || 7;
@@ -1186,21 +1506,21 @@ export const fetchExtendedForecast = async (
         expiration = nextMonday.getTime();
     } else if (period === 'monthly') {
         const month = new Date().toISOString().slice(0, 7);
-        key = `${profile.id}_monthly_${month}`;
+        key = `${profile.id}_monthly_${month}${modeSuffix}`;
         // Expire at start of next month
         const now = new Date();
         const nextMonth = new Date(now.getFullYear(), now.getMonth() + 1, 1);
         expiration = nextMonth.getTime();
     } else if (period === 'yearly') {
         const year = new Date().getFullYear();
-        key = `${profile.id}_yearly_${year}`;
+        key = `${profile.id}_yearly_${year}${modeSuffix}`;
         // Expire at start of next year
         expiration = new Date(year + 1, 0, 1).getTime();
     }
 
     // Cosmic Download days get a separate cache key for extended content
     if ((period === 'today' || period === 'tomorrow' || period === 'yesterday') && transitSignificance >= 70) {
-        key = `${profile.id}_${period}_cosmic_download_${forecastDate}`;
+        key = `${profile.id}_${period}_cosmic_download_${forecastDate}${modeSuffix}`;
     }
 
     const cached = await ForecastRepository.getForecast(key);
@@ -1386,6 +1706,17 @@ STORY INSTRUCTION: This reading is a chapter in an ongoing story, not a standalo
 - JOURNAL ECHO: If they journaled, reflect their words back with cosmic context ("You felt [X] — that's [planet] working through your [house]").
 - FORWARD HOOK: End the guidance paragraph with a subtle hint about what's building.
 - ARCHETYPE: Occasionally address them through their archetype lens ("As a [archetype name], you naturally...")
+` : ''}
+
+${briefingMode === 'pattern' ? `
+BRIEFING MODE — PATTERN (week 2 cohort):
+The user has 7+ days of patterns now. Frame today's read as something you've been NOTICING about them — not just today's transit. Use the phrase "I notice" or "a pattern emerging" once in the navigatorSummary. Reference behavior over time, not just the day's energy. Voice: a friend who's been paying attention, not a daily horoscope.
+` : ''}${briefingMode === 'partner' ? `
+BRIEFING MODE — PARTNER (week 3 cohort):
+Center today's read on relational dynamics. Tilt life-area horoscopes toward how today shows up in relationships — not just the user's solo experience. In navigatorSummary, lead with a relational frame ("In your closest relationships today..." or "How you show up for others today..."). The user has invested in their Circle by now — make this feel like it's about the people who matter to them.
+` : ''}${briefingMode === 'archetype' ? `
+BRIEFING MODE — ARCHETYPE (week 4+ cohort):
+Frame today as a chapter in the user's archetype journey, not a daily horoscope. Open the navigatorSummary with mythic framing ("The [archetype] in you is being asked to..." or "In this chapter of your story..."). Tie practical advice to identity-level growth rather than situational reactions. Don't lose practicality, but elevate the voice — they've earned a deeper read.
 ` : ''}
 
         Strictly follow schemas.Return JSON.
@@ -1858,6 +2189,108 @@ RESPONSE GUIDANCE FOR THIS MESSAGE
             partnerId: partnerProfile?.id
         }
     };
+};
+
+/**
+ * Streaming variant of sendChatMessage.
+ *
+ * Calls Gemini's streaming API and invokes `onChunk(chunkText)` for each
+ * incremental text piece. Returns the full assembled text on completion.
+ * Used by ChatScreen to render the AI response token-by-token (ChatGPT/Claude
+ * pattern) instead of waiting for the full response then dumping.
+ *
+ * Per plan/senior-design-critique/04-replaceable-patterns.md R-6 +
+ * plan/android-status.md (Tier 1 — biggest single chat UX upgrade).
+ *
+ * @param {object} session  Same shape as sendChatMessage's session
+ * @param {string} message  User message
+ * @param {(chunk: string) => void} onChunk  Called per incremental text piece
+ * @returns {Promise<string>}  Full assembled response text
+ */
+export const sendChatMessageStream = async (session, message, onChunk) => {
+    const { classifyIntent } = require('./chat/intentClassifier');
+    const { buildDynamicSystemPrompt } = require('./chat/responseContracts');
+    const { defaultConversationState } = require('./chat/conversationTypes');
+
+    const state = session._enrichedState || session.conversationState || defaultConversationState();
+    if (session._enrichedState) delete session._enrichedState;
+
+    // Persist session + user message FIRST (same as non-streaming version)
+    try {
+        if (!session.id) {
+            const title = message.length > 40 ? message.substring(0, 40) + "..." : message;
+            const newDbSession = await ChatRepository.createSession(title, session.meta?.partnerId);
+            session.id = newDbSession.id;
+        } else if (session.history.length === 0) {
+            const newTitle = message.length > 40 ? message.substring(0, 40) + "..." : message;
+            await ChatRepository.updateSessionTitle(session.id, newTitle);
+        }
+        await ChatRepository.addMessage(session.id, 'user', message);
+    } catch (dbErr) {
+        console.error("Failed to save initial chat state:", dbErr);
+    }
+
+    // Classify intent + build dynamic prompt (same as non-streaming)
+    const { intent } = await classifyIntent(message, state);
+    const dynamicSystemPrompt = buildDynamicSystemPrompt(
+        session.systemInstruction, intent, state, message
+    );
+
+    const HISTORY_WINDOW = 20;
+    const trimmedHistory = session.history.length > HISTORY_WINDOW
+        ? session.history.slice(-HISTORY_WINDOW)
+        : session.history;
+    const newHistory = [
+        ...trimmedHistory,
+        { role: 'user', parts: [{ text: message }] },
+    ];
+
+    // Stream the response via Gemini's generateContentStream
+    let fullText = "";
+    try {
+        const stream = await ai.models.generateContentStream({
+            model: session.model,
+            contents: newHistory,
+            config: { systemInstruction: dynamicSystemPrompt },
+        });
+
+        // Iterate stream chunks. The @google/genai SDK yields response objects;
+        // each has a .text property for the chunk's text.
+        for await (const chunk of stream) {
+            let chunkText = '';
+            try {
+                if (chunk?.candidates?.[0]?.content?.parts?.[0]?.text) {
+                    chunkText = chunk.candidates[0].content.parts[0].text;
+                } else if (typeof chunk?.text === 'function') {
+                    chunkText = chunk.text();
+                } else if (typeof chunk?.text === 'string') {
+                    chunkText = chunk.text;
+                }
+            } catch {}
+            if (chunkText) {
+                fullText += chunkText;
+                try { onChunk?.(chunkText); } catch {}
+            }
+        }
+    } catch (e) {
+        console.error('[Gemini] streaming failed:', e);
+        throw e;
+    }
+
+    if (!fullText) throw new Error('No response generated');
+
+    // Update session history + persist
+    session.history.push({ role: 'user', parts: [{ text: message }] });
+    session.history.push({ role: 'model', parts: [{ text: fullText }] });
+    try {
+        if (session.id) {
+            await ChatRepository.addMessage(session.id, 'model', fullText);
+        }
+    } catch (e) {
+        console.error('Failed to persist model message:', e);
+    }
+
+    return fullText;
 };
 
 export const sendChatMessage = async (session, message) => {

@@ -14,7 +14,7 @@ export default function CosmicIDCard({ name, sun, moon, rising, chips, levelName
 
   return (
     <View ref={innerRef} collapsable={false} style={s.outer}>
-      <LinearGradient colors={['#0E0E22', '#1A1060', '#0C2040']} style={s.card}>
+      <LinearGradient colors={['#3A1A28', '#1A1060', '#0C2040']} style={s.card}>
         {/* Background glyph */}
         <Text style={s.bgGlyph}>{sunGlyph}</Text>
 

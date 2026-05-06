@@ -4,6 +4,7 @@ import { T, FONTS } from '../constants/theme';
 import { useUserProfile } from '../contexts/UserProfileContext';
 import { JournalRepository } from '../services/database/rep_journal';
 import { useTheme } from '../contexts/ThemeContext';
+import EmptyState from '../components/EmptyState';
 
 const MONTH_NAMES = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
 const DAY_LABELS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
@@ -299,6 +300,17 @@ export default function JournalHistoryScreen({ navigation }) {
             </Text>
             {renderEntry()}
           </View>
+        )}
+
+        {/* Empty state when no entries exist */}
+        {!selectedDate && entries.length === 0 && (
+          <EmptyState
+            glyph="◌"
+            headline="Your journal is empty"
+            subhead="Patterns become visible after a few entries. Start with one short note today."
+            ctaLabel="Write your first entry"
+            onCtaPress={() => navigation.navigate('Journal')}
+          />
         )}
 
         {/* Recent entries list */}

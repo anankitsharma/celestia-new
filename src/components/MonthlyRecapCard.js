@@ -12,7 +12,7 @@ export default function MonthlyRecapCard({ innerRef, recap, month, year, streakD
   return (
     <View ref={innerRef} collapsable={false}>
       <LinearGradient
-        colors={['#0E0E22', '#1A1060', '#0E0E22']}
+        colors={['#3A1A28', '#1A1060', '#3A1A28']}
         style={styles.card}>
 
         <Text style={styles.label}>MONTHLY COSMIC RECAP</Text>
