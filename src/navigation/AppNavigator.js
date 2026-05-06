@@ -18,6 +18,10 @@ import AuthScreen from '../screens/AuthScreen';
 import QuickChartScreen from '../screens/QuickChartScreen';
 import JournalScreen from '../screens/JournalScreen';
 import PaywallScreen from '../screens/PaywallScreen';
+import WelcomeToProScreen from '../screens/WelcomeToProScreen';
+import CancelFlowScreen from '../screens/CancelFlowScreen';
+import WelcomeBackScreen from '../screens/WelcomeBackScreen';
+import YearInReviewScreen from '../screens/YearInReviewScreen';
 import TabBar from '../components/TabBar';
 
 
@@ -54,6 +58,10 @@ export default function AppNavigator() {
       <Stack.Screen name="TodaysSky" component={TransitsScreen} />
       <Stack.Screen name="Journal" component={JournalScreen} />
       <Stack.Screen name="Paywall" component={PaywallScreen} options={{ presentation: 'fullScreenModal', animation: 'slide_from_bottom' }} />
+      <Stack.Screen name="WelcomeToPro" component={WelcomeToProScreen} options={{ presentation: 'fullScreenModal', animation: 'slide_from_bottom' }} />
+      <Stack.Screen name="CancelFlow" component={CancelFlowScreen} options={{ presentation: 'fullScreenModal', animation: 'slide_from_bottom' }} />
+      <Stack.Screen name="WelcomeBack" component={WelcomeBackScreen} options={{ presentation: 'fullScreenModal', animation: 'slide_from_bottom' }} />
+      <Stack.Screen name="YearInReview" component={YearInReviewScreen} options={{ presentation: 'fullScreenModal', animation: 'slide_from_bottom' }} />
     </Stack.Navigator>
 
   );

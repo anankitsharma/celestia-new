@@ -42,8 +42,10 @@ Streaks (`streakService.js`), XP/levels (`xpService.js`, 5 tiers), 20 badges (`a
 ## Design System
 
 ### Colors (from `src/constants/theme.js`)
-- Primary: `T.navy` (#0E0E22), `T.gold` (#C8A84B), `T.cream` (#FAF8F2)
-- Supporting: `T.warm` (#F3EDE2), `T.stone` (#97907F), `T.ink` (#2A2418)
+- Primary: `T.navy` (#3A1A28, deep burgundy — token name kept for back-compat post V1.2 migration), `T.gold` (#C8A84B), `T.cream` (#FAF8F2)
+- Burgundy/glass tokens: `T.clay` (#5C2434, primary action), `T.clayDeep` (#3A1A28), `T.brass` (#B89968), `T.surfaceWarm` (#F6F1E7)
+- Supporting: `T.warm` (#F3EDE2), `T.stone` (#7E776A), `T.ink` (#2A2418), `T.hairline`, `T.glow`
+- Per-tab signal hues live in `SIGNAL` (today/connections/ask/profile/sky/chart/journey)
 
 ### Typography
 - Headings: Playfair Display (`FONTS.serif*`)

@@ -52,38 +52,47 @@ export default function JourneyScreen({ navigation }) {
     <View style={{ flex: 1, backgroundColor: colors.bg }}>
       <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 40 }}>
         {/* Hero */}
-        <LinearGradient colors={['#0E0E22', '#1A1060', '#0C1E3C']} locations={[0, 0.5, 1]} style={s.hero}>
-          <TouchableOpacity style={s.backBtn} onPress={() => navigation.goBack()}>
-            <Text style={{ fontSize: 22, color: colors.heading }}>‹</Text>
+        {(() => {
+          const heroColors = isDark ? ['#3A1A28', '#1A1060', '#0C1E3C'] : (colors.heroGradientLight || ['#F4ECE5', '#F0E4DC', '#ECDCD3']);
+          const heroFg = isDark ? '#FAF8F2' : colors.heading;
+          const heroFgMuted = isDark ? 'rgba(250,248,242,0.45)' : colors.textSecondary;
+          const backBtnBg = isDark ? 'rgba(255,255,255,0.08)' : 'rgba(92,36,52,0.08)';
+          const pillBg = isDark ? 'rgba(255,255,255,0.06)' : 'rgba(92,36,52,0.06)';
+          return (
+        <LinearGradient colors={heroColors} locations={[0, 0.5, 1]} style={s.hero}>
+          <TouchableOpacity style={[s.backBtn, { backgroundColor: backBtnBg }]} onPress={() => navigation.goBack()}>
+            <Text style={{ fontSize: 22, color: heroFg }}>‹</Text>
           </TouchableOpacity>
-          <Text style={s.heroTitle}>Your Journey</Text>
-          <Text style={s.heroSub}>Every check-in writes a new chapter</Text>
+          <Text style={[s.heroTitle, { color: heroFg }]}>Your Journey</Text>
+          <Text style={[s.heroSub, { color: heroFgMuted }]}>Every check-in writes a new chapter</Text>
 
           {/* Quick stats */}
           <View style={s.statsRow}>
             {streakInfo && streakInfo.current_streak > 0 && (
-              <View style={s.statPill}>
+              <View style={[s.statPill, { backgroundColor: pillBg }]}>
                 <Text style={{ fontSize: 16 }}>{getStreakEmoji(streakInfo.current_streak)}</Text>
-                <Text style={s.statNum}>{streakInfo.current_streak}</Text>
-                <Text style={s.statLbl}>Streak</Text>
+                <Text style={[s.statNum, { color: heroFg }]}>{streakInfo.current_streak}</Text>
+                <Text style={[s.statLbl, { color: heroFgMuted }]}>Streak</Text>
               </View>
             )}
             {xpInfo?.levelInfo && (
-              <View style={s.statPill}>
+              <View style={[s.statPill, { backgroundColor: pillBg }]}>
                 <Text style={{ fontSize: 16 }}>✦</Text>
-                <Text style={s.statNum}>{xpInfo.total_xp || 0}</Text>
-                <Text style={s.statLbl}>{xpInfo.levelInfo.current?.name || 'Stardust'}</Text>
+                <Text style={[s.statNum, { color: heroFg }]}>{xpInfo.total_xp || 0}</Text>
+                <Text style={[s.statLbl, { color: heroFgMuted }]}>{xpInfo.levelInfo.current?.name || 'Stardust'}</Text>
               </View>
             )}
             {streakInfo && (
-              <View style={s.statPill}>
+              <View style={[s.statPill, { backgroundColor: pillBg }]}>
                 <Text style={{ fontSize: 16 }}>📖</Text>
-                <Text style={s.statNum}>{streakInfo.total_check_ins || 0}</Text>
-                <Text style={s.statLbl}>Pages</Text>
+                <Text style={[s.statNum, { color: heroFg }]}>{streakInfo.total_check_ins || 0}</Text>
+                <Text style={[s.statLbl, { color: heroFgMuted }]}>Pages</Text>
               </View>
             )}
           </View>
         </LinearGradient>
+          );
+        })()}
 
         <View style={s.body}>
 
@@ -197,7 +206,7 @@ export default function JourneyScreen({ navigation }) {
 
           {/* Referral */}
           <View style={s.section}>
-            <LinearGradient colors={['#1A1228', '#14101E']} style={s.referralCard}>
+            <LinearGradient colors={['#5A2840', '#3A1A28']} style={s.referralCard}>
               <Text style={{ fontFamily: FONTS.serif, fontSize: 18, color: T.cream, marginBottom: 4 }}>Invite Friends</Text>
               <Text style={{ fontSize: 12, color: 'rgba(250,248,242,0.5)', marginBottom: 10 }}>You both earn 100 XP when they join</Text>
               {referralStats?.totalReferred > 0 && (

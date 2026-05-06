@@ -12,7 +12,8 @@ import { useUserProfile } from '../contexts/UserProfileContext';
 import { useAuth } from '../contexts/AuthContext';
 import { calculateChart, getTransitPlanets, getMoonDataForDate } from '../services/astrologyService';
 import * as Crypto from 'expo-crypto';
-import { useAnalytics, EVENTS } from '../services/analytics';
+import { useAnalytics, EVENTS, buildUserProperties } from '../services/analytics';
+import { getNotificationSettings, saveNotificationSettings } from '../services/notificationService';
 
 const { width, height } = Dimensions.get('window');
 const NOMINATIM_URL = 'https://nominatim.openstreetmap.org/search';
@@ -32,6 +33,33 @@ const SUN_TAGLINES = {
   Capricorn: 'You carry more than anyone knows. And you never complain.',
   Aquarius: 'You think different — and feel deeper than you let on.',
   Pisces: "You absorb the world's pain and call it your own.",
+};
+
+// One-line "core question" by Sun sign — surfaced mid-onboarding as a
+// reciprocity teaser before the full chart reveal lands. Sign-archetype
+// lookup (no Gemini call) so it's instant.
+const SUN_CORE_QUESTIONS = {
+  Aries: 'What am I willing to fight for?',
+  Taurus: 'What actually feels mine?',
+  Gemini: 'Which voice in me is loudest right now?',
+  Cancer: 'Who do I let in close?',
+  Leo: 'Where am I most fully myself?',
+  Virgo: 'What needs my attention, really?',
+  Libra: 'What balance am I avoiding?',
+  Scorpio: 'What am I ready to release?',
+  Sagittarius: 'What am I outgrowing?',
+  Capricorn: 'What am I actually building toward?',
+  Aquarius: 'Which belief is mine, and which is borrowed?',
+  Pisces: 'What feeling am I afraid to feel?',
+};
+
+// Goal-back text by motivation key — used at step 14 hard-close to echo
+// the user's stated intent right before plan selection (commitment primer).
+const MOTIVATION_GOAL_TEXT = {
+  self: 'understand yourself better',
+  change: 'navigate something big',
+  love: 'find clarity in a relationship',
+  curious: 'explore what\'s possible',
 };
 
 const MOON_TAGLINES = {
@@ -146,12 +174,22 @@ export default function OnboardingFlowScreen({ navigation }) {
   // Paywall
   const [selectedPlan, setSelectedPlan] = useState('annual');
 
+  // Daily anchor — when user typically wakes / first checks phone.
+  // Drives the morning-briefing notification time so it lands on their actual routine.
+  // Null = unset; numeric value = hour (24h). 'varies' = non-fixed schedule (use default).
+  const [wakeHour, setWakeHour] = useState(null);
+
   // Fire onboarding_started once on mount
   useEffect(() => { capture(EVENTS.ONBOARDING_STARTED); }, []);
 
   // ── Transition animation ─────────────────────────
   const advance = (nextStep) => {
     const target = nextStep || step + 1;
+    // Only fire step-completed when moving forward (not on back). Required for
+    // per-step funnel measurement of where the 14-step onboarding loses users.
+    if (target > step) {
+      capture(EVENTS.ONBOARDING_STEP_COMPLETED, { from_step: step, to_step: target });
+    }
     Animated.timing(slideAnim, { toValue: -20, duration: 150, useNativeDriver: true }).start(() => {
       setStep(target);
       slideAnim.setValue(20);
@@ -189,7 +227,7 @@ export default function OnboardingFlowScreen({ navigation }) {
   // ── Chart calculation (step 8) ───────────────────
   useEffect(() => {
     if (step !== 8) return;
-    const phases = ['Locating your planets...', 'Calculating house cusps...', 'Mapping natal aspects...', 'Reading your cosmic patterns...'];
+    const phases = ['Locating your planets...', 'Calculating house cusps...', 'Mapping natal aspects...', 'Reading your chart patterns...'];
     let i = 0;
     setCalcPhase(0);
     const interval = setInterval(() => {
@@ -247,7 +285,13 @@ export default function OnboardingFlowScreen({ navigation }) {
         const { saveObject } = require('../services/storage');
         await saveObject('celestia_persona_prefs', { motivation, painPoint, depth });
       } catch (e) {}
-      identify(profile.id, { sun_sign: chart?.sun?.sign, motivation, pain_point: painPoint });
+      const userProps = await buildUserProperties(profile.id).catch(() => ({}));
+      identify(profile.id, {
+        ...userProps,
+        sun_sign: chart?.sun?.sign,
+        motivation,
+        pain_point: painPoint,
+      });
       capture(EVENTS.ONBOARDING_COMPLETED, { sun_sign: chart?.sun?.sign, motivation, pain_point: painPoint });
       if (user) {
         navigation.replace('Main');
@@ -335,7 +379,7 @@ export default function OnboardingFlowScreen({ navigation }) {
     <ScrollView style={s.scroll} contentContainerStyle={s.scrollContent} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
       <Text style={s.phaseLabel}>YOUR CHART</Text>
       <Text style={[s.h1, { color: colors.heading }]}>When did your{'\n'}story begin?</Text>
-      <Text style={[s.sub, { color: colors.textSecondary }]}>Your birth moment is your cosmic fingerprint.{'\n'}No two charts are alike.</Text>
+      <Text style={[s.sub, { color: colors.textSecondary }]}>Your birth moment is unique to you.{'\n'}No two charts are alike.</Text>
 
       <View style={s.fieldWrap}>
         <Text style={[s.fieldLabel, { color: colors.textSecondary }]}>FIRST NAME</Text>
@@ -464,7 +508,7 @@ export default function OnboardingFlowScreen({ navigation }) {
   );
 
   // ── 8. CALCULATING ───────────────────────────────
-  const calcPhases = ['Locating your planets...', 'Calculating house cusps...', 'Mapping natal aspects...', 'Reading your cosmic patterns...'];
+  const calcPhases = ['Locating your planets...', 'Calculating house cusps...', 'Mapping natal aspects...', 'Reading your chart patterns...'];
   const renderCalculating = () => (
     <View style={s.center}>
       <View style={s.calcGlow} />
@@ -494,6 +538,18 @@ export default function OnboardingFlowScreen({ navigation }) {
           ? "That feeling of being misunderstood?\nYour chart explains exactly why."
           : "There's so much more beneath the surface.\nLet's go deeper."}
       </Text>
+      {/* Core-question teaser — reciprocity primer before the full reveal lands */}
+      {sun?.sign && SUN_CORE_QUESTIONS[sun.sign] && (
+        <View style={s.coreQuestionCard}>
+          <Text style={s.coreQuestionKicker}>YOUR CORE QUESTION</Text>
+          <Text style={[s.coreQuestionText, { color: colors.heading }]}>
+            "{SUN_CORE_QUESTIONS[sun.sign]}"
+          </Text>
+          <Text style={[s.coreQuestionFooter, { color: colors.textSecondary }]}>
+            Most {sun.sign}s spend years on this one.
+          </Text>
+        </View>
+      )}
       <View style={{ height: 32, width: '100%' }} />
       <View style={{ width: '100%', paddingHorizontal: 8 }}>
         <GoldButton text="Show Me Everything" onPress={() => advance()} />
@@ -604,8 +660,61 @@ export default function OnboardingFlowScreen({ navigation }) {
         </Text>
       </View>
 
+      {/* Wake-time anchor — drives when the morning briefing fires.
+          Anchoring to an existing routine is the most reliable B=MAP prompt strategy. */}
+      <View style={[s.dailyCard, { backgroundColor: colors.card, borderColor: colors.border, marginTop: 16 }]}>
+        <Text style={s.dailyCardLabel}>WAKE TIME</Text>
+        <Text style={[s.dailyCardTitle, { color: colors.heading }]}>When do you usually wake up?</Text>
+        <Text style={[s.dailyCardDesc, { color: colors.textSecondary, marginBottom: 14 }]}>
+          We'll send your morning briefing right after — so it lands on your routine, not ours.
+        </Text>
+        <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
+          {[
+            { label: '6 AM', value: 6 },
+            { label: '7 AM', value: 7 },
+            { label: '8 AM', value: 8 },
+            { label: '9 AM', value: 9 },
+            { label: 'Later', value: 10 },
+            { label: 'Varies', value: 'varies' },
+          ].map(opt => {
+            const selected = wakeHour === opt.value;
+            return (
+              <TouchableOpacity
+                key={opt.label}
+                onPress={() => setWakeHour(opt.value)}
+                activeOpacity={0.7}
+                style={{
+                  paddingVertical: 9,
+                  paddingHorizontal: 14,
+                  borderRadius: 999,
+                  borderWidth: 1,
+                  borderColor: selected ? T.gold : colors.border,
+                  backgroundColor: selected ? 'rgba(200,168,75,0.12)' : 'transparent',
+                }}
+              >
+                <Text style={{
+                  fontSize: 13,
+                  fontFamily: selected ? FONTS.sansSemiBold : FONTS.sans,
+                  color: selected ? T.gold : colors.textSecondary,
+                }}>{opt.label}</Text>
+              </TouchableOpacity>
+            );
+          })}
+        </View>
+      </View>
+
       <View style={{ height: 24 }} />
-      <GoldButton text="Continue" onPress={() => advance()} />
+      <GoldButton text="Continue" onPress={async () => {
+        // Persist the chosen wake-time as the morning-briefing schedule.
+        // 'varies' or null → keep the 7:30am default.
+        try {
+          if (typeof wakeHour === 'number') {
+            const settings = await getNotificationSettings();
+            await saveNotificationSettings({ ...settings, morningTime: wakeHour, morningMinute: 5 });
+          }
+        } catch {}
+        advance();
+      }} />
       <View style={{ height: 32 }} />
     </ScrollView>
   );
@@ -681,6 +790,17 @@ export default function OnboardingFlowScreen({ navigation }) {
       <Text style={[s.paywallH1, { color: colors.heading }]}>Choose your plan</Text>
       <Text style={[s.paywallSub, { color: colors.textSecondary }]}>{firstName}'s chart is waiting</Text>
 
+      {/* Goal-back — echoes the motivation captured at step 2 right before
+          plan selection. Commitment-consistency primer (Cialdini). */}
+      {motivation && MOTIVATION_GOAL_TEXT[motivation] && (
+        <View style={[s.goalBackCard, { backgroundColor: colors.cardAlt, borderColor: colors.border }]}>
+          <Text style={s.goalBackKicker}>YOUR INTENT</Text>
+          <Text style={[s.goalBackBody, { color: colors.text }]}>
+            You came here to {MOTIVATION_GOAL_TEXT[motivation]}.{'\n'}Pro is what gets you there.
+          </Text>
+        </View>
+      )}
+
       {/* Annual plan */}
       <TouchableOpacity
         style={[s.planCard, { backgroundColor: colors.card, borderColor: colors.border }, selectedPlan === 'annual' && { borderColor: T.gold, borderWidth: 1.5 }]}
@@ -720,13 +840,16 @@ export default function OnboardingFlowScreen({ navigation }) {
             <Text style={[s.planPrice, { color: colors.heading }]}>$6.99<Text style={[s.planPer, { color: colors.textSecondary }]}>/month</Text></Text>
           </View>
         </View>
+        <View style={[s.planTrialBadge, { backgroundColor: colors.cardAlt }]}>
+          <Text style={s.planTrialText}>✦ FREE for 3 days — cancel anytime</Text>
+        </View>
       </TouchableOpacity>
 
       <View style={{ height: 20 }} />
       <GoldButton
-        text={selectedPlan === 'annual' ? 'Start My Free Trial' : 'Subscribe Now'}
+        text="Start My Free Trial"
         onPress={finishOnboarding}
-        sub={selectedPlan === 'annual' ? "FREE today · You won't be charged" : '$6.99 billed today'}
+        sub={selectedPlan === 'annual' ? "FREE for 7 days · You won't be charged" : "FREE for 3 days · You won't be charged"}
       />
 
       <TouchableOpacity onPress={finishOnboarding} style={{ marginTop: 18, alignSelf: 'center' }}>
@@ -736,7 +859,7 @@ export default function OnboardingFlowScreen({ navigation }) {
       <Text style={[s.paywallLegal, { color: colors.textSecondary }]}>
         {selectedPlan === 'annual'
           ? 'Free 7-day trial. Then $49.99/year. Cancel anytime in Settings.'
-          : 'Free 7-day trial. Then $6.99/month. Cancel anytime in Settings.'}
+          : 'Free 3-day trial. Then $6.99/month. Cancel anytime in Settings.'}
       </Text>
       <View style={{ height: 40 }} />
     </ScrollView>
@@ -877,6 +1000,13 @@ const s = StyleSheet.create({
   hitTagline: { fontSize: 17, fontFamily: FONTS.serifItalic || FONTS.serif, fontStyle: 'italic', color: T.ink, textAlign: 'center', lineHeight: 26, paddingHorizontal: 16, marginBottom: 24 },
   hitDivider: { width: 40, height: 1, backgroundColor: T.gold, marginBottom: 24, opacity: 0.4 },
   hitWhisper: { fontSize: 14, fontFamily: FONTS.sansLight, color: T.stone, textAlign: 'center', lineHeight: 22 },
+  coreQuestionCard: { marginTop: 28, paddingTop: 22, paddingBottom: 18, paddingHorizontal: 22, borderTopWidth: 1, borderTopColor: 'rgba(200,168,75,0.25)', borderBottomWidth: 1, borderBottomColor: 'rgba(200,168,75,0.25)', alignItems: 'center', maxWidth: 360 },
+  coreQuestionKicker: { fontSize: 9, letterSpacing: 2, fontFamily: FONTS.sansSemiBold, color: T.gold, marginBottom: 10 },
+  coreQuestionText: { fontSize: 19, fontFamily: FONTS.serifItalic || FONTS.serif, fontStyle: 'italic', textAlign: 'center', lineHeight: 26, marginBottom: 8 },
+  coreQuestionFooter: { fontSize: 11, fontFamily: FONTS.sans, textAlign: 'center' },
+  goalBackCard: { borderRadius: 14, borderWidth: 1, borderLeftWidth: 3, borderLeftColor: T.gold, padding: 16, marginBottom: 18, marginTop: 4 },
+  goalBackKicker: { fontSize: 9, letterSpacing: 1.6, fontFamily: FONTS.sansSemiBold, color: T.gold, marginBottom: 6 },
+  goalBackBody: { fontSize: 14, fontFamily: FONTS.serif, lineHeight: 21 },
 
   // Big Reveal (screen 10)
   revealPre: { fontSize: 10, fontFamily: FONTS.sansSemiBold, letterSpacing: 4, color: T.gold, textAlign: 'center', marginBottom: 8 },

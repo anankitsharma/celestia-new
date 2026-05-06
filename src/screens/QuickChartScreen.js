@@ -198,7 +198,7 @@ export default function QuickChartScreen({ navigation }) {
         <LinearGradient colors={[T.navy, T.navyMid, T.navyLt]} style={styles.hero}>
           <View style={{ height: Platform.OS === 'ios' ? 56 : 40 }} />
           <View style={styles.heroHeader}>
-            <TouchableOpacity onPress={() => navigation.goBack()} hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}>
+            <TouchableOpacity onPress={() => navigation.goBack()} hitSlop={{ top: 14, bottom: 14, left: 14, right: 14 }}>
               <Text style={styles.backBtn}>{'←'}</Text>
             </TouchableOpacity>
             {chartResult && (

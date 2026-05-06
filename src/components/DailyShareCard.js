@@ -14,7 +14,7 @@ export default function DailyShareCard({ sunSign, viralInsight, mantra, date, in
 
   return (
     <View ref={innerRef} collapsable={false} style={s.outer}>
-      <LinearGradient colors={['#0E0E22', '#1A1535', '#0F1628']} style={s.card}>
+      <LinearGradient colors={['#5A2840', '#3A1A28', '#1F0F18']} style={s.card}>
         {/* Glyph watermark */}
         <Text style={s.bgGlyph}>{glyph}</Text>
 

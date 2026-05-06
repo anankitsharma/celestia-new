@@ -179,20 +179,13 @@ export default function PaywallScreen({ navigation, route }) {
             }
             await purchasePackage(pkgToPurchase);
             capture(EVENTS.PURCHASE_COMPLETED, { plan: selectedPlan, source, variant: variantKey });
-            if (!user) {
-                Alert.alert(
-                    'Subscription Active! ✦',
-                    'Create a free account to protect your subscription and access Celestia on any device.',
-                    [
-                        { text: 'Create Account', onPress: () => navigation.replace('Auth') },
-                        { text: 'Maybe Later', style: 'cancel', onPress: () => navigation.goBack() },
-                    ]
-                );
-            } else {
-                Alert.alert('Welcome!', 'Your Celestia Pro subscription is now active.', [
-                    { text: "Let's Go", onPress: () => navigation.goBack() }
-                ]);
-            }
+            // Replace native Alert with WelcomeToProScreen — gives the user
+            // a one-tap path INTO the 3 highest-value Pro features instead of
+            // dropping them back where they came from. Closes the
+            // expectation/delivery gap that drives subscriber churn.
+            // firstTime=true preserves the existing protect-your-subscription
+            // auth flow; WelcomeToProScreen routes through Auth on card-tap.
+            navigation.replace('WelcomeToPro', { firstTime: !user });
         } catch (e) {
             if (e.userCancelled) {
                 capture(EVENTS.PURCHASE_CANCELLED, { plan: selectedPlan, source });
@@ -230,7 +223,7 @@ export default function PaywallScreen({ navigation, route }) {
 
     return (
         <View style={styles.container}>
-            <LinearGradient colors={[T.navy, '#0F0E22', '#08081A']} style={StyleSheet.absoluteFillObject} />
+            <LinearGradient colors={['#5A2840', T.navy, '#1F0F18']} style={StyleSheet.absoluteFillObject} />
 
             <View style={[styles.main, { paddingTop: insets.top, paddingBottom: insets.bottom + 10 }]}>
                 {/* Close Button Header */}
@@ -249,6 +242,7 @@ export default function PaywallScreen({ navigation, route }) {
                     <CelestialSigil size={isSmallScreen ? 100 : 130} color={activeVariant.iconColor} />
                     <Text style={styles.title}>{activeVariant.title}</Text>
                     <Text style={styles.subtitle}>{activeVariant.subtitle}</Text>
+                    <Text style={styles.unityLine}>Made for the questioners, not the believers.</Text>
                 </Animated.View>
 
                 {/* Benefits / Content Area */}
@@ -271,15 +265,16 @@ export default function PaywallScreen({ navigation, route }) {
                             onPress={() => { haptic.light(); setSelectedPlan('annual'); capture(EVENTS.PAYWALL_PLAN_SWITCHED, { plan: 'annual', source }); }}
                             style={[styles.planCard, selectedPlan === 'annual' && styles.planCardActive]}
                         >
-                            {selectedPlan === 'annual' && <View style={styles.bestValueTag}><Text style={styles.bestValueText}>SAVE 50%</Text></View>}
+                            {selectedPlan === 'annual' && <View style={styles.bestValueTag}><Text style={styles.bestValueText}>SAVE 50% · +4 DAYS</Text></View>}
                             <View style={styles.planInner}>
                                 <View style={styles.radioOuter}><View style={[styles.radioInner, { opacity: selectedPlan === 'annual' ? 1 : 0 }]} /></View>
                                 <View style={{ marginLeft: 12, flex: 1 }}>
+                                    <Text style={styles.trialKickerAnnual}>7-DAY FREE TRIAL</Text>
                                     <View style={styles.planTitleRow}>
                                         <Text style={[styles.planName, selectedPlan === 'annual' && { color: T.gold }]}>Yearly Access</Text>
                                         <Text style={styles.planPrice}>{annualPriceStr}</Text>
                                     </View>
-                                    <Text style={styles.planSub}>Just {currencySymbol}{weeklyPrice} / week • 7-Day Free Trial</Text>
+                                    <Text style={styles.planSub}>Just {currencySymbol}{weeklyPrice} / week</Text>
                                 </View>
                             </View>
                         </TouchableOpacity>
@@ -293,11 +288,12 @@ export default function PaywallScreen({ navigation, route }) {
                             <View style={styles.planInner}>
                                 <View style={styles.radioOuter}><View style={[styles.radioInner, { opacity: selectedPlan === 'monthly' ? 1 : 0 }]} /></View>
                                 <View style={{ marginLeft: 12, flex: 1 }}>
+                                    <Text style={styles.trialKickerMonthly}>3-day free trial</Text>
                                     <View style={styles.planTitleRow}>
                                         <Text style={[styles.planName, selectedPlan === 'monthly' && { color: T.gold }]}>Monthly Access</Text>
                                         <Text style={styles.planPrice}>{monthlyPriceStr}</Text>
                                     </View>
-                                    <Text style={styles.planSub}>Cancel anytime • 3-Day Free Trial</Text>
+                                    <Text style={styles.planSub}>Cancel anytime</Text>
                                 </View>
                             </View>
                         </TouchableOpacity>
@@ -331,9 +327,14 @@ export default function PaywallScreen({ navigation, route }) {
                                 <LinearGradient colors={[T.gold, '#D4AF37', '#B8860B']} style={styles.ctaGradient}>
                                     {isLoading ? <ActivityIndicator color={T.navy} /> : (
                                         <View style={styles.ctaRow}>
-                                            <Text style={styles.ctaText}>
-                                                Start {chargeDay}-Day Free Trial
-                                            </Text>
+                                            <View style={styles.ctaTextStack}>
+                                                <Text style={styles.ctaText}>
+                                                    Start {chargeDay}-Day Free Trial
+                                                </Text>
+                                                <Text style={styles.ctaSubtext}>
+                                                    then {selectedPlan === 'annual' ? `${annualPriceStr} / year` : `${monthlyPriceStr} / month`}
+                                                </Text>
+                                            </View>
                                             <ArrowRight color={T.navy} size={18} strokeWidth={3} />
                                         </View>
                                     )}
@@ -367,6 +368,7 @@ const styles = StyleSheet.create({
     heroArea: { alignItems: 'center', marginTop: -10 },
     title: { fontSize: isSmallScreen ? 28 : 34, fontFamily: FONTS.serifSemiBold, color: 'white', marginTop: 16, textAlign: 'center' },
     subtitle: { fontSize: 13, color: 'rgba(255,255,255,0.6)', fontFamily: FONTS.sansMedium, marginTop: 4, letterSpacing: 0.5, textAlign: 'center' },
+    unityLine: { fontSize: 12, color: 'rgba(255,255,255,0.45)', fontFamily: FONTS.serif, fontStyle: 'italic', marginTop: 8, textAlign: 'center' },
 
     contentArea: { flexShrink: 1, marginVertical: isSmallScreen ? 12 : 24 },
     benefitsList: { gap: 10, alignSelf: 'center', marginBottom: isSmallScreen ? 20 : 30 },
@@ -381,7 +383,9 @@ const styles = StyleSheet.create({
     radioOuter: { width: 22, height: 22, borderRadius: 11, borderWidth: 1.5, borderColor: 'rgba(255,255,255,0.15)', alignItems: 'center', justifyContent: 'center' },
     radioInner: { width: 11, height: 11, borderRadius: 5.5, backgroundColor: T.gold },
     bestValueTag: { position: 'absolute', top: -10, right: 16, backgroundColor: T.gold, paddingHorizontal: 8, paddingVertical: 2, borderRadius: 4 },
-    bestValueText: { fontSize: 9, fontFamily: FONTS.sansBold, color: T.navy },
+    bestValueText: { fontSize: 9, fontFamily: FONTS.sansBold, color: T.navy, letterSpacing: 0.5 },
+    trialKickerAnnual: { fontSize: 10, fontFamily: FONTS.sansBold, color: T.gold, letterSpacing: 1.6, marginBottom: 3 },
+    trialKickerMonthly: { fontSize: 10, fontFamily: FONTS.sans, color: 'rgba(255,255,255,0.45)', marginBottom: 3 },
     planTitleRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
     planName: { fontSize: 16, fontFamily: FONTS.sansBold, color: 'white' },
     planPrice: { fontSize: 17, fontFamily: FONTS.sansBold, color: 'white' },
@@ -397,8 +401,10 @@ const styles = StyleSheet.create({
     tDesc: { color: 'rgba(255,255,255,0.35)', fontSize: 10, textAlign: 'center' },
 
     ctaButton: { width: '100%', borderRadius: 28, overflow: 'hidden' },
-    ctaGradient: { paddingVertical: 16, alignItems: 'center', justifyContent: 'center' },
+    ctaGradient: { paddingVertical: 14, alignItems: 'center', justifyContent: 'center' },
     ctaRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+    ctaTextStack: { alignItems: 'center' },
+    ctaSubtext: { color: 'rgba(8, 8, 26, 0.7)', fontSize: 11, fontFamily: FONTS.sansMedium, marginTop: 1 },
     ctaText: { color: T.navy, fontSize: 16, fontFamily: FONTS.sansBold },
 
     trustInfo: { alignItems: 'center', gap: 10 },

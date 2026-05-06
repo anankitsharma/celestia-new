@@ -107,7 +107,42 @@ export const BADGE_CATALOG = {
     id: 'quest_devotee', name: 'Quest Devotee', description: 'Completed 7 daily quest sets',
     icon: '🎯', category: 'exploration',
   },
+
+  // ── Hidden badges ───────────────────────────
+  // Surprise unlocks via low-probability rolls at milestone moments.
+  // Marked hidden:true so they don't appear in the public catalog until earned —
+  // unexpected rewards are stronger than expected ones (Hook Model: variable reward).
+  first_glimpse: {
+    id: 'first_glimpse', name: 'First Glimpse', description: 'Glimpsed something the stars don\'t usually show',
+    icon: '✦', category: 'hidden', hidden: true,
+  },
+  cosmic_curious: {
+    id: 'cosmic_curious', name: 'Cosmic Curious', description: 'Asked the universe a question worth keeping',
+    icon: '◊', category: 'hidden', hidden: true,
+  },
+  quiet_observer: {
+    id: 'quiet_observer', name: 'Quiet Observer', description: 'Was here on a day the cosmos went quiet',
+    icon: '◯', category: 'hidden', hidden: true,
+  },
+  pattern_finder: {
+    id: 'pattern_finder', name: 'Pattern Finder', description: 'Saw what others missed',
+    icon: '✧', category: 'hidden', hidden: true,
+  },
+  night_dweller: {
+    id: 'night_dweller', name: 'Night Dweller', description: 'Found Celestia after midnight',
+    icon: '☾', category: 'hidden', hidden: true,
+  },
 };
+
+// Hidden badges that can drop from the D7 surprise roll. Kept separate so
+// the pool can grow without scattering ID references through code.
+export const HIDDEN_BADGES_D7_POOL = [
+  'first_glimpse',
+  'cosmic_curious',
+  'quiet_observer',
+  'pattern_finder',
+  'night_dweller',
+];
 
 export const BADGE_CATEGORIES = [
   { key: 'streak', label: 'STREAKS' },
@@ -116,6 +151,7 @@ export const BADGE_CATEGORIES = [
   { key: 'social', label: 'SOCIAL' },
   { key: 'cosmic_event', label: 'COSMIC EVENTS' },
   { key: 'journey', label: 'COSMIC JOURNEY' },
+  { key: 'hidden', label: 'HIDDEN' },
 ];
 
 export const STREAK_MILESTONES = {

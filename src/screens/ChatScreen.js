@@ -9,7 +9,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { T, FONTS } from '../constants/theme';
 import { useTheme } from '../contexts/ThemeContext';
 import { useUserProfile } from '../contexts/UserProfileContext';
-import { createChatSession, sendChatMessage } from '../services/geminiService';
+import { createChatSession, sendChatMessage, sendChatMessageStream } from '../services/geminiService';
 import { defaultConversationState } from '../services/chat/conversationTypes';
 import { ChatRepository } from '../services/database/rep_chats';
 import { haptic } from '../services/hapticService';
@@ -21,6 +21,7 @@ import { getNarrativeContext } from '../services/narrativeService';
 import { useRevenueCat } from '../contexts/RevenueCatContext';
 import { useNavigation } from '@react-navigation/native';
 import { useAnalytics, EVENTS } from '../services/analytics';
+import EmptyState from '../components/EmptyState';
 import { X } from 'lucide-react-native';
 
 
@@ -309,12 +310,26 @@ export default function ChatScreen({ navigation, route }) {
     try {
       const clean = text.replace(/\*\*/g, '').replace(/\*/g, '');
       await Share.share({
-        message: `${clean}\n\n— Celestia ✦ Your cosmic guide\ncelestia.app`,
+        message: `${clean}\n\n— Celestia ✦\ncelestia.app`,
       });
     } catch (e) { }
   };
   const scrollRef = useRef(null);
   const initialMessageSent = useRef(false);
+  const inputRef = useRef(null);
+  const prefillAppliedRef = useRef(false);
+
+  // Pre-fill the input when arriving from WelcomeScreen post-chart CTA.
+  // Sets the text + focuses the keyboard, but does NOT auto-send — user keeps agency.
+  useEffect(() => {
+    const prefilled = route?.params?.prefilledMessage;
+    if (prefilled && !prefillAppliedRef.current) {
+      prefillAppliedRef.current = true;
+      setInputText(prefilled);
+      // Slight delay so the screen mounts before keyboard opens
+      setTimeout(() => { try { inputRef.current?.focus(); } catch {} }, 350);
+    }
+  }, [route?.params?.prefilledMessage]);
 
   // Intercept Android back button when history panel is open
   useEffect(() => {
@@ -608,22 +623,68 @@ export default function ChatScreen({ navigation, route }) {
         throw new Error('No session available');
       }
 
-      // Conversation intelligence now handles reflective questions via response contracts
-      const responseText = await sendChatMessage(currentSession, text);
-      capture(EVENTS.AI_CHAT_MESSAGE_SENT, { is_pro: isPro, message_number: messages.length + 1 });
+      // Stream the AI response so users see text appear word-by-word
+      // (ChatGPT/Claude pattern). Insert a placeholder AI message immediately,
+      // update its text as chunks arrive.
+      const aiMsgId = Date.now().toString() + '_ai';
+      const aiMsg = {
+        id: aiMsgId,
+        role: 'model',
+        text: '',
+        timestamp: Date.now(),
+        isStreaming: true,
+      };
+      setMessages(prev => [...prev, aiMsg]);
+
+      const isFirst = messages.length === 0;
+      if (isFirst) {
+        capture(EVENTS.FIRST_CHAT_MESSAGE_SENT, {
+          source: route?.params?.source || 'organic',
+          char_count: text.length,
+        });
+        try {
+          const { scheduleEventPush } = require('../services/notificationService');
+          const { recordPendingPush } = require('../services/engagementSignals');
+          const notifId = await scheduleEventPush({
+            type: 'event_chat_followup',
+            daysFromNow: 1,
+            title: 'About what you asked yesterday',
+            body: 'There\'s another angle worth a moment. Pick up where you left off.',
+            channel: 'transit_alerts',
+            data: { tab: 'askai' },
+          });
+          if (notifId) await recordPendingPush(notifId, { type: 'event_chat_followup' });
+        } catch {}
+      }
+      capture(EVENTS.AI_CHAT_MESSAGE_SENT, { is_pro: isPro, message_number: messages.length + 1, is_first: isFirst });
+
+      // Stream chunks → update message text incrementally
+      let assembledText = '';
+      try {
+        const responseText = await sendChatMessageStream(currentSession, text, (chunk) => {
+          assembledText += chunk;
+          setMessages(prev => prev.map(m =>
+            m.id === aiMsgId ? { ...m, text: assembledText } : m
+          ));
+        });
+        // Final state — clear streaming flag, ensure full text set
+        setMessages(prev => prev.map(m =>
+          m.id === aiMsgId ? { ...m, text: responseText || assembledText, isStreaming: false } : m
+        ));
+      } catch (streamErr) {
+        // Streaming failed — fall back to non-streaming for resilience
+        console.warn('[Chat] streaming failed, falling back to non-streaming:', streamErr);
+        const responseText = await sendChatMessage(currentSession, text);
+        setMessages(prev => prev.map(m =>
+          m.id === aiMsgId ? { ...m, text: responseText, isStreaming: false } : m
+        ));
+      }
 
       // Update session ref if ID was assigned (transient → persisted)
       if (currentSession.id && currentSession !== session) {
         setSession(currentSession);
       }
 
-      const aiMsg = {
-        id: Date.now().toString() + '_ai',
-        role: 'model',
-        text: responseText,
-        timestamp: Date.now()
-      };
-      setMessages(prev => [...prev, aiMsg]);
       haptic.light();
 
       // Track chat engagement
@@ -637,7 +698,7 @@ export default function ChatScreen({ navigation, route }) {
       const errMsg = {
         id: Date.now().toString() + '_err',
         role: 'model',
-        text: 'The cosmic connection is momentarily veiled. Please try again.',
+        text: 'Lost the thread for a second. Try again.',
         timestamp: Date.now()
       };
       setMessages(prev => [...prev, errMsg]);
@@ -664,7 +725,7 @@ export default function ChatScreen({ navigation, route }) {
         >
           <X size={18} color={colors.text} strokeWidth={2.5} />
         </TouchableOpacity>
-        <LinearGradient colors={['#0E0E22', '#1A1060']} style={[styles.chatOrb, { width: 30, height: 30, borderRadius: 15, marginLeft: 8 }]}>
+        <LinearGradient colors={['#3A1A28', '#1A1060']} style={[styles.chatOrb, { width: 30, height: 30, borderRadius: 15, marginLeft: 8 }]}>
           <Text style={{ fontSize: 15, color: '#C8A84B' }}>☽</Text>
         </LinearGradient>
         <Text style={{ fontFamily: FONTS.serifMedium, fontSize: 16, color: colors.heading, flex: 1, marginLeft: 8 }}>Celestia</Text>
@@ -704,7 +765,7 @@ export default function ChatScreen({ navigation, route }) {
         {/* Greeting — only shown at start of new conversation */}
         {messages.length <= 1 && (
           <View style={{ alignItems: 'center', paddingTop: 20, paddingBottom: 10 }}>
-            <LinearGradient colors={['#0E0E22', '#1A1060']} style={[styles.chatOrb, { width: 52, height: 52, borderRadius: 26, marginBottom: 10 }]}>
+            <LinearGradient colors={['#3A1A28', '#1A1060']} style={[styles.chatOrb, { width: 52, height: 52, borderRadius: 26, marginBottom: 10 }]}>
               <Text style={{ fontSize: 28, color: '#C8A84B' }}>☽</Text>
             </LinearGradient>
             <Text style={{ fontFamily: FONTS.serifMedium, fontSize: 18, color: colors.heading, marginBottom: 2 }}>Celestia</Text>
@@ -734,7 +795,7 @@ export default function ChatScreen({ navigation, route }) {
           <View key={m.id || i}>
             <View style={[styles.mrow, m.role === 'user' && styles.mrowUser]}>
               <LinearGradient
-                colors={m.role === 'model' ? ['#0E0E22', '#1A1060'] : ['#E2C46A', '#8C6C18']}
+                colors={m.role === 'model' ? ['#3A1A28', '#1A1060'] : ['#E2C46A', '#8C6C18']}
                 style={styles.morb}
               >
                 <Text style={{ fontSize: 13, color: m.role === 'model' ? '#C8A84B' : 'white' }}>{m.role === 'model' ? '☽' : name[0]?.toUpperCase()}</Text>
@@ -760,7 +821,7 @@ export default function ChatScreen({ navigation, route }) {
 
         {sending && (
           <View style={styles.mrow}>
-            <LinearGradient colors={['#0E0E22', '#1A1060']} style={styles.morb}>
+            <LinearGradient colors={['#3A1A28', '#1A1060']} style={styles.morb}>
               <Text style={{ fontSize: 13, color: '#C8A84B' }}>☽</Text>
             </LinearGradient>
             <View style={[styles.typingWrap, { backgroundColor: colors.card, shadowOpacity: isDark ? 0 : 0.07 }]}>
@@ -827,6 +888,7 @@ export default function ChatScreen({ navigation, route }) {
           <View style={[styles.inputBar, { backgroundColor: colors.bg, borderTopColor: colors.border }]}>
             <View style={[styles.inputField, { backgroundColor: colors.inputBg, borderColor: colors.inputBorder }]}>
               <TextInput
+                ref={inputRef}
                 style={[styles.inputText, { color: colors.text }]}
                 value={inputText}
                 onChangeText={setInputText}
@@ -864,11 +926,13 @@ export default function ChatScreen({ navigation, route }) {
           {/* Session List */}
           <ScrollView style={{ flex: 1, paddingHorizontal: 16, paddingTop: 12 }}>
             {chatSessions.length === 0 ? (
-              <View style={{ alignItems: 'center', paddingTop: 80 }}>
-                <Text style={{ fontSize: 40, marginBottom: 12 }}>☽</Text>
-                <Text style={{ fontFamily: FONTS.serifMedium, fontSize: 18, color: colors.heading, marginBottom: 6 }}>No past conversations</Text>
-                <Text style={{ fontSize: 13, color: colors.textSecondary }}>Start chatting and your history will appear here</Text>
-              </View>
+              <EmptyState
+                glyph="☽"
+                headline="Nothing here yet"
+                subhead="Conversations land here automatically — patterns become visible after a few of them."
+                ctaLabel="Ask Celestia something"
+                onCtaPress={() => setShowHistory(false)}
+              />
             ) : (
               chatSessions.map((s) => {
                 const date = new Date(s.lastUpdated || s.createdAt);

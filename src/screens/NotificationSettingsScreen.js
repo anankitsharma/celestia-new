@@ -62,7 +62,7 @@ export default function NotificationSettingsScreen({ navigation }) {
 
   const handleEnablePermission = async () => {
     haptic.medium();
-    const granted = await requestNotificationPermission();
+    const granted = await requestNotificationPermission('settings_screen');
     setHasPermission(granted);
     if (granted) {
       scheduleAllNotifications(userProfile, null, null, null, null, null).catch(() => {});

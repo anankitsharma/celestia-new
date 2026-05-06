@@ -98,7 +98,7 @@ export default function AuthScreen({ navigation, route }) {
 
       {/* Hero header — matches app hero pattern */}
       <LinearGradient
-        colors={['#0E0E22', '#2A1A6E', '#0C2040']}
+        colors={['#5A2840', '#3A1A28', '#1F0F18']}
         start={{ x: 0.3, y: 0 }}
         end={{ x: 0.7, y: 1 }}
         style={s.hero}
@@ -138,7 +138,7 @@ export default function AuthScreen({ navigation, route }) {
           <Text style={s.heroTitle}>Welcome to Celestia</Text>
           <Text style={s.heroSub}>
             {isOnboarding
-              ? 'Sign in to sync your cosmic journey'
+              ? 'Sign in to sync your chart and history'
               : 'Sign in to continue your journey'}
           </Text>
         </ReAnimated.View>
@@ -152,7 +152,7 @@ export default function AuthScreen({ navigation, route }) {
           {[
             { icon: '☁', text: 'Back up your chart to the cloud' },
             { icon: '🔄', text: 'Sync across all your devices' },
-            { icon: '✦', text: 'Unlock your full cosmic profile' },
+            { icon: '✦', text: 'Unlock your full chart profile' },
           ].map((b, i) => (
             <View key={i} style={s.benefitRow}>
               <View style={s.benefitIcon}><Text style={{ fontSize: 14 }}>{b.icon}</Text></View>

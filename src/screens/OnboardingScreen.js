@@ -323,7 +323,7 @@ export default function OnboardingScreen({ navigation }) {
         {step === 3 && (
           <>
             <Text style={[styles.h1, { color: colors.heading }]}>Stay aligned with{'\n'}<Text style={[styles.h1em, { color: isDark ? colors.gold : '#7A5E14' }]}>the cosmos</Text></Text>
-            <Text style={[styles.body, { color: colors.textSecondary }]}>We'll send you gentle cosmic nudges — daily horoscopes, transit alerts, and lunar phase updates. Never spammy, always meaningful.</Text>
+            <Text style={[styles.body, { color: colors.textSecondary }]}>We'll send gentle reminders — daily horoscopes, transit alerts, and lunar phase updates. Never spammy, always meaningful.</Text>
 
             {[
               { icon: '☀️', title: 'Daily Horoscope', desc: 'Your personalized morning reading', on: notifDaily, toggle: setNotifDaily },

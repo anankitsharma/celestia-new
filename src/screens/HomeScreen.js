@@ -8,12 +8,14 @@ import { T, FONTS } from '../constants/theme';
 import { useTheme } from '../contexts/ThemeContext';
 import { useUserProfile } from '../contexts/UserProfileContext';
 import { getMoonDataForDate, getTransitPlanets, getActiveCosmicWindows, isMercuryRetrograde, getCosmicChangeToday, calculateTransitSignificance, getCosmicSeason, getUpcomingEclipse } from '../services/astrologyService';
-import { fetchExtendedForecast, generateMoonRitual, generateMonthlyRecap } from '../services/geminiService';
-import { useAnalytics, EVENTS } from '../services/analytics';
+import { fetchExtendedForecast, generateMoonRitual, generateMonthlyRecap, generateFirstWeekRecap, generateMoonCyclePattern, generateProDailyInsight, generateProWeek1Recap } from '../services/geminiService';
+import { RevenueCatService } from '../services/revenueCatService';
+import { ReportRepository } from '../services/database/rep_reports';
+import { useAnalytics, EVENTS, getFeatureFlag } from '../services/analytics';
 import { ForecastRepository } from '../services/database/rep_forecasts';
 import { loadObject, saveObject, loadString, saveString, loadBoolean, saveBoolean, StorageKeys } from '../services/storage';
 import { haptic } from '../services/hapticService';
-import { recordDailyCheckIn, getStreakEmoji, getMilestoneMessage } from '../services/streakService';
+import { recordDailyCheckIn, getStreakEmoji, getMilestoneMessage, restoreBrokenStreak } from '../services/streakService';
 import { trackEvent } from '../services/achievementService';
 import { awardXP, getXPStatus } from '../services/xpService';
 import { getLevelInfo } from '../constants/levels';
@@ -22,7 +24,7 @@ import BadgeUnlockModal from '../components/BadgeUnlockModal';
 import QuestCard from '../components/QuestCard';
 import CosmicTooltip from '../components/CosmicTooltip';
 import AstroText from '../components/AstroText';
-import { scheduleAllNotifications, hasNotificationPermission, requestNotificationPermission } from '../services/notificationService';
+import { scheduleAllNotifications, hasNotificationPermission, requestNotificationPermission, getNotificationSettings, saveNotificationSettings } from '../services/notificationService';
 import { refillCosmicLinesIfNeeded, getCosmicLineForDate } from '../services/cosmicLineService';
 import { getTodayUnlock, markUnlockShown, getUnlockProgress, UNLOCK_NARRATIVES } from '../services/unlockService';
 import { calculateSynastryScore, calculateZodiacOnlyScore, ROLE_COLORS } from '../services/astrology/SynastryService';
@@ -33,6 +35,11 @@ import { getCosmicWhisper } from '../services/cosmicWhisperService';
 import { getNarrativeContext } from '../services/narrativeService';
 import NotificationPermissionModal from '../components/NotificationPermissionModal';
 import { JournalRepository } from '../services/database/rep_journal';
+import { detectIndecisionPhrase } from '../services/journalAnalysisService';
+import { maybeGetSurpriseInsight } from '../services/surpriseInsightService';
+import { buildUserProperties } from '../services/analytics';
+import { SkeletonBriefingCard } from '../components/Skeleton';
+import Button from '../components/Button';
 import DailyShareCard from '../components/DailyShareCard';
 import DailyStoryCard from '../components/DailyStoryCard';
 import MonthlyRecapCard from '../components/MonthlyRecapCard';
@@ -80,22 +87,38 @@ const getTimeMode = () => {
   return 'latenight';                          // Comfort mode, no upsells, soft tone
 };
 
-// Hero gradient adapts to time AND content type — warm, contextual, never cold
-const HERO_GRADIENTS = {
-  morning:   ['#1A1228', '#1E1430', '#16122A'],           // Warm plum-navy (not cold blue)
-  afternoon: ['#1A1228', '#1E1430', '#16122A'],           // Same warm base
-  evening:   ['#16101E', '#1A1228', '#14102A'],           // Deeper plum, intimate
-  latenight: ['#110E1A', '#140F20', '#100D18'],           // Softest, muted — comfort
+// Hero gradient adapts to time AND content type. V1.2 Light Liquid Glass:
+// LIGHT maps are 3-stop ivory tints over T.surfaceWarm so the hero integrates
+// with the cream canvas. DARK maps keep the original warm plum-navy.
+const HERO_GRADIENTS_DARK = {
+  morning:   ['#5A2840', '#5A2840', '#3A1A28'],           // Warm plum-navy (not cold blue)
+  afternoon: ['#5A2840', '#5A2840', '#3A1A28'],           // Same warm base
+  evening:   ['#3A1A28', '#5A2840', '#3A1A28'],           // Deeper plum, intimate
+  latenight: ['#1F0F18', '#1F0F18', '#0F0710'],           // Softest, muted — comfort
+};
+const HERO_GRADIENTS_LIGHT = {
+  morning:   ['#FBF5EA', '#F7F0E2', '#F4ECDB'],           // Sunrise warmth on ivory
+  afternoon: ['#F7F0E2', '#F4ECDB', '#F1E7D2'],           // Midday cream
+  evening:   ['#F2E9DA', '#EEE2CD', '#EBDCC1'],           // Dusk amber-cream
+  latenight: ['#EFE7D5', '#ECE1C9', '#E8DBBC'],           // Soft sand at night
 };
 
 // Content-type gradient tints — subtle undertone shift based on today's energy
-const CONTENT_GRADIENTS = {
+const CONTENT_GRADIENTS_DARK = {
   love:       ['#1E1020', '#201228', '#18101E'],           // Rose-plum undertone
   career:     ['#141828', '#161A30', '#121628'],           // Blue-navy (structured)
   energy:     ['#141E18', '#161A20', '#12181A'],           // Green-teal (vitality)
   headsup:    ['#1E1610', '#201818', '#181410'],           // Amber undertone (alert)
   greenlight: ['#101E14', '#142018', '#101A14'],           // Green (go)
-  reflection: ['#181020', '#1A1228', '#14101E'],           // Deep purple (introspective)
+  reflection: ['#181020', '#5A2840', '#3A1A28'],           // Deep purple (introspective)
+};
+const CONTENT_GRADIENTS_LIGHT = {
+  love:       ['#FBEFE8', '#F8E8DD', '#F4DFD0'],           // Warm rose
+  career:     ['#F1EAD8', '#EDE2C8', '#E9DAB8'],           // Champagne (focus)
+  energy:     ['#ECF1E5', '#E4ECDB', '#DCE5CC'],           // Soft moss (vitality)
+  headsup:    ['#F5E9D4', '#EFDFBE', '#E8D2A7'],           // Amber (alert)
+  greenlight: ['#E5EEDF', '#DCE7D2', '#D2DEC4'],           // Sage green (go)
+  reflection: ['#EFE5E7', '#E7DAE0', '#DED1D7'],           // Mauve reflection
 };
 
 // Greeting adapts to emotional context by time
@@ -115,6 +138,15 @@ const formatDateHeader = (date = new Date()) => {
   return `${days[date.getDay()]} · ${months[date.getMonth()]} ${date.getDate()}, ${date.getFullYear()}`;
 };
 
+// Goal-echo motivation map — friendly text from the onboarding step-2 selection.
+// Used by the trial-period goal-echo block on Today (commitment-consistency primer).
+const MOTIVATION_TEXT = {
+  self: 'understand yourself better',
+  change: 'navigate something big',
+  love: 'find clarity in a relationship',
+  curious: 'explore what\'s possible',
+};
+
 export default function HomeScreen({ navigation, route }) {
   const { isPro } = useRevenueCat();
   const { colors, isDark } = useTheme();
@@ -126,6 +158,9 @@ export default function HomeScreen({ navigation, route }) {
   const [transitPlanets, setTransitPlanets] = useState([]);
   const [forecast, setForecast] = useState(null);
   const [forecastLoading, setForecastLoading] = useState(false);
+  const [trialGoalEcho, setTrialGoalEcho] = useState(null);
+  const [trialSummary, setTrialSummary] = useState(null);
+  const [trialLossWarning, setTrialLossWarning] = useState(null);
 
 
   // Domain modal
@@ -173,6 +208,17 @@ export default function HomeScreen({ navigation, route }) {
   const [streakData, setStreakData] = useState(null);
   const [xpData, setXpData] = useState(null);
   const [showWelcomeBack, setShowWelcomeBack] = useState(false);
+  const [showFreezeOffer, setShowFreezeOffer] = useState(false);
+  const [showWakeTimeBackfill, setShowWakeTimeBackfill] = useState(false);
+  const [firstWeekRecap, setFirstWeekRecap] = useState(null); // { headline, observation, threadForward }
+  const [indecisionMatch, setIndecisionMatch] = useState(null); // { phrase, date }
+  const [surpriseInsight, setSurpriseInsight] = useState(null); // { kicker, insight, dayShown }
+  const [showNpsPrompt, setShowNpsPrompt] = useState(false);
+  const [showAtRiskBanner, setShowAtRiskBanner] = useState(false);
+  const [streakRestoreOffer, setStreakRestoreOffer] = useState(null); // { previousStreak, freezesRemaining }
+  const [proInsight, setProInsight] = useState(null); // { headline, body } — Pro-only daily layer
+  const [proWeek1Recap, setProWeek1Recap] = useState(null); // { headline, body, cta, suggestedTab? } — Day 7 of Pro
+  const [d30RevealCallback, setD30RevealCallback] = useState(null); // { firstReveal } — month-one emotional callback
   const [pendingBadge, setPendingBadge] = useState(null);
   const streakAnim = useRef(new Animated.Value(1)).current;
   const xpFloatAnim = useRef(new Animated.Value(0)).current;
@@ -286,6 +332,212 @@ export default function HomeScreen({ navigation, route }) {
     // Journal count for recap
     JournalRepository.getEntryCount(userProfile?.id || 'default').then(c => setJournalCount(c)).catch(() => { });
 
+    // Indecision-phrase mining — surfaces a chat-suggestion chip when the
+    // user's recent journals contain "should I" / "torn between" / etc.
+    detectIndecisionPhrase(userProfile?.id || 'default', 14)
+      .then(match => { if (match?.phrase) setIndecisionMatch(match); })
+      .catch(() => {});
+
+    // Surprise insight — fires only on trigger days (D4/10/17/24) with a 30%
+    // roll. Non-rolling days return null instantly. Variable reward layer.
+    maybeGetSurpriseInsight(userProfile)
+      .then(ins => { if (ins?.insight) setSurpriseInsight(ins); })
+      .catch(() => {});
+
+    // D30 reveal callback — re-surfaces the deeply-specific reveal statement
+    // the user saw at onboarding. Closes the loop on the "wow" moment a month
+    // later. One-shot per profile. Per Gap 8 in competitive-audit.
+    (async () => {
+      try {
+        const alreadyShown = await loadBoolean(StorageKeys.D30_REVEAL_CALLBACK_SHOWN);
+        if (alreadyShown) return;
+        const firstReveal = await loadString(StorageKeys.FIRST_REVEAL_STATEMENT);
+        if (!firstReveal) return;
+        const firstUse = await loadString(StorageKeys.FIRST_USE_DATE);
+        if (!firstUse) return;
+        const start = new Date(firstUse + 'T00:00:00');
+        const todayMid = new Date(); todayMid.setHours(0, 0, 0, 0);
+        const days = Math.floor((todayMid - start) / 86400000);
+        // Window 30-32 days for tolerance (user might not open exactly on D30)
+        if (days >= 30 && days <= 32) {
+          setD30RevealCallback({ firstReveal });
+        }
+      } catch {}
+    })();
+
+    // Goal-echo block during trial — anchors today's read to the user's
+    // stated motivation from onboarding. Commitment-consistency primer
+    // (Cialdini): each return reaffirms "I came here for X."
+    //
+    // Also drives the D-1 trial summary surface (peak-end rule, Kahneman):
+    // the last day of trial is the END moment that anchors memory of
+    // the entire trial.
+    (async () => {
+      try {
+        const info = await RevenueCatService.getCustomerInfo();
+        const trialLen = RevenueCatService.getTrialLengthDays(info);
+        if (trialLen === null) return; // only fires during active trial
+
+        const prefs = await loadObject('celestia_persona_prefs').catch(() => null);
+        const motivation = prefs?.motivation;
+        if (motivation && MOTIVATION_TEXT[motivation]) {
+          setTrialGoalEcho({ motivationText: MOTIVATION_TEXT[motivation], trialLengthDays: trialLen });
+        }
+
+        const daysUntilExp = RevenueCatService.getDaysUntilExpiration(info);
+        // A/B flag: D-1 trial summary surface present vs absent.
+        // PostHog flag `trial_summary_surface_enabled` (boolean).
+        // Default true (Sprint 1 ships it on); set to false on control cohort.
+        const summarySurfaceEnabled = getFeatureFlag('trial_summary_surface_enabled', true);
+        if (daysUntilExp !== null && daysUntilExp <= 1 && summarySurfaceEnabled) {
+          const profileId = userProfile?.id || 'default';
+          const journalCount = await JournalRepository.getEntryCount(profileId).catch(() => 0);
+          const firstReveal = await loadString(StorageKeys.FIRST_REVEAL_STATEMENT).catch(() => null);
+          setTrialSummary({ trialLengthDays: trialLen, journalCount, firstReveal });
+          try { capture('trial_summary_shown', { trial_length_days: trialLen, days_until_expiration: daysUntilExp, variant: 'enabled' }); } catch {}
+        } else if (daysUntilExp !== null && daysUntilExp >= 2 && daysUntilExp <= 3 && trialLen === 7) {
+          // D5 of 7-day trial: pair the trial-end push with an in-app
+          // loss-frame surface listing 3 specific losses. Loss aversion
+          // is ~2x stronger than gain framing (Kahneman).
+          setTrialLossWarning({ daysUntilExp });
+          try { capture('d5_loss_surface_shown', { trial_length_days: trialLen, days_until_expiration: daysUntilExp }); } catch {}
+        }
+      } catch {}
+    })();
+
+    // Annual renewal year-in-review — Spotify-Wrapped pattern. Triggers
+    // when an annual subscriber is within 30 days of auto-renewal AND
+    // hasn't seen this cycle's review. One-shot per renewal cycle.
+    if (isPro) {
+      (async () => {
+        try {
+          const info = await RevenueCatService.getCustomerInfo();
+          const entitlement = info?.entitlements?.active?.['Celestia Pro'];
+          if (!entitlement?.expirationDate || entitlement.willRenew === false) return;
+          const exp = new Date(entitlement.expirationDate);
+          const purchase = entitlement.latestPurchaseDate ? new Date(entitlement.latestPurchaseDate) : null;
+          if (!purchase || isNaN(purchase.getTime())) return;
+          // Annual plan = period > 90 days
+          const periodDays = (exp - purchase) / 86400000;
+          if (periodDays <= 90) return;
+          const daysUntilExp = Math.floor((exp - Date.now()) / 86400000);
+          if (daysUntilExp < 0 || daysUntilExp > 30) return;
+          // One-shot per renewal cycle — key the storage by expiration ISO date
+          const lastShown = await loadString(StorageKeys.YEAR_IN_REVIEW_SHOWN_AT);
+          const expISO = exp.toISOString().split('T')[0];
+          if (lastShown === expISO) return;
+          await saveString(StorageKeys.YEAR_IN_REVIEW_SHOWN_AT, expISO);
+          // Slight delay so the briefing card lands first
+          setTimeout(() => {
+            navigation.navigate('YearInReview');
+          }, 1200);
+        } catch {}
+      })();
+    }
+
+    // Pro week-1 recap — at Day 7 of being Pro, generate a tailored recap
+    // (engaged-user variant) or feature-discovery nudge (light-user variant).
+    if (isPro) {
+      (async () => {
+        try {
+          const shownAtStr = await loadString(StorageKeys.PRO_WEEK1_RECAP_SHOWN_AT);
+          if (shownAtStr) return; // one-shot ever per Pro purchase
+
+          const customerInfo = await RevenueCatService.getCustomerInfo();
+          const entitlement = customerInfo?.entitlements?.active?.['Celestia Pro'];
+          if (!entitlement) return;
+          const purchaseDate = entitlement.originalPurchaseDate
+            ? new Date(entitlement.originalPurchaseDate)
+            : (entitlement.latestPurchaseDate ? new Date(entitlement.latestPurchaseDate) : null);
+          if (!purchaseDate || isNaN(purchaseDate.getTime())) return;
+          const todayMid = new Date(); todayMid.setHours(0, 0, 0, 0);
+          const purchaseMid = new Date(purchaseDate); purchaseMid.setHours(0, 0, 0, 0);
+          const daysSincePro = Math.floor((todayMid - purchaseMid) / 86400000);
+          if (daysSincePro < 7 || daysSincePro > 9) return; // 3-day window for tolerance
+
+          // Cached?
+          const cached = await loadObject(StorageKeys.PRO_WEEK1_RECAP);
+          if (cached?.headline) {
+            setProWeek1Recap(cached);
+            return;
+          }
+
+          // Pull usage stats
+          const profileId = userProfile?.id || 'default';
+          const reports = await ReportRepository.getReportsForProfile(profileId).catch(() => []);
+          const counters = await loadObject(StorageKeys.ACHIEVEMENT_COUNTERS).catch(() => null);
+          const usage = {
+            weeklyReports: (reports || []).filter(r => r.type === 'weekly').length,
+            deepDives: counters?.deep_dives || 0,
+            compatibilityChecks: counters?.matches_checked || 0,
+            partnersAdded: (partnerProfiles?.length || 0),
+            totalProActions: 0,
+            suggestedFeature: null,
+          };
+          usage.totalProActions = usage.weeklyReports + usage.deepDives + usage.compatibilityChecks
+            + Math.max(0, usage.partnersAdded - 3);
+          // Pick suggested feature for light-user variant
+          if (usage.weeklyReports === 0) usage.suggestedFeature = 'a weekly chart read';
+          else if (usage.deepDives === 0) usage.suggestedFeature = 'a placement deep-dive';
+          else if (usage.compatibilityChecks === 0) usage.suggestedFeature = 'a compatibility read';
+          else usage.suggestedFeature = 'unlimited Circle entries';
+
+          const recap = await generateProWeek1Recap(userProfile?.chart, usage).catch(() => null);
+          if (recap?.headline) {
+            // Attach suggestedTab for light-user CTA navigation
+            const tabMap = {
+              'a weekly chart read': 'Reports',
+              'a placement deep-dive': 'Chart',
+              'a compatibility read': 'Circle',
+              'unlimited Circle entries': 'Circle',
+            };
+            recap.suggestedTab = usage.totalProActions <= 1 ? tabMap[usage.suggestedFeature] : null;
+            await saveObject(StorageKeys.PRO_WEEK1_RECAP, recap);
+            await saveString(StorageKeys.PRO_WEEK1_RECAP_SHOWN_AT, String(Date.now()));
+            setProWeek1Recap(recap);
+          }
+        } catch {}
+      })();
+    }
+
+    // At-risk intervention — if computed health_score < 40 AND not dismissed
+    // in last 7 days, surface a soft self-help callout. Hook Model: prompt at
+    // a moment of moderate motivation (the user did open the app — engage them).
+    (async () => {
+      try {
+        const profileId = userProfile?.id || 'default';
+        const props = await buildUserProperties(profileId);
+        const score = props.health_score;
+        if (typeof score === 'number' && score < 40) {
+          const dismissedAtStr = await loadString(StorageKeys.AT_RISK_DISMISSED_AT);
+          const dismissedAt = dismissedAtStr ? parseInt(dismissedAtStr, 10) : 0;
+          const daysSinceDismiss = (Date.now() - dismissedAt) / 86400000;
+          if (!dismissedAt || daysSinceDismiss > 7) {
+            setShowAtRiskBanner(true);
+            capture(EVENTS.AT_RISK_BANNER_SHOWN, { health_score: score, health_band: props.health_band });
+          }
+        }
+      } catch {}
+    })();
+
+    // NPS sentiment prompt — every 30 days for active users (streak >= 3).
+    // One-tap, low-friction. Feeds the health_score sentiment signal.
+    (async () => {
+      try {
+        const last = await loadObject(StorageKeys.NPS_LAST_SUBMITTED);
+        const lastAt = last?.at || 0;
+        const daysSince = (Date.now() - lastAt) / 86400000;
+        const firstUse = await loadString(StorageKeys.FIRST_USE_DATE);
+        const installDate = firstUse ? new Date(firstUse + 'T00:00:00') : null;
+        const daysSinceInstall = installDate ? Math.floor((Date.now() - installDate.getTime()) / 86400000) : 0;
+        // Skip if: shown in last 30 days, OR user is on day 0-2 (too early), OR no streak yet
+        if (daysSince > 30 && daysSinceInstall >= 3) {
+          // Use a small delay so it doesn't slam down on first paint
+          setTimeout(() => setShowNpsPrompt(true), 1200);
+        }
+      } catch {}
+    })();
+
     // Monthly recap (1st-3rd of month)
     if (today.getDate() <= 3) {
       const recapKey = `recap_${today.getFullYear()}_${today.getMonth()}`;
@@ -328,10 +580,87 @@ export default function HomeScreen({ navigation, route }) {
         const streak = await recordDailyCheckIn(profileId);
         setStreakData(streak);
 
+        // Analytics — fire only on new check-in (idempotent for same-day repeats)
+        if (streak?.isNew) {
+          if (streak.streakBroken) {
+            capture(EVENTS.STREAK_BROKEN, {
+              previous_streak: streak.previousStreak,
+              days_absent: streak.daysAbsent,
+              comeback_bonus: streak.comebackBonus,
+              source: 'home',
+            });
+            // Streak restore offer — only if previous streak was meaningful (≥7)
+            // AND user has a freeze AND we haven't offered restore in last 7 days
+            if (streak.previousStreak >= 7 && streak.streak_freezes_remaining > 0) {
+              try {
+                const lastOfferStr = await loadString(StorageKeys.STREAK_RESTORE_OFFER_LAST);
+                const lastOffer = lastOfferStr ? parseInt(lastOfferStr, 10) : 0;
+                const daysSince = (Date.now() - lastOffer) / 86400000;
+                if (!lastOffer || daysSince > 7) {
+                  setStreakRestoreOffer({
+                    previousStreak: streak.previousStreak,
+                    freezesRemaining: streak.streak_freezes_remaining,
+                  });
+                }
+              } catch {}
+            }
+          }
+          if (streak.current_streak === 1 && !streak.streakBroken) {
+            capture(EVENTS.STREAK_STARTED, { source: 'home' });
+          }
+          if (streak.freezeUsed) {
+            capture(EVENTS.STREAK_FREEZE_USED, {
+              days_absent: streak.daysAbsent,
+              freezes_remaining: streak.streak_freezes_remaining,
+              source: 'home',
+            });
+          }
+          if (streak.milestoneHit) {
+            capture(EVENTS.STREAK_MILESTONE_HIT, {
+              streak: streak.milestoneHit,
+              source: 'home',
+            });
+          }
+        }
+
         // Show welcome back if returning after 2+ days
         if (streak?.daysAbsent >= 2 && streak?.isNew) {
           setShowWelcomeBack(true);
         }
+
+        // Wake-time backfill — for users who finished onboarding before the
+        // wake-time question existed. Detect by: morning settings still at the
+        // 7:30am default AND backfill not yet prompted. One-shot inline card.
+        try {
+          const promptedAlready = await loadBoolean(StorageKeys.WAKE_TIME_BACKFILL_PROMPTED);
+          if (!promptedAlready) {
+            const onboarded = await loadBoolean(StorageKeys.ONBOARDING_COMPLETED);
+            const settings = await getNotificationSettings();
+            const usingDefault = settings.morningTime === 7 && settings.morningMinute === 30;
+            if (onboarded && usingDefault) {
+              setShowWakeTimeBackfill(true);
+            }
+          }
+        } catch {}
+
+        // Proactive D2-D3 freeze offer — pre-load loss aversion BEFORE the
+        // user is at risk. Fires once per profile, in the early streak window,
+        // when they actually have a freeze available.
+        try {
+          const alreadyShown = await loadBoolean(StorageKeys.FREEZE_OFFER_SHOWN);
+          if (!alreadyShown && streak?.streak_freezes_remaining > 0 && streak?.current_streak >= 1) {
+            const firstUse = await loadString(StorageKeys.FIRST_USE_DATE);
+            if (firstUse) {
+              const start = new Date(firstUse + 'T00:00:00');
+              const today = new Date(); today.setHours(0, 0, 0, 0);
+              const daysSince = Math.floor((today - start) / 86400000);
+              if (daysSince >= 1 && daysSince <= 3) {
+                setShowFreezeOffer(true);
+                capture(EVENTS.STREAK_FREEZE_OFFER_SHOWN, { days_since_install: daysSince, current_streak: streak.current_streak });
+              }
+            }
+          }
+        } catch {}
 
         // Streak animation on new check-in
         if (streak?.isNew && !streak?.streakBroken) {
@@ -349,6 +678,84 @@ export default function HomeScreen({ navigation, route }) {
               emoji: getStreakEmoji(streak.current_streak),
               message: getMilestoneMessage(streak.current_streak),
             });
+
+            // Permission re-ask at D7 + D14 + D30 milestones for users who
+            // previously declined. Motivation peaks at milestones — the
+            // second-best moment (after post-chart) to ask. Capped at 3
+            // lifetime re-asks. Each milestone fires at most once per user.
+            if (streak.current_streak === 7 || streak.current_streak === 14 || streak.current_streak === 30) {
+              try {
+                const hasPerm = await hasNotificationPermission();
+                if (!hasPerm) {
+                  const countStr = await loadString(StorageKeys.NOTIFICATION_REASKED_COUNT);
+                  const count = countStr ? parseInt(countStr, 10) : 0;
+                  if (count < 3) {
+                    await saveString(StorageKeys.NOTIFICATION_REASKED_COUNT, String(count + 1));
+                    // Slight delay so milestone modal lands first
+                    setTimeout(() => setShowNotifModal(true), 1800);
+                  }
+                }
+              } catch {}
+            }
+          }
+
+          // D7 first-week recap — generate once, cache forever, show in a
+          // separate modal stacked after the streak milestone modal dismisses.
+          if (streak.current_streak === 7) {
+            try {
+              const cached = await loadObject(StorageKeys.FIRST_WEEK_RECAP);
+              if (cached?.headline) {
+                setFirstWeekRecap(cached);
+              } else {
+                const journalEntries = await JournalRepository.getEntryCount(profileId).catch(() => 0);
+                // Pass the user's first reveal statement for continuity — closes
+                // the loop on the onboarding "wow" moment per Gap 8.
+                const firstReveal = await loadString(StorageKeys.FIRST_REVEAL_STATEMENT).catch(() => null);
+                const stats = {
+                  daysActive: 7,
+                  journalEntries,
+                  chatCount: 0, // best-effort; if we add ChatRepository.getMessageCount later, plumb here
+                  partnerCount: partnerProfiles?.length || 0,
+                  topTheme: null,
+                  firstReveal,
+                };
+                generateFirstWeekRecap(userProfile?.chart, stats)
+                  .then(async (recap) => {
+                    if (recap?.headline) {
+                      await saveObject(StorageKeys.FIRST_WEEK_RECAP, recap);
+                      setFirstWeekRecap(recap);
+                    }
+                  })
+                  .catch(() => {});
+              }
+            } catch {}
+          }
+
+          // D28 Moon Cycle pattern — same shape as the D7 recap. One full
+          // lunar cycle of consistency is rare; reward it with earned content.
+          if (streak.current_streak === 28) {
+            try {
+              const cached = await loadObject(StorageKeys.MOON_CYCLE_PATTERN);
+              if (cached?.headline) {
+                setFirstWeekRecap(cached); // reuse the recap modal — same UI shape
+              } else {
+                const journalEntries = await JournalRepository.getEntryCount(profileId).catch(() => 0);
+                const stats = {
+                  daysActive: 28,
+                  journalEntries,
+                  chatCount: 0,
+                  partnerCount: partnerProfiles?.length || 0,
+                };
+                generateMoonCyclePattern(userProfile?.chart, stats)
+                  .then(async (recap) => {
+                    if (recap?.headline) {
+                      await saveObject(StorageKeys.MOON_CYCLE_PATTERN, recap);
+                      setFirstWeekRecap(recap);
+                    }
+                  })
+                  .catch(() => {});
+              }
+            } catch {}
           }
         }
 
@@ -455,10 +862,56 @@ export default function HomeScreen({ navigation, route }) {
         dateLabel,
         transits: tabTransits.map(p => `${p.name}: ${p.sign} ${p.degree.toFixed(0)}°`).join(', '),
       };
-      const data = await fetchExtendedForecast(userProfile, tab, planetaryData, transitSignificance, narrativeCtx);
+      // Briefing-mode rotation — Standard → Pattern → Partner → Archetype.
+      // Only daily reads rotate; weekly/monthly/yearly stay 'standard'.
+      // Hook Model: defeats finite-variability decay by changing the *format*
+      // of the read every 7 days, not just the day's content.
+      let briefingMode = 'standard';
+      try {
+        if (tab === 'today' || tab === 'tomorrow' || tab === 'yesterday') {
+          const firstUse = await loadString(StorageKeys.FIRST_USE_DATE);
+          if (firstUse) {
+            const start = new Date(firstUse + 'T00:00:00');
+            const todayMid = new Date(); todayMid.setHours(0, 0, 0, 0);
+            const days = Math.max(0, Math.floor((todayMid - start) / 86400000));
+            const weeks = Math.floor(days / 7);
+            briefingMode = ['standard', 'pattern', 'partner', 'archetype'][weeks % 4];
+            // Don't switch to 'partner' mode if user has no Circle entries —
+            // would force a relational frame on a relationally-empty user.
+            if (briefingMode === 'partner' && (!partnerProfiles || partnerProfiles.length === 0)) {
+              briefingMode = 'standard';
+            }
+          }
+        }
+      } catch {}
+      const data = await fetchExtendedForecast(userProfile, tab, planetaryData, transitSignificance, narrativeCtx, briefingMode);
       setForecast(data);
       if (tab === 'today') {
         capture(EVENTS.DAILY_BRIEFING_VIEWED, { has_navigator: !!data?.navigatorHeadline });
+      }
+
+      // Pro daily insight — extra layer for paying users only. Cached per
+      // (user × day). Gives a daily moment where the subscription delivers.
+      if (tab === 'today' && isPro) {
+        try {
+          const proCacheKey = `pro_insight_${userProfile?.id || 'default'}_${dateLabel}`;
+          const cached = await loadObject(proCacheKey);
+          if (cached?.headline) {
+            setProInsight(cached);
+          } else {
+            const transitContext = planetaryData?.transits || '';
+            generateProDailyInsight(userProfile?.chart, transitContext, dateLabel)
+              .then(async (insight) => {
+                if (insight?.headline) {
+                  await saveObject(proCacheKey, insight);
+                  setProInsight(insight);
+                }
+              })
+              .catch(() => {});
+          }
+        } catch {}
+      } else {
+        setProInsight(null);
       }
       // Schedule notifications with latest forecast (only on today tab)
       if (tab === 'today') {
@@ -627,11 +1080,11 @@ export default function HomeScreen({ navigation, route }) {
   };
 
   const LIFE_AREA_META = {
-    love: { icon: '♡', title: 'Love & Relationships', sub: 'Intimacy · Romance · Self-Love', color: '#E85090', gradient: ['#3A0A2A', '#1A0A2E', '#0E0E22'] },
-    career: { icon: '◆', title: 'Career & Finances', sub: 'Work · Ambition · Wealth', color: '#5090E8', gradient: ['#0A1A3A', '#0E1628', '#0E0E22'] },
-    vitality: { icon: '✦', title: 'Vitality & Wellness', sub: 'Energy · Health · Rhythm', color: '#50C878', gradient: ['#0A2A1A', '#0E1E22', '#0E0E22'] },
-    growth: { icon: '◎', title: 'Growth & Inner Work', sub: 'Learning · Wisdom · Transformation', color: '#F59E0B', gradient: ['#2A1A0A', '#1E1610', '#0E0E22'] },
-    social: { icon: '✧', title: 'Social & Community', sub: 'Connection · Communication · Influence', color: '#8B5CF6', gradient: ['#1A0A3A', '#140E2E', '#0E0E22'] },
+    love: { icon: '♡', title: 'Love & Relationships', sub: 'Intimacy · Romance · Self-Love', color: '#E85090', gradient: ['#3A0A2A', '#1A0A2E', '#3A1A28'] },
+    career: { icon: '◆', title: 'Career & Finances', sub: 'Work · Ambition · Wealth', color: '#5090E8', gradient: ['#0A1A3A', '#3A1A28', '#3A1A28'] },
+    vitality: { icon: '✦', title: 'Vitality & Wellness', sub: 'Energy · Health · Rhythm', color: '#50C878', gradient: ['#0A2A1A', '#0E1E22', '#3A1A28'] },
+    growth: { icon: '◎', title: 'Growth & Inner Work', sub: 'Learning · Wisdom · Transformation', color: '#F59E0B', gradient: ['#2A1A0A', '#1E1610', '#3A1A28'] },
+    social: { icon: '✧', title: 'Social & Community', sub: 'Connection · Communication · Influence', color: '#8B5CF6', gradient: ['#1A0A3A', '#140E2E', '#3A1A28'] },
   };
 
   if (profileLoading || !userProfile?.chart) {
@@ -704,27 +1157,59 @@ export default function HomeScreen({ navigation, route }) {
             const top = areas.filter(a => forecast.lifeAreas[a.key]).sort((a, b) => (forecast.lifeAreas[b.key].intensity || 3) - (forecast.lifeAreas[a.key].intensity || 3))[0];
             if (top) ct = top.type;
           }
-          const heroColors = (ct && CONTENT_GRADIENTS[ct]) || HERO_GRADIENTS[timeMode] || HERO_GRADIENTS.morning;
+          const HERO_MAP = isDark ? HERO_GRADIENTS_DARK : HERO_GRADIENTS_LIGHT;
+          const CONTENT_MAP = isDark ? CONTENT_GRADIENTS_DARK : CONTENT_GRADIENTS_LIGHT;
+          const heroColors = (ct && CONTENT_MAP[ct]) || HERO_MAP[timeMode] || HERO_MAP.morning;
+          // Hero text colors invert with mode: cream-on-dark or ink-on-cream.
+          const heroFg = isDark ? T.cream : colors.heading;
+          const heroFgMuted = isDark ? 'rgba(250,248,242,0.6)' : colors.textSecondary;
+          const heroFgSoft = isDark ? 'rgba(250,248,242,0.7)' : colors.textSecondary;
           return (
             <LinearGradient colors={heroColors} locations={[0, 0.5, 1]} style={styles.hero}>
               {/* Row 1: Greeting + Name (left) | Streak pill + Avatar (right) */}
               <View style={styles.nameRow}>
                 <View style={{ flex: 1 }}>
-                  <Text style={styles.greeting}>{getAdaptiveGreeting(timeMode, firstName)},</Text>
-                  <Text style={styles.heroName}>{firstName}</Text>
+                  <Text style={[styles.greeting, { color: heroFgMuted }]}>{getAdaptiveGreeting(timeMode, firstName)},</Text>
+                  <Text style={[styles.heroName, { color: heroFg }]}>{firstName}</Text>
                 </View>
                 <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
-                  {/* Streak pill */}
-                  {streakData && streakData.current_streak > 0 && !isLateNight && (
-                    <TouchableOpacity activeOpacity={0.8} onPress={() => { haptic.light(); setShowStreakModal(true); }}>
-                      <Animated.View style={[styles.streakBadge, { transform: [{ scale: streakAnim }] }]}>
-                        <Text style={{ fontSize: 14 }}>{moonIcon}</Text>
-                        <Text style={styles.streakBadgeNum}>{streakData.current_streak}</Text>
-                      </Animated.View>
-                    </TouchableOpacity>
-                  )}
+                  {/* Streak pill — elevated during trial (Duolingo pattern: stronger
+                      loss-aversion when the streak is the first thing you see).
+                      A/B flag: `streak_in_header_during_trial` (boolean, default true).
+                      When false, streak stays at default size for trial users too. */}
+                  {streakData && streakData.current_streak > 0 && !isLateNight && (() => {
+                    const streakProminentFlag = getFeatureFlag('streak_in_header_during_trial', true);
+                    const isElevated = trialGoalEcho && streakProminentFlag;
+                    return (
+                      <TouchableOpacity
+                        activeOpacity={0.8}
+                        onPress={() => { haptic.light(); setShowStreakModal(true); }}
+                        hitSlop={{ top: 14, bottom: 14, left: 14, right: 14 }}
+                      >
+                        <Animated.View style={[
+                          styles.streakBadge,
+                          !isDark && { backgroundColor: 'rgba(160,120,32,0.14)', borderColor: 'rgba(160,120,32,0.32)' },
+                          isElevated && styles.streakBadgeTrial,
+                          { transform: [{ scale: streakAnim }] },
+                        ]}>
+                          <Text style={{ fontSize: isElevated ? 17 : 14 }}>{moonIcon}</Text>
+                          <Text style={[
+                            styles.streakBadgeNum,
+                            !isDark && { color: T.goldText },
+                            isElevated && styles.streakBadgeNumTrial,
+                          ]}>{streakData.current_streak}</Text>
+                        </Animated.View>
+                      </TouchableOpacity>
+                    );
+                  })()}
                   {/* Avatar */}
-                  <TouchableOpacity style={[styles.avatar, xpData && { borderWidth: 0 }]} activeOpacity={0.8}
+                  <TouchableOpacity
+                    style={[
+                      styles.avatar,
+                      !isDark && { backgroundColor: 'rgba(92,36,52,0.06)', borderColor: 'rgba(92,36,52,0.18)' },
+                      xpData && { borderWidth: 0 },
+                    ]}
+                    activeOpacity={0.8}
                     onPress={() => { haptic.light(); navigation.navigate('Profile'); }}>
                     <Text style={styles.avatarText}>{firstName[0]?.toUpperCase() || '✦'}</Text>
                     {xpData && (
@@ -737,13 +1222,13 @@ export default function HomeScreen({ navigation, route }) {
               {/* Row 2: Moon phase — its own row */}
               <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 14 }}>
                 <Text style={{ fontSize: 18 }}>{moonIcon}</Text>
-                <Text style={{ fontSize: 13, color: 'rgba(250,248,242,0.7)', fontFamily: FONTS.sansMedium }}>
+                <Text style={{ fontSize: 13, color: heroFgSoft, fontFamily: FONTS.sansMedium }}>
                   <Text style={{ fontFamily: FONTS.sansSemiBold }}>{moonPhase}</Text>
                   {moonSign !== '—' ? ` in ` : ''}
                   {moonSign !== '—' && <Text style={{ fontFamily: FONTS.sansSemiBold }}>{moonSign}</Text>}
                   {moonData?.illumination != null ? ` · ${moonData.illumination.toFixed(0)}%` : ''}
                 </Text>
-                <CosmicTooltip id="moon_phase" size={14} light />
+                <CosmicTooltip id="moon_phase" size={14} light={isDark} />
               </View>
             </LinearGradient>
           );
@@ -751,7 +1236,7 @@ export default function HomeScreen({ navigation, route }) {
 
         {/* ── FLOATING TAB PILL — overlaps hero bottom edge ── */}
         <View style={styles.floatingTabWrap}>
-          <View style={[styles.floatingTabBar, { backgroundColor: isDark ? colors.card : colors.bg, borderColor: isDark ? colors.border : 'rgba(0,0,0,0.04)' }]}>
+          <View style={[styles.floatingTabBar, { backgroundColor: colors.card, borderColor: isDark ? colors.border : 'rgba(0,0,0,0.06)' }]}>
             {PERIOD_TABS.map((tab) => (
               <TouchableOpacity key={tab.key}
                 style={[styles.floatingTab, activeTab === tab.key && styles.floatingTabOn]}
@@ -811,7 +1296,7 @@ export default function HomeScreen({ navigation, route }) {
 
           {/* ── ECLIPSE SEASON BANNER ── */}
           {activeTab === 'today' && upcomingEclipse && (
-            <View style={{ backgroundColor: '#1A1535', borderWidth: 1, borderColor: 'rgba(155,142,196,0.2)', borderRadius: 14, padding: 14, marginBottom: 12, flexDirection: 'row', alignItems: 'center', gap: 12 }}>
+            <View style={{ backgroundColor: '#5A2840', borderWidth: 1, borderColor: 'rgba(155,142,196,0.2)', borderRadius: 14, padding: 14, marginBottom: 12, flexDirection: 'row', alignItems: 'center', gap: 12 }}>
               <Text style={{ fontSize: 24 }}>{upcomingEclipse.type === 'solar' ? '🌑' : '🌕'}</Text>
               <View style={{ flex: 1 }}>
                 <Text style={{ fontSize: 9, fontFamily: FONTS.sansSemiBold, letterSpacing: 1.5, color: '#9B8EC4', marginBottom: 3 }}>ECLIPSE SEASON</Text>
@@ -826,6 +1311,74 @@ export default function HomeScreen({ navigation, route }) {
                   Eclipses accelerate change. Avoid starting major new things — let the cosmic dust settle first.
                 </Text>
               </View>
+            </View>
+          )}
+
+          {/* ── D5 LOSS-FRAME WARNING — pairs with the D5 trial-end push.
+              Lists 3 specific Pro features the user would lose access to
+              after the trial ends. Loss aversion (Kahneman). */}
+          {activeTab === 'today' && trialLossWarning && (
+            <View style={styles.lossWarningCard}>
+              <Text style={styles.lossWarningKicker}>
+                {trialLossWarning.daysUntilExp <= 2 ? 'TRIAL ENDS IN 2 DAYS' : 'TRIAL ENDS SOON'}
+              </Text>
+              <Text style={[styles.lossWarningHeadline, { color: colors.heading }]}>
+                What you'd lose access to:
+              </Text>
+              <View style={styles.lossWarningRow}>
+                <Text style={styles.lossWarningGlyph}>✦</Text>
+                <Text style={[styles.lossWarningItem, { color: colors.text }]}>
+                  Daily Pro insight on Today
+                </Text>
+              </View>
+              <View style={styles.lossWarningRow}>
+                <Text style={styles.lossWarningGlyph}>◆</Text>
+                <Text style={[styles.lossWarningItem, { color: colors.text }]}>
+                  Weekly reports — love, career, lunar, purpose
+                </Text>
+              </View>
+              <View style={styles.lossWarningRow}>
+                <Text style={styles.lossWarningGlyph}>♡</Text>
+                <Text style={[styles.lossWarningItem, { color: colors.text }]}>
+                  Full-depth AI chat (no message cap)
+                </Text>
+              </View>
+              <Text style={[styles.lossWarningFooter, { color: colors.textSecondary }]}>
+                Your chart, journals, and Circle stay yours either way.
+              </Text>
+            </View>
+          )}
+
+          {/* ── D-1 TRIAL SUMMARY — peak-end rule (Kahneman). Renders only on the
+              final day of the trial. The end-of-trial moment is the END that
+              anchors the entire memory of the trial. Frame as celebration of
+              what the user built, not as a charge-warning. */}
+          {activeTab === 'today' && trialSummary && (
+            <View style={styles.trialSummaryCard}>
+              <Text style={styles.trialSummaryKicker}>YOUR TRIAL</Text>
+              <Text style={[styles.trialSummaryHeadline, { color: colors.heading }]}>
+                What {trialSummary.trialLengthDays} days built.
+              </Text>
+              <View style={styles.trialSummaryStatsRow}>
+                <View style={styles.trialSummaryStat}>
+                  <Text style={styles.trialSummaryNum}>{streakData?.current_streak || 0}</Text>
+                  <Text style={[styles.trialSummaryLabel, { color: colors.textSecondary }]}>
+                    day{(streakData?.current_streak || 0) === 1 ? '' : 's'} of check-ins
+                  </Text>
+                </View>
+                <View style={styles.trialSummaryDivider} />
+                <View style={styles.trialSummaryStat}>
+                  <Text style={styles.trialSummaryNum}>{trialSummary.journalCount}</Text>
+                  <Text style={[styles.trialSummaryLabel, { color: colors.textSecondary }]}>
+                    journal{trialSummary.journalCount === 1 ? '' : 's'}
+                  </Text>
+                </View>
+              </View>
+              {trialSummary.firstReveal && (
+                <Text style={[styles.trialSummaryReveal, { color: colors.text }]}>
+                  "{trialSummary.firstReveal}"
+                </Text>
+              )}
             </View>
           )}
 
@@ -887,6 +1440,48 @@ export default function HomeScreen({ navigation, route }) {
                 <Text style={[styles.dailyTxt, { marginBottom: 14, color: colors.text }]}>{forecast.navigatorSummary}</Text>
               )}
 
+              {/* Goal-echo (trial only) — commitment-consistency primer.
+                  Anchors today's read to the motivation captured at onboarding. */}
+              {trialGoalEcho && (
+                <View style={styles.goalEchoCard}>
+                  <Text style={styles.goalEchoKicker}>YOUR INTENT</Text>
+                  <Text style={[styles.goalEchoBody, { color: colors.text }]}>
+                    You came here to {trialGoalEcho.motivationText}. Today's read takes you closer.
+                  </Text>
+                </View>
+              )}
+
+              {/* Pro daily insight — extra layer for Pro users only.
+                  Visually distinct gold-bordered card sits between the
+                  navigator briefing and the action lists. Share-affordance
+                  added per CA-B4 — this is the recurring iconic share
+                  moment for paid users. */}
+              {isPro && proInsight?.headline && (
+                <View style={styles.proInsightCard}>
+                  <View style={styles.proInsightHeaderRow}>
+                    <Text style={styles.proInsightKicker}>✦ PRO INSIGHT</Text>
+                    <TouchableOpacity
+                      activeOpacity={0.7}
+                      onPress={async () => {
+                        haptic.light();
+                        capture(EVENTS.SHARE_INITIATED, { source: 'pro_insight' });
+                        try {
+                          await Share.share({
+                            message: `"${proInsight.headline}"\n\n${proInsight.body}\n\n— Celestia ✦`,
+                          });
+                        } catch {}
+                      }}
+                      hitSlop={{ top: 14, bottom: 14, left: 14, right: 14 }}
+                      style={{ marginLeft: 'auto', paddingHorizontal: 8, paddingVertical: 4 }}
+                    >
+                      <Text style={{ fontSize: 13, color: T.gold }}>↗</Text>
+                    </TouchableOpacity>
+                  </View>
+                  <Text style={[styles.proInsightHeadline, { color: colors.heading }]}>{proInsight.headline}</Text>
+                  <Text style={[styles.proInsightBody, { color: colors.text }]}>{proInsight.body}</Text>
+                </View>
+              )}
+
               {forecast.navigateToward && forecast.navigateToward.length > 0 && (
                 <View style={[styles.nudgeBox, isDark && { backgroundColor: 'rgba(193,127,89,0.08)', borderColor: 'rgba(193,127,89,0.2)' }]}>
                   <Text style={styles.nudgeLabel}>TODAY'S NUDGE</Text>
@@ -895,6 +1490,46 @@ export default function HomeScreen({ navigation, route }) {
                   </Text>
                 </View>
               )}
+
+              {/* ── BENTO ROW — Today's Sky / Streak / Quest ──
+                  Asymmetric 3-cell bento that breaks the vertical-stack rhythm.
+                  Per plan/senior-design-critique/04-replaceable-patterns.md +
+                  plan/android-status.md AND-7. Each cell is theme-aware, glanceable. */}
+              <View style={styles.bentoRow}>
+                {/* Today's Sky cell — moon sign */}
+                <View style={[styles.bentoCell, { backgroundColor: colors.cardAlt, borderColor: colors.border }]}>
+                  <Text style={[styles.bentoLabel, { color: colors.textSecondary }]}>TODAY'S SKY</Text>
+                  <Text style={[styles.bentoValue, { color: colors.heading }]}>
+                    {moonData?.sign || '—'}
+                  </Text>
+                  <Text style={[styles.bentoSub, { color: colors.textSecondary }]}>
+                    {moonData?.phaseName ? moonData.phaseName.split(' ')[0] : 'Moon'}
+                  </Text>
+                </View>
+
+                {/* Streak cell — leaning hero per gamification placement audit */}
+                <View style={[styles.bentoCell, styles.bentoCellAccent, { borderColor: 'rgba(200,168,75,0.32)' }]}>
+                  <Text style={[styles.bentoLabel, { color: T.gold }]}>STREAK</Text>
+                  <Text style={[styles.bentoValueAccent]}>
+                    {streakData?.current_streak ?? 0}
+                  </Text>
+                  <Text style={[styles.bentoSub, { color: T.gold, opacity: 0.7 }]}>
+                    {streakData?.current_streak === 1 ? 'day' : 'days'}
+                  </Text>
+                </View>
+
+                {/* Quest cell */}
+                <View style={[styles.bentoCell, { backgroundColor: colors.cardAlt, borderColor: colors.border }]}>
+                  <Text style={[styles.bentoLabel, { color: colors.textSecondary }]}>QUEST</Text>
+                  <Text style={[styles.bentoValueSm, { color: colors.heading }]}>
+                    {questData?.[0]?.label || 'No quest'}
+                  </Text>
+                  <Text style={[styles.bentoSub, { color: colors.textSecondary }]}>
+                    {questData?.[0]?.completed ? 'done' : 'today'}
+                  </Text>
+                </View>
+              </View>
+
 
               {/* Navigate Toward / Around — order adapts to time of day */}
               {(() => {
@@ -954,6 +1589,112 @@ export default function HomeScreen({ navigation, route }) {
             </>
           )}
           {/* Quick actions row below insight card */}
+          {/* At-risk intervention — visible only when health_score < 40 and
+              not recently dismissed. Self-help save before churn. */}
+          {activeTab === 'today' && showAtRiskBanner && (
+            <View style={{
+              marginBottom: 12,
+              padding: 16,
+              borderRadius: 14,
+              borderWidth: 1,
+              borderColor: 'rgba(193,127,89,0.32)',
+              backgroundColor: isDark ? 'rgba(193,127,89,0.06)' : 'rgba(193,127,89,0.05)',
+            }}>
+              <Text style={{ fontSize: 11, letterSpacing: 1.4, fontFamily: FONTS.sansSemiBold, color: '#C17F59', marginBottom: 6 }}>
+                CHECKING IN
+              </Text>
+              <Text style={{ fontSize: 14, lineHeight: 20, color: colors.text, marginBottom: 12 }}>
+                We noticed you've been quiet. Anything we can help with?
+              </Text>
+              <View style={{ flexDirection: 'row', gap: 8 }}>
+                <TouchableOpacity
+                  activeOpacity={0.7}
+                  style={{ flex: 1, paddingVertical: 10, borderRadius: 10, borderWidth: 1, borderColor: T.gold, alignItems: 'center', backgroundColor: 'rgba(200,168,75,0.08)' }}
+                  onPress={async () => {
+                    haptic.light();
+                    capture(EVENTS.AT_RISK_BANNER_TAPPED, { action: 'talk' });
+                    try { await saveString(StorageKeys.AT_RISK_DISMISSED_AT, String(Date.now())); } catch {}
+                    setShowAtRiskBanner(false);
+                    navigation.navigate('AskAI', {
+                      initialMessage: "I haven't been opening the app much lately. Can you help me re-find my footing — what should I focus on right now?"
+                    });
+                  }}
+                >
+                  <Text style={{ fontSize: 13, fontFamily: FONTS.sansSemiBold, color: T.gold }}>Talk to Celestia</Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  activeOpacity={0.7}
+                  style={{ flex: 1, paddingVertical: 10, borderRadius: 10, borderWidth: 1, borderColor: colors.border, alignItems: 'center' }}
+                  onPress={async () => {
+                    haptic.light();
+                    capture(EVENTS.AT_RISK_BANNER_TAPPED, { action: 'dismiss' });
+                    try { await saveString(StorageKeys.AT_RISK_DISMISSED_AT, String(Date.now())); } catch {}
+                    setShowAtRiskBanner(false);
+                  }}
+                >
+                  <Text style={{ fontSize: 13, color: colors.textSecondary }}>I'm fine, thanks</Text>
+                </TouchableOpacity>
+              </View>
+            </View>
+          )}
+
+          {/* Surprise insight — only on trigger days (D4/10/17/24) when the
+              30% roll lands. One-shot, never repeats. Variable reward. */}
+          {activeTab === 'today' && surpriseInsight?.insight && (
+            <View
+              style={{
+                marginBottom: 12,
+                padding: 16,
+                borderRadius: 16,
+                borderWidth: 1,
+                borderColor: 'rgba(200,168,75,0.35)',
+                backgroundColor: isDark ? 'rgba(26,21,53,0.55)' : 'rgba(200,168,75,0.06)',
+              }}
+            >
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 8 }}>
+                <Text style={{ fontSize: 14 }}>✦</Text>
+                <Text style={{ fontSize: 10, letterSpacing: 1.6, fontFamily: FONTS.sansSemiBold, color: T.gold, textTransform: 'uppercase' }}>
+                  Something I noticed — {surpriseInsight.kicker}
+                </Text>
+              </View>
+              <Text style={{ fontSize: 14, lineHeight: 22, fontFamily: FONTS.serifItalic || FONTS.serif, fontStyle: 'italic', color: colors.text }}>
+                {surpriseInsight.insight}
+              </Text>
+            </View>
+          )}
+
+          {/* Indecision-phrase callout — surfaces only when journals show
+              the user is sitting with a decision. Investment loads next trigger. */}
+          {activeTab === 'today' && indecisionMatch?.phrase && (
+            <TouchableOpacity
+              style={{
+                marginBottom: 12,
+                padding: 14,
+                borderRadius: 14,
+                borderWidth: 1,
+                borderColor: 'rgba(200,168,75,0.28)',
+                backgroundColor: isDark ? 'rgba(200,168,75,0.06)' : 'rgba(200,168,75,0.05)',
+                flexDirection: 'row',
+                alignItems: 'center',
+                gap: 10,
+              }}
+              activeOpacity={0.7}
+              onPress={() => {
+                haptic.light();
+                const msg = `In my journal I wrote: "${indecisionMatch.phrase}" — help me think this through.`;
+                navigation.navigate('AskAI', { initialMessage: msg });
+              }}>
+              <Text style={{ fontSize: 16 }}>◊</Text>
+              <View style={{ flex: 1 }}>
+                <Text style={{ fontSize: 11, letterSpacing: 1, fontFamily: FONTS.sansSemiBold, color: T.gold, marginBottom: 3 }}>FROM YOUR JOURNAL</Text>
+                <Text style={{ fontSize: 13, lineHeight: 19, color: colors.text, fontStyle: 'italic' }} numberOfLines={2}>
+                  "{indecisionMatch.phrase}"
+                </Text>
+                <Text style={{ fontSize: 12, color: colors.textSecondary, marginTop: 4 }}>Tap to think it through with Celestia →</Text>
+              </View>
+            </TouchableOpacity>
+          )}
+
           {activeTab === 'today' && forecast?.navigatorHeadline && (
             <View style={{ flexDirection: 'row', gap: 8, marginBottom: 16 }}>
               <TouchableOpacity
@@ -989,12 +1730,15 @@ export default function HomeScreen({ navigation, route }) {
             </View>
           )}
 
+          {/* Skeleton placeholder while the briefing fetches — replaces the
+              old ActivityIndicator pattern. Mirrors the briefing card shape
+              so there's no layout shift when content arrives. */}
           {activeTab === 'today' && forecastLoading && !forecast?.navigatorHeadline && (
             <LinearGradient colors={['#171428', '#14122A', '#0F1220']}
               start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }}
-              style={[styles.briefingCard, { alignItems: 'center', paddingVertical: 32 }]}>
-              <ActivityIndicator size="small" color={T.gold} />
-              <Text style={{ fontSize: 11, color: 'rgba(250,248,242,0.35)', marginTop: 10, textAlign: 'center' }}>Reading the stars…</Text>
+              style={[styles.briefingCard, { paddingVertical: 24 }]}>
+              <SkeletonBriefingCard />
+              <Text style={{ fontSize: 10, letterSpacing: 1.6, color: 'rgba(250,248,242,0.35)', marginTop: 18, textAlign: 'center', fontFamily: FONTS.sansSemiBold }}>READING THE SKY</Text>
             </LinearGradient>
           )}
 
@@ -1172,7 +1916,7 @@ export default function HomeScreen({ navigation, route }) {
                 haptic.light();
                 navigation.navigate('Reports');
               }}>
-              <LinearGradient colors={['#1A1535', '#201540', '#14102A']}
+              <LinearGradient colors={['#5A2840', '#201540', '#3A1A28']}
                 start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }}
                 style={{ padding: 20, alignItems: 'center' }}>
                 <Text style={{ fontSize: 28, marginBottom: 8 }}>✦</Text>
@@ -1180,7 +1924,7 @@ export default function HomeScreen({ navigation, route }) {
                   Happy Solar Return, {firstName} ✦
                 </Text>
                 <Text style={{ fontSize: 12, color: 'rgba(250,248,242,0.5)', textAlign: 'center', lineHeight: 18, marginBottom: 14, maxWidth: 280 }}>
-                  Your cosmic year resets. See what the stars have planned for your next chapter.
+                  Your year resets. See what the stars have planned for your next chapter.
                 </Text>
                 <View style={{ backgroundColor: 'rgba(200,168,75,0.15)', borderWidth: 1, borderColor: 'rgba(200,168,75,0.3)', borderRadius: 100, paddingVertical: 8, paddingHorizontal: 20 }}>
                   <Text style={{ fontSize: 12, fontFamily: FONTS.sansMedium, color: T.gold }}>Read Your Year-Ahead Report →</Text>
@@ -1199,7 +1943,7 @@ export default function HomeScreen({ navigation, route }) {
                 navigation.navigate('TodaysSky');
               }}>
               <LinearGradient
-                colors={['#0F0C24', '#161038', '#0E1628', '#0C1220']}
+                colors={['#0F0C24', '#161038', '#3A1A28', '#0C1220']}
                 locations={[0, 0.35, 0.7, 1]}
                 start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }}
                 style={styles.skyGrad}>
@@ -1419,7 +2163,7 @@ export default function HomeScreen({ navigation, route }) {
                 setTodayUnlock(null);
                 navigation.navigate('Chart');
               }}>
-              <LinearGradient colors={['#1A1060', '#0E0E22']} style={styles.unlockCardGradient}>
+              <LinearGradient colors={['#1A1060', '#3A1A28']} style={styles.unlockCardGradient}>
                 <Text style={styles.unlockCardIcon}>✦</Text>
                 <View style={{ flex: 1 }}>
                   <Text style={styles.unlockCardLabel}>NEW INSIGHT UNLOCKED</Text>
@@ -1525,7 +2269,7 @@ export default function HomeScreen({ navigation, route }) {
               onPress={() => navigation.navigate('AskAI')}>
               <Text style={styles.timePromptIcon}>☿</Text>
               <View style={{ flex: 1 }}>
-                <Text style={[styles.timePromptTitle, { color: colors.text }]}>Quick cosmic check-in</Text>
+                <Text style={[styles.timePromptTitle, { color: colors.text }]}>Quick check-in</Text>
                 <Text style={[styles.timePromptSub, { color: colors.textSecondary }]}>Anything on your mind? →</Text>
               </View>
             </TouchableOpacity>
@@ -1591,7 +2335,7 @@ export default function HomeScreen({ navigation, route }) {
               style={styles.ddHero}>
               <View style={styles.ddHeaderRow}>
                 <Text style={styles.ddDate}>{formatDateHeader().toUpperCase()}</Text>
-                <TouchableOpacity onPress={() => setShowBriefing(false)} hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}>
+                <TouchableOpacity onPress={() => setShowBriefing(false)} hitSlop={{ top: 14, bottom: 14, left: 14, right: 14 }}>
                   <Text style={styles.ddClose}>✕</Text>
                 </TouchableOpacity>
               </View>
@@ -1919,7 +2663,7 @@ export default function HomeScreen({ navigation, route }) {
                   {/* Top bar: date + close */}
                   <View style={styles.lamTopBar}>
                     <Text style={styles.lamDateLabel}>{formatDateHeader().toUpperCase()}</Text>
-                    <TouchableOpacity onPress={() => setLifeAreaModal(null)} hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}>
+                    <TouchableOpacity onPress={() => setLifeAreaModal(null)} hitSlop={{ top: 14, bottom: 14, left: 14, right: 14 }}>
                       <Text style={styles.lamCloseBtn}>✕</Text>
                     </TouchableOpacity>
                   </View>
@@ -2167,6 +2911,305 @@ export default function HomeScreen({ navigation, route }) {
         moonData={moonData}
       />
 
+      {/* ── WAKE-TIME BACKFILL (existing users who never picked one) ── */}
+      <Modal visible={showWakeTimeBackfill} transparent animationType="fade">
+        <View style={styles.freezeOverlay}>
+          <View style={styles.freezeCard}>
+            <LinearGradient colors={['#3A1A28', '#5A2840', '#3A1A28']} style={styles.freezeGradient}>
+              <Text style={styles.freezeIcon}>☀️</Text>
+              <Text style={styles.freezeTitle}>When do you usually wake up?</Text>
+              <Text style={styles.freezeSub}>
+                We'll send your morning briefing right after — so it lands on your routine, not ours.
+              </Text>
+              <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8, justifyContent: 'center', marginBottom: 18 }}>
+                {[
+                  { label: '6 AM', value: 6 },
+                  { label: '7 AM', value: 7 },
+                  { label: '8 AM', value: 8 },
+                  { label: '9 AM', value: 9 },
+                  { label: 'Later', value: 10 },
+                ].map(opt => (
+                  <TouchableOpacity
+                    key={opt.label}
+                    activeOpacity={0.7}
+                    onPress={async () => {
+                      haptic.light();
+                      try {
+                        const settings = await getNotificationSettings();
+                        await saveNotificationSettings({ ...settings, morningTime: opt.value, morningMinute: 5 });
+                        await saveBoolean(StorageKeys.WAKE_TIME_BACKFILL_PROMPTED, true);
+                      } catch {}
+                      setShowWakeTimeBackfill(false);
+                    }}
+                    style={{
+                      paddingVertical: 10,
+                      paddingHorizontal: 16,
+                      borderRadius: 999,
+                      borderWidth: 1,
+                      borderColor: 'rgba(200,168,75,0.25)',
+                      backgroundColor: 'rgba(200,168,75,0.06)',
+                    }}
+                  >
+                    <Text style={{ fontSize: 13, fontFamily: FONTS.sansSemiBold, color: T.gold }}>{opt.label}</Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
+              <TouchableOpacity
+                activeOpacity={0.7}
+                onPress={async () => {
+                  try { await saveBoolean(StorageKeys.WAKE_TIME_BACKFILL_PROMPTED, true); } catch {}
+                  setShowWakeTimeBackfill(false);
+                }}
+                style={{ paddingVertical: 6 }}
+              >
+                <Text style={{ fontSize: 13, color: 'rgba(250,248,242,0.45)' }}>Skip — keep 7:30 AM default</Text>
+              </TouchableOpacity>
+            </LinearGradient>
+          </View>
+        </View>
+      </Modal>
+
+      {/* ── STREAK RESTORE OFFER ── */}
+      <Modal visible={!!streakRestoreOffer} transparent animationType="fade">
+        <View style={styles.freezeOverlay}>
+          <View style={styles.freezeCard}>
+            <LinearGradient colors={['#3A1A28', '#5A2840', '#3A1A28']} style={styles.freezeGradient}>
+              <Text style={styles.freezeIcon}>❅</Text>
+              <Text style={styles.freezeTitle}>Restore your {streakRestoreOffer?.previousStreak}-day streak?</Text>
+              <Text style={styles.freezeSub}>
+                Use one of your freezes to bring it back. Today's check-in counts — you'll be back on day {(streakRestoreOffer?.previousStreak || 0) + 1}.
+              </Text>
+              <View style={styles.freezeStat}>
+                <Text style={styles.freezeStatLabel}>Freezes available</Text>
+                <Text style={styles.freezeStatValue}>{streakRestoreOffer?.freezesRemaining}</Text>
+              </View>
+              <TouchableOpacity
+                activeOpacity={0.85}
+                onPress={async () => {
+                  haptic.success();
+                  const previousStreak = streakRestoreOffer.previousStreak;
+                  const profileId = userProfile?.id || 'default';
+                  setStreakRestoreOffer(null);
+                  try { await saveString(StorageKeys.STREAK_RESTORE_OFFER_LAST, String(Date.now())); } catch {}
+                  const result = await restoreBrokenStreak(profileId, previousStreak);
+                  if (result.ok) {
+                    capture(EVENTS.STREAK_RESTORED, {
+                      restored_streak: result.newStreak,
+                      previous_streak: previousStreak,
+                      freezes_remaining: result.freezesRemaining,
+                    });
+                    capture(EVENTS.STREAK_FREEZE_USED, {
+                      source: 'restore_offer',
+                      freezes_remaining: result.freezesRemaining,
+                    });
+                    // Refresh local streak state
+                    setStreakData({
+                      current_streak: result.newStreak,
+                      streak_freezes_remaining: result.freezesRemaining,
+                    });
+                    Alert.alert('Streak restored', `You're back on a ${result.newStreak}-day streak.`);
+                  }
+                }}
+              >
+                <LinearGradient colors={['#E2C46A', '#C8A84B', '#A07820']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={styles.freezeCta}>
+                  <Text style={styles.freezeCtaText}>Use freeze + restore</Text>
+                </LinearGradient>
+              </TouchableOpacity>
+              <TouchableOpacity
+                activeOpacity={0.7}
+                onPress={async () => {
+                  try { await saveString(StorageKeys.STREAK_RESTORE_OFFER_LAST, String(Date.now())); } catch {}
+                  setStreakRestoreOffer(null);
+                }}
+                style={{ marginTop: 12, paddingVertical: 8 }}
+              >
+                <Text style={{ fontSize: 13, color: 'rgba(250,248,242,0.45)' }}>Start fresh instead</Text>
+              </TouchableOpacity>
+            </LinearGradient>
+          </View>
+        </View>
+      </Modal>
+
+      {/* ── NPS / SENTIMENT PROMPT ── */}
+      <Modal visible={showNpsPrompt} transparent animationType="fade">
+        <View style={styles.freezeOverlay}>
+          <View style={styles.freezeCard}>
+            <LinearGradient colors={['#3A1A28', '#5A2840', '#3A1A28']} style={styles.freezeGradient}>
+              <Text style={styles.freezeTitle}>How's Celestia treating you?</Text>
+              <Text style={styles.freezeSub}>One tap. Helps us know what to build next.</Text>
+              <View style={{ flexDirection: 'row', justifyContent: 'space-around', width: '100%', marginVertical: 18 }}>
+                {[
+                  { score: 4, emoji: '😍', label: 'Love it' },
+                  { score: 3, emoji: '🙂', label: 'Good' },
+                  { score: 2, emoji: '😐', label: 'Meh' },
+                  { score: 1, emoji: '😞', label: 'Not great' },
+                ].map(opt => (
+                  <TouchableOpacity
+                    key={opt.score}
+                    activeOpacity={0.7}
+                    onPress={async () => {
+                      haptic.light();
+                      try { await saveObject(StorageKeys.NPS_LAST_SUBMITTED, { score: opt.score, at: Date.now() }); } catch {}
+                      capture(EVENTS.NPS_SCORE_SUBMITTED, { score: opt.score, label: opt.label });
+                      setShowNpsPrompt(false);
+                    }}
+                    style={{ alignItems: 'center', padding: 8 }}
+                  >
+                    <Text style={{ fontSize: 30, marginBottom: 4 }}>{opt.emoji}</Text>
+                    <Text style={{ fontSize: 10, color: 'rgba(250,248,242,0.55)' }}>{opt.label}</Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
+              <TouchableOpacity
+                activeOpacity={0.7}
+                onPress={async () => {
+                  // Skip — record so we don't re-prompt for 30 days
+                  try { await saveObject(StorageKeys.NPS_LAST_SUBMITTED, { score: null, at: Date.now(), skipped: true }); } catch {}
+                  setShowNpsPrompt(false);
+                }}
+                style={{ paddingVertical: 6 }}
+              >
+                <Text style={{ fontSize: 13, color: 'rgba(250,248,242,0.45)' }}>Skip</Text>
+              </TouchableOpacity>
+            </LinearGradient>
+          </View>
+        </View>
+      </Modal>
+
+      {/* ── D2 STREAK-FREEZE OFFER ── */}
+      <Modal visible={showFreezeOffer} transparent animationType="fade">
+        <View style={styles.freezeOverlay}>
+          <View style={styles.freezeCard}>
+            <LinearGradient colors={['#3A1A28', '#5A2840', '#3A1A28']} style={styles.freezeGradient}>
+              <Text style={styles.freezeIcon}>❅</Text>
+              <Text style={styles.freezeTitle}>You have a streak freeze</Text>
+              <Text style={styles.freezeSub}>
+                Life happens. If you miss a day, your freeze keeps your streak going automatically — no action needed.
+              </Text>
+              <View style={styles.freezeStat}>
+                <Text style={styles.freezeStatLabel}>Available</Text>
+                <Text style={styles.freezeStatValue}>1 freeze</Text>
+              </View>
+              <TouchableOpacity
+                activeOpacity={0.85}
+                onPress={async () => {
+                  haptic.light();
+                  setShowFreezeOffer(false);
+                  try { await saveBoolean(StorageKeys.FREEZE_OFFER_SHOWN, true); } catch {}
+                  capture(EVENTS.STREAK_FREEZE_OFFER_ACKNOWLEDGED);
+                }}
+              >
+                <LinearGradient colors={['#E2C46A', '#C8A84B', '#A07820']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={styles.freezeCta}>
+                  <Text style={styles.freezeCtaText}>Got it</Text>
+                </LinearGradient>
+              </TouchableOpacity>
+            </LinearGradient>
+          </View>
+        </View>
+      </Modal>
+
+      {/* ── D30 REVEAL CALLBACK ── one-shot, re-surfaces the onboarding wow */}
+      <Modal visible={!!d30RevealCallback} transparent animationType="fade">
+        <View style={styles.freezeOverlay}>
+          <View style={styles.freezeCard}>
+            <LinearGradient colors={['#3A1A28', '#5A2840', '#3A1A28']} style={styles.freezeGradient}>
+              <Text style={styles.recapKicker}>ONE MONTH AGO</Text>
+              <Text style={styles.recapHeadline}>You read this about yourself:</Text>
+              <Text style={[styles.recapBody, { marginTop: 12 }]}>"{d30RevealCallback?.firstReveal}"</Text>
+              <View style={styles.recapDivider} />
+              <Text style={styles.recapForward}>Still true? It will keep getting truer.</Text>
+              <View style={{ flexDirection: 'row', gap: 10, marginTop: 22, width: '100%' }}>
+                <TouchableOpacity
+                  activeOpacity={0.85}
+                  onPress={async () => {
+                    haptic.light();
+                    try { await saveBoolean(StorageKeys.D30_REVEAL_CALLBACK_SHOWN, true); } catch {}
+                    setD30RevealCallback(null);
+                  }}
+                  style={{ flex: 1 }}
+                >
+                  <LinearGradient colors={['#E2C46A', '#C8A84B', '#A07820']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={styles.freezeCta}>
+                    <Text style={styles.freezeCtaText}>Continue</Text>
+                  </LinearGradient>
+                </TouchableOpacity>
+              </View>
+            </LinearGradient>
+          </View>
+        </View>
+      </Modal>
+
+      {/* ── PRO WEEK-1 RECAP (Day 7 of being Pro) ── */}
+      <Modal visible={!!proWeek1Recap} transparent animationType="fade">
+        <View style={styles.freezeOverlay}>
+          <View style={styles.freezeCard}>
+            <LinearGradient colors={['#3A1A28', '#5A2840', '#3A1A28']} style={styles.freezeGradient}>
+              <Text style={styles.recapKicker}>YOUR FIRST WEEK AS PRO</Text>
+              <Text style={styles.recapHeadline}>{proWeek1Recap?.headline}</Text>
+              <Text style={styles.recapBody}>{proWeek1Recap?.body}</Text>
+              <View style={{ flexDirection: 'row', gap: 10, marginTop: 22, width: '100%' }}>
+                <TouchableOpacity
+                  activeOpacity={0.85}
+                  onPress={() => {
+                    haptic.light();
+                    const target = proWeek1Recap?.suggestedTab;
+                    setProWeek1Recap(null);
+                    if (target) {
+                      navigation.navigate(target);
+                    }
+                  }}
+                  style={{ flex: 1 }}
+                >
+                  <LinearGradient colors={['#E2C46A', '#C8A84B', '#A07820']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={styles.freezeCta}>
+                    <Text style={styles.freezeCtaText}>{proWeek1Recap?.cta || 'Continue'}</Text>
+                  </LinearGradient>
+                </TouchableOpacity>
+              </View>
+            </LinearGradient>
+          </View>
+        </View>
+      </Modal>
+
+      {/* ── D7 FIRST-WEEK RECAP ── */}
+      <Modal visible={!!firstWeekRecap} transparent animationType="fade">
+        <View style={styles.freezeOverlay}>
+          <View style={styles.freezeCard}>
+            <LinearGradient colors={['#3A1A28', '#5A2840', '#3A1A28']} style={styles.freezeGradient}>
+              <Text style={styles.recapKicker}>YOUR FIRST 7 DAYS</Text>
+              <Text style={styles.recapHeadline}>{firstWeekRecap?.headline}</Text>
+              <Text style={styles.recapBody}>{firstWeekRecap?.observation}</Text>
+              <View style={styles.recapDivider} />
+              <Text style={styles.recapForward}>{firstWeekRecap?.threadForward}</Text>
+              <View style={{ flexDirection: 'row', gap: 10, marginTop: 22, width: '100%' }}>
+                <TouchableOpacity
+                  activeOpacity={0.7}
+                  onPress={async () => {
+                    haptic.light();
+                    try {
+                      await Share.share({
+                        message: `"${firstWeekRecap?.headline}"\n\n${firstWeekRecap?.observation}\n\n— Celestia ✦`,
+                      });
+                    } catch {}
+                    trackEvent('share').catch(() => { });
+                    awardXP(userProfile?.id || 'default', 'share').catch(() => { });
+                  }}
+                  style={{ flex: 1 }}
+                >
+                  <View style={styles.recapShareBtn}>
+                    <Text style={styles.recapShareText}>Share</Text>
+                  </View>
+                </TouchableOpacity>
+                <Button
+                  label="Continue"
+                  variant="primary"
+                  onPress={() => setFirstWeekRecap(null)}
+                  style={{ flex: 1 }}
+                />
+              </View>
+            </LinearGradient>
+          </View>
+        </View>
+      </Modal>
+
       {/* ── BADGE UNLOCK MODAL ── */}
       <BadgeUnlockModal
         visible={!!pendingBadge}
@@ -2253,7 +3296,7 @@ export default function HomeScreen({ navigation, route }) {
         onEnable={async () => {
           setShowNotifModal(false);
           await saveBoolean(StorageKeys.NOTIFICATION_ASKED, true);
-          const granted = await requestNotificationPermission();
+          const granted = await requestNotificationPermission('home_modal');
           if (granted) {
             scheduleAllNotifications(userProfile, forecast, streakData, moonData, null, cosmicWindows).catch(() => { });
           }
@@ -2268,8 +3311,8 @@ export default function HomeScreen({ navigation, route }) {
       <Modal visible={showJournal} animationType="slide" presentationStyle="pageSheet">
         <View style={[styles.journalModal, { backgroundColor: colors.bg }]}>
           <View style={[styles.journalModalHeader, { borderBottomColor: colors.divider }]}>
-            <Text style={[styles.journalModalTitle, { color: colors.heading }]}>Cosmic Journal</Text>
-            <TouchableOpacity onPress={() => setShowJournal(false)}>
+            <Text style={[styles.journalModalTitle, { color: colors.heading }]}>Journal</Text>
+            <TouchableOpacity onPress={() => setShowJournal(false)} hitSlop={{ top: 14, bottom: 14, left: 14, right: 14 }}>
               <Text style={{ fontSize: 18, color: colors.textSecondary, padding: 4 }}>✕</Text>
             </TouchableOpacity>
           </View>
@@ -2335,7 +3378,7 @@ export default function HomeScreen({ navigation, route }) {
                 {moonData?.phaseName === 'New Moon' ? 'Set intentions with tonight\'s lunar energy' : 'Release what no longer serves you under tonight\'s light'}
               </Text>
             </View>
-            <TouchableOpacity onPress={() => setShowMoonRitual(false)}>
+            <TouchableOpacity onPress={() => setShowMoonRitual(false)} hitSlop={{ top: 14, bottom: 14, left: 14, right: 14 }}>
               <Text style={{ fontSize: 18, color: colors.textSecondary, padding: 4 }}>✕</Text>
             </TouchableOpacity>
           </View>
@@ -2416,7 +3459,103 @@ export default function HomeScreen({ navigation, route }) {
   );
 }
 
+// ── VISUAL HIERARCHY — Today tab (CA-B3) ──
+// Three tiers of cards, established to defeat "card soup" per the
+// competitive audit (plan/competitive-audit/04-gaps-and-opportunities.md
+// Gap 4). Use these conventions when adding new cards:
+//
+// TIER 1 — HERO: navigator briefing card (forecast.navigatorHeadline).
+//   - Strongest background (LinearGradient + opacity)
+//   - Largest headline (briefingHeadline style)
+//   - Top of scroll within Today content
+//   - One per session, always.
+//
+// TIER 2 — FEATURED: the rare, attention-earning cards.
+//   - Pro insight (gold accent), surprise insight (gold accent),
+//     indecision chip (gold accent, slightly warmer), at-risk banner
+//     (terra/warm accent — intentionally NOT gold so it doesn't compete
+//     with positive featured cards).
+//   - Style template: RADIUS.md, gold-emphasis border, subtle gold bg
+//     (or terra equivalent for at-risk).
+//   - At most 2 simultaneously visible by design.
+//
+// TIER 3 — STANDARD: life-area cards, energy scores, sky now, journal,
+//   quests, share cards.
+//   - Restrained borders (subtle), secondary type weight.
+//   - Many can be visible; visual weight low so they don't compete.
+//
+// When adding a new card: ask "does this earn FEATURED treatment?" By
+// default the answer is no — most cards are STANDARD.
+
 const styles = StyleSheet.create({
+  // D2 freeze offer modal
+  freezeOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.6)', justifyContent: 'center', alignItems: 'center', padding: 28 },
+  freezeCard: { width: '100%', maxWidth: 340, borderRadius: 24, overflow: 'hidden' },
+  freezeGradient: { padding: 28, paddingTop: 32, paddingBottom: 24, alignItems: 'center' },
+  freezeIcon: { fontSize: 36, marginBottom: 14 },
+  freezeTitle: { fontFamily: FONTS.serif, fontSize: 22, color: T.cream, textAlign: 'center', marginBottom: 10, lineHeight: 28 },
+  freezeSub: { fontSize: 13, color: 'rgba(250,248,242,0.55)', textAlign: 'center', lineHeight: 20, marginBottom: 22 },
+  freezeStat: {
+    backgroundColor: 'rgba(200,168,75,0.08)',
+    borderWidth: 1, borderColor: 'rgba(200,168,75,0.18)',
+    borderRadius: 14, paddingVertical: 12, paddingHorizontal: 18,
+    flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center',
+    width: '100%', marginBottom: 22,
+  },
+  freezeStatLabel: { fontSize: 12, fontFamily: FONTS.sansMedium, color: 'rgba(250,248,242,0.55)', letterSpacing: 1, textTransform: 'uppercase' },
+  freezeStatValue: { fontSize: 14, fontFamily: FONTS.sansSemiBold, color: T.gold },
+  freezeCta: { borderRadius: 14, paddingVertical: 14, paddingHorizontal: 40, alignItems: 'center', minWidth: 0 },
+  freezeCtaText: { fontFamily: FONTS.sansSemiBold, fontSize: 15, color: T.navy },
+  // ── FEATURED-tier card (CA-B3) — shared visual treatment for the cards
+  // that should command attention above standard surfaces but below the
+  // hero navigator briefing. Used by: Pro insight, surprise insight,
+  // indecision chip, at-risk banner. Tokens-driven: RADIUS.md + OPACITY
+  // emphasis-border + subtle gold background.
+  featuredCard: {
+    borderRadius: 14,    // RADIUS.md from src/constants/tokens.js
+    borderWidth: 1,
+    borderColor: 'rgba(200,168,75,0.32)',  // GOLD_ALPHA.emphasis
+    backgroundColor: 'rgba(200,168,75,0.06)', // GOLD_ALPHA.subtle
+    padding: 14,
+    marginBottom: 12,
+  },
+  // Pro daily-insight card (TIER2-D) — extends featuredCard
+  proInsightCard: {
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: 'rgba(200,168,75,0.32)',
+    backgroundColor: 'rgba(200,168,75,0.06)',
+    padding: 14,
+    marginBottom: 14,
+  },
+  proInsightHeaderRow: { flexDirection: 'row', alignItems: 'center', marginBottom: 8 },
+  proInsightKicker: {
+    fontSize: 10,
+    letterSpacing: 1.8,
+    fontFamily: FONTS.sansSemiBold,
+    color: T.gold,
+    textTransform: 'uppercase',
+  },
+  proInsightHeadline: {
+    fontFamily: FONTS.serif,
+    fontSize: 17,
+    lineHeight: 22,
+    marginBottom: 6,
+  },
+  proInsightBody: {
+    fontSize: 13,
+    lineHeight: 19,
+    fontFamily: FONTS.serifItalic || FONTS.serif,
+    fontStyle: 'italic',
+  },
+  // D7 first-week recap card
+  recapKicker: { fontSize: 10, fontFamily: FONTS.sansSemiBold, letterSpacing: 1.8, color: T.gold, marginBottom: 12, textTransform: 'uppercase' },
+  recapHeadline: { fontFamily: FONTS.serif, fontSize: 24, color: T.cream, textAlign: 'center', lineHeight: 30, marginBottom: 14 },
+  recapBody: { fontSize: 14, fontFamily: FONTS.serifItalic || FONTS.serif, fontStyle: 'italic', color: 'rgba(250,248,242,0.78)', textAlign: 'center', lineHeight: 22 },
+  recapDivider: { width: 30, height: 1, backgroundColor: 'rgba(200,168,75,0.35)', marginVertical: 16 },
+  recapForward: { fontSize: 13, color: 'rgba(250,248,242,0.55)', textAlign: 'center', lineHeight: 20 },
+  recapShareBtn: { borderRadius: 14, paddingVertical: 14, alignItems: 'center', borderWidth: 1, borderColor: 'rgba(200,168,75,0.35)' },
+  recapShareText: { fontFamily: FONTS.sansSemiBold, fontSize: 15, color: T.gold },
   // Hero
   hero: { paddingTop: Platform.OS === 'ios' ? 70 : (StatusBar.currentHeight || 48) + 16, paddingHorizontal: 22, paddingBottom: 46, position: 'relative', borderBottomLeftRadius: 36, borderBottomRightRadius: 36 },
   greeting: { fontSize: 13, color: 'rgba(250,248,242,0.6)', marginBottom: 2 },
@@ -2433,8 +3572,10 @@ const styles = StyleSheet.create({
   floatingTabText: { fontSize: 13, fontFamily: FONTS.sansMedium, color: T.stone },
   floatingTabTextOn: { color: T.cream, fontFamily: FONTS.sansSemiBold },
   streakBadge: { flexDirection: 'row', alignItems: 'center', gap: 4, backgroundColor: 'rgba(200,168,75,0.15)', borderWidth: 1, borderColor: 'rgba(200,168,75,0.3)', borderRadius: 100, paddingVertical: 4, paddingHorizontal: 10 },
+  streakBadgeTrial: { backgroundColor: 'rgba(200,168,75,0.24)', borderColor: T.gold, paddingVertical: 7, paddingHorizontal: 14, gap: 6 },
   streakBadgeEmoji: { fontSize: 14 },
   streakBadgeNum: { fontFamily: FONTS.sansSemiBold, fontSize: 13, color: T.gold },
+  streakBadgeNumTrial: { fontSize: 17, fontFamily: FONTS.sansBold },
 
   // Monthly recap
   recapCardWrap: { marginBottom: 16, borderRadius: 20, overflow: 'hidden' },
@@ -2444,11 +3585,35 @@ const styles = StyleSheet.create({
   content: { paddingHorizontal: 20, paddingTop: 14 },
 
   // Briefing card (standalone dark)
-  briefingCard: { borderRadius: 20, padding: 22, marginBottom: 16, shadowColor: '#000', shadowOffset: { width: 0, height: 6 }, shadowOpacity: 0.12, shadowRadius: 24 },
+  // ── TIER 1 HERO — the navigator briefing card. Hero-tier per the
+  // hierarchy doc above. Slightly stronger shadow than other cards to anchor
+  // visual weight; padding sits between SPACING.md and lg for breathing room.
+  briefingCard: { borderRadius: 20, padding: 24, marginBottom: 18, shadowColor: '#000', shadowOffset: { width: 0, height: 8 }, shadowOpacity: 0.14, shadowRadius: 28 },
+  goalEchoCard: { backgroundColor: 'rgba(200, 168, 75, 0.07)', borderLeftWidth: 3, borderLeftColor: T.gold, borderRadius: 12, padding: 16, marginBottom: 16 },
+  goalEchoKicker: { fontSize: 9, letterSpacing: 1.6, fontFamily: FONTS.sansSemiBold, color: T.gold, marginBottom: 6 },
+  goalEchoBody: { fontSize: 14, fontFamily: FONTS.serif, lineHeight: 20 },
+  trialSummaryCard: { backgroundColor: 'rgba(200, 168, 75, 0.10)', borderWidth: 1, borderColor: 'rgba(200, 168, 75, 0.32)', borderRadius: 18, padding: 22, marginBottom: 18 },
+  trialSummaryKicker: { fontSize: 10, letterSpacing: 1.8, fontFamily: FONTS.sansSemiBold, color: T.gold, marginBottom: 8 },
+  trialSummaryHeadline: { fontSize: 24, fontFamily: FONTS.serif, lineHeight: 30, marginBottom: 16 },
+  trialSummaryStatsRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-around', marginBottom: 14 },
+  trialSummaryStat: { alignItems: 'center', flex: 1 },
+  trialSummaryDivider: { width: 1, height: 36, backgroundColor: 'rgba(200,168,75,0.25)' },
+  trialSummaryNum: { fontSize: 28, fontFamily: FONTS.serifSemiBold, color: T.gold, marginBottom: 2 },
+  trialSummaryLabel: { fontSize: 11, fontFamily: FONTS.sans, textAlign: 'center' },
+  trialSummaryReveal: { fontSize: 13, fontFamily: FONTS.serif, fontStyle: 'italic', textAlign: 'center', lineHeight: 18, paddingTop: 12, borderTopWidth: 1, borderTopColor: 'rgba(200,168,75,0.18)' },
+  lossWarningCard: { backgroundColor: 'rgba(232, 120, 120, 0.06)', borderWidth: 1, borderColor: 'rgba(232, 120, 120, 0.25)', borderRadius: 16, padding: 18, marginBottom: 18 },
+  lossWarningKicker: { fontSize: 10, letterSpacing: 1.8, fontFamily: FONTS.sansSemiBold, color: '#E87878', marginBottom: 8 },
+  lossWarningHeadline: { fontSize: 17, fontFamily: FONTS.serifSemiBold, marginBottom: 12 },
+  lossWarningRow: { flexDirection: 'row', alignItems: 'center', marginBottom: 8, gap: 10 },
+  lossWarningGlyph: { fontSize: 14, color: T.gold, width: 18 },
+  lossWarningItem: { fontSize: 13, fontFamily: FONTS.sans, flex: 1, lineHeight: 18 },
+  lossWarningFooter: { fontSize: 11, fontFamily: FONTS.sans, fontStyle: 'italic', marginTop: 10, textAlign: 'center' },
   dailyCard: { borderRadius: 22, overflow: 'hidden', marginBottom: 16, shadowColor: '#000', shadowOffset: { width: 0, height: 6 }, shadowOpacity: 0.1, shadowRadius: 28 },
   dailyHd: { padding: 20, paddingHorizontal: 21, paddingBottom: 17 },
   dailyDate: { fontSize: 10, fontFamily: FONTS.sansSemiBold, letterSpacing: 2, color: 'rgba(250,248,242,0.4)' },
-  briefingHeadline: { fontFamily: FONTS.serif, fontSize: 28, color: T.cream, lineHeight: 36, marginBottom: 16 },
+  // Hero-tier headline — slightly larger than other modal headlines to
+  // anchor the eye when the briefing card is on screen.
+  briefingHeadline: { fontFamily: FONTS.serif, fontSize: 30, color: T.cream, lineHeight: 38, marginBottom: 16 },
   dailyHeadline: { fontFamily: FONTS.serif, fontSize: 22, color: T.cream, lineHeight: 28, marginBottom: 12 },
   tchips: { flexDirection: 'row', gap: 6, flexWrap: 'wrap' },
   tchip: { backgroundColor: 'rgba(200,168,75,0.12)', borderWidth: 1, borderColor: 'rgba(200,168,75,0.22)', borderRadius: 100, paddingVertical: 3, paddingHorizontal: 10 },
@@ -2456,6 +3621,51 @@ const styles = StyleSheet.create({
   dailyBody: { backgroundColor: 'white', padding: 17, paddingHorizontal: 21, paddingBottom: 19 },
   mantraBox: { backgroundColor: 'rgba(200,168,75,0.06)', borderRadius: 12, padding: 12, marginBottom: 12, borderLeftWidth: 3, borderLeftColor: T.gold },
   nudgeBox: { backgroundColor: 'rgba(193,127,89,0.06)', borderWidth: 1, borderColor: 'rgba(193,127,89,0.15)', borderRadius: 14, padding: 14, marginBottom: 16, borderLeftWidth: 3, borderLeftColor: '#C17F59' },
+
+  // ── BENTO row (AND-7) — 3-cell asymmetric grid breaking the vertical-stack
+  // monotony of Today tab. Streak cell is the hero (gold-accent); other two
+  // are restrained. Per plan/senior-design-critique/04-replaceable-patterns.md.
+  bentoRow: { flexDirection: 'row', gap: 8, marginBottom: 16 },
+  bentoCell: {
+    flex: 1,
+    borderRadius: 14,
+    borderWidth: 1,
+    paddingVertical: 14,
+    paddingHorizontal: 12,
+    minHeight: 86,
+    justifyContent: 'space-between',
+  },
+  bentoCellAccent: {
+    backgroundColor: 'rgba(200,168,75,0.06)', // GOLD_ALPHA.subtle
+  },
+  bentoLabel: {
+    fontSize: 9,
+    fontFamily: FONTS.sansSemiBold,
+    letterSpacing: 1.6,
+    textTransform: 'uppercase',
+    marginBottom: 4,
+  },
+  bentoValue: {
+    fontFamily: FONTS.serif,
+    fontSize: 22,
+    lineHeight: 26,
+  },
+  bentoValueAccent: {
+    fontFamily: FONTS.serif,
+    fontSize: 32,
+    lineHeight: 36,
+    color: T.gold,
+  },
+  bentoValueSm: {
+    fontFamily: FONTS.sansSemiBold,
+    fontSize: 13,
+    lineHeight: 17,
+  },
+  bentoSub: {
+    fontSize: 10,
+    fontFamily: FONTS.sansMedium,
+    marginTop: 2,
+  },
   nudgeLabel: { fontSize: 9, fontFamily: FONTS.sansSemiBold, letterSpacing: 2, color: '#C17F59', marginBottom: 6 },
   nudgeText: { fontFamily: FONTS.serifItalic || FONTS.serif, fontSize: 15, color: T.ink, lineHeight: 22, fontStyle: 'italic' },
   mantraText: { fontFamily: FONTS.serifItalic || FONTS.serif, fontSize: 14.5, color: '#8B6214', lineHeight: 21, fontStyle: 'italic' },
@@ -2724,7 +3934,7 @@ const styles = StyleSheet.create({
 
   // Cosmic windows
   // Cosmic alert card (matches notification)
-  cosmicAlertCard: { flexDirection: 'row', alignItems: 'flex-start', gap: 10, backgroundColor: '#0E0E22', borderRadius: 14, padding: 14, marginBottom: 12 },
+  cosmicAlertCard: { flexDirection: 'row', alignItems: 'flex-start', gap: 10, backgroundColor: '#3A1A28', borderRadius: 14, padding: 14, marginBottom: 12 },
   cosmicAlertDot: { width: 8, height: 8, borderRadius: 4, backgroundColor: T.gold, marginTop: 4 },
   cosmicAlertTitle: { fontSize: 13, fontFamily: FONTS.sansSemiBold, color: T.gold, marginBottom: 3 },
   cosmicAlertBody: { fontSize: 12.5, color: 'rgba(250,248,242,0.7)', lineHeight: 18 },

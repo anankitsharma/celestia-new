@@ -1,0 +1,785 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Celestia — Mia Reyes Persona</title>
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,300;0,400;0,500;0,600;0,700;1,400;1,500&family=DM+Sans:ital,wght@0,300;0,400;0,500;0,600;0,700;1,400&display=swap" rel="stylesheet">
+<style>
+:root {
+  --bg: #0F0D1A;
+  --card: #1A1726;
+  --card2: #211E2E;
+  --terracotta: #C17F59;
+  --terra-light: #D4956F;
+  --gold: #D4A853;
+  --sage: #8B9E7E;
+  --rose: #C4918A;
+  --lavender: #9B8EC4;
+  --sky: #7BA7C4;
+  --cream: #F5EDE3;
+  --muted: #6B6880;
+  --border: rgba(255,255,255,0.06);
+  --text: rgba(255,255,255,0.78);
+  --text-dim: rgba(255,255,255,0.45);
+}
+
+* { margin: 0; padding: 0; box-sizing: border-box; }
+html { scroll-behavior: smooth; }
+body {
+  background: var(--bg);
+  color: var(--cream);
+  font-family: 'DM Sans', sans-serif;
+  -webkit-font-smoothing: antialiased;
+  line-height: 1.6;
+}
+
+.container { max-width: 880px; margin: 0 auto; padding: 0 24px; }
+
+/* ===== HEADER ===== */
+.hero {
+  text-align: center;
+  padding: 56px 24px 40px;
+  position: relative;
+  overflow: hidden;
+}
+.hero::before {
+  content: '';
+  position: absolute;
+  top: -200px; left: 50%; transform: translateX(-50%);
+  width: 600px; height: 600px;
+  background: radial-gradient(circle, rgba(193,127,89,0.08) 0%, transparent 70%);
+  pointer-events: none;
+}
+.brand-tag {
+  font-size: 10px; letter-spacing: 5px; text-transform: uppercase;
+  color: var(--gold); opacity: 0.6; margin-bottom: 32px;
+}
+
+/* Stick Figure */
+.stick-wrap { position: relative; display: inline-block; margin-bottom: 20px; }
+
+.hero-name {
+  font-family: 'Playfair Display', serif;
+  font-size: clamp(36px, 7vw, 56px);
+  font-weight: 300; line-height: 1.1;
+  margin-bottom: 6px;
+}
+.hero-name strong { font-weight: 700; color: var(--terracotta); }
+
+.hero-tagline {
+  font-family: 'Playfair Display', serif;
+  font-size: clamp(14px, 2.5vw, 17px);
+  color: var(--terra-light); opacity: 0.8;
+  margin-bottom: 10px;
+}
+.hero-quote {
+  font-family: 'Playfair Display', serif;
+  font-style: italic;
+  font-size: clamp(15px, 2.5vw, 19px);
+  color: var(--rose); opacity: 0.85;
+  max-width: 560px; margin: 0 auto 6px;
+  line-height: 1.5;
+}
+.hero-context {
+  font-size: 11px; color: var(--muted);
+}
+.pills {
+  display: flex; flex-wrap: wrap; justify-content: center;
+  gap: 8px; margin-top: 24px;
+}
+.pill {
+  background: rgba(255,255,255,0.04);
+  border: 1px solid rgba(255,255,255,0.08);
+  border-radius: 100px; padding: 5px 14px;
+  font-size: 11.5px; color: var(--text-dim);
+  white-space: nowrap;
+}
+.pill b { color: var(--text); font-weight: 500; }
+
+/* ===== NAVIGATION ===== */
+.nav-strip {
+  position: sticky; top: 0; z-index: 100;
+  background: rgba(15,13,26,0.92);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border-bottom: 1px solid var(--border);
+  overflow-x: auto; -webkit-overflow-scrolling: touch;
+}
+.nav-strip::-webkit-scrollbar { display: none; }
+.nav-inner {
+  display: flex; gap: 0; max-width: 880px;
+  margin: 0 auto; min-width: max-content;
+}
+.nav-item {
+  padding: 12px 18px; font-size: 10px;
+  letter-spacing: 2px; text-transform: uppercase;
+  color: var(--muted); cursor: pointer;
+  white-space: nowrap; transition: color 0.3s;
+  text-decoration: none; border-bottom: 2px solid transparent;
+}
+.nav-item:hover, .nav-item.active {
+  color: var(--terracotta);
+  border-bottom-color: var(--terracotta);
+}
+
+/* ===== SECTIONS ===== */
+.section { padding: 48px 0 24px; }
+.section-head {
+  display: flex; align-items: center; gap: 14px;
+  margin-bottom: 28px;
+}
+.section-num {
+  width: 36px; height: 36px; border-radius: 10px;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 13px; font-weight: 700; color: white;
+  flex-shrink: 0;
+}
+.section-label {
+  font-size: 10px; letter-spacing: 3.5px;
+  text-transform: uppercase; font-weight: 600;
+}
+.section-line {
+  flex: 1; height: 1px; opacity: 0.15;
+}
+
+/* ===== CARDS ===== */
+.card {
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  padding: 24px; margin-bottom: 16px;
+}
+.card-title {
+  font-size: 9px; letter-spacing: 2.5px;
+  text-transform: uppercase; margin-bottom: 16px;
+  font-weight: 600;
+}
+.grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+.grid-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 12px; }
+.grid-4 { display: grid; grid-template-columns: 1fr 1fr 1fr 1fr; gap: 10px; }
+.grid-6 { display: grid; grid-template-columns: repeat(6, 1fr); gap: 8px; }
+.grid-7 { display: grid; grid-template-columns: repeat(7, 1fr); gap: 8px; }
+
+/* Bio */
+.bio-row {
+  display: flex; justify-content: space-between;
+  padding: 7px 0; border-bottom: 1px solid var(--border);
+  font-size: 12.5px;
+}
+.bio-row:last-child { border-bottom: none; }
+.bio-key { color: var(--muted); }
+.bio-val { font-weight: 500; color: var(--text); text-align: right; }
+
+/* Bars */
+.bar-wrap { margin-bottom: 14px; }
+.bar-top { display: flex; justify-content: space-between; margin-bottom: 5px; font-size: 11px; }
+.bar-label { color: var(--text-dim); }
+.bar-pct { font-weight: 600; }
+.bar-track { height: 5px; background: rgba(255,255,255,0.06); border-radius: 3px; overflow: hidden; }
+.bar-fill { height: 100%; border-radius: 3px; transition: width 1.2s cubic-bezier(0.4, 0, 0.2, 1); }
+
+/* Tags */
+.tag-list { display: flex; flex-wrap: wrap; gap: 6px; }
+.tag {
+  padding: 4px 10px; border-radius: 6px; font-size: 11px;
+  background: rgba(193,127,89,0.08);
+  border: 1px solid rgba(193,127,89,0.12);
+  color: var(--text-dim);
+}
+
+/* Items */
+.item-row {
+  display: flex; gap: 10px; align-items: flex-start;
+  padding: 8px 0; border-bottom: 1px solid rgba(255,255,255,0.03);
+}
+.item-row:last-child { border-bottom: none; }
+.item-icon { font-size: 16px; flex-shrink: 0; margin-top: 1px; }
+.item-text { font-size: 12.5px; color: var(--text); line-height: 1.5; }
+
+/* Mindset cards */
+.mood-card {
+  border-radius: 12px; padding: 16px; text-align: center;
+}
+.mood-emoji { font-size: 26px; margin-bottom: 6px; }
+.mood-time { font-size: 8px; letter-spacing: 1.5px; font-weight: 700; text-transform: uppercase; margin-bottom: 6px; }
+.mood-thought { font-family: 'Playfair Display', serif; font-style: italic; font-size: 12px; color: var(--text-dim); line-height: 1.4; }
+.mood-label { font-size: 8px; letter-spacing: 1.5px; font-weight: 700; text-transform: uppercase; margin-top: 8px; }
+
+/* Timeline */
+.timeline-bar {
+  display: flex; align-items: flex-end; gap: 4px;
+  height: 120px; padding-top: 10px;
+}
+.tblock {
+  flex: 1; border-radius: 6px 6px 0 0;
+  display: flex; flex-direction: column;
+  justify-content: flex-end; align-items: center;
+  padding: 8px 4px 10px; position: relative;
+  min-width: 0;
+}
+.tblock-label { font-size: 8px; font-weight: 600; color: var(--text-dim); margin-top: 6px; white-space: nowrap; }
+.tblock-sub { font-size: 7px; color: var(--muted); text-align: center; margin-top: 2px; line-height: 1.3; }
+.tblock.peak {
+  background: rgba(193,127,89,0.2) !important;
+  border: 1px solid rgba(193,127,89,0.3);
+}
+.peak-badge {
+  position: absolute; top: -8px; left: 50%; transform: translateX(-50%);
+  background: var(--terracotta); color: white;
+  font-size: 7px; font-weight: 700; letter-spacing: 1.5px;
+  padding: 3px 8px; border-radius: 4px; white-space: nowrap;
+}
+
+/* Trigger chips */
+.trigger-chip {
+  border-radius: 12px; padding: 14px 10px;
+  text-align: center; border: 1px solid;
+}
+.trigger-emoji { font-size: 22px; margin-bottom: 6px; }
+.trigger-label { font-size: 10px; font-weight: 600; }
+.trigger-desc { font-size: 9px; color: var(--muted); margin-top: 4px; line-height: 1.3; }
+
+/* Platforms */
+.plat-row { margin-bottom: 16px; }
+.plat-top { display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px; }
+.plat-name { font-size: 13px; font-weight: 700; color: var(--text); }
+.plat-badge {
+  font-size: 8px; font-weight: 700; letter-spacing: 1px;
+  padding: 2px 8px; border-radius: 4px;
+}
+.plat-desc { font-size: 10.5px; color: var(--muted); margin-top: 4px; }
+
+/* Map pins */
+.pin-row {
+  display: flex; align-items: center; gap: 12px;
+  padding: 8px 0; border-bottom: 1px solid rgba(255,255,255,0.03);
+}
+.pin-row:last-child { border-bottom: none; }
+.pin-dot {
+  width: 10px; height: 10px; border-radius: 50%;
+  flex-shrink: 0; box-shadow: 0 0 0 3px rgba(255,255,255,0.06);
+}
+.pin-label { font-size: 12px; font-weight: 600; color: var(--text); }
+.pin-addr { font-size: 11px; color: var(--muted); margin-left: 4px; }
+
+/* Chat bubbles */
+.bubble {
+  background: rgba(193,127,89,0.1);
+  border: 1px solid rgba(193,127,89,0.12);
+  border-radius: 14px 14px 14px 4px;
+  padding: 9px 14px; font-size: 12.5px;
+  color: var(--text); margin-bottom: 6px;
+  max-width: 88%; line-height: 1.4;
+}
+
+/* Search rows */
+.search-row {
+  display: flex; justify-content: space-between; align-items: center;
+  padding: 7px 12px; margin-bottom: 4px; border-radius: 8px;
+  font-size: 12px; color: var(--text-dim);
+}
+.search-row.hot { background: rgba(193,127,89,0.06); border: 1px solid rgba(193,127,89,0.1); }
+.search-vol {
+  font-size: 8px; font-weight: 700; letter-spacing: 1px;
+  padding: 2px 7px; border-radius: 4px; flex-shrink: 0; margin-left: 8px;
+}
+
+/* Journey */
+.journey-step {
+  text-align: center; position: relative;
+}
+.j-circle {
+  width: 56px; height: 56px; border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  margin: 0 auto 10px; font-size: 22px;
+  border: 2px solid;
+}
+.j-phase { font-size: 8px; letter-spacing: 1.5px; font-weight: 700; text-transform: uppercase; margin-bottom: 4px; }
+.j-title { font-size: 11px; font-weight: 600; color: var(--text); margin-bottom: 4px; line-height: 1.3; }
+.j-desc { font-size: 10px; color: var(--muted); line-height: 1.4; }
+.j-time { font-size: 8px; font-weight: 600; margin-top: 6px; opacity: 0.6; }
+
+/* Week grid */
+.week-cell {
+  border-radius: 10px; padding: 12px 6px; text-align: center;
+  border: 1px solid transparent;
+}
+.week-day { font-size: 9px; font-weight: 700; letter-spacing: 1px; margin-bottom: 6px; }
+.week-emoji { font-size: 18px; margin-bottom: 4px; }
+.week-action { font-size: 9px; color: var(--muted); line-height: 1.3; }
+.week-dots { display: flex; justify-content: center; gap: 3px; margin-top: 6px; }
+.wdot { width: 6px; height: 6px; border-radius: 50%; }
+
+/* Channel cards */
+.ch-card {
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 12px; padding: 18px;
+  position: relative; overflow: hidden;
+}
+.ch-card::before {
+  content: ''; position: absolute;
+  top: 0; left: 0; right: 0; height: 3px;
+}
+.ch-top { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; }
+.ch-name { font-size: 14px; font-weight: 700; color: var(--text); }
+.ch-type {
+  font-size: 8px; font-weight: 700; letter-spacing: 1.5px;
+  padding: 3px 8px; border-radius: 4px;
+}
+.ch-content { font-size: 11px; color: var(--text-dim); margin-bottom: 8px; line-height: 1.5; }
+.ch-kpi { font-size: 10px; font-weight: 500; }
+.ch-stars { font-size: 12px; color: var(--gold); margin-top: 6px; letter-spacing: 2px; }
+
+/* Funnel */
+.funnel-step {
+  border-radius: 12px; padding: 22px 20px;
+  margin-bottom: 10px; border-left: 4px solid;
+}
+.f-step-label { font-size: 9px; letter-spacing: 2px; font-weight: 700; text-transform: uppercase; margin-bottom: 6px; }
+.f-title { font-size: 16px; font-weight: 600; color: var(--cream); margin-bottom: 6px; line-height: 1.4; }
+.f-desc { font-size: 12.5px; color: var(--text); margin-bottom: 6px; line-height: 1.6; }
+.f-context { font-size: 11px; font-style: italic; color: var(--muted); line-height: 1.5; }
+
+/* Promise */
+.promise-block {
+  background: linear-gradient(135deg, var(--terracotta), #A66842);
+  border-radius: 18px; padding: 36px 32px;
+  margin: 32px 0;
+}
+.promise-label { font-size: 9px; letter-spacing: 3px; text-transform: uppercase; opacity: 0.6; margin-bottom: 12px; }
+.promise-text {
+  font-family: 'Playfair Display', serif;
+  font-size: clamp(18px, 3vw, 24px);
+  font-style: italic; font-weight: 400;
+  line-height: 1.5; margin-bottom: 10px;
+}
+.promise-sub { font-size: 13px; opacity: 0.8; }
+
+/* Mia Test */
+.test-block {
+  background: var(--card2);
+  border: 1px solid var(--border);
+  border-radius: 18px; padding: 32px;
+  text-align: center; margin-bottom: 32px;
+}
+.test-title { font-size: 14px; font-weight: 700; letter-spacing: 3px; text-transform: uppercase; margin-bottom: 8px; }
+.test-subtitle { font-size: 15px; font-weight: 600; color: var(--terracotta); margin-bottom: 24px; }
+.test-cards { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 14px; }
+.test-card {
+  background: rgba(255,255,255,0.03);
+  border: 1px solid var(--border);
+  border-radius: 12px; padding: 20px 14px;
+}
+.test-card-label { font-size: 9px; font-weight: 700; letter-spacing: 1.5px; text-transform: uppercase; margin-bottom: 8px; }
+.test-card-q { font-size: 13px; color: var(--text); line-height: 1.4; }
+
+/* Footer */
+.footer {
+  text-align: center; padding: 32px 24px 48px;
+  border-top: 1px solid var(--border);
+}
+.footer-quote {
+  font-family: 'Playfair Display', serif;
+  font-style: italic; font-size: 15px;
+  color: var(--muted); margin-bottom: 10px;
+}
+.footer-brand { font-size: 10px; letter-spacing: 4px; color: var(--gold); opacity: 0.5; text-transform: uppercase; }
+
+/* ===== RESPONSIVE ===== */
+@media (max-width: 700px) {
+  .grid-2 { grid-template-columns: 1fr; }
+  .grid-3 { grid-template-columns: 1fr 1fr; }
+  .grid-4 { grid-template-columns: 1fr 1fr; }
+  .grid-6 { grid-template-columns: repeat(3, 1fr); }
+  .grid-7 { grid-template-columns: repeat(4, 1fr); }
+  .test-cards { grid-template-columns: 1fr; }
+  .timeline-bar { height: auto; flex-wrap: wrap; }
+  .tblock { min-height: 60px; flex: 0 0 calc(33.33% - 4px); border-radius: 6px; }
+  .container { padding: 0 16px; }
+  .card { padding: 18px; }
+  .promise-block { padding: 28px 22px; }
+  .nav-item { padding: 10px 14px; font-size: 9px; }
+}
+
+@media print {
+  .nav-strip { display: none; }
+  body { background: white; color: #1a1a1a; }
+  .card { border: 1px solid #ddd; background: #f9f7f4; }
+}
+</style>
+</head>
+<body>
+
+<!-- ═══════ HERO ═══════ -->
+<section class="hero">
+  <div class="brand-tag">✦ &nbsp; Celestia — Primary User Persona &nbsp; ✦</div>
+  
+  <div class="stick-wrap">
+    <svg width="140" height="200" viewBox="0 0 140 200">
+      <path d="M48 42 Q43 18 70 12 Q97 8 95 42 Q98 52 96 65 Q94 73 87 70" fill="none" stroke="#8B6543" stroke-width="3" stroke-linecap="round"/>
+      <path d="M48 42 Q45 52 43 65 Q41 73 47 71" fill="none" stroke="#8B6543" stroke-width="3" stroke-linecap="round"/>
+      <path d="M43 65 Q38 85 41 100" fill="none" stroke="#8B6543" stroke-width="2" opacity="0.5" stroke-linecap="round"/>
+      <path d="M96 65 Q101 82 98 95" fill="none" stroke="#8B6543" stroke-width="2" opacity="0.5" stroke-linecap="round"/>
+      <circle cx="70" cy="45" r="23" fill="none" stroke="#F5EDE3" stroke-width="2.5"/>
+      <circle cx="63" cy="42" r="2" fill="#F5EDE3"/>
+      <circle cx="77" cy="42" r="2" fill="#F5EDE3"/>
+      <path d="M64 52 Q70 57 76 52" fill="none" stroke="#F5EDE3" stroke-width="1.5" stroke-linecap="round"/>
+      <line x1="70" y1="68" x2="70" y2="125" stroke="#F5EDE3" stroke-width="2.5" stroke-linecap="round"/>
+      <line x1="70" y1="85" x2="46" y2="108" stroke="#F5EDE3" stroke-width="2.5" stroke-linecap="round"/>
+      <line x1="70" y1="85" x2="94" y2="102" stroke="#F5EDE3" stroke-width="2.5" stroke-linecap="round"/>
+      <rect x="90" y="96" width="11" height="17" rx="2" fill="none" stroke="#D4A853" stroke-width="1.5"/>
+      <line x1="70" y1="125" x2="52" y2="175" stroke="#F5EDE3" stroke-width="2.5" stroke-linecap="round"/>
+      <line x1="70" y1="125" x2="88" y2="175" stroke="#F5EDE3" stroke-width="2.5" stroke-linecap="round"/>
+      <path d="M47 173 L52 175 L60 175" stroke="#C17F59" stroke-width="2.5" stroke-linecap="round" fill="none"/>
+      <path d="M83 173 L88 175 L96 175" stroke="#C17F59" stroke-width="2.5" stroke-linecap="round" fill="none"/>
+      <text x="48" y="93" fill="#D4A853" font-size="7" opacity="0.5">✦</text>
+    </svg>
+  </div>
+
+  <h1 class="hero-name">Meet <strong>Mia Reyes</strong></h1>
+  <p class="hero-tagline">The One Person We Build Everything For</p>
+  <p class="hero-quote">"I just want to understand why I keep doing this to myself."</p>
+  <p class="hero-context">— 10:47pm · Sunday · Alone in bed · Phone in hand</p>
+  
+  <div class="pills">
+    <span class="pill"><b>24</b> yrs old</span>
+    <span class="pill"><b>Austin, TX</b> · 78704</span>
+    <span class="pill"><b>♍ Virgo</b> ☉ · <b>♏ Scorpio</b> ☽ · <b>♌ Leo</b> ↑</span>
+    <span class="pill"><b>Single</b> · dating</span>
+    <span class="pill"><b>Marketing</b> Coordinator</span>
+    <span class="pill"><b>$44K</b>/yr</span>
+  </div>
+</section>
+
+<!-- ═══════ NAV ═══════ -->
+<nav class="nav-strip">
+  <div class="nav-inner">
+    <a href="#who" class="nav-item">01 Who</a>
+    <a href="#why" class="nav-item">02 Why</a>
+    <a href="#when" class="nav-item">03 When</a>
+    <a href="#where" class="nav-item">04 Where</a>
+    <a href="#what" class="nav-item">05 What</a>
+    <a href="#how" class="nav-item">06 How</a>
+    <a href="#channels" class="nav-item">07 Channels</a>
+    <a href="#funnel" class="nav-item">08 Funnel</a>
+  </div>
+</nav>
+
+<div class="container">
+
+<!-- ═══════ 01 WHO ═══════ -->
+<section class="section" id="who">
+  <div class="section-head">
+    <div class="section-num" style="background:var(--terracotta)">01</div>
+    <span class="section-label" style="color:var(--terracotta)">Who Is Mia</span>
+    <div class="section-line" style="background:var(--terracotta)"></div>
+  </div>
+
+  <div class="grid-2">
+    <div class="card">
+      <div class="card-title" style="color:var(--terracotta)">Bio Snapshot</div>
+      <div class="bio-row"><span class="bio-key">Full Name</span><span class="bio-val">Mia Reyes</span></div>
+      <div class="bio-row"><span class="bio-key">Age</span><span class="bio-val">24</span></div>
+      <div class="bio-row"><span class="bio-key">Education</span><span class="bio-val">B.A. Communications, Texas State '23</span></div>
+      <div class="bio-row"><span class="bio-key">Job</span><span class="bio-val">Marketing Coordinator</span></div>
+      <div class="bio-row"><span class="bio-key">Income</span><span class="bio-val">$44,000/yr</span></div>
+      <div class="bio-row"><span class="bio-key">Rent</span><span class="bio-val">$1,250/mo · 1BR apt</span></div>
+      <div class="bio-row"><span class="bio-key">Phone</span><span class="bio-val">iPhone 14 · 6.5 hrs/day</span></div>
+      <div class="bio-row"><span class="bio-key">Status</span><span class="bio-val">Single · situationship-prone</span></div>
+      <div class="bio-row"><span class="bio-key">Shops At</span><span class="bio-val">Free People, Target, Zara</span></div>
+      <div class="bio-row"><span class="bio-key">Astrology Level</span><span class="bio-val">Casual Believer · knows Big 3</span></div>
+    </div>
+
+    <div class="card">
+      <div class="card-title" style="color:var(--lavender)">Personality Traits</div>
+      <div class="bar-wrap"><div class="bar-top"><span class="bar-label">Introvert ↔ Extrovert</span><span class="bar-pct" style="color:var(--terracotta)">62%</span></div><div class="bar-track"><div class="bar-fill" style="width:62%;background:var(--terracotta)"></div></div></div>
+      <div class="bar-wrap"><div class="bar-top"><span class="bar-label">Analytical ↔ Intuitive</span><span class="bar-pct" style="color:var(--lavender)">75%</span></div><div class="bar-track"><div class="bar-fill" style="width:75%;background:var(--lavender)"></div></div></div>
+      <div class="bar-wrap"><div class="bar-top"><span class="bar-label">Skeptic ↔ Believer</span><span class="bar-pct" style="color:var(--gold)">68%</span></div><div class="bar-track"><div class="bar-fill" style="width:68%;background:var(--gold)"></div></div></div>
+      <div class="bar-wrap"><div class="bar-top"><span class="bar-label">Independent ↔ Social</span><span class="bar-pct" style="color:var(--sky)">55%</span></div><div class="bar-track"><div class="bar-fill" style="width:55%;background:var(--sky)"></div></div></div>
+      <div class="bar-wrap"><div class="bar-top"><span class="bar-label">Practical ↔ Dreamer</span><span class="bar-pct" style="color:var(--rose)">72%</span></div><div class="bar-track"><div class="bar-fill" style="width:72%;background:var(--rose)"></div></div></div>
+      <div class="bar-wrap"><div class="bar-top"><span class="bar-label">Anxious ↔ Calm</span><span class="bar-pct" style="color:var(--sage)">35%</span></div><div class="bar-track"><div class="bar-fill" style="width:35%;background:var(--sage)"></div></div></div>
+      <p style="font-size:11px;color:var(--muted);font-style:italic;margin-top:12px">Leans intuitive & emotionally-driven. High self-awareness but moderate anxiety. Believes in patterns over destiny.</p>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-title" style="color:var(--gold)">Her World — Brands & Nightstand</div>
+    <div class="tag-list" style="margin-bottom:14px">
+      <span class="tag">Free People</span><span class="tag">Target</span><span class="tag">Zara</span><span class="tag">Glossier</span><span class="tag">Oat Milk</span><span class="tag">Spotify</span><span class="tag">Hulu</span><span class="tag">Stanley Cup</span><span class="tag">Crystals</span><span class="tag">Pinterest</span>
+    </div>
+    <p style="font-size:11px;color:var(--muted)"><b style="color:var(--text-dim)">Nightstand:</b> iPhone 14 · Vanilla candle · Stanley tumbler · Journal (used sometimes) · Melatonin gummies · Crystals · Half-read self-help book</p>
+    <p style="font-size:11px;color:var(--muted);font-style:italic;margin-top:6px">Her apartment: tapestry on wall, fairy lights around full-length mirror, 3 plants she's trying not to kill.</p>
+  </div>
+</section>
+
+<!-- ═══════ 02 WHY ═══════ -->
+<section class="section" id="why">
+  <div class="section-head">
+    <div class="section-num" style="background:var(--rose)">02</div>
+    <span class="section-label" style="color:var(--rose)">Why — Her Mindset & Pain</span>
+    <div class="section-line" style="background:var(--rose)"></div>
+  </div>
+
+  <div class="grid-2">
+    <div class="card">
+      <div class="card-title" style="color:var(--sage)">🎯 What She Wants (Goals)</div>
+      <div class="item-row"><span class="item-icon">🪞</span><span class="item-text">Understand herself — the real patterns, not surface-level</span></div>
+      <div class="item-row"><span class="item-icon">💕</span><span class="item-text">Find a relationship that actually works</span></div>
+      <div class="item-row"><span class="item-icon">🧭</span><span class="item-text">Feel like she's on the right path in career & life</span></div>
+      <div class="item-row"><span class="item-icon">🌙</span><span class="item-text">Something that feels personal, not generic</span></div>
+      <div class="item-row"><span class="item-icon">💸</span><span class="item-text">Affordable — therapy without the $200/session tag</span></div>
+    </div>
+
+    <div class="card">
+      <div class="card-title" style="color:var(--rose)">😤 What Frustrates Her</div>
+      <div class="item-row"><span class="item-icon">💔</span><span class="item-text">Same toxic relationship pattern repeating endlessly</span></div>
+      <div class="item-row"><span class="item-icon">🌀</span><span class="item-text">Co-Star feels cold, generic & meaningless</span></div>
+      <div class="item-row"><span class="item-icon">⏳</span><span class="item-text">Friends getting engaged — she feels behind at 24</span></div>
+      <div class="item-row"><span class="item-icon">🤷‍♀️</span><span class="item-text">10 sites say 10 different horoscopes. Which is real?</span></div>
+      <div class="item-row"><span class="item-icon">💸</span><span class="item-text">Can't afford therapy. Not "broken enough" for it anyway.</span></div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-title" style="color:var(--rose)">💭 Her Internal Monologue — The Mindset</div>
+    <div class="grid-4">
+      <div class="mood-card" style="background:rgba(123,167,196,0.08)"><div class="mood-emoji">😕</div><div class="mood-time" style="color:var(--sky)">Monday 9am</div><div class="mood-thought">"Ugh, another week. Is this really my life?"</div><div class="mood-label" style="color:var(--sky)">DREAD</div></div>
+      <div class="mood-card" style="background:rgba(196,145,138,0.08)"><div class="mood-emoji">😶</div><div class="mood-time" style="color:var(--rose)">Wed Lunch</div><div class="mood-thought">"He still hasn't texted back. What's wrong with me?"</div><div class="mood-label" style="color:var(--rose)">ANXIOUS</div></div>
+      <div class="mood-card" style="background:rgba(212,168,83,0.08)"><div class="mood-emoji">🤔</div><div class="mood-time" style="color:var(--gold)">Friday 8pm</div><div class="mood-thought">"New guy is cute but is he just another Sag..."</div><div class="mood-label" style="color:var(--gold)">HOPEFUL</div></div>
+      <div class="mood-card" style="background:rgba(193,127,89,0.1)"><div class="mood-emoji">🥺</div><div class="mood-time" style="color:var(--terracotta)">Sun 10:30pm</div><div class="mood-thought">"Why do I always end up here? Something has to explain this."</div><div class="mood-label" style="color:var(--terracotta)">SEARCHING</div></div>
+    </div>
+  </div>
+</section>
+
+<!-- ═══════ 03 WHEN ═══════ -->
+<section class="section" id="when">
+  <div class="section-head">
+    <div class="section-num" style="background:var(--lavender)">03</div>
+    <span class="section-label" style="color:var(--lavender)">When — Her Day & Peak Moments</span>
+    <div class="section-line" style="background:var(--lavender)"></div>
+  </div>
+
+  <div class="card">
+    <div class="card-title" style="color:var(--lavender)">🕐 A Day in Mia's Life — Peak = 9:30pm–Midnight</div>
+    <div class="timeline-bar">
+      <div class="tblock" style="height:25%;background:rgba(255,255,255,0.04)"><div class="tblock-label">7am</div><div class="tblock-sub">Scrolls in bed</div></div>
+      <div class="tblock" style="height:32%;background:rgba(193,127,89,0.08)"><div class="tblock-label">8am</div><div class="tblock-sub">Coffee + drive</div></div>
+      <div class="tblock" style="height:18%;background:rgba(255,255,255,0.03);flex:2.5"><div class="tblock-label">9am–5:30pm</div><div class="tblock-sub">Work · memes at lunch</div></div>
+      <div class="tblock" style="height:28%;background:rgba(139,158,126,0.08)"><div class="tblock-label">6pm</div><div class="tblock-sub">H-E-B · Lake walk</div></div>
+      <div class="tblock" style="height:24%;background:rgba(255,255,255,0.04)"><div class="tblock-label">8pm</div><div class="tblock-sub">TV · Texting</div></div>
+      <div class="tblock peak" style="height:90%;flex:1.8"><div class="peak-badge">★ CELESTIA MOMENT</div><div class="tblock-label">9:30pm–12am</div><div class="tblock-sub">In bed · Phone · Emotionally open</div></div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-title" style="color:var(--gold)">⚡ Trigger Moments — What Makes Her Open Celestia</div>
+    <div class="grid-6">
+      <div class="trigger-chip" style="background:rgba(196,145,138,0.06);border-color:rgba(196,145,138,0.15)"><div class="trigger-emoji">📱</div><div class="trigger-label" style="color:var(--rose)">Left on read</div><div class="trigger-desc">Needs to understand why she's attracted to unavailability</div></div>
+      <div class="trigger-chip" style="background:rgba(155,142,196,0.06);border-color:rgba(155,142,196,0.15)"><div class="trigger-emoji">🌙</div><div class="trigger-label" style="color:var(--lavender)">Sunday anxiety</div><div class="trigger-desc">Alone, quiet, something needs to change</div></div>
+      <div class="trigger-chip" style="background:rgba(212,168,83,0.06);border-color:rgba(212,168,83,0.15)"><div class="trigger-emoji">👀</div><div class="trigger-label" style="color:var(--gold)">New guy met</div><div class="trigger-desc">Intense chemistry — needs compatibility NOW</div></div>
+      <div class="trigger-chip" style="background:rgba(193,127,89,0.06);border-color:rgba(193,127,89,0.15)"><div class="trigger-emoji">🎬</div><div class="trigger-label" style="color:var(--terracotta)">TikTok hit her</div><div class="trigger-desc">Astrology video felt eerily accurate</div></div>
+      <div class="trigger-chip" style="background:rgba(123,167,196,0.06);border-color:rgba(123,167,196,0.15)"><div class="trigger-emoji">💼</div><div class="trigger-label" style="color:var(--sky)">Work stress</div><div class="trigger-desc">Passed over — wants to know if better is coming</div></div>
+      <div class="trigger-chip" style="background:rgba(139,158,126,0.06);border-color:rgba(139,158,126,0.15)"><div class="trigger-emoji">🎂</div><div class="trigger-label" style="color:var(--sage)">Birthday soon</div><div class="trigger-desc">Turning 25 — wants year-ahead forecast</div></div>
+    </div>
+  </div>
+</section>
+
+<!-- ═══════ 04 WHERE ═══════ -->
+<section class="section" id="where">
+  <div class="section-head">
+    <div class="section-num" style="background:var(--sage)">04</div>
+    <span class="section-label" style="color:var(--sage)">Where — Physical World & Digital Habitat</span>
+    <div class="section-line" style="background:var(--sage)"></div>
+  </div>
+
+  <div class="grid-2">
+    <div class="card">
+      <div class="card-title" style="color:var(--sage)">📍 Her Physical World — SoCo, Austin 78704</div>
+      <div class="pin-row"><div class="pin-dot" style="background:var(--terracotta)"></div><span class="pin-label">HOME</span><span class="pin-addr">Alma SoCo Apts, 126 W Alpine Rd</span></div>
+      <div class="pin-row"><div class="pin-dot" style="background:var(--gold)"></div><span class="pin-label">COFFEE</span><span class="pin-addr">Jo's Coffee, 1300 S Congress Ave</span></div>
+      <div class="pin-row"><div class="pin-dot" style="background:var(--sage)"></div><span class="pin-label">GROCERIES</span><span class="pin-addr">H-E-B, S Congress & Oltorf</span></div>
+      <div class="pin-row"><div class="pin-dot" style="background:var(--sky)"></div><span class="pin-label">WALK</span><span class="pin-addr">Lady Bird Lake Trail</span></div>
+      <div class="pin-row"><div class="pin-dot" style="background:var(--rose)"></div><span class="pin-label">DINNER</span><span class="pin-addr">Guero's Taco Bar, S Congress</span></div>
+      <div class="pin-row"><div class="pin-dot" style="background:var(--lavender)"></div><span class="pin-label">BRUNCH</span><span class="pin-addr">Cafe No Se, S Congress Hotel</span></div>
+      <p style="font-size:10px;color:var(--muted);font-style:italic;margin-top:12px">Everything within a 15-min radius of S Congress & Oltorf. That intersection is her center of gravity.</p>
+    </div>
+
+    <div class="card">
+      <div class="card-title" style="color:var(--sky)">📱 Her Digital Platforms</div>
+      <div class="plat-row"><div class="plat-top"><span class="plat-name">TikTok</span><span class="plat-badge" style="color:var(--terracotta);background:rgba(193,127,89,0.12)">DISCOVERS · 2+ hrs</span></div><div class="bar-track"><div class="bar-fill" style="width:90%;background:var(--terracotta)"></div></div><div class="plat-desc">POV sign-specific videos · @astrobebs · Awareness layer</div></div>
+      <div class="plat-row"><div class="plat-top"><span class="plat-name">Instagram</span><span class="plat-badge" style="color:var(--rose);background:rgba(196,145,138,0.12)">SHARES · 1.5 hrs</span></div><div class="bar-track"><div class="bar-fill" style="width:70%;background:var(--rose)"></div></div><div class="plat-desc">Saves carousels · "Tag your Virgo friend" · Stories + DMs</div></div>
+      <div class="plat-row"><div class="plat-top"><span class="plat-name">iMessage</span><span class="plat-badge" style="color:var(--sage);background:rgba(139,158,126,0.12)">SPREADS · All day</span></div><div class="bar-track"><div class="bar-fill" style="width:65%;background:var(--sage)"></div></div><div class="plat-desc">Group chat screenshots = viral loop · 3-5 close friends</div></div>
+      <div class="plat-row"><div class="plat-top"><span class="plat-name">Pinterest</span><span class="plat-badge" style="color:var(--lavender);background:rgba(155,142,196,0.12)">RESEARCHES · 30 min</span></div><div class="bar-track"><div class="bar-fill" style="width:40%;background:var(--lavender)"></div></div><div class="plat-desc">"Scorpio moon aesthetic" boards · Deep research mode</div></div>
+      <div class="plat-row"><div class="plat-top"><span class="plat-name">Google</span><span class="plat-badge" style="color:var(--gold);background:rgba(212,168,83,0.12)">CONVERTS 💰 · 10pm+</span></div><div class="bar-track"><div class="bar-fill" style="width:50%;background:var(--gold)"></div></div><div class="plat-desc">Emotional urgency searches · The money channel</div></div>
+    </div>
+  </div>
+</section>
+
+<!-- ═══════ 05 WHAT ═══════ -->
+<section class="section" id="what">
+  <div class="section-head">
+    <div class="section-num" style="background:var(--gold)">05</div>
+    <span class="section-label" style="color:var(--gold)">What — Her Words & Searches</span>
+    <div class="section-line" style="background:var(--gold)"></div>
+  </div>
+
+  <div class="grid-2">
+    <div class="card">
+      <div class="card-title" style="color:var(--terracotta)">💬 What She Types in Celestia Chat</div>
+      <div class="bubble">why do i keep attracting unavailable men</div>
+      <div class="bubble">is he the one? his bday is march 15 1998</div>
+      <div class="bubble">why am i so tired and unmotivated lately</div>
+      <div class="bubble">me and my best friend keep fighting</div>
+      <div class="bubble">should i quit my job</div>
+      <div class="bubble">why do i feel like something big is changing</div>
+      <p style="font-size:11px;color:var(--gold);font-style:italic;margin-top:12px">↑ Life questions disguised as astrology questions</p>
+    </div>
+
+    <div class="card">
+      <div class="card-title" style="color:var(--gold)">🔍 Her Google Searches at 10:30pm</div>
+      <div class="search-row hot">virgo and scorpio compatibility<span class="search-vol" style="color:var(--terracotta);background:rgba(193,127,89,0.12)">HIGH</span></div>
+      <div class="search-row hot">saturn return what to expect<span class="search-vol" style="color:var(--terracotta);background:rgba(193,127,89,0.12)">HIGH</span></div>
+      <div class="search-row hot">free birth chart reading<span class="search-vol" style="color:var(--terracotta);background:rgba(193,127,89,0.12)">HIGH</span></div>
+      <div class="search-row">why do cancers push people away<span class="search-vol" style="color:var(--muted);background:rgba(255,255,255,0.05)">MED</span></div>
+      <div class="search-row">venus in capricorn meaning love<span class="search-vol" style="color:var(--muted);background:rgba(255,255,255,0.05)">MED</span></div>
+      <div class="search-row">what does my natal chart mean<span class="search-vol" style="color:var(--muted);background:rgba(255,255,255,0.05)">MED</span></div>
+      <div class="search-row hot">mercury retrograde march 2026<span class="search-vol" style="color:var(--terracotta);background:rgba(193,127,89,0.12)">SPIKE</span></div>
+    </div>
+  </div>
+</section>
+
+<!-- ═══════ 06 HOW ═══════ -->
+<section class="section" id="how">
+  <div class="section-head">
+    <div class="section-num" style="background:var(--terracotta)">06</div>
+    <span class="section-label" style="color:var(--terracotta)">How — Celestia Becomes Part of Her Life</span>
+    <div class="section-line" style="background:var(--terracotta)"></div>
+  </div>
+
+  <div class="card">
+    <div class="card-title" style="color:var(--text-dim)">User Journey — From Stranger to Evangelist</div>
+    <div class="grid-6">
+      <div class="journey-step"><div class="j-circle" style="border-color:var(--terracotta);background:rgba(193,127,89,0.1)">👁️</div><div class="j-phase" style="color:var(--terracotta)">AWARE</div><div class="j-title">TikTok / Google</div><div class="j-desc">Sees astrology content or Googles a burning question</div><div class="j-time" style="color:var(--terracotta)">Day 0</div></div>
+      <div class="journey-step"><div class="j-circle" style="border-color:var(--gold);background:rgba(212,168,83,0.1)">✨</div><div class="j-phase" style="color:var(--gold)">DISCOVER</div><div class="j-title">Lands on Celestia</div><div class="j-desc">SEO page answers her. Warm, specific, beautiful.</div><div class="j-time" style="color:var(--gold)">Day 0</div></div>
+      <div class="journey-step"><div class="j-circle" style="border-color:var(--sage);background:rgba(139,158,126,0.1)">🤯</div><div class="j-phase" style="color:var(--sage)">TRY</div><div class="j-title">Free Birth Chart</div><div class="j-desc">Enters birth data. Sees placements. Eyes go wide.</div><div class="j-time" style="color:var(--sage)">Day 0</div></div>
+      <div class="journey-step"><div class="j-circle" style="border-color:var(--lavender);background:rgba(155,142,196,0.1)">💬</div><div class="j-phase" style="color:var(--lavender)">HOOKED</div><div class="j-title">AI Chat Moment</div><div class="j-desc">Types real question. Gets eerily personal answer.</div><div class="j-time" style="color:var(--lavender)">Day 0–1</div></div>
+      <div class="journey-step"><div class="j-circle" style="border-color:var(--sky);background:rgba(123,167,196,0.1)">📸</div><div class="j-phase" style="color:var(--sky)">SHARE</div><div class="j-title">Screenshots It</div><div class="j-desc">Sends to group chat. Friends try it. Viral loop.</div><div class="j-time" style="color:var(--sky)">Day 1–3</div></div>
+      <div class="journey-step"><div class="j-circle" style="border-color:var(--rose);background:rgba(196,145,138,0.1)">💰</div><div class="j-phase" style="color:var(--rose)">PAY</div><div class="j-title">$9.99 Report</div><div class="j-desc">Wants the deep dive. Compatibility. Year-ahead.</div><div class="j-time" style="color:var(--rose)">Week 1</div></div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-title" style="color:var(--terracotta)">📅 How Celestia Fits Into Her Week (After Onboarding)</div>
+    <div class="grid-7">
+      <div class="week-cell" style="background:rgba(193,127,89,0.06)"><div class="week-day" style="color:var(--muted)">MON</div><div class="week-emoji">📖</div><div class="week-action">Reads weekly transit</div><div class="week-dots"><div class="wdot" style="background:var(--terracotta)"></div><div class="wdot" style="background:var(--terracotta)"></div><div class="wdot" style="background:rgba(255,255,255,0.08)"></div><div class="wdot" style="background:rgba(255,255,255,0.08)"></div></div></div>
+      <div class="week-cell" style="background:rgba(255,255,255,0.02)"><div class="week-day" style="color:var(--muted)">TUE</div><div class="week-emoji">💬</div><div class="week-action">Quick chat about stress</div><div class="week-dots"><div class="wdot" style="background:var(--terracotta)"></div><div class="wdot" style="background:rgba(255,255,255,0.08)"></div><div class="wdot" style="background:rgba(255,255,255,0.08)"></div><div class="wdot" style="background:rgba(255,255,255,0.08)"></div></div></div>
+      <div class="week-cell" style="background:rgba(255,255,255,0.01)"><div class="week-day" style="color:var(--muted)">WED</div><div class="week-emoji">😴</div><div class="week-action">—</div><div class="week-dots"><div class="wdot" style="background:rgba(255,255,255,0.08)"></div><div class="wdot" style="background:rgba(255,255,255,0.08)"></div><div class="wdot" style="background:rgba(255,255,255,0.08)"></div><div class="wdot" style="background:rgba(255,255,255,0.08)"></div></div></div>
+      <div class="week-cell" style="background:rgba(212,168,83,0.08);border-color:rgba(212,168,83,0.15)"><div class="week-day" style="color:var(--gold)">THU</div><div class="week-emoji">💕</div><div class="week-action">Checks compat before date</div><div class="week-dots"><div class="wdot" style="background:var(--gold)"></div><div class="wdot" style="background:var(--gold)"></div><div class="wdot" style="background:var(--gold)"></div><div class="wdot" style="background:rgba(255,255,255,0.08)"></div></div></div>
+      <div class="week-cell" style="background:rgba(139,158,126,0.06)"><div class="week-day" style="color:var(--muted)">FRI</div><div class="week-emoji">👯‍♀️</div><div class="week-action">Shows friends at dinner</div><div class="week-dots"><div class="wdot" style="background:var(--sage)"></div><div class="wdot" style="background:var(--sage)"></div><div class="wdot" style="background:rgba(255,255,255,0.08)"></div><div class="wdot" style="background:rgba(255,255,255,0.08)"></div></div></div>
+      <div class="week-cell" style="background:rgba(196,145,138,0.06)"><div class="week-day" style="color:var(--muted)">SAT</div><div class="week-emoji">📸</div><div class="week-action">Shares chart on stories</div><div class="week-dots"><div class="wdot" style="background:var(--rose)"></div><div class="wdot" style="background:var(--rose)"></div><div class="wdot" style="background:rgba(255,255,255,0.08)"></div><div class="wdot" style="background:rgba(255,255,255,0.08)"></div></div></div>
+      <div class="week-cell" style="background:rgba(193,127,89,0.12);border-color:rgba(193,127,89,0.2)"><div class="week-day" style="color:var(--terracotta)">SUN</div><div class="week-emoji">🌙</div><div class="week-action">Deep session — full report</div><div class="week-dots"><div class="wdot" style="background:var(--terracotta)"></div><div class="wdot" style="background:var(--terracotta)"></div><div class="wdot" style="background:var(--terracotta)"></div><div class="wdot" style="background:var(--terracotta)"></div></div></div>
+    </div>
+  </div>
+</section>
+
+<!-- ═══════ 07 CHANNELS ═══════ -->
+<section class="section" id="channels">
+  <div class="section-head">
+    <div class="section-num" style="background:var(--sky)">07</div>
+    <span class="section-label" style="color:var(--sky)">How to Reach Mia — Channel Strategy</span>
+    <div class="section-line" style="background:var(--sky)"></div>
+  </div>
+
+  <div class="grid-3">
+    <div class="ch-card" style="border-top:3px solid var(--terracotta)"><div class="ch-top"><span class="ch-name">TikTok Reels</span><span class="ch-type" style="color:var(--terracotta);background:rgba(193,127,89,0.12)">AWARENESS</span></div><div class="ch-content">POV sign-specific videos, 30s astrology hooks, relatable scenarios</div><div class="ch-kpi" style="color:var(--terracotta)">Views → Profile → Link in bio</div><div class="ch-stars">★★★</div></div>
+    <div class="ch-card" style="border-top:3px solid var(--gold)"><div class="ch-top"><span class="ch-name">Google SEO</span><span class="ch-type" style="color:var(--gold);background:rgba(212,168,83,0.12)">CONVERSION</span></div><div class="ch-content">Compatibility & chart pages that rank #1, warm & specific answers</div><div class="ch-kpi" style="color:var(--gold)">Search → Land → Free chart → Pay</div><div class="ch-stars">★★★</div></div>
+    <div class="ch-card" style="border-top:3px solid var(--rose)"><div class="ch-top"><span class="ch-name">Instagram</span><span class="ch-type" style="color:var(--rose);background:rgba(196,145,138,0.12)">ENGAGEMENT</span></div><div class="ch-content">"Tag your Virgo friend" carousels, shareable zodiac content</div><div class="ch-kpi" style="color:var(--rose)">Save → Share → Story mention</div><div class="ch-stars">★★★</div></div>
+    <div class="ch-card" style="border-top:3px solid var(--lavender)"><div class="ch-top"><span class="ch-name">Pinterest SEO</span><span class="ch-type" style="color:var(--lavender);background:rgba(155,142,196,0.12)">LONG-TAIL</span></div><div class="ch-content">Birth chart aesthetic boards, zodiac infographics, sign guides</div><div class="ch-kpi" style="color:var(--lavender)">Pin → Click → Land on site</div><div class="ch-stars">★★☆</div></div>
+    <div class="ch-card" style="border-top:3px solid var(--sage)"><div class="ch-top"><span class="ch-name">Viral Loop</span><span class="ch-type" style="color:var(--sage);background:rgba(139,158,126,0.12)">GROWTH</span></div><div class="ch-content">Shareable chart results, compatibility links, "send to a friend"</div><div class="ch-kpi" style="color:var(--sage)">Screenshot → Group chat → Sign up</div><div class="ch-stars">★★★</div></div>
+    <div class="ch-card" style="border-top:3px solid var(--sky)"><div class="ch-top"><span class="ch-name">Email / Push</span><span class="ch-type" style="color:var(--sky);background:rgba(123,167,196,0.12)">RETENTION</span></div><div class="ch-content">Weekly transit alerts, Mercury Rx warnings, birthday forecasts</div><div class="ch-kpi" style="color:var(--sky)">Open → Return → Upgrade</div><div class="ch-stars">★★☆</div></div>
+  </div>
+</section>
+
+<!-- ═══════ 08 FUNNEL ═══════ -->
+<section class="section" id="funnel">
+  <div class="section-head">
+    <div class="section-num" style="background:var(--gold)">08</div>
+    <span class="section-label" style="color:var(--gold)">The Funnel — Google Search to $9.99</span>
+    <div class="section-line" style="background:var(--gold)"></div>
+  </div>
+
+  <div class="funnel-step" style="border-color:var(--terracotta);background:rgba(193,127,89,0.05)">
+    <div class="f-step-label" style="color:var(--terracotta)">Step 1: The Burning Search</div>
+    <div class="f-title">She Googles with emotional urgency because something just happened</div>
+    <div class="f-desc">"virgo and scorpio compatibility" · "saturn return what to expect" · "free birth chart reading"</div>
+    <div class="f-context">10:30pm · In bed · Alone · Something is bothering her and she needs an answer that feels personal</div>
+  </div>
+  <div class="funnel-step" style="border-color:var(--gold);background:rgba(212,168,83,0.05)">
+    <div class="f-step-label" style="color:var(--gold)">Step 2: The Landing</div>
+    <div class="f-title">Celestia's SEO page ranks for her query and catches her</div>
+    <div class="f-desc">The page is warm, specific, beautifully designed. It answers her question in the first 3 sentences. It feels like it was written for her.</div>
+    <div class="f-context">CTA: "Want to see what this means in YOUR chart specifically? Get your free birth chart."</div>
+  </div>
+  <div class="funnel-step" style="border-color:var(--lavender);background:rgba(155,142,196,0.05)">
+    <div class="f-step-label" style="color:var(--lavender)">Step 3: The Chat Moment</div>
+    <div class="f-title">She enters birth details, opens AI chat, types her real question</div>
+    <div class="f-desc">Celestia tells her about her Venus-Neptune square in a way that makes her eyes go wide. "How does it KNOW this?"</div>
+    <div class="f-context">She screenshots it. Sends to group chat. "You guys HAVE to try this." → Viral loop begins.</div>
+  </div>
+  <div class="funnel-step" style="border-color:var(--terracotta);background:rgba(193,127,89,0.08)">
+    <div class="f-step-label" style="color:var(--terracotta)">Step 4: The Payment — $9.99</div>
+    <div class="f-title">She wants the full report. The deep dive. She's spent more on coffee today.</div>
+    <div class="f-desc">Full birth chart report · Compatibility analysis · Year-ahead transit forecast</div>
+    <div class="f-context">The trigger: "This app understands me in a way that feels almost scary, and I need to know MORE."</div>
+  </div>
+</section>
+
+<!-- ═══════ PROMISE ═══════ -->
+<div class="container">
+  <div class="promise-block">
+    <div class="promise-label">Celestia's Promise to Mia</div>
+    <div class="promise-text">"You're not broken. Your chart explains the pattern. Here's what's actually happening — and what's coming next."</div>
+    <div class="promise-sub">This is the sentence that makes her stay, come back, and pay.</div>
+  </div>
+
+  <div class="test-block">
+    <div class="test-title">The Mia Test</div>
+    <div class="test-subtitle">If you can't picture Mia specifically reacting to it — it doesn't ship.</div>
+    <div class="test-cards">
+      <div class="test-card"><div class="test-card-label" style="color:var(--terracotta)">Product Test</div><div class="test-card-q">Would Mia use this feature at 10:30pm in bed?</div></div>
+      <div class="test-card"><div class="test-card-label" style="color:var(--gold)">Marketing Test</div><div class="test-card-q">Would Mia screenshot this and send it to her group chat?</div></div>
+      <div class="test-card"><div class="test-card-label" style="color:var(--sage)">Revenue Test</div><div class="test-card-q">Would Mia pay $9.99 for this without thinking twice?</div></div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════ FOOTER ═══════ -->
+<footer class="footer">
+  <p class="footer-quote">Build for Mia. Let Mia bring her friends. That's the entire strategy.</p>
+  <p class="footer-brand">Celestia · 2026</p>
+</footer>
+
+</div>
+
+<!-- ═══════ JS: Active nav on scroll ═══════ -->
+<script>
+const sections = document.querySelectorAll('.section');
+const navItems = document.querySelectorAll('.nav-item');
+
+const observer = new IntersectionObserver((entries) => {
+  entries.forEach(entry => {
+    if (entry.isIntersecting) {
+      navItems.forEach(n => n.classList.remove('active'));
+      const id = entry.target.id;
+      const active = document.querySelector(`.nav-item[href="#${id}"]`);
+      if (active) active.classList.add('active');
+    }
+  });
+}, { threshold: 0.3 });
+
+sections.forEach(s => observer.observe(s));
+</script>
+</body>
+</html>

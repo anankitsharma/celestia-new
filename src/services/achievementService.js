@@ -1,6 +1,7 @@
 import { AchievementRepository } from './database/rep_achievements';
-import { BADGE_CATALOG, STREAK_MILESTONES } from '../constants/badges';
+import { BADGE_CATALOG, STREAK_MILESTONES, HIDDEN_BADGES_D7_POOL } from '../constants/badges';
 import { loadObject, saveObject } from './storage';
+import { captureEvent, EVENTS } from './analytics';
 
 const COUNTERS_KEY = 'celestia_achievement_counters';
 
@@ -41,6 +42,26 @@ export async function trackEvent(eventType, payload = {}) {
       if (badgeId) {
         const result = await AchievementRepository.unlock(badgeId);
         if (result) unlocked.push({ ...result, badge: BADGE_CATALOG[badgeId] });
+      }
+      // Surprise hidden-badge roll on milestone days. Variable reward
+      // (Hook Model): expected milestone + unexpected bonus. Probability
+      // increases at higher milestones since they're rarer.
+      const surpriseConfig = {
+        7: 0.30,
+        14: 0.40,
+        30: 0.55,
+      }[streak];
+      if (surpriseConfig) {
+        try {
+          const earned = await AchievementRepository.getAll();
+          const earnedIds = new Set(earned.map(a => a.badge_id));
+          const eligible = HIDDEN_BADGES_D7_POOL.filter(id => !earnedIds.has(id));
+          if (eligible.length > 0 && Math.random() < surpriseConfig) {
+            const surpriseId = eligible[Math.floor(Math.random() * eligible.length)];
+            const surprise = await AchievementRepository.unlock(surpriseId);
+            if (surprise) unlocked.push({ ...surprise, badge: BADGE_CATALOG[surpriseId], isSurprise: true });
+          }
+        } catch {}
       }
       break;
     }
@@ -159,6 +180,19 @@ export async function trackEvent(eventType, payload = {}) {
   }
 
   await saveCounters();
+
+  // Analytics — fire BADGE_UNLOCKED for each newly-unlocked badge
+  for (const u of unlocked) {
+    if (u?.badge) {
+      captureEvent(EVENTS.BADGE_UNLOCKED, {
+        badge_id: u.badge.id,
+        badge_name: u.badge.name,
+        category: u.badge.category || null,
+        trigger: eventType,
+      });
+    }
+  }
+
   return unlocked;
 }
 
@@ -201,11 +235,15 @@ export async function getAllBadges() {
   const unlocked = await AchievementRepository.getAll();
   const unlockedIds = new Set(unlocked.map(a => a.badge_id));
 
-  return Object.values(BADGE_CATALOG).map(badge => ({
-    ...badge,
-    unlocked: unlockedIds.has(badge.id),
-    unlockedAt: unlocked.find(a => a.badge_id === badge.id)?.unlocked_at || null,
-  }));
+  // Hidden badges only appear in the public catalog AFTER they're unlocked,
+  // so the surprise stays a surprise.
+  return Object.values(BADGE_CATALOG)
+    .filter(badge => !badge.hidden || unlockedIds.has(badge.id))
+    .map(badge => ({
+      ...badge,
+      unlocked: unlockedIds.has(badge.id),
+      unlockedAt: unlocked.find(a => a.badge_id === badge.id)?.unlocked_at || null,
+    }));
 }
 
 export async function getUnseenBadges() {

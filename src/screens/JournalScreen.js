@@ -15,6 +15,7 @@ import { completeQuestAction } from '../services/questService';
 import { trackEvent } from '../services/achievementService';
 import { recordDailyCheckIn } from '../services/streakService';
 import { haptic } from '../services/hapticService';
+import { useAnalytics, EVENTS } from '../services/analytics';
 
 const JOURNAL_KEY = 'celestia_journal_entries';
 
@@ -62,6 +63,7 @@ const PROMPTS = [
 export default function JournalScreen({ navigation, route }) {
   const { colors, isDark } = useTheme();
   const { userProfile } = useUserProfile();
+  const { capture } = useAnalytics();
   const [journalText, setJournalText] = useState('');
   const [mood, setMood] = useState(null);
   const [energy, setEnergy] = useState(5);
@@ -152,6 +154,14 @@ export default function JournalScreen({ navigation, route }) {
         selectedTags.length > 0 ? selectedTags : null
       );
 
+      capture(EVENTS.JOURNAL_ENTRY_CREATED, {
+        is_update: !!existingEntry,
+        has_mood: !!mood,
+        has_tags: selectedTags.length > 0,
+        tag_count: selectedTags.length,
+        char_count: journalText.trim().length,
+      });
+
       setSaved(true);
 
       // XP
@@ -159,7 +169,34 @@ export default function JournalScreen({ navigation, route }) {
       // Quest
       completeQuestAction('journal_written').catch(() => {});
       // Streak
-      await recordDailyCheckIn(profileId);
+      const streak = await recordDailyCheckIn(profileId);
+      // Streak analytics — only fires on first new check-in of the day
+      if (streak?.isNew) {
+        if (streak.streakBroken) {
+          capture(EVENTS.STREAK_BROKEN, {
+            previous_streak: streak.previousStreak,
+            days_absent: streak.daysAbsent,
+            comeback_bonus: streak.comebackBonus,
+            source: 'journal',
+          });
+        }
+        if (streak.current_streak === 1 && !streak.streakBroken) {
+          capture(EVENTS.STREAK_STARTED, { source: 'journal' });
+        }
+        if (streak.freezeUsed) {
+          capture(EVENTS.STREAK_FREEZE_USED, {
+            days_absent: streak.daysAbsent,
+            freezes_remaining: streak.streak_freezes_remaining,
+            source: 'journal',
+          });
+        }
+        if (streak.milestoneHit) {
+          capture(EVENTS.STREAK_MILESTONE_HIT, {
+            streak: streak.milestoneHit,
+            source: 'journal',
+          });
+        }
+      }
       // Track
       trackEvent('journal').catch(() => {});
 
@@ -186,33 +223,43 @@ export default function JournalScreen({ navigation, route }) {
         keyboardShouldPersistTaps="handled">
 
         {/* ── Hero ── */}
-        <LinearGradient colors={['#0E0E22', '#14102A', '#0E1628']}
-          style={styles.hero}>
+        {(() => {
+          const heroColors = isDark ? ['#3A1A28', '#3A1A28', '#3A1A28'] : (colors.heroGradientLight || ['#F4ECE5', '#F0E4DC', '#ECDCD3']);
+          const heroFg = isDark ? T.cream : colors.heading;
+          const heroFgMuted = isDark ? 'rgba(250,248,242,0.5)' : colors.textSecondary;
+          const heroFgSoft = isDark ? 'rgba(250,248,242,0.35)' : colors.textMuted;
+          const skyText = isDark ? 'rgba(250,248,242,0.55)' : colors.textSecondary;
+          const skyDividerBg = isDark ? 'rgba(255,255,255,0.1)' : 'rgba(42,36,24,0.08)';
+          const chipBg = isDark ? 'rgba(255,255,255,0.06)' : 'rgba(92,36,52,0.06)';
+          const chipFg = isDark ? 'rgba(250,248,242,0.4)' : colors.textMuted;
+          const historyFg = isDark ? T.gold : T.goldText;
+          return (
+        <LinearGradient colors={heroColors} style={styles.hero}>
           {/* Top bar */}
           <View style={styles.topBar}>
             <TouchableOpacity onPress={() => navigation.goBack()}>
-              <Text style={styles.backBtn}>‹ Back</Text>
+              <Text style={[styles.backBtn, { color: heroFgMuted }]}>‹ Back</Text>
             </TouchableOpacity>
             <TouchableOpacity onPress={() => navigation.navigate('JournalHistory')}>
-              <Text style={styles.historyBtn}>History →</Text>
+              <Text style={[styles.historyBtn, { color: historyFg }]}>History →</Text>
             </TouchableOpacity>
           </View>
 
           {/* Date */}
-          <Text style={styles.heroDate}>{dayName}, {monthName} {today.getDate()}</Text>
-          <Text style={styles.heroTitle}>Cosmic Journal</Text>
+          <Text style={[styles.heroDate, { color: heroFgSoft }]}>{dayName}, {monthName} {today.getDate()}</Text>
+          <Text style={[styles.heroTitle, { color: heroFg }]}>Cosmic Journal</Text>
 
           {/* Live sky strip */}
           <View style={styles.skyStrip}>
             <View style={styles.skyItem}>
               <Text style={styles.skyEmoji}>{moonIcon}</Text>
-              <Text style={styles.skyText}>{moonData?.phaseName || 'Moon'} in {moonData?.sign || '—'}</Text>
+              <Text style={[styles.skyText, { color: skyText }]}>{moonData?.phaseName || 'Moon'} in {moonData?.sign || '—'}</Text>
             </View>
-            <View style={styles.skyDivider} />
+            <View style={[styles.skyDivider, { backgroundColor: skyDividerBg }]} />
             {planets.slice(0, 3).map((p, i) => (
-              <View key={i} style={styles.skyPlanetChip}>
-                <Text style={styles.skyPlanetGlyph}>{PLANET_GLYPHS[p.name] || '★'}</Text>
-                <Text style={styles.skyPlanetText}>{p.sign}</Text>
+              <View key={i} style={[styles.skyPlanetChip, { backgroundColor: chipBg }]}>
+                <Text style={[styles.skyPlanetGlyph, { color: chipFg }]}>{PLANET_GLYPHS[p.name] || '★'}</Text>
+                <Text style={[styles.skyPlanetText, { color: chipFg }]}>{p.sign}</Text>
               </View>
             ))}
           </View>
@@ -223,6 +270,8 @@ export default function JournalScreen({ navigation, route }) {
             </View>
           )}
         </LinearGradient>
+          );
+        })()}
 
         <View style={styles.body}>
 

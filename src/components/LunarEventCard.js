@@ -7,19 +7,19 @@ import { ShareWatermark } from './ShareCard';
 const EVENT_THEMES = {
   'New Moon': {
     emoji: '🌑',
-    gradient: ['#0A0A1E', '#0E0E22', '#0C1030'],
+    gradient: ['#0A0A1E', '#3A1A28', '#0C1030'],
     accentColor: 'rgba(160,200,224,0.7)',
     message: 'Set your intentions. Plant seeds in the dark.',
   },
   'Full Moon': {
     emoji: '🌕',
-    gradient: ['#1A1828', '#0E0E22', '#14101E'],
+    gradient: ['#1A1828', '#3A1A28', '#3A1A28'],
     accentColor: 'rgba(200,168,75,0.7)',
     message: 'Release what no longer serves you. Celebrate how far you\'ve come.',
   },
   'Eclipse': {
     emoji: '🌘',
-    gradient: ['#1A0818', '#0E0E22', '#180A1E'],
+    gradient: ['#1A0818', '#3A1A28', '#180A1E'],
     accentColor: 'rgba(176,136,240,0.7)',
     message: 'Expect the unexpected. Eclipses bring fated shifts.',
   },

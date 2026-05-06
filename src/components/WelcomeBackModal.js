@@ -1,5 +1,5 @@
 import React from 'react';
-import { View, Text, TouchableOpacity, Modal, StyleSheet } from 'react-native';
+import { View, Text, TouchableOpacity, Modal, Pressable, StyleSheet } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { T, FONTS } from '../constants/theme';
 import { getStreakEmoji } from '../services/streakService';
@@ -12,10 +12,18 @@ export default function WelcomeBackModal({ visible, onDismiss, streakData, moonD
   const hasComeback = comebackBonus > 0;
 
   return (
-    <Modal visible={visible} animationType="fade" transparent>
-      <View style={s.overlay}>
-        <View style={s.card}>
-          <LinearGradient colors={['#1A1535', '#0E0E22']} style={s.hero}>
+    <Modal visible={visible} animationType="fade" transparent onRequestClose={onDismiss}>
+      <Pressable style={s.overlay} onPress={onDismiss}>
+        <Pressable style={s.card} onPress={() => {}}>
+          <LinearGradient colors={['#5A2840', '#3A1A28']} style={s.hero}>
+            <TouchableOpacity
+              style={s.closeBtn}
+              onPress={onDismiss}
+              hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+              accessibilityRole="button"
+              accessibilityLabel="Close">
+              <Text style={s.closeIcon}>×</Text>
+            </TouchableOpacity>
             <Text style={s.heroEmoji}>{hasComeback ? '✦' : '✧'}</Text>
             <Text style={s.heroTitle}>
               {hasComeback ? 'The Stars Remember You' : 'The Stars Missed You'}
@@ -100,8 +108,8 @@ export default function WelcomeBackModal({ visible, onDismiss, streakData, moonD
               </LinearGradient>
             </TouchableOpacity>
           </View>
-        </View>
-      </View>
+        </Pressable>
+      </Pressable>
     </Modal>
   );
 }
@@ -110,6 +118,8 @@ const s = StyleSheet.create({
   overlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.55)', justifyContent: 'center', alignItems: 'center', padding: 30 },
   card: { width: '100%', maxWidth: 340, borderRadius: 24, overflow: 'hidden', backgroundColor: T.cream },
   hero: { padding: 28, alignItems: 'center' },
+  closeBtn: { position: 'absolute', top: 10, right: 10, width: 32, height: 32, borderRadius: 16, alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(250,248,242,0.12)', zIndex: 2 },
+  closeIcon: { fontSize: 22, lineHeight: 24, color: T.cream, fontFamily: FONTS.sans },
   heroEmoji: { fontSize: 36, color: T.gold, marginBottom: 12 },
   heroTitle: { fontFamily: FONTS.serif, fontSize: 24, color: T.cream, textAlign: 'center', marginBottom: 8 },
   heroSub: { fontSize: 13, color: 'rgba(250,248,242,0.55)', textAlign: 'center', lineHeight: 20 },

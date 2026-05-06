@@ -36,6 +36,8 @@ export const StreakRepository = {
     let freezesLeft = existing.streak_freezes_remaining;
     let streakBroken = false;
     let comebackBonus = 0;
+    let freezeUsed = false;
+    const previousStreak = existing.current_streak;
 
     if (diffDays === 1) {
       // Consecutive day
@@ -44,12 +46,14 @@ export const StreakRepository = {
       // Missed 1 day but have a freeze
       newStreak += 1;
       freezesLeft -= 1;
+      freezeUsed = true;
     } else if (diffDays <= 3 && existing.current_streak >= 14 && freezesLeft > 0) {
       // Streak insurance: 14+ day streaks get auto-freeze for up to 2 missed days
       const freezesNeeded = diffDays - 1;
       if (freezesLeft >= freezesNeeded) {
         newStreak += 1;
         freezesLeft -= freezesNeeded;
+        freezeUsed = true;
       } else {
         // Not enough freezes — streak breaks with comeback bonus
         streakBroken = true;
@@ -95,6 +99,8 @@ export const StreakRepository = {
       isNew: true,
       milestoneHit,
       daysAbsent: diffDays,
+      freezeUsed,
+      previousStreak,
     };
   },
 

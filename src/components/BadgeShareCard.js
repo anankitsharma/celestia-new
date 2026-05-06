@@ -7,7 +7,7 @@ import { ShareWatermark } from './ShareCard';
 export default function BadgeShareCard({ badge, levelName, innerRef }) {
   return (
     <View ref={innerRef} collapsable={false} style={s.outer}>
-      <LinearGradient colors={['#1E1840', '#0E0E22']} style={s.card}>
+      <LinearGradient colors={['#5A2840', '#3A1A28']} style={s.card}>
         {/* Glow ring behind icon */}
         <View style={s.glowRing} />
 
