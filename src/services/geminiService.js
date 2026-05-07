@@ -71,6 +71,11 @@ const SAFETY_SETTINGS = [
 const lifeAreaSchema = {
     type: Type.OBJECT,
     properties: {
+        // headline — quote-class statement, the BIG TEXT on the deck card.
+        // Voice: sassy, specific, screenshottable. 5-9 words. NOT a category
+        // label. Examples: "Today wants honesty over comfort." / "The earthy
+        // momentum favors structure today." / "Slow down before you move."
+        headline: { type: Type.STRING },
         energy: { type: Type.STRING },
         intensity: { type: Type.INTEGER },
         archetype: { type: Type.STRING },
@@ -84,7 +89,7 @@ const lifeAreaSchema = {
         affirmation: { type: Type.STRING },
         navigatorNote: { type: Type.STRING },
     },
-    required: ["energy", "intensity", "archetype", "planetaryReason", "drivingPlanet", "horoscope", "doItems", "avoidItems", "timing", "ritual", "affirmation", "navigatorNote"]
+    required: ["headline", "energy", "intensity", "archetype", "planetaryReason", "drivingPlanet", "horoscope", "doItems", "avoidItems", "timing", "ritual", "affirmation", "navigatorNote"]
 };
 
 const periodSchema = {
@@ -1526,7 +1531,7 @@ export const fetchExtendedForecast = async (
     const cached = await ForecastRepository.getForecast(key);
     if (cached) return cached;
 
-    const lifeAreaFallback = { energy: "Steady", intensity: 3, archetype: "The Observer", planetaryReason: "Quiet skies — no major transits activating this area", drivingPlanet: "Moon ☽", horoscope: "The cosmic weather is calm in this area today. Use this time to maintain your rhythm and reflect on recent progress. No urgent action needed.", doItems: ["Maintain your current course", "Review recent progress", "Rest and recharge"], avoidItems: ["Steady skies — maintain your current course"], timing: "All day — steady background energy", ritual: "Take five minutes to sit quietly and check in with yourself", affirmation: "I trust the pace of my journey", navigatorNote: "Nothing demands your attention here today. That's a gift — use it." };
+    const lifeAreaFallback = { headline: "Today wants you steady.", energy: "Steady", intensity: 3, archetype: "The Observer", planetaryReason: "Quiet skies — no major transits activating this area", drivingPlanet: "Moon ☽", horoscope: "The cosmic weather is calm in this area today. Use this time to maintain your rhythm and reflect on recent progress. No urgent action needed.", doItems: ["Maintain your current course", "Review recent progress", "Rest and recharge"], avoidItems: ["Steady skies — maintain your current course"], timing: "All day — steady background energy", ritual: "Take five minutes to sit quietly and check in with yourself", affirmation: "I trust the pace of my journey", navigatorNote: "Nothing demands your attention here today. That's a gift — use it." };
     const fallback = {
         header: "Cosmic Overview",
         powerCosmic: "Steady",
@@ -1656,7 +1661,7 @@ export const fetchExtendedForecast = async (
 
         11b. ContentType: Classify today's forecast into one of these 6 categories based on the dominant transits: "love" (Venus/7th house dominant), "career" (Mars/Jupiter/10th house), "energy" (Moon/12th/vitality focus), "headsup" (challenging aspects, retrogrades), "greenlight" (supportive trines/conjunctions, new moons), "reflection" (full moons, Saturn, North Node). Pick the BEST match. This helps the user understand what kind of day it is at a glance.
 
-        12. NavigatorHeadline: A crisp, powerful hook that summarizes the ENTIRE day in one punchy line. This is the FIRST thing the user reads — it must be magnetic and make them want to read more. Must be specific to their chart, never generic. Write it like a headline that stops someone mid-scroll. E.g. "Courage pays off today", "Your words carry unusual weight", "A quiet day to recharge". Max 7 words. No filler words.
+        12. NavigatorHeadline: A crisp, screenshot-grade quote-class statement that summarizes the day. This is the BIG TEXT on the anchor card — it must fit on 2-3 lines on a phone. **5-8 words MAX, 50 characters MAX**. No long compound words. No colons or em-dashes that visually break. Voice: specific, declarative, slightly sassy, plain language. Examples that work: "Today wants you slower." / "Some conversations are overdue." / "Main character energy is favored." / "Today, lead with honesty." / "The week's pace catches up to you." Examples to avoid: "Your Chart Ignites: Purpose & Innovation Merge" (too long, colon) / "A balanced day for personal reflection" (too generic) / "Multidimensional cosmic alignment harmonizes inner truth" (jargon, too long).
 
         13. NavigatorSummary: 1-2 sentences expanding the headline with the planetary reason. E.g. "Venus trines your natal Moon in the 7th house — emotional honesty lands well today. Say what you've been holding back." Max 30 words.
 
@@ -1667,10 +1672,17 @@ export const fetchExtendedForecast = async (
         16. NotificationExcerpt: The morning notification content. Must be VALUABLE even if user never opens the app. title: max 5 words (no emoji), body: max 25 words — contains the actual core insight + planetary reason + what to do. lifeArea: which of the 5 areas is most activated (love/career/vitality/growth/social).
 
         17. LifeAreas: 5 DEEP life area navigator objects. Each area is a mini-reading on its own. For EACH area provide:
+            - headline: A QUOTE-CLASS statement, **5-8 words MAX, 45 characters MAX**, screenshottable. This is the BIG TEXT on the card — the thing the user might send to their group chat. Voice: specific, slightly sassy, declarative, in plain language, NEVER astrological jargon. NEVER a category label like "Today's Love Energy". The headline must fit on 2-3 lines on a phone card — long compound words and 9+ word sentences will visually break the design. Aim for short, punchy, sentence-fragment-style. Make sense to a friend with no astrology context. Examples that nail the voice:
+              · LOVE: "Today wants honesty over comfort." / "Some conversations are overdue." / "Stop rehearsing the conversation in the shower."
+              · CAREER: "The earthy momentum favors structure today." / "Manifesting Success." / "Today is a build-the-foundation day, not a launch day."
+              · VITALITY: "Slow down before you move." / "Your body is asking for a different rhythm." / "The afternoon needs less from you than you think."
+              · GROWTH: "Today, sit with the discomfort." / "Inner work isn't always loud." / "The pattern you keep seeing is not random."
+              · SOCIAL: "Reach out to one person you've been dodging." / "Today's connections come from honesty." / "Communication flows better when you start from the heart."
+              Bad examples (do NOT do these): "A balanced day for love", "Career energy is steady", "Today's vibe is calm". Those are weak — they describe instead of speak.
             - energy: 1-2 words (e.g. "Strong", "Mixed", "Flowing", "Quiet", "Excellent", "Challenging")
             - intensity: 1-10 integer. How activated this area is today (1=dormant, 5=moderate, 8+=highly activated). Use actual transit strength to determine this.
             - archetype: 2-4 word archetype label for today's energy in this area (e.g. "The Bold Lover", "The Patient Builder", "The Quiet Healer", "The Connector", "The Scholar"). Must be specific to today's planetary weather, not generic.
-            - planetaryReason: Max 15 words, the transit/aspect behind it (e.g. "Venus trine natal Moon in 7th — emotional honesty resonates deeply")
+            - planetaryReason: Max 15 words, the transit/aspect behind it. This is the SUB TEXT under the headline — the why behind the what. (e.g. "Venus trine natal Moon in 7th — emotional honesty resonates deeply" / "Mars in your 7th asks you to listen first.")
             - drivingPlanet: The main planet driving this area today with its glyph (e.g. "Venus ♀", "Mars ♂", "Jupiter ♃", "Saturn ♄", "Mercury ☿", "Moon ☽", "Sun ☉", "Neptune ♆", "Pluto ♇", "Uranus ♅")
             - horoscope: 3-4 sentence FULL paragraph reading for this specific area. This is the deep dive — explain what's happening, why, and what it means for the user's life. Reference their natal placements. This should feel like a professional astrologer wrote it specifically for them. Max 60 words.
             - doItems: 3-4 specific things to do in this area (max 12 words each). Must be justified by actual transits. Be actionable and specific.

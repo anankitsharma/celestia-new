@@ -32,6 +32,7 @@ export const StorageKeys = {
     PRO_WEEK1_RECAP_SHOWN_AT: 'celestia_pro_week1_recap_shown_at',
     D30_REVEAL_CALLBACK_SHOWN: 'celestia_d30_reveal_callback_shown', // bool
     YEAR_IN_REVIEW_SHOWN_AT: 'celestia_year_in_review_shown_at', // ISO date string per renewal cycle
+    EXPERIMENTAL_TODAY_V2: 'celestia_experimental_today_v2', // bool — opt-in to the redesigned Today tab (V2 reel)
 };
 
 export const loadString = async (key) => {

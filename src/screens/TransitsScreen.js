@@ -12,6 +12,7 @@ import { completeQuestAction } from '../services/questService';
 import { haptic } from '../services/hapticService';
 import AstroText from '../components/AstroText';
 import CosmicTooltip from '../components/CosmicTooltip';
+import CelestiaMotif from '../components/CelestiaMotif';
 import { useShareCard } from '../components/ShareCard';
 import TransitShareCard from '../components/TransitShareCard';
 import { useRevenueCat } from '../contexts/RevenueCatContext';
@@ -259,29 +260,63 @@ export default function TransitsScreen({ navigation, route }) {
     <View style={{ flex: 1, backgroundColor: colors.bg }}>
       <ScrollView showsVerticalScrollIndicator={false}>
         {(() => {
-          const heroColors = isDark ? ['#3A1A28', '#5A2840', '#1F0F18'] : (colors.heroGradientLight || ['#F4ECE5', '#F0E4DC', '#ECDCD3']);
-          const heroFg = isDark ? T.cream : colors.heading;
-          const heroFgMuted = isDark ? 'rgba(250,248,242,0.44)' : colors.textSecondary;
-          const heroFgSoft = isDark ? 'rgba(250,248,242,0.5)' : colors.textMuted;
-          const heroFgWarm = isDark ? 'rgba(250,248,242,0.7)' : colors.text;
-          const tooltipFg = isDark ? 'rgba(250,248,242,0.4)' : colors.textMuted;
-          const stripBg = isDark ? 'rgba(255,255,255,0.05)' : 'rgba(92,36,52,0.06)';
-          const stripBorder = isDark ? 'rgba(255,255,255,0.07)' : 'rgba(42,36,24,0.08)';
-          const seasonBg = isDark ? 'rgba(200,168,75,0.1)' : 'rgba(160,120,32,0.1)';
+          // Hero gradient mirrors HomeScreenV2's sky card so the Today's Sky
+          // detail screen visually continues from the card the user tapped:
+          // cool-blue cream wash in light mode, burgundy ramp in dark.
+          const heroColors = isDark
+            ? ['#3A1A28', '#5A2840', '#1F0F18']
+            : ['#E0E8F2', '#F2F4F8', '#FAF6EE'];
+          const heroFg = isDark ? T.cream : '#1A1410';
+          const heroFgMuted = isDark ? 'rgba(250,248,242,0.65)' : 'rgba(26,20,16,0.62)';
+          const heroFgSoft = isDark ? 'rgba(250,248,242,0.45)' : 'rgba(26,20,16,0.45)';
+          const heroFgWarm = isDark ? 'rgba(250,248,242,0.7)' : 'rgba(26,20,16,0.62)';
+          const tooltipFg = isDark ? 'rgba(250,248,242,0.4)' : 'rgba(26,20,16,0.45)';
+          const stripBg = isDark ? 'rgba(255,255,255,0.05)' : '#FFFFFF';
+          const stripBorder = isDark ? 'rgba(255,255,255,0.07)' : 'rgba(26,20,16,0.06)';
+          const seasonBg = isDark ? 'rgba(200,168,75,0.1)' : 'rgba(254,217,184,0.5)';
+          const iconBtnBg = isDark ? 'rgba(250,248,242,0.10)' : '#FFFFFF';
+          const iconBtnBorder = isDark ? 'transparent' : 'rgba(26,20,16,0.06)';
+          const motifBg = isDark ? 'rgba(250,248,242,0.10)' : '#FFFFFF';
+          const motifBorder = isDark ? 'rgba(250,248,242,0.16)' : 'rgba(26,20,16,0.06)';
+          const tagBg = isDark ? 'rgba(254,217,184,0.20)' : 'rgba(254,217,184,0.5)';
+          const tagBorder = isDark ? 'rgba(254,217,184,0.35)' : '#FED9B8';
+          const today = new Date();
+          const days = ['SUN', 'MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT'];
+          const months = ['JAN','FEB','MAR','APR','MAY','JUN','JUL','AUG','SEP','OCT','NOV','DEC'];
+          const dateLabel = `${days[today.getDay()]} · ${months[today.getMonth()]} ${today.getDate()}`;
           return (
-        <LinearGradient colors={heroColors} locations={[0, 0.5, 1]} style={styles.hero}>
+        <LinearGradient colors={heroColors} locations={[0, 0.55, 1]} style={styles.hero}>
           {isDark && <View style={styles.heroGlow} />}
-          {navigation.canGoBack() && (
-            <TouchableOpacity onPress={() => navigation.goBack()} style={{ flexDirection: 'row', alignItems: 'center', gap: 4, marginBottom: 10 }}>
-              <Text style={{ fontSize: 16, color: heroFgSoft }}>‹</Text>
-              <Text style={{ fontSize: 13, color: heroFgSoft, fontFamily: FONTS.sans }}>Back</Text>
-            </TouchableOpacity>
-          )}
-          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+
+          {/* Top bar — back + date + symmetry spacer */}
+          <View style={styles.topBar}>
+            {navigation.canGoBack() ? (
+              <TouchableOpacity
+                onPress={() => navigation.goBack()}
+                style={[styles.iconBtn, { backgroundColor: iconBtnBg, borderColor: iconBtnBorder, borderWidth: isDark ? 0 : 1 }]}
+                hitSlop={{ top: 14, bottom: 14, left: 14, right: 14 }}>
+                <Text style={[styles.iconBtnText, { color: heroFg }]}>‹</Text>
+              </TouchableOpacity>
+            ) : <View style={{ width: 36 }} />}
+            <Text style={[styles.heroDate, { color: heroFgSoft }]}>{dateLabel}</Text>
+            <View style={{ width: 36 }} />
+          </View>
+
+          {/* Motif badge */}
+          <View style={[styles.motifBadge, { backgroundColor: motifBg, borderColor: motifBorder }]}>
+            <CelestiaMotif kind="sky" size={48} color={heroFg} />
+          </View>
+
+          {/* Tag pill */}
+          <View style={[styles.tagPill, { backgroundColor: tagBg, borderColor: tagBorder }]}>
+            <Text style={[styles.tagLabel, { color: heroFg }]}>TODAY'S SKY</Text>
+          </View>
+
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, justifyContent: 'center' }}>
             <Text style={[styles.title, { color: heroFg }]}>Today's Sky</Text>
             <CosmicTooltip id="transit" size={16} color={tooltipFg} light={isDark} />
           </View>
-          <Text style={[styles.sub, { color: heroFgMuted }]}>
+          <Text style={[styles.sub, { color: heroFgMuted, textAlign: 'center' }]}>
             {loading
               ? 'Reading the sky…'
               : `${transits.length} chapter${transits.length !== 1 ? 's' : ''} unfolding in your sky`
@@ -290,21 +325,21 @@ export default function TransitsScreen({ navigation, route }) {
           {!loading && transits.length > 0 && (
             <View style={[styles.skyStrip, { backgroundColor: stripBg, borderColor: stripBorder }]}>
               <View style={styles.skyStripItem}>
-                <Text style={styles.skyStripGlyph}>{transits[0]?.icons?.[0] || '★'}</Text>
-                <Text style={[styles.skyStripLabel, !isDark && { color: colors.text }]}>{transits[0]?.transitPlanet} in {transits[0]?.transitSign}</Text>
+                <Text style={[styles.skyStripGlyph, !isDark && { color: '#5C2434' }]}>{transits[0]?.icons?.[0] || '★'}</Text>
+                <Text style={[styles.skyStripLabel, !isDark && { color: heroFg }]}>{transits[0]?.transitPlanet} in {transits[0]?.transitSign}</Text>
               </View>
-              <View style={styles.skyStripDot} />
-              <Text style={[styles.skyStripAspect, !isDark && { color: colors.textSecondary }]}>{transits[0]?.aspectType}</Text>
-              <View style={styles.skyStripDot} />
+              <View style={[styles.skyStripDot, !isDark && { backgroundColor: 'rgba(26,20,16,0.25)' }]} />
+              <Text style={[styles.skyStripAspect, !isDark && { color: '#5C2434' }]}>{transits[0]?.aspectType}</Text>
+              <View style={[styles.skyStripDot, !isDark && { backgroundColor: 'rgba(26,20,16,0.25)' }]} />
               <View style={styles.skyStripItem}>
-                <Text style={styles.skyStripGlyph}>{transits[0]?.icons?.[1] || '★'}</Text>
-                <Text style={[styles.skyStripLabel, !isDark && { color: colors.text }]}>Natal {transits[0]?.natalPlanet}</Text>
+                <Text style={[styles.skyStripGlyph, !isDark && { color: '#5C2434' }]}>{transits[0]?.icons?.[1] || '★'}</Text>
+                <Text style={[styles.skyStripLabel, !isDark && { color: heroFg }]}>Natal {transits[0]?.natalPlanet}</Text>
               </View>
             </View>
           )}
           {cosmicSeason && (
-            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 10, backgroundColor: seasonBg, borderRadius: 8, paddingHorizontal: 10, paddingVertical: 6 }}>
-              <Text style={{ fontSize: 10, color: heroFgSoft, fontFamily: FONTS.sansSemiBold, letterSpacing: 1 }}>YOUR SEASON</Text>
+            <View style={{ flexDirection: 'row', alignItems: 'center', alignSelf: 'center', gap: 6, marginTop: 10, backgroundColor: seasonBg, borderRadius: 100, paddingHorizontal: 12, paddingVertical: 6, borderWidth: 1, borderColor: isDark ? 'transparent' : '#FED9B8' }}>
+              <Text style={{ fontSize: 10, color: heroFg, fontFamily: FONTS.sansSemiBold, letterSpacing: 1.2 }}>YOUR SEASON</Text>
               <Text style={{ fontSize: 11, color: heroFgWarm, fontFamily: FONTS.sans }}>{cosmicSeason.planet} in {cosmicSeason.natalTarget} · {cosmicSeason.progress}%</Text>
             </View>
           )}
@@ -543,11 +578,19 @@ export default function TransitsScreen({ navigation, route }) {
 }
 
 const styles = StyleSheet.create({
-  hero: { paddingTop: Platform.OS === 'ios' ? 70 : (StatusBar.currentHeight || 48) + 16, paddingHorizontal: 22, paddingBottom: 32, position: 'relative', overflow: 'hidden',  },
+  hero: { paddingTop: Platform.OS === 'ios' ? 50 : (StatusBar.currentHeight || 24) + 10, paddingHorizontal: 22, paddingBottom: 28, position: 'relative', overflow: 'hidden', alignItems: 'center', borderBottomLeftRadius: 28, borderBottomRightRadius: 28 },
   heroGlow: { position: 'absolute', width: 260, height: 260, borderRadius: 130, backgroundColor: 'rgba(200,168,75,0.08)', left: -80, top: -40 },
-  title: { fontFamily: FONTS.serif, fontSize: 30, color: T.cream, marginBottom: 5 },
+  // Detail-screen header chrome (matches LifeAreaDetailScreen / TodayReadingDetailScreen)
+  topBar: { width: '100%', flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 18 },
+  iconBtn: { width: 36, height: 36, borderRadius: 18, alignItems: 'center', justifyContent: 'center' },
+  iconBtnText: { fontSize: 20, fontFamily: FONTS.editorial },
+  heroDate: { fontFamily: FONTS.sansSemiBold, fontSize: 10, letterSpacing: 2.2 },
+  motifBadge: { width: 72, height: 72, borderRadius: 36, borderWidth: 1, alignItems: 'center', justifyContent: 'center', marginTop: 6, marginBottom: 14 },
+  tagPill: { paddingVertical: 5, paddingHorizontal: 14, borderRadius: 100, borderWidth: 1, marginBottom: 14 },
+  tagLabel: { fontFamily: FONTS.sansSemiBold, fontSize: 10, letterSpacing: 2.5 },
+  title: { fontFamily: FONTS.serif, fontSize: 30, color: T.cream, marginBottom: 5, textAlign: 'center' },
   sub: { fontSize: 12.5, color: 'rgba(250,248,242,0.44)', marginBottom: 4 },
-  skyStrip: { marginTop: 14, backgroundColor: 'rgba(255,255,255,0.05)', borderWidth: 1, borderColor: 'rgba(255,255,255,0.07)', borderRadius: 12, padding: 12, paddingHorizontal: 16, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8 },
+  skyStrip: { marginTop: 14, backgroundColor: 'rgba(255,255,255,0.05)', borderWidth: 1, borderColor: 'rgba(255,255,255,0.07)', borderRadius: 12, padding: 12, paddingHorizontal: 16, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, alignSelf: 'stretch' },
   skyStripItem: { flexDirection: 'row', alignItems: 'center', gap: 6 },
   skyStripGlyph: { fontSize: 16, color: T.gold },
   skyStripLabel: { fontSize: 11, color: 'rgba(250,248,242,0.6)', fontFamily: FONTS.sansMedium },

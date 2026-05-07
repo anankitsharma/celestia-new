@@ -7,7 +7,8 @@ import {
   Sparkles,
   Compass,
   Users,
-  ScrollText
+  ScrollText,
+  Wand2,
 } from 'lucide-react-native';
 import { T, FONTS } from '../constants/theme';
 import { useTheme } from '../contexts/ThemeContext';
@@ -20,6 +21,8 @@ const TABS = [
   { icon: Compass, label: 'Chart', name: 'Chart' },
   { icon: Users, label: 'Circle', name: 'Circle' },
   { icon: ScrollText, label: 'Reports', name: 'Reports' },
+  // Temporary 6th tab — the V2 reel preview while we iterate the redesign.
+  { icon: Wand2, label: 'New', name: 'TodayV2' },
 ];
 
 export default function TabBar({ state, navigation }) {
