@@ -1,4 +1,5 @@
 import React, { useEffect, useState, useRef } from 'react';
+import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { StatusBar } from 'expo-status-bar';
 import { NavigationContainer, useNavigationContainerRef, DefaultTheme, DarkTheme } from '@react-navigation/native';
 import { useFonts } from 'expo-font';
@@ -9,6 +10,12 @@ import {
   PlayfairDisplay_500Medium,
   PlayfairDisplay_600SemiBold,
 } from '@expo-google-fonts/playfair-display';
+import {
+  Newsreader_400Regular,
+  Newsreader_400Regular_Italic,
+  Newsreader_500Medium,
+  Newsreader_600SemiBold,
+} from '@expo-google-fonts/newsreader';
 import {
   DMSans_300Light,
   DMSans_400Regular,
@@ -85,6 +92,10 @@ export default function App() {
     PlayfairDisplay_400Regular_Italic,
     PlayfairDisplay_500Medium,
     PlayfairDisplay_600SemiBold,
+    Newsreader_400Regular,
+    Newsreader_400Regular_Italic,
+    Newsreader_500Medium,
+    Newsreader_600SemiBold,
     DMSans_300Light,
     DMSans_400Regular,
     DMSans_500Medium,
@@ -214,6 +225,7 @@ export default function App() {
   }
 
   return (
+    <GestureHandlerRootView style={{ flex: 1 }}>
     <PostHogProvider
       apiKey="phc_bPp0sgaFIhPbZaqU6613cEiy0sJbJd5C20Vk8TgN3Zd"
       options={{ host: 'https://us.i.posthog.com' }}
@@ -235,5 +247,6 @@ export default function App() {
         </ThemeProvider>
       </KeyboardProvider>
     </PostHogProvider>
+    </GestureHandlerRootView>
   );
 }

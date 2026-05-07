@@ -60,10 +60,18 @@ export const SIGNAL = {
 };
 
 export const FONTS = {
+  // Default serif — Playfair Display. Used by V1, share cards, PDF reports.
   serif: 'PlayfairDisplay_400Regular',
   serifItalic: 'PlayfairDisplay_400Regular_Italic',
   serifMedium: 'PlayfairDisplay_500Medium',
   serifSemiBold: 'PlayfairDisplay_600SemiBold',
+  // Editorial serif — Newsreader. V2 cards / detail screens (Stitch v2 brief).
+  // More literary, slightly tighter optical proportions than Playfair Display.
+  editorial: 'Newsreader_400Regular',
+  editorialItalic: 'Newsreader_400Regular_Italic',
+  editorialMedium: 'Newsreader_500Medium',
+  editorialSemiBold: 'Newsreader_600SemiBold',
+  // Sans
   sans: 'DMSans_400Regular',
   sansLight: 'DMSans_300Light',
   sansMedium: 'DMSans_500Medium',

@@ -3,6 +3,7 @@ import {
   View, Text, ScrollView, TouchableOpacity, StyleSheet,
   ActivityIndicator, Share, Modal, TextInput, Alert, Dimensions, Platform, StatusBar, Animated, RefreshControl
 } from 'react-native';
+import HomeScreenV2 from './HomeScreenV2';
 import { LinearGradient } from 'expo-linear-gradient';
 import { T, FONTS } from '../constants/theme';
 import { useTheme } from '../contexts/ThemeContext';
@@ -147,7 +148,22 @@ const MOTIVATION_TEXT = {
   curious: 'explore what\'s possible',
 };
 
-export default function HomeScreen({ navigation, route }) {
+// V2 router — while iterating, V2 lives on the separate "New" tab in
+// AppNavigator. The Today tab stays V1 unless the user opts into V2 via
+// Profile → Experimental. Once V2 is finalized, flip the default and
+// remove the New tab. See plan/redesign-home/.
+export default function HomeScreen(props) {
+  const [useV2, setUseV2] = useState(null);
+  useEffect(() => {
+    loadBoolean(StorageKeys.EXPERIMENTAL_TODAY_V2)
+      .then((v) => setUseV2(!!v))
+      .catch(() => setUseV2(false));
+  }, []);
+  if (useV2 === null) return null;
+  return useV2 ? <HomeScreenV2 {...props} /> : <HomeScreenV1 {...props} />;
+}
+
+function HomeScreenV1({ navigation, route }) {
   const { isPro } = useRevenueCat();
   const { colors, isDark } = useTheme();
   const { capture } = useAnalytics();
