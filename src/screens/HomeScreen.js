@@ -256,6 +256,23 @@ function HomeScreenV1({ navigation, route }) {
 
   const [narrativeCtx, setNarrativeCtx] = useState(null);
   const [showNotifModal, setShowNotifModal] = useState(false);
+  // Hydrated on mount — feeds the permission modal's "Tomorrow at X" hero
+  // + D1 push preview. Cheap reads, only run once per session.
+  const [notifWakeTime, setNotifWakeTime] = useState({ hour: 7, minute: 0 });
+  const [notifFirstReveal, setNotifFirstReveal] = useState('');
+  useEffect(() => {
+    (async () => {
+      try {
+        const settings = await getNotificationSettings();
+        setNotifWakeTime({
+          hour: typeof settings?.morningTime === 'number' ? settings.morningTime : 7,
+          minute: typeof settings?.morningMinute === 'number' ? settings.morningMinute : 0,
+        });
+        const reveal = await loadString(StorageKeys.FIRST_REVEAL_STATEMENT);
+        if (reveal) setNotifFirstReveal(reveal);
+      } catch {}
+    })();
+  }, []);
   const [refreshing, setRefreshing] = useState(false);
 
   const mainScrollRef = useRef(null);
@@ -3309,6 +3326,8 @@ function HomeScreenV1({ navigation, route }) {
       {/* ── NOTIFICATION PERMISSION MODAL ── */}
       <NotificationPermissionModal
         visible={showNotifModal}
+        wakeTime={notifWakeTime}
+        firstRevealStatement={notifFirstReveal}
         onEnable={async () => {
           setShowNotifModal(false);
           await saveBoolean(StorageKeys.NOTIFICATION_ASKED, true);

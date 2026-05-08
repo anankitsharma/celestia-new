@@ -301,30 +301,20 @@ export default function ChartScreen() {
   const rising = chart.planets?.find(p => p.name === 'Ascendant');
 
   return (
-    <View style={{ flex: 1, backgroundColor: colors.bg }}>
+    <View style={{ flex: 1, backgroundColor: '#FCF9F8' }}>
       <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 110 }}>
-        {(() => {
-          // Chart hero stays dark even in light mode — the chart wheel SVG strokes
-          // need a dark backdrop for legibility. Light mode uses a burgundy ramp
-          // (on-brand with the new palette) instead of cream-ivory.
-          const heroColors = isDark ? colors.heroGradient : (colors.heroGradientBurgundy || colors.heroGradient);
-          const heroFg = T.cream;
-          const heroFgMuted = 'rgba(250,248,242,0.45)';
-          const heroFgSoft = 'rgba(250,248,242,0.4)';
-          const dividerColor = 'rgba(255,255,255,0.1)';
-          const tooltipFg = 'rgba(250,248,242,0.35)';
-          const sharePillBg = 'rgba(200,168,75,0.15)';
-          const sharePillBorder = 'rgba(200,168,75,0.3)';
-          const sharePillText = T.gold;
-          return (
-        <LinearGradient colors={heroColors} locations={[0, 0.5, 1]} style={styles.hero}>
-          {/* Centered title + subtitle */}
-          <Text style={[styles.title, { color: heroFg }]}>Birth Chart</Text>
-          <Text style={[styles.heroSub, { color: heroFgMuted }]}>
-            {sun ? `${sun.sign} Sun` : ''}
-            {moon ? ` · ${moon.sign} Moon` : ''}
-            {rising ? ` · ${rising.sign} Rising` : ''}
-          </Text>
+        {/* ── HERO — light editorial ramp (matches LifeAreaDetail) ── */}
+        <LinearGradient colors={['#FBDFC6', '#FAEEDD', '#FAF6EE']} locations={[0, 0.55, 1]} style={styles.hero}>
+          {/* Sheen */}
+          <LinearGradient
+            colors={['rgba(255,255,255,0.55)', 'rgba(255,255,255,0)']}
+            locations={[0, 0.5]}
+            style={styles.heroSheen}
+            pointerEvents="none"
+          />
+
+          {/* Centered title — Big 3 row carries the sign breakdown */}
+          <Text style={[styles.title, { color: '#1A1410', marginBottom: 14 }]}>Birth Chart</Text>
 
           {/* Big 3 — centered row with dividers */}
           {(sun || moon || rising) && (
@@ -332,47 +322,50 @@ export default function ChartScreen() {
               {sun && <View style={styles.big3Item}>
                 <Text style={styles.big3Glyph}>☉</Text>
                 <View style={{ flexDirection: 'row', alignItems: 'center', gap: 2 }}>
-                  <Text style={[styles.big3Sign, { color: heroFg }]}>{sun.sign}</Text>
-                  <CosmicTooltip id="sun_sign" size={12} color={tooltipFg} light />
+                  <Text style={[styles.big3Sign, { color: '#1A1410' }]}>{sun.sign}</Text>
+                  <CosmicTooltip id="sun_sign" size={12} color="rgba(26,20,16,0.45)" />
                 </View>
-                <Text style={[styles.big3Label, { color: heroFgSoft }]}>SUN</Text>
+                <Text style={[styles.big3Label, { color: 'rgba(26,20,16,0.5)' }]}>SUN</Text>
               </View>}
-              {moon && <View style={[styles.big3Item, styles.big3Divider, { borderColor: dividerColor }]}>
+              {moon && <View style={[styles.big3Item, styles.big3Divider, { borderColor: 'rgba(26,20,16,0.10)' }]}>
                 <Text style={styles.big3Glyph}>☽</Text>
                 <View style={{ flexDirection: 'row', alignItems: 'center', gap: 2 }}>
-                  <Text style={[styles.big3Sign, { color: heroFg }]}>{moon.sign}</Text>
-                  <CosmicTooltip id="moon_sign" size={12} color={tooltipFg} light />
+                  <Text style={[styles.big3Sign, { color: '#1A1410' }]}>{moon.sign}</Text>
+                  <CosmicTooltip id="moon_sign" size={12} color="rgba(26,20,16,0.45)" />
                 </View>
-                <Text style={[styles.big3Label, { color: heroFgSoft }]}>MOON</Text>
+                <Text style={[styles.big3Label, { color: 'rgba(26,20,16,0.5)' }]}>MOON</Text>
               </View>}
               {rising && <View style={styles.big3Item}>
                 <Text style={styles.big3Glyph}>↑</Text>
                 <View style={{ flexDirection: 'row', alignItems: 'center', gap: 2 }}>
-                  <Text style={[styles.big3Sign, { color: heroFg }]}>{rising.sign}</Text>
-                  <CosmicTooltip id="rising_sign" size={12} color={tooltipFg} light />
+                  <Text style={[styles.big3Sign, { color: '#1A1410' }]}>{rising.sign}</Text>
+                  <CosmicTooltip id="rising_sign" size={12} color="rgba(26,20,16,0.45)" />
                 </View>
-                <Text style={[styles.big3Label, { color: heroFgSoft }]}>RISING</Text>
+                <Text style={[styles.big3Label, { color: 'rgba(26,20,16,0.5)' }]}>RISING</Text>
               </View>}
             </View>
           )}
 
-          {/* Share My Chart */}
-          <TouchableOpacity style={[styles.shareChartBtn, { backgroundColor: sharePillBg, borderColor: sharePillBorder }]} activeOpacity={0.75} onPress={async () => {
+          {/* Share My Chart — white pill with hairline */}
+          <TouchableOpacity style={[styles.shareChartBtn, { backgroundColor: '#FFFFFF', borderColor: 'rgba(26,20,16,0.08)' }]} activeOpacity={0.8} onPress={async () => {
             haptic.light();
             await shareBigThree(`My cosmic identity: ${sun?.sign} Sun · ${moon?.sign} Moon · ${rising?.sign} Rising`);
             trackEvent('share');
             awardXP(userProfile?.id, 'share');
           }}>
-            <Text style={[styles.shareChartText, { color: sharePillText }]}>Share My Chart</Text>
+            <Text style={[styles.shareChartText, { color: T.clay }]}>Share My Chart</Text>
           </TouchableOpacity>
-
-          {/* Chart Wheel — inside hero */}
-          <View style={{ alignItems: 'center', marginTop: 12 }}>
-            <ChartWheel size={280} planets={chart.planets} aspects={chart.aspects} />
-          </View>
         </LinearGradient>
-          );
-        })()}
+
+        {/* Chart Wheel — self-contained dark "wheel chamber" below hero */}
+        <View style={styles.wheelChamberWrap}>
+          <LinearGradient
+            colors={['#5A2840', '#3A1A28', '#1F0F18']}
+            locations={[0, 0.55, 1]}
+            style={styles.wheelChamber}>
+            <ChartWheel size={280} planets={chart.planets} aspects={chart.aspects} />
+          </LinearGradient>
+        </View>
 
         {/* Floating tab pill — overlaps hero bottom edge */}
         <View style={styles.chartTabWrap}>
@@ -390,9 +383,7 @@ export default function ChartScreen() {
               style={[styles.depthToggle, detailedMode && styles.depthToggleActive, { marginLeft: 'auto' }]}
               activeOpacity={0.7}
               onPress={() => { haptic.light(); setDetailedMode(prev => !prev); }}>
-              <Text style={[styles.depthToggleText, detailedMode && styles.depthToggleTextActive]}>
-                {detailedMode ? '⚙️' : '✦'}
-              </Text>
+              <Text style={[styles.depthToggleText, detailedMode && styles.depthToggleTextActive]}>✦</Text>
             </TouchableOpacity>
           </View>
         </View>
@@ -422,7 +413,7 @@ export default function ChartScreen() {
                       style={{ marginTop: 8, alignSelf: 'flex-start' }}
                       activeOpacity={0.7}
                       onPress={() => navigation.navigate('AskAI', { initialMessage: `Tell me more about my ${p.label} aspect. ${p.text} How does this play out in my daily life and relationships?` })}>
-                      <Text style={{ fontSize: 11, fontFamily: FONTS.sansMedium, color: T.gold }}>Ask Celestia about this →</Text>
+                      <Text style={{ fontSize: 11, fontFamily: FONTS.sansMedium, color: T.brass }}>Ask Celestia about this →</Text>
                     </TouchableOpacity>
                   </View>
                 ))}
@@ -435,7 +426,7 @@ export default function ChartScreen() {
                 <Text style={styles.atGlanceTitle}>YOUR ELEMENTAL BALANCE</Text>
                 <View style={styles.balanceRow}>
                   {Object.entries(chartBalance.elements).map(([el, count]) => {
-                    const icons = { Fire: '🔥', Earth: '🌿', Air: '💨', Water: '🌊' };
+                    const icons = { Fire: '🜂', Earth: '🜃', Air: '🜁', Water: '🜄' };
                     const pct = Math.round((count / chartBalance.total) * 100);
                     return (
                       <View key={el} style={styles.balanceItem}>
@@ -606,10 +597,16 @@ export default function ChartScreen() {
               </View>
               {/* Unlock options */}
               <TouchableOpacity
-                style={{ backgroundColor: colors.navy, borderRadius: 100, paddingVertical: 12, paddingHorizontal: 28, marginBottom: 10, width: '100%', alignItems: 'center' }}
-                activeOpacity={0.8}
-                onPress={() => { setShowDeepDive(false); navigation.navigate('Paywall', { source: 'drip' }); }}>
-                <Text style={{ fontFamily: FONTS.sansMedium, fontSize: 13, color: T.cream }}>See All Your Placements Now →</Text>
+                activeOpacity={0.85}
+                onPress={() => { setShowDeepDive(false); navigation.navigate('Paywall', { source: 'drip' }); }}
+                style={{ width: '100%', marginBottom: 10, shadowColor: '#5C2434', shadowOffset: { width: 0, height: 8 }, shadowOpacity: 0.3, shadowRadius: 18, elevation: 8 }}>
+                <LinearGradient
+                  colors={['#FED9B8', '#E9DDFF']}
+                  start={{ x: 0, y: 0 }}
+                  end={{ x: 1, y: 0 }}
+                  style={{ borderRadius: 100, paddingVertical: 14, paddingHorizontal: 28, alignItems: 'center' }}>
+                  <Text style={{ fontFamily: FONTS.sansSemiBold, fontSize: 13, color: T.navy, letterSpacing: 0.3 }}>See All Your Placements Now →</Text>
+                </LinearGradient>
               </TouchableOpacity>
               <Text style={{ fontSize: 11, color: colors.textSecondary, textAlign: 'center' }}>
                 or come back {deepDive.unlockDay === 1 ? 'tomorrow' : `in ${deepDive.unlockDay} days`} to unlock for free
@@ -828,7 +825,7 @@ export default function ChartScreen() {
                   awardXP(userProfile?.id, 'share');
                 }}>
                   <View ref={quoteRef} collapsable={false}>
-                    <LinearGradient colors={['#3A1A28', '#1A1060']} style={styles.ddQuoteCard}>
+                    <LinearGradient colors={['#5A2840', '#3A1A28', '#1F0F18']} style={styles.ddQuoteCard}>
                       <Text style={styles.ddQuote}>"{deepDive.share_quote}"</Text>
                       <Text style={styles.ddShareHint}>Tap to share ↗</Text>
                     </LinearGradient>
@@ -866,7 +863,10 @@ const toRoman = (n) => {
 };
 
 const styles = StyleSheet.create({
-  hero: { paddingTop: Platform.OS === 'ios' ? 70 : (StatusBar.currentHeight || 48) + 16, paddingBottom: 40, alignItems: 'center', position: 'relative', borderBottomLeftRadius: 36, borderBottomRightRadius: 36 },
+  hero: { paddingTop: Platform.OS === 'ios' ? 70 : (StatusBar.currentHeight || 48) + 16, paddingBottom: 28, paddingHorizontal: 22, alignItems: 'center', position: 'relative', borderBottomLeftRadius: 28, borderBottomRightRadius: 28, overflow: 'hidden' },
+  heroSheen: { position: 'absolute', top: 0, left: 0, right: 0, height: '50%' },
+  wheelChamberWrap: { paddingHorizontal: 20, marginTop: 16 },
+  wheelChamber: { borderRadius: 24, paddingVertical: 22, paddingHorizontal: 16, alignItems: 'center', shadowColor: '#1F0F18', shadowOffset: { width: 0, height: 10 }, shadowOpacity: 0.18, shadowRadius: 22, elevation: 6 },
   methodologyFooter: { fontSize: 10, color: 'rgba(151,144,127,0.65)', fontFamily: FONTS.sans, fontStyle: 'italic', textAlign: 'center', paddingHorizontal: 24, marginTop: 12 },
   title: { fontFamily: FONTS.serif, fontSize: 32, color: T.cream, textAlign: 'center' },
   heroSub: { fontSize: 12, color: 'rgba(250,248,242,0.45)', marginTop: 4, textAlign: 'center', marginBottom: 16 },
@@ -881,14 +881,14 @@ const styles = StyleSheet.create({
   big3Row: { flexDirection: 'row', width: '100%', paddingHorizontal: 22, marginBottom: 14, justifyContent: 'center' },
   big3Item: { flex: 1, alignItems: 'center', paddingVertical: 8 },
   big3Divider: { borderLeftWidth: 1, borderRightWidth: 1, borderColor: 'rgba(255,255,255,0.1)' },
-  big3Glyph: { fontSize: 22, color: T.gold, marginBottom: 4 },
-  big3Sign: { fontFamily: FONTS.serif, fontSize: 15, color: T.cream },
-  big3Label: { fontSize: 9, fontFamily: FONTS.sansSemiBold, letterSpacing: 1.2, color: 'rgba(250,248,242,0.4)', marginTop: 2 },
+  big3Glyph: { fontSize: 22, color: T.brass, marginBottom: 4 },
+  big3Sign: { fontFamily: FONTS.serif, fontSize: 15, color: '#1A1410' },
+  big3Label: { fontSize: 9, fontFamily: FONTS.sansSemiBold, letterSpacing: 1.2, color: 'rgba(26,20,16,0.5)', marginTop: 2 },
   // Floating tab pill (same as HomeScreen)
   chartTabWrap: { marginTop: -24, paddingHorizontal: 20, marginBottom: 16, zIndex: 10 },
   chartTabBar: { flexDirection: 'row', borderRadius: 100, padding: 4, shadowColor: '#000', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.08, shadowRadius: 20, elevation: 6, borderWidth: 1 },
   chartTab: { flex: 1, paddingVertical: 11, alignItems: 'center', borderRadius: 100 },
-  chartTabOn: { backgroundColor: T.navy },
+  chartTabOn: { backgroundColor: T.clay },
   chartTabText: { fontSize: 13, fontFamily: FONTS.sansMedium, color: T.stone },
   chartTabTextOn: { color: T.cream, fontFamily: FONTS.sansSemiBold },
   list: { paddingHorizontal: 20, paddingTop: 6 },
@@ -952,7 +952,7 @@ const styles = StyleSheet.create({
   // Balance
   balanceRow: { flexDirection: 'row', justifyContent: 'space-around', marginBottom: 10 },
   balanceItem: { alignItems: 'center', width: 60 },
-  balanceIcon: { fontSize: 16, marginBottom: 4 },
+  balanceIcon: { fontSize: 18, marginBottom: 4, color: T.clay, fontFamily: FONTS.serif },
   balanceBarTrack: { width: 20, height: 48, backgroundColor: '#F0E8DA', borderRadius: 10, overflow: 'hidden', justifyContent: 'flex-end', marginBottom: 4 },
   balanceBarFill: { width: '100%', backgroundColor: T.gold, borderRadius: 10 },
   balanceLabel: { fontSize: 9, fontFamily: FONTS.sansSemiBold, color: T.stone, letterSpacing: 0.5 },
@@ -964,7 +964,7 @@ const styles = StyleSheet.create({
   atGlanceToggleText: { fontSize: 12, fontFamily: FONTS.sansMedium, color: T.gold },
   // Deep dive bridge stack
   ddBridgeStack: { gap: 8, marginTop: 12 },
-  ddAskBtn: { flexDirection: 'row', alignItems: 'center', gap: 8, backgroundColor: T.navy, borderRadius: 12, padding: 12 },
+  ddAskBtn: { flexDirection: 'row', alignItems: 'center', gap: 8, backgroundColor: T.clay, borderRadius: 12, padding: 12 },
   ddAskBtnIcon: { fontSize: 16, color: T.gold },
   ddAskBtnText: { flex: 1, fontSize: 13, fontFamily: FONTS.sansMedium, color: T.cream },
   ddBridgeBtn: { flexDirection: 'row', alignItems: 'center', gap: 8, backgroundColor: T.warm, borderRadius: 12, padding: 12, borderWidth: 1, borderColor: '#E8E2D8' },

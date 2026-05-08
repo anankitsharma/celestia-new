@@ -1,7 +1,7 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View, Text, TouchableOpacity, StyleSheet, Platform,
-  StatusBar, ActivityIndicator, Alert, Image, Dimensions, Animated, Easing,
+  StatusBar, ActivityIndicator, Alert, Image,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import ReAnimated, {
@@ -10,41 +10,29 @@ import ReAnimated, {
 import { T, FONTS } from '../constants/theme';
 import { useAuth } from '../contexts/AuthContext';
 import { useTheme } from '../contexts/ThemeContext';
+import CelestialSigil from '../components/CelestialSigil';
 
-const { width, height } = Dimensions.get('window');
-
+// AuthScreen — aligned to onboarding's editorial language.
+// Cream paper bg (#FCF9F8), navy Playfair H1, animated CelestialSigil
+// brand mark, peach→lavender HomeStyleCta-style Google button.
 export default function AuthScreen({ navigation, route }) {
-  const { colors, isDark } = useTheme();
+  const { colors } = useTheme();
   const { onSignIn } = useAuth();
   const isOnboarding = route.params?.mode === 'onboarding';
   const [loading, setLoading] = useState(false);
 
-  // Orbit animation
-  const rotation = useRef(new Animated.Value(0)).current;
-  const float = useRef(new Animated.Value(0)).current;
-
-  // Entrance animations
-  const logoOpacity = useSharedValue(0);
-  const logoScale = useSharedValue(0.7);
+  // Entrance animations — sequential reveal of sigil → title → card → footer
+  const sigilOpacity = useSharedValue(0);
+  const sigilScale = useSharedValue(0.85);
   const titleOpacity = useSharedValue(0);
   const titleTranslateY = useSharedValue(14);
   const cardOpacity = useSharedValue(0);
-  const cardTranslateY = useSharedValue(24);
+  const cardTranslateY = useSharedValue(20);
   const footerOpacity = useSharedValue(0);
 
   useEffect(() => {
-    Animated.loop(
-      Animated.timing(rotation, { toValue: 1, duration: 20000, easing: Easing.linear, useNativeDriver: true })
-    ).start();
-    Animated.loop(
-      Animated.sequence([
-        Animated.timing(float, { toValue: -6, duration: 3000, easing: Easing.inOut(Easing.ease), useNativeDriver: true }),
-        Animated.timing(float, { toValue: 0, duration: 3000, easing: Easing.inOut(Easing.ease), useNativeDriver: true }),
-      ])
-    ).start();
-
-    logoOpacity.value = withTiming(1, { duration: 600 });
-    logoScale.value = withTiming(1, { duration: 600 });
+    sigilOpacity.value = withTiming(1, { duration: 600 });
+    sigilScale.value = withTiming(1, { duration: 600 });
     titleOpacity.value = withDelay(250, withTiming(1, { duration: 500 }));
     titleTranslateY.value = withDelay(250, withTiming(0, { duration: 500 }));
     cardOpacity.value = withDelay(450, withTiming(1, { duration: 500 }));
@@ -52,11 +40,9 @@ export default function AuthScreen({ navigation, route }) {
     footerOpacity.value = withDelay(650, withTiming(1, { duration: 400 }));
   }, []);
 
-  const spin = rotation.interpolate({ inputRange: [0, 1], outputRange: ['0deg', '360deg'] });
-
-  const logoStyle = useAnimatedStyle(() => ({
-    opacity: logoOpacity.value,
-    transform: [{ scale: logoScale.value }],
+  const sigilStyle = useAnimatedStyle(() => ({
+    opacity: sigilOpacity.value,
+    transform: [{ scale: sigilScale.value }],
   }));
   const titleStyle = useAnimatedStyle(() => ({
     opacity: titleOpacity.value,
@@ -93,117 +79,106 @@ export default function AuthScreen({ navigation, route }) {
   };
 
   return (
-    <View style={[s.container, { backgroundColor: colors.bg }]}>
-      <StatusBar barStyle={isDark ? 'light-content' : 'dark-content'} />
+    <View style={[s.container, { backgroundColor: '#FCF9F8' }]}>
+      <StatusBar barStyle="dark-content" />
 
-      {/* Hero header — matches app hero pattern */}
-      <LinearGradient
-        colors={['#5A2840', '#3A1A28', '#1F0F18']}
-        start={{ x: 0.3, y: 0 }}
-        end={{ x: 0.7, y: 1 }}
-        style={s.hero}
-      >
-        {/* Back / Skip */}
-        <View style={s.topControls}>
-          {isOnboarding ? (
-            <TouchableOpacity onPress={() => navigation.replace('Main')} style={s.skipBtn} activeOpacity={0.7}>
-              <Text style={s.skipText}>Skip for now</Text>
-            </TouchableOpacity>
-          ) : (
-            <TouchableOpacity onPress={() => navigation.goBack()} style={s.backBtn} activeOpacity={0.7}>
-              <Text style={s.backText}>{'‹'}</Text>
-            </TouchableOpacity>
-          )}
-        </View>
+      {/* Top controls — back/skip on cream bg */}
+      <View style={s.topControls}>
+        {isOnboarding ? (
+          <TouchableOpacity
+            onPress={() => navigation.replace('Main')}
+            style={s.skipBtn}
+            activeOpacity={0.7}>
+            <Text style={s.skipText}>Skip for now</Text>
+          </TouchableOpacity>
+        ) : (
+          <TouchableOpacity
+            onPress={() => navigation.goBack()}
+            style={s.backBtn}
+            activeOpacity={0.7}>
+            <Text style={s.backText}>{'‹'}</Text>
+          </TouchableOpacity>
+        )}
+      </View>
 
-        {/* Floating orb */}
-        <ReAnimated.View style={[s.orbArea, logoStyle]}>
-          <Animated.View style={{ transform: [{ translateY: float }], alignItems: 'center', justifyContent: 'center' }}>
-            <Animated.View style={[s.orbitRing, { transform: [{ rotate: spin }] }]}>
-              <View style={s.orbitDot} />
-            </Animated.View>
-            <View style={s.innerRing} />
-            <LinearGradient
-              colors={['#EDD060', '#C8A84B', '#8C6C18']}
-              locations={[0, 0.5, 1]}
-              style={s.orb}
-            >
-              <Text style={s.orbSymbol}>{'☽'}</Text>
-            </LinearGradient>
-          </Animated.View>
+      {/* Hero — animated sigil + Playfair title on cream */}
+      <View style={s.hero}>
+        <ReAnimated.View style={[s.sigilWrap, sigilStyle]}>
+          <CelestialSigil size={72} color="#D4A853" />
         </ReAnimated.View>
 
-        {/* Title in hero */}
         <ReAnimated.View style={[s.heroTextArea, titleStyle]}>
           <Text style={s.heroTitle}>Welcome to Celestia</Text>
           <Text style={s.heroSub}>
             {isOnboarding
-              ? 'Sign in to sync your chart and history'
-              : 'Sign in to continue your journey'}
+              ? 'Sign in to sync your chart and history.'
+              : 'Sign in to continue your journey.'}
           </Text>
         </ReAnimated.View>
-      </LinearGradient>
+      </View>
 
-      {/* Body — light cream background */}
+      {/* Body — flat layout, no card chrome */}
       <View style={s.body}>
-
-        {/* Benefits — above login */}
+        {/* Benefits */}
         <ReAnimated.View style={[s.benefitsArea, cardStyle]}>
           {[
-            { icon: '☁', text: 'Back up your chart to the cloud' },
-            { icon: '🔄', text: 'Sync across all your devices' },
-            { icon: '✦', text: 'Unlock your full chart profile' },
+            { glyph: '☁', text: 'Back up your chart to the cloud' },
+            { glyph: '↻', text: 'Sync across all your devices' },
+            { glyph: '✦', text: 'Unlock your full chart profile' },
           ].map((b, i) => (
             <View key={i} style={s.benefitRow}>
-              <View style={s.benefitIcon}><Text style={{ fontSize: 14 }}>{b.icon}</Text></View>
-              <Text style={[s.benefitText, { color: colors.text }]}>{b.text}</Text>
+              <View style={s.benefitGlyphWrap}>
+                <Text style={s.benefitGlyph}>{b.glyph}</Text>
+              </View>
+              <Text style={s.benefitText}>{b.text}</Text>
             </View>
           ))}
         </ReAnimated.View>
 
-        {/* Sign-in card */}
-        <ReAnimated.View style={[s.card, cardStyle, { backgroundColor: colors.card, borderColor: colors.border }]}>
-          <View style={s.cardDivider}>
-            <View style={[s.dividerLine, { backgroundColor: colors.border }]} />
-            <Text style={[s.cardLabel, { color: colors.textSecondary }]}>CONTINUE WITH</Text>
-            <View style={[s.dividerLine, { backgroundColor: colors.border }]} />
-          </View>
+        {/* CONTINUE WITH divider */}
+        <ReAnimated.View style={[s.divider, cardStyle]}>
+          <View style={s.dividerLine} />
+          <Text style={s.dividerLabel}>CONTINUE WITH</Text>
+          <View style={s.dividerLine} />
+        </ReAnimated.View>
 
-          {/* Google button */}
+        {/* Google button — peach→lavender HomeStyleCta-style pill */}
+        <ReAnimated.View style={[{ alignSelf: 'center' }, cardStyle]}>
           <TouchableOpacity
-            style={s.googleBtn}
             activeOpacity={0.85}
             onPress={handleGoogleSignIn}
             disabled={loading}
-          >
-            {loading ? (
-              <ActivityIndicator color={T.ink} />
-            ) : (
-              <View style={s.btnContent}>
-                <Image
-                  source={require('../../assets/google_logo.png')}
-                  style={s.googleIcon}
-                />
-                <Text style={s.googleText}>Continue with Google</Text>
-              </View>
-            )}
+            style={[s.ctaShadow, loading && { shadowOpacity: 0.10 }]}
+            accessibilityRole="button"
+            accessibilityLabel="Continue with Google"
+            accessibilityState={{ disabled: !!loading, busy: !!loading }}>
+            <LinearGradient
+              colors={loading ? ['#E8E1D8', '#DDD8E5'] : ['#FED9B8', '#E9DDFF']}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 1, y: 0 }}
+              style={[s.ctaGradient, loading && { opacity: 0.7 }]}>
+              {loading ? (
+                <ActivityIndicator color="#1B1C1C" />
+              ) : (
+                <View style={s.ctaInner}>
+                  <Image
+                    source={require('../../assets/google_logo.png')}
+                    style={s.googleIcon}
+                  />
+                  <Text style={s.ctaText}>Continue with Google</Text>
+                </View>
+              )}
+            </LinearGradient>
           </TouchableOpacity>
+        </ReAnimated.View>
 
-          {/* Decorative dots */}
-          <View style={s.dotsRow}>
-            {[0.15, 0.3, 0.5, 0.8, 0.5, 0.3, 0.15].map((o, i) => (
-              <View key={i} style={[s.dot, { opacity: o }]} />
-            ))}
-          </View>
-
-          <Text style={[s.secureText, { color: colors.textSecondary }]}>
-            {'🔒'}  Your data is encrypted and secure
-          </Text>
+        <ReAnimated.View style={[s.secureRow, footerStyle]}>
+          <Text style={s.secureText}>🔒  Your data is encrypted and secure</Text>
         </ReAnimated.View>
 
         {/* Legal */}
         <ReAnimated.View style={[s.legalArea, footerStyle]}>
-          <Text style={[s.legalText, { color: colors.textSecondary }]}>
+          <Text style={s.legalText}>
             By continuing, you agree to our{' '}
             <Text style={s.legalLink}>Terms of Service</Text>
             {' '}and{' '}
@@ -216,239 +191,156 @@ export default function AuthScreen({ navigation, route }) {
 }
 
 const s = StyleSheet.create({
-  container: { flex: 1, backgroundColor: T.cream },
+  container: { flex: 1 },
 
-  // Hero — matches app hero pattern with rounded bottom
-  hero: {
-    paddingTop: Platform.OS === 'ios' ? 70 : (StatusBar.currentHeight || 48) + 16,
-    paddingBottom: 20,
-    alignItems: 'center',
-    
-    
-    overflow: 'hidden',
-  },
-
-  // Top controls
+  // Top controls (back/skip) on cream
   topControls: {
     width: '100%',
     paddingHorizontal: 20,
-    marginBottom: 8,
+    paddingTop: Platform.OS === 'ios' ? 60 : (StatusBar.currentHeight || 24) + 12,
+    minHeight: 50,
   },
   backBtn: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: 'rgba(255,255,255,0.1)',
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.12)',
-    alignItems: 'center',
-    justifyContent: 'center',
+    width: 40, height: 40, borderRadius: 20,
+    backgroundColor: '#FFFFFF',
+    borderWidth: 1, borderColor: 'rgba(135,114,112,0.12)',
+    alignItems: 'center', justifyContent: 'center',
   },
-  backText: { fontSize: 24, color: T.cream, marginTop: -2 },
+  backText: { fontSize: 24, color: T.navy, marginTop: -2 },
   skipBtn: { alignSelf: 'flex-end', paddingVertical: 6, paddingHorizontal: 4 },
   skipText: {
     fontSize: 13,
-    color: 'rgba(255,255,255,0.45)',
+    color: 'rgba(58,26,40,0.55)',
     fontFamily: FONTS.sansMedium,
   },
 
-  // Orb
-  orbArea: {
-    width: 120,
-    height: 120,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: 14,
-  },
-  orbitRing: {
-    position: 'absolute',
-    width: 110,
-    height: 110,
-    borderRadius: 55,
-    borderWidth: 0.8,
-    borderColor: 'rgba(200,168,75,0.22)',
-  },
-  orbitDot: {
-    position: 'absolute',
-    top: -3,
-    left: '50%',
-    marginLeft: -3,
-    width: 6,
-    height: 6,
-    borderRadius: 3,
-    backgroundColor: T.gold,
-    shadowColor: T.gold,
-    shadowOffset: { width: 0, height: 0 },
-    shadowOpacity: 0.9,
-    shadowRadius: 6,
-  },
-  innerRing: {
-    position: 'absolute',
-    width: 76,
-    height: 76,
-    borderRadius: 38,
-    borderWidth: 0.5,
-    borderColor: 'rgba(200,168,75,0.1)',
-  },
-  orb: {
-    width: 56,
-    height: 56,
-    borderRadius: 28,
-    alignItems: 'center',
-    justifyContent: 'center',
-    shadowColor: T.gold,
-    shadowOffset: { width: 0, height: 0 },
-    shadowOpacity: 0.45,
-    shadowRadius: 24,
-    elevation: 10,
-  },
-  orbSymbol: { fontSize: 24, color: T.navy },
+  // Hero
+  hero: { alignItems: 'center', paddingTop: 16, paddingHorizontal: 24, marginBottom: 24 },
+  sigilWrap: { alignItems: 'center', justifyContent: 'center', marginBottom: 18 },
 
-  // Hero text
-  heroTextArea: { alignItems: 'center', paddingHorizontal: 24 },
+  heroTextArea: { alignItems: 'center', paddingHorizontal: 12 },
   heroTitle: {
-    fontFamily: FONTS.serifSemiBold,
-    fontSize: 26,
-    color: T.cream,
-    letterSpacing: 0.5,
+    fontFamily: FONTS.serif,
+    fontSize: 28,
+    lineHeight: 34,
+    letterSpacing: -0.3,
+    color: T.navy,
+    textAlign: 'center',
     marginBottom: 8,
   },
   heroSub: {
     fontSize: 14,
-    color: 'rgba(250,248,242,0.55)',
+    fontFamily: FONTS.serifItalic || FONTS.serif,
+    fontStyle: 'italic',
+    color: 'rgba(58,26,40,0.6)',
     textAlign: 'center',
-    fontFamily: FONTS.sans,
+    lineHeight: 20,
+    maxWidth: 300,
   },
 
   // Body
   body: {
     flex: 1,
     paddingHorizontal: 24,
-    paddingTop: 28,
-    justifyContent: 'flex-start',
-  },
-
-  // Card
-  card: {
-    backgroundColor: T.white,
-    borderRadius: 20,
-    padding: 24,
-    alignItems: 'center',
-    borderWidth: 1,
-    borderColor: T.border,
-    ...Platform.select({
-      ios: {
-        shadowColor: '#000',
-        shadowOffset: { width: 0, height: 4 },
-        shadowOpacity: 0.06,
-        shadowRadius: 12,
-      },
-      android: { elevation: 3 },
-    }),
-  },
-  cardDivider: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    width: '100%',
-    marginBottom: 20,
-  },
-  dividerLine: {
-    flex: 1,
-    height: 1,
-    backgroundColor: T.border,
-  },
-  cardLabel: {
-    fontSize: 10,
-    fontFamily: FONTS.sansSemiBold,
-    color: T.stone,
-    letterSpacing: 2.5,
-    marginHorizontal: 12,
-  },
-
-  // Google button
-  googleBtn: {
-    width: '100%',
-    backgroundColor: T.navy,
-    borderRadius: 14,
-    paddingVertical: 16,
-    alignItems: 'center',
-    justifyContent: 'center',
-    ...Platform.select({
-      ios: {
-        shadowColor: T.navy,
-        shadowOffset: { width: 0, height: 4 },
-        shadowOpacity: 0.2,
-        shadowRadius: 12,
-      },
-      android: { elevation: 6 },
-    }),
-  },
-  btnContent: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center' },
-  googleIcon: { width: 20, height: 20, marginRight: 10 },
-  googleText: {
-    fontSize: 15,
-    fontFamily: FONTS.sansSemiBold,
-    color: T.cream,
-    letterSpacing: 0.2,
-  },
-
-  // Dots
-  dotsRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 5,
-    marginTop: 18,
-    marginBottom: 12,
-  },
-  dot: {
-    width: 3,
-    height: 3,
-    borderRadius: 1.5,
-    backgroundColor: T.gold,
-  },
-  secureText: {
-    fontSize: 11,
-    color: T.stone,
-    fontFamily: FONTS.sans,
+    paddingTop: 8,
   },
 
   // Benefits
-  benefitsArea: {
-    marginBottom: 18,
-    paddingHorizontal: 4,
-    gap: 6,
-  },
+  benefitsArea: { gap: 10, marginBottom: 24 },
   benefitRow: {
     flexDirection: 'row',
     alignItems: 'center',
-  },
-  benefitIcon: {
-    width: 36,
-    height: 36,
-    borderRadius: 12,
-    backgroundColor: 'rgba(200,168,75,0.08)',
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginRight: 14,
+    backgroundColor: '#FFFFFF',
     borderWidth: 1,
-    borderColor: 'rgba(200,168,75,0.12)',
+    borderColor: 'rgba(135,114,112,0.10)',
+    borderRadius: 14,
+    paddingVertical: 12,
+    paddingHorizontal: 14,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.04, shadowRadius: 8,
+    elevation: 1,
   },
+  benefitGlyphWrap: {
+    width: 32, height: 32, borderRadius: 16,
+    alignItems: 'center', justifyContent: 'center',
+    backgroundColor: 'rgba(212,168,83,0.10)',
+    borderWidth: 1, borderColor: 'rgba(212,168,83,0.20)',
+    marginRight: 12,
+  },
+  benefitGlyph: { fontSize: 16, color: T.brass },
   benefitText: {
     fontSize: 14,
-    color: T.ink,
+    color: T.navy,
     fontFamily: FONTS.sansMedium,
+    flex: 1,
+  },
+
+  // Divider
+  divider: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    width: '100%',
+    marginBottom: 18,
+  },
+  dividerLine: {
+    flex: 1,
+    height: StyleSheet.hairlineWidth,
+    backgroundColor: 'rgba(135,114,112,0.20)',
+  },
+  dividerLabel: {
+    fontSize: 10,
+    fontFamily: FONTS.sansSemiBold,
+    color: 'rgba(58,26,40,0.55)',
+    letterSpacing: 2.4,
+    marginHorizontal: 12,
+  },
+
+  // CTA — peach→lavender HomeStyleCta-style pill
+  ctaShadow: {
+    borderRadius: 100,
+    shadowColor: '#5C2434',
+    shadowOpacity: 0.30,
+    shadowRadius: 18,
+    shadowOffset: { width: 0, height: 8 },
+    elevation: 7,
+  },
+  ctaGradient: {
+    paddingVertical: 18,
+    paddingHorizontal: 30,
+    borderRadius: 100,
+    alignItems: 'center',
+    justifyContent: 'center',
+    minWidth: 260,
+  },
+  ctaInner: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center' },
+  googleIcon: { width: 20, height: 20, marginRight: 12 },
+  ctaText: {
+    fontSize: 14,
+    fontFamily: FONTS.sansSemiBold,
+    color: '#1B1C1C',
+    letterSpacing: 0.5,
+  },
+
+  // Secure caption
+  secureRow: { alignItems: 'center', marginTop: 20 },
+  secureText: {
+    fontSize: 11,
+    color: 'rgba(58,26,40,0.55)',
+    fontFamily: FONTS.sans,
   },
 
   // Legal
-  legalArea: { marginTop: 16 },
+  legalArea: { marginTop: 'auto', paddingTop: 24, paddingBottom: 16 },
   legalText: {
     fontSize: 11,
-    color: T.stone,
+    color: 'rgba(58,26,40,0.55)',
     textAlign: 'center',
     lineHeight: 17,
     fontFamily: FONTS.sans,
   },
   legalLink: {
-    color: T.gold,
+    color: T.brass,
+    fontFamily: FONTS.sansSemiBold,
   },
 });

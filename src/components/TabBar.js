@@ -8,7 +8,6 @@ import {
   Compass,
   Users,
   ScrollText,
-  Wand2,
 } from 'lucide-react-native';
 import { T, FONTS } from '../constants/theme';
 import { useTheme } from '../contexts/ThemeContext';
@@ -21,8 +20,6 @@ const TABS = [
   { icon: Compass, label: 'Chart', name: 'Chart' },
   { icon: Users, label: 'Circle', name: 'Circle' },
   { icon: ScrollText, label: 'Reports', name: 'Reports' },
-  // Temporary 6th tab — the V2 reel preview while we iterate the redesign.
-  { icon: Wand2, label: 'New', name: 'TodayV2' },
 ];
 
 export default function TabBar({ state, navigation }) {
@@ -47,8 +44,8 @@ export default function TabBar({ state, navigation }) {
       styles.outerContainer,
       {
         bottom: Math.max(insets.bottom, 10) + 14,
-        backgroundColor: Platform.OS === 'ios' ? 'transparent' : colors.tabBarBg,
-        borderColor: isDark ? 'rgba(255,255,255,0.06)' : 'rgba(255,255,255,0.2)',
+        backgroundColor: Platform.OS === 'ios' ? 'transparent' : (isDark ? colors.tabBarBg : 'rgba(252,249,248,0.92)'),
+        borderColor: isDark ? 'rgba(255,255,255,0.06)' : 'rgba(26,20,16,0.06)',
       },
     ]}>
       <BlurView
@@ -60,7 +57,7 @@ export default function TabBar({ state, navigation }) {
           styles.container,
           {
             backgroundColor: Platform.OS === 'ios'
-              ? (isDark ? 'rgba(26,23,20,0.82)' : 'rgba(255,255,255,0.85)')
+              ? (isDark ? 'rgba(26,23,20,0.82)' : 'rgba(252,249,248,0.85)')
               : 'transparent',
           },
         ]}>
@@ -84,10 +81,10 @@ export default function TabBar({ state, navigation }) {
                 }}
               >
                 <View style={styles.iconContainer}>
-                  {active && <View style={[styles.pill, { backgroundColor: colors.goldDim }]} />}
+                  {active && <View style={[styles.pill, { backgroundColor: isDark ? colors.goldDim : 'rgba(92,36,52,0.10)' }]} />}
                   <Icon
                     size={24}
-                    color={active ? colors.gold : colors.textMuted}
+                    color={active ? (isDark ? colors.gold : T.clay) : colors.textMuted}
                     strokeWidth={active ? 2.5 : 2}
                   />
                 </View>

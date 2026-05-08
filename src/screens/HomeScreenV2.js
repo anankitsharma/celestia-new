@@ -18,7 +18,7 @@
 import React, { useEffect, useMemo, useState, useRef, useCallback } from 'react';
 import {
   View, Text, ScrollView, TouchableOpacity, StyleSheet,
-  ActivityIndicator, Share, Platform, StatusBar, Dimensions,
+  ActivityIndicator, Share, Platform, StatusBar, Dimensions, AppState,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
@@ -31,9 +31,10 @@ import { useUserProfile } from '../contexts/UserProfileContext';
 import { fetchExtendedForecast } from '../services/geminiService';
 import {
   getTransitPlanets, calculateTransitSignificance, getMoonDataForDate,
-  isMercuryRetrograde,
+  isMercuryRetrograde, getCosmicSeason,
 } from '../services/astrologyService';
-import { ForecastRepository } from '../services/database/rep_forecasts';
+import { loadString, StorageKeys } from '../services/storage';
+import { scheduleAllNotifications } from '../services/notificationService';
 import { haptic } from '../services/hapticService';
 import { getStreakData, getStreakEmoji } from '../services/streakService';
 import { useAnalytics, EVENTS } from '../services/analytics';
@@ -53,6 +54,8 @@ const SLOT_MOTIF = {
   journal:  'journal',
   trigger:  'trigger',
   closing:  'closing',
+  // 'report' uses a planetary glyph (varies per pick) rendered as text in
+  // the motif badge — no entry here, see render code.
 };
 
 const { width: SCREEN_W, height: SCREEN_H } = Dimensions.get('window');
@@ -97,6 +100,7 @@ const SLOT_GRADIENTS_LIGHT = {
   reflect:  ['#F0E4E8', '#F8F0F2', '#FAF6EE'],   // mauve hint
   journal:  ['#EDE6D8', '#F4EEDF', '#FAF6EE'],   // ivory paper hint
   trigger:  ['#EDE2F5', '#F8F0FA', '#FAF6EE'],   // lavender (Mercury Rx)
+  report:   ['#F5E1B8', '#F8EED6', '#FAF6EE'],   // warm gold parchment (deeper read)
   closing:  ['#FBE9CD', '#FAF3E2', '#FAF6EE'],   // dusk amber
 };
 const SLOT_GRADIENTS_DARK = {
@@ -111,6 +115,7 @@ const SLOT_GRADIENTS_DARK = {
   reflect:  ['#5A2840', '#3A1A28', '#1F0F18'],
   journal:  ['#48342A', '#3A1A28', '#1F0F18'],
   trigger:  ['#5C3818', '#3A1A28', '#1F0F18'],
+  report:   ['#3A2818', '#3A1A28', '#1F0F18'],   // warm burgundy/gold
   closing:  ['#3A1A28', '#1F0F18', '#100610'],
 };
 
@@ -164,17 +169,45 @@ const LIFE_AREA_META = {
   social:   { tag: 'SOCIAL',    icon: '✧' },
 };
 
-const formatDateHeader = (date = new Date()) => {
-  const days = ['SUN', 'MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT'];
-  const months = ['JAN','FEB','MAR','APR','MAY','JUN','JUL','AUG','SEP','OCT','NOV','DEC'];
-  return `${days[date.getDay()]} · ${months[date.getMonth()]} ${date.getDate()}`;
+const SHORT_DAYS = ['SUN', 'MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT'];
+const SHORT_MONTHS = ['JAN','FEB','MAR','APR','MAY','JUN','JUL','AUG','SEP','OCT','NOV','DEC'];
+const LONG_MONTHS = ['JANUARY','FEBRUARY','MARCH','APRIL','MAY','JUNE','JULY','AUGUST','SEPTEMBER','OCTOBER','NOVEMBER','DECEMBER'];
+const LONG_DAYS = ['SUNDAY', 'MONDAY', 'TUESDAY', 'WEDNESDAY', 'THURSDAY', 'FRIDAY', 'SATURDAY'];
+
+// Returns Monday of the ISO-week containing `date`.
+const weekStartMonday = (date) => {
+  const d = new Date(date);
+  const dow = d.getDay();
+  d.setDate(d.getDate() - (dow === 0 ? 6 : dow - 1));
+  return d;
 };
 
-// Long, magazine-style date for the anchor card header (e.g. "SUNDAY, OCTOBER 20")
-const dateLabelLong = (date = new Date()) => {
-  const days = ['SUNDAY', 'MONDAY', 'TUESDAY', 'WEDNESDAY', 'THURSDAY', 'FRIDAY', 'SATURDAY'];
-  const months = ['JANUARY','FEBRUARY','MARCH','APRIL','MAY','JUNE','JULY','AUGUST','SEPTEMBER','OCTOBER','NOVEMBER','DECEMBER'];
-  return `${days[date.getDay()]}, ${months[date.getMonth()]} ${date.getDate()}`;
+const formatDateHeader = (date = new Date(), period = 'today') => {
+  if (period === 'weekly') {
+    const ws = weekStartMonday(date);
+    return `WEEK OF ${SHORT_MONTHS[ws.getMonth()]} ${ws.getDate()}`;
+  }
+  if (period === 'monthly') {
+    return `${LONG_MONTHS[date.getMonth()]} ${date.getFullYear()}`;
+  }
+  return `${SHORT_DAYS[date.getDay()]} · ${SHORT_MONTHS[date.getMonth()]} ${date.getDate()}`;
+};
+
+// Long, magazine-style date for the anchor card header.
+//   today: "SUNDAY, OCTOBER 20"
+//   week:  "MAY 5 – MAY 11"
+//   month: "MAY 2026"
+const dateLabelLong = (date = new Date(), period = 'today') => {
+  if (period === 'weekly') {
+    const ws = weekStartMonday(date);
+    const we = new Date(ws);
+    we.setDate(ws.getDate() + 6);
+    return `${SHORT_MONTHS[ws.getMonth()]} ${ws.getDate()} – ${SHORT_MONTHS[we.getMonth()]} ${we.getDate()}`;
+  }
+  if (period === 'monthly') {
+    return `${LONG_MONTHS[date.getMonth()]} ${date.getFullYear()}`;
+  }
+  return `${LONG_DAYS[date.getDay()]}, ${LONG_MONTHS[date.getMonth()]} ${date.getDate()}`;
 };
 
 const truncate = (str, n) => {
@@ -295,6 +328,94 @@ const pickTrigger = (profile, today, moonData, mercuryRx) => {
   return null;
 };
 
+// ── Phase 6 — Report card picker ─────────────────────────────
+// Picks a contextual report based on the loudest signal in today's chart.
+// Returns { type, name, tag, glyph, headline, meta } or a default. Designed
+// to feel like guidance ("here's what's worth digging into") rather than a
+// promo unit.
+const pickReport = (profile, today, transitSignificance, topArea, period) => {
+  // Birthday window — Solar Return is the strongest pitch in the next month.
+  if (profile?.birthDate) {
+    try {
+      const birth = new Date(profile.birthDate);
+      const thisYearBday = new Date(today.getFullYear(), birth.getMonth(), birth.getDate());
+      const diff = Math.round((thisYearBday - today) / (1000 * 60 * 60 * 24));
+      if (diff >= -7 && diff <= 30) {
+        return {
+          type: 'solar_return',
+          name: 'Solar Return',
+          tag: 'SOLAR RETURN',
+          glyph: '☉',
+          headline: diff > 0 ? 'Your year ahead is forming.' : 'Your year is underway.',
+          meta: 'A complete reading from birthday to birthday — every chapter mapped.',
+        };
+      }
+    } catch (e) {}
+  }
+
+  // Top life-area = love
+  if (topArea?.key === 'love') {
+    return {
+      type: 'love',
+      name: 'Love Report',
+      tag: 'LOVE REPORT',
+      glyph: '♀',
+      headline: period === 'today' ? "Today's love signal deserves a closer look."
+        : period === 'weekly' ? "Your love story this week deserves a closer look."
+        : "Your love story this month deserves a closer look.",
+      meta: 'Venus, attachment style, and why you love the way you do.',
+    };
+  }
+
+  // Top life-area = career
+  if (topArea?.key === 'career') {
+    return {
+      type: 'career',
+      name: 'Career Map',
+      tag: 'CAREER MAP',
+      glyph: '♄',
+      headline: period === 'today' ? 'Career energy is loud today — read the map.'
+        : period === 'weekly' ? 'A focused week for work — see the bigger arc.'
+        : 'Your professional roadmap, decoded.',
+      meta: 'Midheaven, Saturn, and your professional destiny.',
+    };
+  }
+
+  // High transit significance — the sky is doing real work on this chart.
+  if ((transitSignificance || 0) >= 60) {
+    return {
+      type: 'transit',
+      name: 'Transit Report',
+      tag: 'TRANSIT REPORT',
+      glyph: '☿',
+      headline: 'The sky is loud on your chart right now.',
+      meta: 'Current planetary weather, hitting your placements.',
+    };
+  }
+
+  // First 3 days of the month — Year-Ahead frames the next 12 months well.
+  if (today.getDate() <= 3) {
+    return {
+      type: 'yearly',
+      name: 'Year Ahead',
+      tag: 'YEAR AHEAD',
+      glyph: '♃',
+      headline: 'A new month has shape — see the year that holds it.',
+      meta: 'Month-by-month roadmap for the year.',
+    };
+  }
+
+  // Default — Lunar Guide ties to the moon already shown elsewhere in the deck.
+  return {
+    type: 'lunar',
+    name: 'Lunar Guide',
+    tag: 'LUNAR GUIDE',
+    glyph: '☽',
+    headline: 'The moon writes its own rituals on you.',
+    meta: 'Moon practices aligned to your natal chart.',
+  };
+};
+
 // ──────────────────────────────────────────────────────────────
 // MAIN
 // ──────────────────────────────────────────────────────────────
@@ -302,6 +423,12 @@ export default function HomeScreenV2({ navigation }) {
   const { colors, isDark } = useTheme();
   const { userProfile, partnerProfiles } = useUserProfile();
   const { capture } = useAnalytics();
+  // 'today' | 'weekly' | 'monthly' — drives forecast scope, slot filtering,
+  // and header labels. Values match what fetchExtendedForecast expects so the
+  // AI generates the right period-shaped content (4-paragraph weekly arc /
+  // monthly roadmap vs daily quad). Wrong strings silently fall through to
+  // the daily branch, which is the bug the user spotted.
+  const [period, setPeriod] = useState('today');
   const [forecast, setForecast] = useState(null);
   const [loading, setLoading] = useState(true);
   const [streakInfo, setStreakInfo] = useState(null);
@@ -309,13 +436,15 @@ export default function HomeScreenV2({ navigation }) {
   const [topTransit, setTopTransit] = useState(null);
   const [currentIndex, setCurrentIndex] = useState(0);
   // Detail navigation — pushes to a dedicated stack screen per slot.
+  // period is passed so detail-screen labels ("TODAY" / "THIS WEEK" / "THIS
+  // MONTH", date strings, CTA copy) match what the user just tapped.
   const openDetail = (card) => {
     if (!card) return;
     haptic.medium();
     if (card.slot === 'anchor') {
-      navigation.navigate('TodayReadingDetail', { forecast });
+      navigation.navigate('TodayReadingDetail', { forecast, period });
     } else if (LIFE_AREA_META[card.slot]) {
-      navigation.navigate('LifeAreaDetail', { areaKey: card.slot, areaData: card.area, forecast });
+      navigation.navigate('LifeAreaDetail', { areaKey: card.slot, areaData: card.area, forecast, period });
     } else if (card.slot === 'sky') {
       navigation.navigate('TodaysSky');
     }
@@ -324,34 +453,75 @@ export default function HomeScreenV2({ navigation }) {
 
   const timeMode = useMemo(() => getTimeMode(), []);
   const firstName = (userProfile?.name || '').split(' ')[0] || 'You';
-  const today = useMemo(() => new Date(), []);
-  const dateLabel = useMemo(() => formatDateHeader(today), [today]);
+  // `today` is held in state so a date rollover (user keeps app open across
+  // midnight, or backgrounds it overnight and reopens) can trigger refetches.
+  // The AppState 'active' listener below replaces `today` when the ISO date
+  // has changed.
+  const [today, setToday] = useState(() => new Date());
+  const dateKey = today.toISOString().split('T')[0];
+  const dateLabel = useMemo(() => formatDateHeader(today, period), [today, period]);
 
   const pageBg = isDark ? PAGE_BG_DARK : PAGE_BG_LIGHT;
   const inkFg = isDark ? T.cream : '#1A1410';
   const inkMuted = isDark ? 'rgba(250,248,242,0.55)' : '#5C4E50';
   const inkSoft = isDark ? 'rgba(250,248,242,0.35)' : '#9B8E8F';
 
-  // ── Forecast fetch (with cache) ──────────────────────────────
+  // ── Forecast fetch (cache handled inside fetchExtendedForecast) ──
+  // The API keys 'weekly' by ISO-week label, 'monthly' by YYYY-MM, 'today' by
+  // forecast date — so we don't need to manage a separate outer cache here.
   useEffect(() => {
     if (!userProfile?.chart) { setLoading(false); return; }
     let cancelled = false;
+    setLoading(true);
+    setForecast(null);
     (async () => {
       try {
         const dateISO = today.toISOString().split('T')[0];
-        const cacheKey = `${userProfile.id}_today_${dateISO}`;
-        const cached = await ForecastRepository.getForecast(cacheKey);
-        if (cached && !cancelled) { setForecast(cached); setLoading(false); return; }
         const transits = getTransitPlanets(today);
         const planetaryData = {
           dateLabel: dateISO,
           transits: transits.map(p => `${p.name}: ${p.sign} ${p.degree.toFixed(0)}°`).join(', '),
         };
         const sig = calculateTransitSignificance(userProfile.chart, today);
-        const data = await fetchExtendedForecast(userProfile, 'today', planetaryData, sig, null, 'standard');
+
+        // Briefing-mode rotation — daily reads cycle through standard / pattern
+        // / partner / archetype every 7 days. Defeats finite-variability decay
+        // (the AI tone shifts even when the chart context is similar). Weekly
+        // and monthly stay 'standard' (V1 parity).
+        let briefingMode = 'standard';
+        if (period === 'today') {
+          try {
+            const firstUse = await loadString(StorageKeys.FIRST_USE_DATE);
+            if (firstUse) {
+              const start = new Date(firstUse + 'T00:00:00');
+              const todayMid = new Date(today); todayMid.setHours(0, 0, 0, 0);
+              const days = Math.max(0, Math.floor((todayMid - start) / 86400000));
+              const weeks = Math.floor(days / 7);
+              briefingMode = ['standard', 'pattern', 'partner', 'archetype'][weeks % 4];
+              // Skip 'partner' framing for users with no Circle entries —
+              // would force a relational lens on a relationally-empty chart.
+              if (briefingMode === 'partner' && (!partnerProfiles || partnerProfiles.length === 0)) {
+                briefingMode = 'standard';
+              }
+            }
+          } catch (e) {}
+        }
+
+        const data = await fetchExtendedForecast(userProfile, period, planetaryData, sig, null, briefingMode);
         if (!cancelled) {
           setForecast(data); setLoading(false);
-          try { capture(EVENTS.DAILY_BRIEFING_VIEWED, { has_navigator: !!data?.navigatorHeadline, source: 'v2' }); } catch (e) {}
+          try { capture(EVENTS.DAILY_BRIEFING_VIEWED, { has_navigator: !!data?.navigatorHeadline, source: 'v2', period, briefing_mode: briefingMode }); } catch (e) {}
+
+          // Re-schedule push notifications with the latest forecast so the
+          // morning push reflects today's actual reading. Only fires on the
+          // 'today' period — weekly/monthly forecasts don't drive notifications.
+          if (period === 'today') {
+            try {
+              const moon = (() => { try { return getMoonDataForDate(today); } catch (e) { return null; } })();
+              const streak = await getStreakData(userProfile.id).catch(() => null);
+              scheduleAllNotifications(userProfile, data, streak, moon, null, null).catch(() => {});
+            } catch (e) {}
+          }
         }
       } catch (e) {
         console.warn('[V2] forecast fetch failed', e);
@@ -359,16 +529,35 @@ export default function HomeScreenV2({ navigation }) {
       }
     })();
     return () => { cancelled = true; };
-  }, [userProfile]);
+  }, [userProfile, period, dateKey, partnerProfiles]);
 
   const [mercuryRx, setMercuryRx] = useState(false);
+  const [cosmicSeason, setCosmicSeason] = useState(null);
   useEffect(() => {
     if (!userProfile?.id) return;
     getStreakData(userProfile.id).then(setStreakInfo).catch(() => {});
     try { setMoonData(getMoonDataForDate(today)); } catch (e) {}
     if (userProfile?.chart) setTopTransit(pickTopTransit(userProfile.chart, today));
     try { setMercuryRx(!!isMercuryRetrograde(today)); } catch (e) {}
-  }, [userProfile]);
+    if (userProfile?.chart) {
+      try { setCosmicSeason(getCosmicSeason(userProfile.chart, today)); } catch (e) {}
+    }
+  }, [userProfile, dateKey]);
+
+  // App-foreground date rollover refresh. When the user reopens the app on
+  // a new calendar day, replace `today` with a fresh Date — which bumps
+  // dateKey and re-runs both effects above (forecast + moon/transit/Rx).
+  // fetchExtendedForecast's internal cache returns warm data when valid;
+  // this only re-fetches when the cache key has changed.
+  useEffect(() => {
+    const sub = AppState.addEventListener('change', (nextState) => {
+      if (nextState !== 'active') return;
+      const fresh = new Date();
+      const freshISO = fresh.toISOString().split('T')[0];
+      if (freshISO !== dateKey) setToday(fresh);
+    });
+    return () => sub.remove();
+  }, [dateKey]);
 
   const cards = useMemo(() => {
     const list = [];
@@ -388,14 +577,33 @@ export default function HomeScreenV2({ navigation }) {
       list.push({ slot: 'circle', key: 'circle', partners: partnerProfiles });
     }
 
-    if (topTransit || moonData) list.push({ slot: 'sky', key: 'sky' });
-    list.push({ slot: 'reflect', key: 'reflect' });
-    list.push({ slot: 'journal', key: 'journal' });
+    // Sky / Reflect / Journal are time-of-day-shaped — they only make sense
+    // in the daily deck. Week and Month views drop them.
+    if (period === 'today') {
+      if (topTransit || moonData) list.push({ slot: 'sky', key: 'sky' });
+      list.push({ slot: 'reflect', key: 'reflect' });
+      list.push({ slot: 'journal', key: 'journal' });
+    }
+
     const trig = pickTrigger(userProfile, today, moonData, mercuryRx);
     if (trig) list.push({ slot: 'trigger', key: `trigger-${trig.kind}`, trigger: trig });
+
+    // Report card — last "active" card before closing. Picks contextually
+    // based on top life-area, transit significance, birthday window, etc.
+    const topArea = pickTopLifeArea(forecast?.lifeAreas);
+    let transitSig = 0;
+    if (userProfile?.chart) {
+      try {
+        const sig = calculateTransitSignificance(userProfile.chart, today);
+        transitSig = typeof sig === 'number' ? sig : (Array.isArray(sig) ? sig.length * 10 : 0);
+      } catch (e) {}
+    }
+    const report = pickReport(userProfile, today, transitSig, topArea, period);
+    if (report) list.push({ slot: 'report', key: `report-${report.type}`, report });
+
     list.push({ slot: 'closing', key: 'closing' });
     return list;
-  }, [forecast, topTransit, moonData, mercuryRx, userProfile, partnerProfiles]);
+  }, [forecast, topTransit, moonData, mercuryRx, userProfile, partnerProfiles, period]);
 
   // Clamp currentIndex when cards array changes (e.g. forecast loads)
   useEffect(() => {
@@ -416,6 +624,13 @@ export default function HomeScreenV2({ navigation }) {
   const goToCard = (idx) => {
     haptic.selection();
     setCurrentIndex(idx);
+  };
+
+  const onPeriodChange = (p) => {
+    if (p === period) return;
+    haptic.light();
+    setPeriod(p);
+    setCurrentIndex(0);
   };
 
   const toggleSave = (slot) => {
@@ -440,6 +655,7 @@ export default function HomeScreenV2({ navigation }) {
   const isTrigger = currentCard?.slot === 'trigger';
   const isJournal = currentCard?.slot === 'journal';
   const isCircle  = currentCard?.slot === 'circle';
+  const isReport  = currentCard?.slot === 'report';
 
   // Single source of truth for "primary action" on a card. Used for both tap
   // (anywhere on the card body) and the bottom CTA pill — so journal/reflect/
@@ -462,6 +678,9 @@ export default function HomeScreenV2({ navigation }) {
       const target = currentCard.trigger?.ctaTarget || 'AskAI';
       haptic.light();
       navigation.navigate(target);
+    } else if (isReport) {
+      haptic.light();
+      navigation.navigate('Reports');
     } else if (isClosing) {
       haptic.light();
       navigation.navigate('AskAI');
@@ -531,7 +750,7 @@ export default function HomeScreenV2({ navigation }) {
                   backgroundColor: i === currentIndex
                     ? (isDark ? T.cream : T.clayDeep)
                     : (isDark ? 'rgba(250,248,242,0.20)' : 'rgba(26,20,16,0.16)'),
-                  width: i === currentIndex ? 28 : 18,
+                  width: i === currentIndex ? 22 : 14,
                 },
               ]} />
             </TouchableOpacity>
@@ -561,6 +780,49 @@ export default function HomeScreenV2({ navigation }) {
         </TouchableOpacity>
       </View>
 
+      {/* Period toggle — Today / Week / Month segmented pill */}
+      <View style={styles.periodRow}>
+        <View style={[
+          styles.periodSegment,
+          {
+            backgroundColor: isDark ? 'rgba(250,248,242,0.06)' : 'rgba(26,20,16,0.04)',
+            borderColor: isDark ? 'rgba(250,248,242,0.10)' : 'rgba(26,20,16,0.06)',
+          },
+        ]}>
+          {[
+            { key: 'today',   label: 'Today' },
+            { key: 'weekly',  label: 'Week' },
+            { key: 'monthly', label: 'Month' },
+          ].map((opt) => {
+            const active = period === opt.key;
+            return (
+              <TouchableOpacity
+                key={opt.key}
+                activeOpacity={0.85}
+                onPress={() => onPeriodChange(opt.key)}
+                style={[
+                  styles.periodPill,
+                  active && {
+                    backgroundColor: isDark ? T.cream : T.clayDeep,
+                    shadowColor: '#000',
+                    shadowOpacity: isDark ? 0.25 : 0.12,
+                    shadowRadius: 8,
+                    shadowOffset: { width: 0, height: 3 },
+                    elevation: 3,
+                  },
+                ]}>
+                <Text style={[
+                  styles.periodLabel,
+                  { color: active
+                      ? (isDark ? T.clayDeep : T.cream)
+                      : (isDark ? 'rgba(250,248,242,0.55)' : 'rgba(26,20,16,0.55)') },
+                ]}>{opt.label}</Text>
+              </TouchableOpacity>
+            );
+          })}
+        </View>
+      </View>
+
       <Text style={[styles.dateLabel, { color: inkSoft }]}>{dateLabel}</Text>
 
       {/* CARD DECK — Tinder-style stack. Peek card sits behind active at
@@ -580,6 +842,8 @@ export default function HomeScreenV2({ navigation }) {
               topTransit={topTransit}
               moonData={moonData}
               timeMode={timeMode}
+              period={period}
+              cosmicSeason={cosmicSeason}
               isPeek={true}
             />
           </View>
@@ -601,6 +865,8 @@ export default function HomeScreenV2({ navigation }) {
             topTransit={topTransit}
             moonData={moonData}
             timeMode={timeMode}
+            period={period}
+            cosmicSeason={cosmicSeason}
             navigation={navigation}
           />
         )}
@@ -637,16 +903,18 @@ export default function HomeScreenV2({ navigation }) {
             style={styles.chipLargeGradient}>
             <Text style={[styles.chipLargeText, { color: CTA_TEXT }]}>
               {hasDetail
-                ? 'Read more  →'
+                ? 'Go deeper  →'
                 : isReflect
                   ? 'Open chat  →'
                   : isJournal
                     ? 'Open journal  →'
                     : isCircle
                       ? 'See your circle  →'
-                      : isTrigger
-                        ? (currentCard.trigger?.ctaLabel || 'Open  →')
-                        : 'Ask Celestia  →'}
+                      : isReport
+                        ? 'See the report  →'
+                        : isTrigger
+                          ? (currentCard.trigger?.ctaLabel || 'Open  →')
+                          : 'Ask Celestia  →'}
             </Text>
           </LinearGradient>
         </TouchableOpacity>
@@ -680,7 +948,7 @@ export default function HomeScreenV2({ navigation }) {
 function SwipeableCard({
   cardData, slot, isDark, canAdvance, canRewind,
   onAdvance, onRewind, onTap,
-  forecast, topTransit, moonData, timeMode, navigation,
+  forecast, topTransit, moonData, timeMode, period, cosmicSeason, navigation,
 }) {
   const tx = useSharedValue(0);
   const ty = useSharedValue(0);
@@ -757,6 +1025,8 @@ function SwipeableCard({
           topTransit={topTransit}
           moonData={moonData}
           timeMode={timeMode}
+          period={period}
+          cosmicSeason={cosmicSeason}
           navigation={navigation}
         />
       </Animated.View>
@@ -767,7 +1037,7 @@ function SwipeableCard({
 // ──────────────────────────────────────────────────────────────
 // CARD SLOT — pure visual content of one card
 // ──────────────────────────────────────────────────────────────
-function CardSlot({ cardData, slot, isDark, forecast, topTransit, moonData, timeMode, navigation, partnerProfiles, isPeek }) {
+function CardSlot({ cardData, slot, isDark, forecast, topTransit, moonData, timeMode, period = 'today', cosmicSeason, navigation, partnerProfiles, isPeek }) {
   // Navigation helper used by tappable elements inside the card body
   // (e.g., feeling chips on the Reflect card).
   const navigationFromCard = (route, params) => {
@@ -785,8 +1055,10 @@ function CardSlot({ cardData, slot, isDark, forecast, topTransit, moonData, time
 
   switch (slot) {
     case 'anchor': {
-      tag = { icon: '✦', label: 'TODAY' };
-      headline = forecast?.navigatorHeadline || "Today's reading is brewing.";
+      const anchorTag = period === 'weekly' ? 'THIS WEEK' : period === 'monthly' ? 'THIS MONTH' : 'TODAY';
+      tag = { icon: '✦', label: anchorTag };
+      const fallback = period === 'weekly' ? "This week's reading is brewing." : period === 'monthly' ? "This month's reading is brewing." : "Today's reading is brewing.";
+      headline = forecast?.navigatorHeadline || fallback;
       meta = forecast?.navigatorSummary ? truncate(forecast.navigatorSummary, 90) : '';
       break;
     }
@@ -933,16 +1205,33 @@ function CardSlot({ cardData, slot, isDark, forecast, topTransit, moonData, time
       meta = t?.meta || '';
       break;
     }
+    case 'report': {
+      const r = cardData?.report;
+      tag = { icon: r?.glyph || '✦', label: r?.tag || 'REPORT' };
+      headline = r?.headline || 'A deeper reading is ready.';
+      meta = r?.meta || '';
+      break;
+    }
     case 'closing': {
-      tag = { icon: '✦', label: "THAT'S TODAY" };
-      headline = timeMode === 'latenight'
-        ? "Sleep well, you."
-        : "You're caught up.";
-      meta = timeMode === 'latenight'
-        ? 'The sky has your back tonight. The next one shifts at 6am.'
-        : timeMode === 'evening'
-          ? 'Tomorrow shifts at 6am. Tonight is yours.'
-          : 'Use today slowly. The reading still applies at 9pm.';
+      if (period === 'weekly') {
+        tag = { icon: '✦', label: "THAT'S THE WEEK" };
+        headline = "You've seen the week.";
+        meta = "Come back daily for the day-by-day. The week's shape stays the same.";
+      } else if (period === 'monthly') {
+        tag = { icon: '✦', label: "THAT'S THE MONTH" };
+        headline = "You've seen the month.";
+        meta = "A new chapter forms each cycle. Use this as your map.";
+      } else {
+        tag = { icon: '✦', label: "THAT'S TODAY" };
+        headline = timeMode === 'latenight'
+          ? "Sleep well, you."
+          : "You're caught up.";
+        meta = timeMode === 'latenight'
+          ? 'The sky has your back tonight. The next one shifts at 6am.'
+          : timeMode === 'evening'
+            ? 'Tomorrow shifts at 6am. Tonight is yours.'
+            : 'Use today slowly. The reading still applies at 9pm.';
+      }
       break;
     }
     default: break;
@@ -1012,7 +1301,7 @@ function CardSlot({ cardData, slot, isDark, forecast, topTransit, moonData, time
               </View>
               {slot === 'anchor' && (
                 <Text style={[cardSlotStyles.dateLabelInline, { color: cardFgMuted }]}>
-                  {dateLabelLong()}
+                  {dateLabelLong(new Date(), period)}
                 </Text>
               )}
             </View>
@@ -1033,13 +1322,33 @@ function CardSlot({ cardData, slot, isDark, forecast, topTransit, moonData, time
                   {meta}
                 </Text>
               )}
+              {/* Cosmic season chip — only on anchor card. Surfaces the user's
+                  ongoing transit phase (e.g. "Saturn in Pisces · 73%"). */}
+              {slot === 'anchor' && cosmicSeason && (
+                <View style={[
+                  cardSlotStyles.seasonChip,
+                  {
+                    backgroundColor: isDark ? 'rgba(254,217,184,0.16)' : 'rgba(254,217,184,0.45)',
+                    borderColor: isDark ? 'rgba(254,217,184,0.30)' : '#FED9B8',
+                  },
+                ]}>
+                  <Text style={[cardSlotStyles.seasonLabel, { color: cardFgMuted }]}>YOUR SEASON</Text>
+                  <Text style={[cardSlotStyles.seasonValue, { color: cardFg }]} numberOfLines={1}>
+                    {cosmicSeason.planet} in {cosmicSeason.natalTarget}
+                    {typeof cosmicSeason.progress === 'number' ? ` · ${cosmicSeason.progress}%` : ''}
+                  </Text>
+                </View>
+              )}
               {extras}
             </View>
           </View>
         ) : (
           <View style={cardSlotStyles.contentInner}>
-            {/* Motif badge — fine-line SVG icon stamp above the tag pill */}
-            {!!SLOT_MOTIF[slot] && (
+            {/* Motif badge — fine-line SVG icon stamp above the tag pill.
+                The 'report' slot doesn't have a CelestiaMotif kind because the
+                glyph varies per pick; fall back to rendering the planetary
+                glyph (♀ ♄ ☽ ♃ ☉ ☿ etc) as text. */}
+            {(SLOT_MOTIF[slot] || slot === 'report') && (
               <View style={[
                 cardSlotStyles.motifBadge,
                 {
@@ -1047,7 +1356,13 @@ function CardSlot({ cardData, slot, isDark, forecast, topTransit, moonData, time
                   borderColor: isDark ? 'rgba(250,248,242,0.15)' : 'rgba(26,20,16,0.08)',
                 },
               ]}>
-                <CelestiaMotif kind={SLOT_MOTIF[slot]} size={44} color={cardFg} />
+                {SLOT_MOTIF[slot] ? (
+                  <CelestiaMotif kind={SLOT_MOTIF[slot]} size={44} color={cardFg} />
+                ) : (
+                  <Text style={[cardSlotStyles.reportGlyph, { color: cardFg }]}>
+                    {cardData?.report?.glyph || '✦'}
+                  </Text>
+                )}
               </View>
             )}
             {!!tag.label && (
@@ -1101,24 +1416,51 @@ const styles = StyleSheet.create({
 
   topChrome: {
     paddingTop: TOP_PAD,
-    paddingHorizontal: 28,
-    flexDirection: 'row',
+    paddingHorizontal: 22,
     alignItems: 'center',
-    justifyContent: 'space-between',
+    position: 'relative',
+    minHeight: 48,
+    justifyContent: 'center',
   },
-  dotsRow: { flexDirection: 'row', alignItems: 'center', gap: 6 },
+  dotsRow: { flexDirection: 'row', alignItems: 'center', gap: 4 },
   dot: { height: 4, borderRadius: 2 },
-  avatarRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  // Avatar floats absolute right so the dots can sit naturally centered
+  // in the row without competing for space.
+  avatarRow: { flexDirection: 'row', alignItems: 'center', gap: 8, position: 'absolute', right: 22, top: TOP_PAD },
   streakText: { fontFamily: FONTS.sansSemiBold, fontSize: 12, letterSpacing: 0.3 },
   avatar: {
-    width: 32, height: 32, borderRadius: 16,
+    width: 40, height: 40, borderRadius: 20,
     borderWidth: 1, alignItems: 'center', justifyContent: 'center',
   },
-  avatarText: { fontFamily: FONTS.editorial, fontSize: 14 },
+  avatarText: { fontFamily: FONTS.editorial, fontSize: 16 },
+  // Period toggle (Today / Week / Month) — segmented pill, centered.
+  periodRow: {
+    alignItems: 'center',
+    marginTop: 12,
+  },
+  periodSegment: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    borderRadius: 100,
+    borderWidth: 1,
+    padding: 3,
+    gap: 2,
+  },
+  periodPill: {
+    paddingVertical: 6,
+    paddingHorizontal: 12,
+    borderRadius: 100,
+  },
+  periodLabel: {
+    fontFamily: FONTS.sansSemiBold,
+    fontSize: 11,
+    letterSpacing: 0.3,
+  },
   dateLabel: {
     fontFamily: FONTS.sansSemiBold,
     fontSize: 10, letterSpacing: 2.4,
-    paddingHorizontal: 28, marginTop: 14,
+    paddingHorizontal: 28, marginTop: 12,
+    textAlign: 'center',
   },
   kicker: { fontFamily: FONTS.sansSemiBold, fontSize: 11, letterSpacing: 3 },
 
@@ -1283,6 +1625,29 @@ const cardSlotStyles = StyleSheet.create({
     textAlign: 'left',
     maxWidth: '92%',
   },
+  // Cosmic season chip on the anchor card — small pill below meta.
+  seasonChip: {
+    alignSelf: 'flex-start',
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    paddingVertical: 5,
+    paddingHorizontal: 10,
+    borderRadius: 100,
+    borderWidth: 1,
+    marginTop: 12,
+    maxWidth: '92%',
+  },
+  seasonLabel: {
+    fontFamily: FONTS.sansSemiBold,
+    fontSize: 9,
+    letterSpacing: 1.4,
+  },
+  seasonValue: {
+    fontFamily: FONTS.sansSemiBold,
+    fontSize: 11,
+    flexShrink: 1,
+  },
   // Motif badge — circular icon stamp above the tag pill (Stitch-inspired).
   // Bumped to 84×84 with a 44px glyph so the slot identity reads at a glance.
   motifBadge: {
@@ -1297,6 +1662,12 @@ const cardSlotStyles = StyleSheet.create({
   motifGlyph: {
     fontSize: 38,
     lineHeight: 40,
+  },
+  reportGlyph: {
+    fontFamily: FONTS.editorial,
+    fontSize: 44,
+    lineHeight: 48,
+    textAlign: 'center',
   },
   // Tag pill — uppercase label in a soft-tinted chip (icon now lives in motif above)
   tagPill: {

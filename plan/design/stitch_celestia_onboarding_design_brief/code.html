@@ -1,0 +1,179 @@
+<!DOCTYPE html>
+
+<html class="light" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Notification Permission Modal</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,600;0,700;1,400&amp;family=DM+Sans:wght@400;500;700&amp;family=Newsreader:ital,wght@0,400;1,400&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    "colors": {
+                        "surface": "#fbf9f8",
+                        "primary": "#2a0002",
+                        "on-primary": "#ffffff",
+                        "secondary-fixed": "#ffdea5",
+                        "on-surface": "#1b1c1c",
+                        "on-secondary-fixed": "#261900",
+                        "outline": "#877270",
+                        "surface-variant": "#e4e2e2",
+                        "tertiary-container": "#252523",
+                        "on-surface-variant": "#544341",
+                        "primary-fixed-dim": "#ffb3ad",
+                        "secondary-container": "#fed488",
+                        "surface-container-lowest": "#ffffff",
+                        "surface-container-low": "#f5f3f3",
+                        "surface-container": "#efeded",
+                        "tertiary-fixed": "#e5e2de",
+                        "on-secondary-fixed-variant": "#5d4201",
+                        "error": "#ba1a1a",
+                        "on-primary-fixed": "#3d0506",
+                        "on-primary-container": "#cc726d",
+                        "on-background": "#1b1c1c",
+                        "primary-container": "#4a0e0e",
+                        "tertiary": "#10100e",
+                        "on-error": "#ffffff",
+                        "surface-container-highest": "#e4e2e2",
+                        "inverse-primary": "#ffb3ad",
+                        "tertiary-fixed-dim": "#c8c6c2",
+                        "secondary-fixed-dim": "#e9c176",
+                        "on-secondary": "#ffffff",
+                        "error-container": "#ffdad6",
+                        "on-tertiary-container": "#8d8c89",
+                        "on-tertiary-fixed": "#1c1c1a",
+                        "surface-tint": "#954742",
+                        "on-tertiary-fixed-variant": "#474744",
+                        "surface-container-high": "#eae8e7",
+                        "primary-fixed": "#ffdad7",
+                        "inverse-surface": "#303030",
+                        "inverse-on-surface": "#f2f0f0",
+                        "secondary": "#775a19",
+                        "surface-dim": "#dbd9d9",
+                        "surface-bright": "#fbf9f8",
+                        "on-primary-fixed-variant": "#77302d",
+                        "on-tertiary": "#ffffff",
+                        "background": "#fbf9f8",
+                        "on-error-container": "#93000a",
+                        "on-secondary-container": "#785a1a",
+                        "outline-variant": "#dac1bf"
+                    },
+                    "borderRadius": {
+                        "DEFAULT": "0.25rem",
+                        "lg": "0.5rem",
+                        "xl": "0.75rem",
+                        "full": "9999px",
+                        "2xl": "1rem",
+                        "3xl": "1.5rem"
+                    },
+                    "spacing": {
+                        "xl": "40px",
+                        "xs": "4px",
+                        "md": "16px",
+                        "gutter": "16px",
+                        "lg": "24px",
+                        "xxl": "64px",
+                        "margin-safe": "24px",
+                        "sm": "8px",
+                        "unit": "4px"
+                    },
+                    "fontFamily": {
+                        "headline-h2": ["Playfair Display"],
+                        "label-ui": ["DM Sans"],
+                        "body-main": ["DM Sans"],
+                        "kicker": ["DM Sans"],
+                        "headline-h1": ["Playfair Display"],
+                        "display-ceremonial": ["Playfair Display"],
+                        "body-italic": ["Newsreader"]
+                    },
+                    "fontSize": {
+                        "headline-h2": ["24px", { "lineHeight": "1.4", "fontWeight": "400" }],
+                        "label-ui": ["14px", { "lineHeight": "1.0", "fontWeight": "500" }],
+                        "body-main": ["16px", { "lineHeight": "1.6", "fontWeight": "400" }],
+                        "kicker": ["10px", { "lineHeight": "1.0", "letterSpacing": "2px", "fontWeight": "600" }],
+                        "headline-h1": ["32px", { "lineHeight": "1.3", "fontWeight": "400" }],
+                        "display-ceremonial": ["42px", { "lineHeight": "1.2", "letterSpacing": "-0.02em", "fontWeight": "400" }],
+                        "body-italic": ["18px", { "lineHeight": "1.6", "fontWeight": "400" }]
+                    }
+                }
+            }
+        }
+    </script>
+<style>
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+        }
+        .symbol-filled {
+            font-variation-settings: 'FILL' 1, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+        }
+    </style>
+<style>
+    body {
+      min-height: max(884px, 100dvh);
+    }
+  </style>
+  </head>
+<body class="bg-tertiary-container h-screen w-full flex items-end justify-center sm:items-center sm:p-gutter font-body-main text-on-surface antialiased overflow-hidden relative">
+<!-- Simulated background map/image to give context for the modal -->
+<div class="absolute inset-0 z-0">
+<img alt="A dark, ethereal cosmic sky background with faint twinkling stars and a soft glowing nebula. The scene is majestic and calm, utilizing deep twilight blues and subtle warm gold accents, aligning with an elegant, ceremonial aesthetic." class="w-full h-full object-cover opacity-40" data-alt="A dark, ethereal cosmic sky background with faint twinkling stars and a soft glowing nebula. The scene is majestic and calm, utilizing deep twilight blues and subtle warm gold accents, aligning with an elegant, ceremonial aesthetic." src="https://lh3.googleusercontent.com/aida-public/AB6AXuBho04UIva9rsqFzysnaF-rZ8Uwlz9wyCmwRkgzYl4DJPZIMgCC23gnHi0X9cikqKjW-277v7QCmX2xCWJpfa2Ap_eGzIAY9rcVz26MPVbcCiK_h7w0lU0FYhFmjIPsJR_I0QasnT8vCT5OC6TT8uOPs5aotUKe8qXcDCMXf7nP76WY-1mUenMTBHYizeg_gKDCkZXPNcHtpkAmGjJ4fR967X46ydeUmpKc-8pNHJH69SrWeAl9XzUWAZSTSQYfVf8_qNK1D6TiDA"/>
+</div>
+<!-- Backdrop Blur Overlay -->
+<div class="absolute inset-0 z-10 bg-surface/30 backdrop-blur-md"></div>
+<!-- Modal Sheet -->
+<main aria-labelledby="modal-title" aria-modal="true" class="relative z-20 w-full max-w-md h-[751px] sm:h-auto sm:max-h-[751px] bg-surface rounded-t-3xl sm:rounded-3xl shadow-2xl flex flex-col items-center pt-md px-margin-safe pb-xl overflow-y-auto" role="dialog">
+<!-- Grab Handle (Mobile) -->
+<div class="w-12 h-1 bg-outline-variant rounded-full mb-lg sm:hidden"></div>
+<!-- Content Container -->
+<div class="flex flex-col items-center w-full max-w-sm mt-lg flex-grow">
+<!-- Top Ornament -->
+<div class="mb-lg text-secondary">
+<span class="material-symbols-outlined symbol-filled text-3xl">auto_awesome</span>
+</div>
+<!-- Hero Statement -->
+<h1 class="font-headline-h1 text-headline-h1 text-primary text-center mb-xl" id="modal-title">
+                Tomorrow at 6:55am
+            </h1>
+<!-- Notification Preview Bubble -->
+<div class="w-full bg-surface-container-highest rounded-2xl p-md shadow-sm border border-outline/10 mb-xl relative overflow-hidden backdrop-blur-sm">
+<!-- Inner soft gradient -->
+<div class="absolute inset-0 bg-gradient-to-br from-surface/50 to-transparent pointer-events-none"></div>
+<div class="relative z-10 flex items-start gap-sm">
+<!-- App Icon Stand-in -->
+<div class="w-10 h-10 bg-primary-container rounded-lg flex items-center justify-center flex-shrink-0 shadow-sm">
+<span class="font-headline-h2 text-headline-h2 text-on-primary">C</span>
+</div>
+<div class="flex-grow">
+<div class="flex justify-between items-center mb-xs">
+<span class="font-label-ui text-label-ui text-on-surface-variant font-bold tracking-wide">Celestia</span>
+<span class="font-kicker text-kicker text-on-surface-variant opacity-70 normal-case tracking-normal">Now</span>
+</div>
+<p class="font-body-main text-[14px] leading-snug text-on-surface line-clamp-3">
+                            Your real chart, not your sun sign. Your Moon in Cancer asks you to find comfort in familiar rhythms today.
+                        </p>
+</div>
+</div>
+</div>
+<!-- Body Text -->
+<p class="font-body-italic text-body-italic text-on-surface-variant text-center mb-xl max-w-[280px]">
+                Your real chart, not your sun sign. Allow notifications and we'll start with this — first thing tomorrow.
+            </p>
+<div class="flex-grow"></div>
+<!-- Actions -->
+<div class="w-full flex flex-col gap-md mt-auto">
+<!-- Hero CTA -->
+<button class="w-full bg-primary-container text-on-primary font-label-ui text-label-ui py-md px-lg rounded-full flex items-center justify-center transition-transform duration-200 active:scale-95 shadow-sm hover:opacity-90">
+                    Allow Notifications
+                </button>
+<!-- Secondary Link -->
+<button class="w-full text-on-surface-variant font-label-ui text-label-ui py-sm px-lg transition-colors duration-200 hover:text-primary active:scale-95">
+                    Maybe later
+                </button>
+</div>
+</div>
+</main>
+</body></html>

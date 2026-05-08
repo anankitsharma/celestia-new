@@ -5,11 +5,10 @@
     "version": "1.0.6",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
-    "userInterfaceStyle": "dark",
+    "userInterfaceStyle": "automatic",
     "splash": {
-      "image": "./assets/splash-icon.png",
       "resizeMode": "contain",
-      "backgroundColor": "#0E0E22"
+      "backgroundColor": "#FAEEDD"
     },
     "ios": {
       "supportsTablet": false,
@@ -26,9 +25,8 @@
         "backgroundColor": "#0E0E22"
       },
       "splash": {
-        "image": "./assets/splash-icon.png",
         "resizeMode": "contain",
-        "backgroundColor": "#0E0E22"
+        "backgroundColor": "#FAEEDD"
       }
     },
     "scheme": "celestia",

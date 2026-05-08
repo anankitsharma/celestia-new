@@ -785,28 +785,27 @@ export default function CompatibilityScreen() {
   }, [groupedPartners]);
 
   return (
-    <View style={{ flex: 1, backgroundColor: colors.bg }}>
+    <View style={{ flex: 1, backgroundColor: '#FCF9F8' }}>
       {/* ─── MAIN CIRCLE VIEW ─── */}
       {!showDetailScreen && (
         <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 110 }}>
-          {/* Hero — rounded bottom, centered */}
-          {(() => {
-            const heroColors = isDark ? ['#3A1A28', '#5A2840', '#3A1A28'] : (colors.heroGradientLight || ['#F4ECE5', '#F0E4DC', '#ECDCD3']);
-            const heroFg = isDark ? T.cream : colors.heading;
-            const heroFgMuted = isDark ? 'rgba(250,248,242,0.45)' : colors.textSecondary;
-            const addPillBg = isDark ? 'rgba(200,168,75,0.12)' : 'rgba(160,120,32,0.14)';
-            const addPillBorder = isDark ? 'rgba(200,168,75,0.25)' : 'rgba(160,120,32,0.32)';
-            const addPillText = isDark ? T.gold : T.goldText;
-            return (
-          <LinearGradient colors={heroColors} style={styles.hero}>
-            <Text style={[styles.title, { color: heroFg }]}>Compatibility</Text>
+          {/* Hero — rose-peach editorial ramp */}
+          <LinearGradient colors={['#FBE5DD', '#FBF1EC', '#FAF6EE']} locations={[0, 0.55, 1]} style={styles.hero}>
+            {/* Sheen */}
+            <LinearGradient
+              colors={['rgba(255,255,255,0.55)', 'rgba(255,255,255,0)']}
+              locations={[0, 0.5]}
+              style={styles.heroSheen}
+              pointerEvents="none"
+            />
+            <Text style={[styles.title, { color: '#1A1410' }]}>Compatibility</Text>
             <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 4, marginBottom: 4 }}>
-              <Text style={[styles.sub, { color: heroFgMuted }]}>
+              <Text style={[styles.sub, { color: 'rgba(26,20,16,0.62)' }]}>
                 {partnerProfiles.length === 0 ? 'Check anyone — a crush, a friend, or a celebrity' : `${partnerProfiles.length} ${partnerProfiles.length === 1 ? 'person' : 'people'} in your circle`}
               </Text>
-              <CosmicTooltip id="synastry" size={14} light={isDark} />
+              <CosmicTooltip id="synastry" size={14} />
             </View>
-            <TouchableOpacity style={[styles.heroAddBtn, { backgroundColor: addPillBg, borderColor: addPillBorder }]} activeOpacity={0.7}
+            <TouchableOpacity style={[styles.heroAddBtn, { backgroundColor: '#FFFFFF', borderColor: 'rgba(26,20,16,0.08)' }]} activeOpacity={0.8}
               onPress={() => {
                 if (!isPro && partnerProfiles.length >= 3) {
                   haptic.medium();
@@ -815,11 +814,9 @@ export default function CompatibilityScreen() {
                 }
                 setShowAddModal(true);
               }}>
-              <Text style={[styles.heroAddBtnText, { color: addPillText }]}>+ Add Someone</Text>
+              <Text style={[styles.heroAddBtnText, { color: T.clay }]}>+ Add Someone</Text>
             </TouchableOpacity>
           </LinearGradient>
-            );
-          })()}
 
           {/* ─── CONCENTRIC ORBIT SYSTEM — collapsed when partners exist, visible when empty ─── */}
           {partnerProfiles.length === 0 && <View style={styles.orbitSystemWrap}>
@@ -1680,8 +1677,11 @@ export default function CompatibilityScreen() {
             {zodiacOnlyMode && <View style={styles.zodiacOnlyBadge}><Text style={styles.zodiacOnlyBadgeText}>☉ Sun Sign Analysis — simplified compatibility</Text></View>}
 
             <TouchableOpacity style={[styles.saveBtn, (!partnerName.trim() || (zodiacOnlyMode ? !selectedZodiacSign : !selectedCity)) && { opacity: 0.5 }]}
+              activeOpacity={0.85}
               onPress={handleSavePartner} disabled={savingPartner || !partnerName.trim() || (zodiacOnlyMode ? !selectedZodiacSign : !selectedCity)}>
-              {savingPartner ? <ActivityIndicator color="white" /> : <Text style={styles.saveBtnText}>Calculate Compatibility</Text>}
+              <LinearGradient colors={['#FED9B8', '#E9DDFF']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={styles.saveBtnGrad}>
+                {savingPartner ? <ActivityIndicator color={T.navy} /> : <Text style={styles.saveBtnText}>Calculate Compatibility</Text>}
+              </LinearGradient>
             </TouchableOpacity>
             <View style={{ height: 40 }} />
           </ScrollView>
@@ -1759,15 +1759,18 @@ export default function CompatibilityScreen() {
             )}
 
             <TouchableOpacity
-              style={[styles.saveBtn, styles.deepenSaveBtn,
+              style={[styles.saveBtn,
                 (deepenMode === 'full' ? (!deepenDate || !deepenSelectedCity) : (!deepenTime && !deepenTimeUnknown)) && { opacity: 0.5 }
               ]}
+              activeOpacity={0.85}
               onPress={handleSaveDeepenedPartner}
               disabled={deepenSaving || (deepenMode === 'full' ? (!deepenDate || !deepenSelectedCity) : (!deepenTime && !deepenTimeUnknown))}>
-              {deepenSaving
-                ? <ActivityIndicator color="white" />
-                : <Text style={styles.saveBtnText}>{deepenMode === 'full' ? 'Deepen Compatibility' : 'Update Reading'}</Text>
-              }
+              <LinearGradient colors={['#FED9B8', '#E9DDFF']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={styles.saveBtnGrad}>
+                {deepenSaving
+                  ? <ActivityIndicator color={T.navy} />
+                  : <Text style={styles.saveBtnText}>{deepenMode === 'full' ? 'Deepen Compatibility' : 'Update Reading'}</Text>
+                }
+              </LinearGradient>
             </TouchableOpacity>
             <View style={{ height: 40 }} />
           </ScrollView>
@@ -1844,7 +1847,8 @@ const generateMatchReportHTML = (report, user, partner, synastry, role = 'partne
 
 const styles = StyleSheet.create({
   // Hero (compact)
-  hero: { paddingTop: Platform.OS === 'ios' ? 70 : (StatusBar.currentHeight || 48) + 16, paddingHorizontal: 22, paddingBottom: 28, borderBottomLeftRadius: 36, borderBottomRightRadius: 36, alignItems: 'center' },
+  hero: { paddingTop: Platform.OS === 'ios' ? 70 : (StatusBar.currentHeight || 48) + 16, paddingHorizontal: 22, paddingBottom: 28, borderBottomLeftRadius: 28, borderBottomRightRadius: 28, alignItems: 'center', overflow: 'hidden', position: 'relative' },
+  heroSheen: { position: 'absolute', top: 0, left: 0, right: 0, height: '50%' },
   title: { fontFamily: FONTS.serif, fontSize: 30, color: T.cream, marginBottom: 4, textAlign: 'center' },
   sub: { fontSize: 12, fontFamily: FONTS.sans, color: 'rgba(250,248,242,0.45)', textAlign: 'center' },
   heroAddBtn: { backgroundColor: 'rgba(200,168,75,0.12)', borderWidth: 1, borderColor: 'rgba(200,168,75,0.25)', borderRadius: 100, paddingVertical: 8, paddingHorizontal: 20, marginTop: 10 },
@@ -1968,14 +1972,15 @@ const styles = StyleSheet.create({
   input: { backgroundColor: 'white', borderRadius: 12, padding: 14, fontSize: 15, color: T.navy, borderWidth: 1, borderColor: '#EDE6D8', fontFamily: FONTS.sansLight },
   checkRow: { flexDirection: 'row', alignItems: 'center', gap: 10, marginTop: 12 },
   check: { width: 20, height: 20, borderRadius: 6, borderWidth: 1.5, borderColor: '#D4CFC4', alignItems: 'center', justifyContent: 'center' },
-  checkOn: { backgroundColor: T.navy, borderColor: T.navy },
+  checkOn: { backgroundColor: T.clay, borderColor: T.clay },
   checkLabel: { fontSize: 13, color: T.stone },
   suggestions: { backgroundColor: 'white', borderRadius: 12, borderWidth: 1, borderColor: '#EDE6D8', marginTop: 4, overflow: 'hidden' },
   suggestion: { padding: 13, borderBottomWidth: 1, borderBottomColor: '#F5EEE4' },
-  saveBtn: { backgroundColor: T.navy, borderRadius: 14, padding: 16, alignItems: 'center', marginTop: 28 },
-  saveBtnText: { fontSize: 15, fontFamily: FONTS.sansSemiBold, color: T.cream },
+  saveBtn: { borderRadius: 100, marginTop: 28, shadowColor: '#5C2434', shadowOffset: { width: 0, height: 8 }, shadowOpacity: 0.3, shadowRadius: 18, elevation: 8 },
+  saveBtnGrad: { borderRadius: 100, paddingVertical: 16, alignItems: 'center' },
+  saveBtnText: { fontSize: 15, fontFamily: FONTS.sansSemiBold, color: T.navy, letterSpacing: 0.3 },
   relTypePill: { paddingVertical: 8, paddingHorizontal: 14, borderRadius: 100, backgroundColor: 'white', borderWidth: 1, borderColor: 'rgba(0,0,0,0.08)' },
-  relTypePillActive: { backgroundColor: T.navy, borderColor: T.navy },
+  relTypePillActive: { backgroundColor: T.clay, borderColor: T.clay },
   relTypePillText: { fontSize: 12, fontFamily: FONTS.sansMedium, color: T.stone },
   relTypePillTextActive: { color: T.cream },
   zodiacToggle: { flexDirection: 'row', alignItems: 'flex-start', gap: 10, marginBottom: 16, paddingVertical: 8 },
@@ -2117,7 +2122,7 @@ const styles = StyleSheet.create({
   deepenSignBadgeText: { fontSize: 12, fontFamily: FONTS.sansMedium, color: T.gold },
   deepenInfoBanner: { backgroundColor: 'rgba(200,168,75,0.06)', borderRadius: 12, padding: 14, marginBottom: 16, borderWidth: 1, borderColor: 'rgba(200,168,75,0.12)' },
   deepenInfoText: { fontSize: 12, color: T.ink, lineHeight: 18 },
-  deepenSaveBtn: { backgroundColor: T.gold },
+  deepenSaveBtn: {},
 
   // Success toast
   toastContainer: { position: 'absolute', top: Platform.OS === 'ios' ? 80 : (StatusBar.currentHeight || 48) + 20, left: 20, right: 20, alignItems: 'center', zIndex: 999 },

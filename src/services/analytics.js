@@ -11,9 +11,13 @@ export const EVENTS = {
   ONBOARDING_STARTED:               'onboarding_started',
   ONBOARDING_STEP_COMPLETED:        'onboarding_step_completed',
   ONBOARDING_COMPLETED:             'onboarding_completed',
+  ONBOARDING_WAKE_TIME_SET:         'onboarding_wake_time_set',
+  ONBOARDING_NOTIF_BUNDLE_PICKED:   'onboarding_notif_bundle_picked',
   CHART_REVEALED:                   'chart_revealed',
   POST_CHART_CTA_SHOWN:             'post_chart_cta_shown',
   POST_CHART_CTA_TAPPED:            'post_chart_cta_tapped',
+  D1_PUSH_OPENED:                   'd1_push_opened',
+  FIRST_INSIGHT_SAVED:              'first_insight_saved',
 
   // Paywall
   PAYWALL_VIEWED:                   'paywall_viewed',

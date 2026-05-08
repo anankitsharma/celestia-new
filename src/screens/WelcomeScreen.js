@@ -8,7 +8,7 @@ import { useUserProfile } from '../contexts/UserProfileContext';
 import { useTheme } from '../contexts/ThemeContext';
 import { useAnalytics, EVENTS } from '../services/analytics';
 import { haptic } from '../services/hapticService';
-import { requestNotificationPermission, hasNotificationPermission, scheduleAllNotifications } from '../services/notificationService';
+import { requestNotificationPermission, hasNotificationPermission, scheduleAllNotifications, getNotificationSettings } from '../services/notificationService';
 import NotificationPermissionModal from '../components/NotificationPermissionModal';
 import { saveBoolean, loadBoolean, saveString, StorageKeys } from '../services/storage';
 import { getComboRarity } from '../services/cosmicIdentityService';
@@ -137,7 +137,22 @@ export default function WelcomeScreen({ navigation }) {
 
   // Permission modal state — shown once when user first chooses a CTA
   const [showNotifModal, setShowNotifModal] = useState(false);
+  // Wake-time read back from notification settings — drives the "Tomorrow at X"
+  // hero in the modal so the ask is concrete, not generic.
+  const [wakeTime, setWakeTime] = useState({ hour: 7, minute: 0 });
   const pendingNavRef = useRef(null);
+
+  useEffect(() => {
+    (async () => {
+      try {
+        const settings = await getNotificationSettings();
+        setWakeTime({
+          hour: typeof settings?.morningTime === 'number' ? settings.morningTime : 7,
+          minute: typeof settings?.morningMinute === 'number' ? settings.morningMinute : 0,
+        });
+      } catch {}
+    })();
+  }, []);
 
   useEffect(() => {
     Animated.loop(
@@ -373,6 +388,8 @@ export default function WelcomeScreen({ navigation }) {
         visible={showNotifModal}
         onEnable={handleNotifModalEnable}
         onDismiss={handleNotifModalDismiss}
+        wakeTime={wakeTime}
+        firstRevealStatement={revealStatements[0]?.text || ''}
       />
     </LinearGradient>
   );

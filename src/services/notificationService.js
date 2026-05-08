@@ -94,7 +94,56 @@ const DEFAULT_SETTINGS = {
   quietHoursEnd: 7,
   morningTime: 7,
   morningMinute: 30,
+  notificationBundle: 'balanced',
 };
+
+// Three pre-baked notification bundles that map onboarding's "what kind of nudge"
+// choice to the underlying 7 channels. Picking a bundle is the user's mental
+// model; per-channel toggles are the implementation detail behind it.
+//   minimal    → 1 push/day (morning only)
+//   balanced   → 2 pushes/day (morning + evening + retention scaffolding) [default]
+//   everything → up to 5 pushes/week (all channels active)
+// reactivation stays ON across all bundles — lapsed cascade is win-back, not
+// regular cadence, and we want it firing even for minimal users.
+export const BUNDLE_PRESETS = {
+  minimal: {
+    cosmic_morning: true,
+    evening_reflection: false,
+    transit_alerts: false,
+    streak_guardian: false,
+    reactivation: true,
+    cosmic_milestones: false,
+    weekly_digest: false,
+  },
+  balanced: {
+    cosmic_morning: true,
+    evening_reflection: true,
+    transit_alerts: false,
+    streak_guardian: true,
+    reactivation: true,
+    cosmic_milestones: true,
+    weekly_digest: false,
+  },
+  everything: {
+    cosmic_morning: true,
+    evening_reflection: true,
+    transit_alerts: true,
+    streak_guardian: true,
+    reactivation: true,
+    cosmic_milestones: true,
+    weekly_digest: true,
+  },
+};
+
+export async function applyNotificationBundle(bundleId) {
+  const preset = BUNDLE_PRESETS[bundleId] || BUNDLE_PRESETS.balanced;
+  const settings = await getNotificationSettings();
+  await saveNotificationSettings({
+    ...settings,
+    ...preset,
+    notificationBundle: bundleId,
+  });
+}
 
 export async function getNotificationSettings() {
   const saved = await loadObject(StorageKeys.NOTIFICATION_SETTINGS);
@@ -622,7 +671,13 @@ export async function scheduleAllNotifications(userProfile, forecast, streakData
     //   • 2/day for everyone else — habituated tolerance
     // Daily-recurring pushes (no specific date) join today's bucket.
     // Lower priority number wins (1 = highest).
-    const dailyCap = (data.weeksSinceInstall || 0) < 1 ? 1 : 2;
+    // Bundle-aware daily cap. Honors the user's stated rhythm preference even
+    // after habituation: minimal/balanced stay at the base cap; 'everything'
+    // pickers signaled tolerance, so we use 1.5× (rounded up).
+    const baseCap = (data.weeksSinceInstall || 0) < 1 ? 1 : 2;
+    const bundle = settings?.notificationBundle || 'balanced';
+    const bundleMultiplier = bundle === 'everything' ? 1.5 : 1;
+    const dailyCap = Math.ceil(baseCap * bundleMultiplier);
     const dateKey = (q) => {
       const d = q.trigger === 'exactDate' && q.date ? q.date : now;
       return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;

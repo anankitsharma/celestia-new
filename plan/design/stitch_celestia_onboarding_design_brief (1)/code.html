@@ -1,0 +1,276 @@
+<!DOCTYPE html>
+
+<html class="light" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Celestia - Paywall</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com" rel="preconnect"/>
+<link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect"/>
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:opsz,wght@9..40,400;500;600&amp;family=Newsreader:ital,wght@0,400;1,400&amp;family=Playfair+Display:wght@400;600&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+        tailwind.config = {
+          darkMode: "class",
+          theme: {
+            extend: {
+              "colors": {
+                      "inverse-primary": "#ffb3ad",
+                      "error": "#ba1a1a",
+                      "secondary-fixed-dim": "#e9c176",
+                      "inverse-surface": "#303030",
+                      "tertiary-fixed": "#e5e2de",
+                      "on-primary-container": "#cc726d",
+                      "secondary-fixed": "#ffdea5",
+                      "surface-container-high": "#eae8e7",
+                      "primary-fixed-dim": "#ffb3ad",
+                      "primary-container": "#4a0e0e",
+                      "on-tertiary-container": "#8d8c89",
+                      "on-error-container": "#93000a",
+                      "tertiary-container": "#252523",
+                      "surface-container": "#efeded",
+                      "outline-variant": "#dac1bf",
+                      "background": "#fbf9f8",
+                      "surface-container-highest": "#e4e2e2",
+                      "on-primary": "#ffffff",
+                      "error-container": "#ffdad6",
+                      "on-secondary-fixed-variant": "#5d4201",
+                      "surface-dim": "#dbd9d9",
+                      "secondary-container": "#fed488",
+                      "tertiary": "#10100e",
+                      "surface-bright": "#fbf9f8",
+                      "surface-container-lowest": "#ffffff",
+                      "on-surface-variant": "#544341",
+                      "surface-variant": "#e4e2e2",
+                      "primary": "#2a0002",
+                      "secondary": "#775a19",
+                      "on-secondary": "#ffffff",
+                      "outline": "#877270",
+                      "surface": "#fbf9f8",
+                      "on-surface": "#1b1c1c",
+                      "on-tertiary": "#ffffff",
+                      "on-primary-fixed": "#3d0506",
+                      "on-background": "#1b1c1c",
+                      "primary-fixed": "#ffdad7",
+                      "on-primary-fixed-variant": "#77302d",
+                      "on-error": "#ffffff",
+                      "tertiary-fixed-dim": "#c8c6c2",
+                      "on-secondary-fixed": "#261900",
+                      "surface-tint": "#954742",
+                      "on-tertiary-fixed-variant": "#474744",
+                      "on-secondary-container": "#785a1a",
+                      "inverse-on-surface": "#f2f0f0",
+                      "surface-container-low": "#f5f3f3",
+                      "on-tertiary-fixed": "#1c1c1a"
+              },
+              "borderRadius": {
+                      "DEFAULT": "0.25rem",
+                      "lg": "0.5rem",
+                      "xl": "0.75rem",
+                      "full": "9999px"
+              },
+              "spacing": {
+                      "xxl": "64px",
+                      "margin-safe": "24px",
+                      "xs": "4px",
+                      "unit": "4px",
+                      "lg": "24px",
+                      "md": "16px",
+                      "gutter": "16px",
+                      "sm": "8px",
+                      "xl": "40px"
+              },
+              "fontFamily": {
+                      "display-ceremonial": [
+                              "Playfair Display"
+                      ],
+                      "headline-h2": [
+                              "Playfair Display"
+                      ],
+                      "label-ui": [
+                              "DM Sans"
+                      ],
+                      "body-italic": [
+                              "Newsreader"
+                      ],
+                      "headline-h1": [
+                              "Playfair Display"
+                      ],
+                      "body-main": [
+                              "DM Sans"
+                      ],
+                      "kicker": [
+                              "DM Sans"
+                      ]
+              },
+              "fontSize": {
+                      "display-ceremonial": [
+                              "42px",
+                              {
+                                      "lineHeight": "1.2",
+                                      "letterSpacing": "-0.02em",
+                                      "fontWeight": "400"
+                              }
+                      ],
+                      "headline-h2": [
+                              "24px",
+                              {
+                                      "lineHeight": "1.4",
+                                      "fontWeight": "400"
+                              }
+                      ],
+                      "label-ui": [
+                              "14px",
+                              {
+                                      "lineHeight": "1.0",
+                                      "fontWeight": "500"
+                              }
+                      ],
+                      "body-italic": [
+                              "18px",
+                              {
+                                      "lineHeight": "1.6",
+                                      "fontWeight": "400"
+                              }
+                      ],
+                      "headline-h1": [
+                              "32px",
+                              {
+                                      "lineHeight": "1.3",
+                                      "fontWeight": "400"
+                              }
+                      ],
+                      "body-main": [
+                              "16px",
+                              {
+                                      "lineHeight": "1.6",
+                                      "fontWeight": "400"
+                              }
+                      ],
+                      "kicker": [
+                              "10px",
+                              {
+                                      "lineHeight": "1.0",
+                                      "letterSpacing": "2px",
+                                      "fontWeight": "600"
+                              }
+                      ]
+              }
+      },
+          },
+        }
+      </script>
+<style>
+        .material-symbols-outlined {
+          font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+        }
+      </style>
+<style>
+    body {
+      min-height: max(884px, 100dvh);
+    }
+  </style>
+  </head>
+<body class="bg-background text-on-background antialiased min-h-screen flex flex-col items-center justify-center relative overflow-hidden">
+<!-- Abstract Background Elements for Liquid Glass feel -->
+<div class="absolute inset-0 pointer-events-none z-0 overflow-hidden">
+<div class="absolute top-[-10%] right-[-10%] w-[500px] h-[500px] rounded-full bg-secondary-fixed/30 blur-3xl opacity-50 mix-blend-multiply"></div>
+<div class="absolute bottom-[-10%] left-[-10%] w-[600px] h-[600px] rounded-full bg-surface-tint/10 blur-3xl opacity-50 mix-blend-multiply"></div>
+</div>
+<!-- Main Content Canvas -->
+<main class="w-full max-w-[480px] mx-auto px-margin-safe py-xl z-10 flex flex-col h-full overflow-y-auto">
+<!-- Header Section -->
+<header class="text-center mb-xl space-y-md">
+<div class="inline-flex items-center justify-center w-12 h-12 rounded-full bg-surface-container-high border border-outline/10 shadow-sm mb-sm">
+<span class="material-symbols-outlined text-primary text-2xl" style="font-variation-settings: 'FILL' 1;">auto_awesome</span>
+</div>
+<h1 class="font-display-ceremonial text-display-ceremonial text-primary">Your chart is cast,<br/>Mia. Now what?</h1>
+<p class="font-body-main text-body-main text-on-surface-variant max-w-[280px] mx-auto">Unlock the full narrative of your cosmic blueprint.</p>
+</header>
+<!-- Benefits List (Liquid Glass Editorial Style) -->
+<div class="space-y-sm mb-xl">
+<div class="flex items-center p-md bg-[#F5F2EE] border border-outline/10 rounded-xl backdrop-blur-md shadow-[0_2px_4px_rgba(0,0,0,0.02)] transition-transform duration-200 hover:scale-[1.01]">
+<span class="text-xl mr-md">✨</span>
+<span class="font-body-main text-body-main text-on-surface">Daily, highly-personalized readings</span>
+</div>
+<div class="flex items-center p-md bg-[#F5F2EE] border border-outline/10 rounded-xl backdrop-blur-md shadow-[0_2px_4px_rgba(0,0,0,0.02)] transition-transform duration-200 hover:scale-[1.01]">
+<span class="text-xl mr-md">🔔</span>
+<span class="font-body-main text-body-main text-on-surface">Real-time planetary transit alerts</span>
+</div>
+<div class="flex items-center p-md bg-[#F5F2EE] border border-outline/10 rounded-xl backdrop-blur-md shadow-[0_2px_4px_rgba(0,0,0,0.02)] transition-transform duration-200 hover:scale-[1.01]">
+<span class="text-xl mr-md">🧠</span>
+<span class="font-body-main text-body-main text-on-surface">Unlimited AI astrological insights</span>
+</div>
+</div>
+<!-- Plan Selection (Bento/Card Layout) -->
+<div class="space-y-md mb-xl">
+<!-- Annual Pro Card (Active/Best Value) -->
+<label class="relative block cursor-pointer group">
+<input checked="" class="peer sr-only" name="plan" type="radio" value="annual"/>
+<div class="absolute -top-3 right-4 z-20">
+<span class="bg-secondary text-on-secondary font-kicker text-kicker uppercase px-sm py-xs rounded-full shadow-sm tracking-widest">Best Value</span>
+</div>
+<div class="relative p-lg bg-[#F5F2EE] rounded-xl border-2 border-primary shadow-[0_4px_12px_rgba(0,0,0,0.05)] transition-all duration-200 peer-checked:bg-surface-bright overflow-hidden">
+<!-- Subtle glass gleam -->
+<div class="absolute top-0 left-0 w-full h-full bg-gradient-to-br from-white/40 to-transparent pointer-events-none rounded-xl"></div>
+<div class="flex justify-between items-start relative z-10">
+<div>
+<h3 class="font-headline-h2 text-headline-h2 text-primary mb-xs">Annual Pro</h3>
+<p class="font-body-main text-body-main text-on-surface-variant">$49.99 billed yearly</p>
+</div>
+<div class="text-right">
+<span class="block font-headline-h1 text-headline-h1 text-primary">$4.16</span>
+<span class="font-body-main text-body-main text-on-surface-variant">/ mo</span>
+</div>
+</div>
+</div>
+</label>
+<!-- Monthly Pro Card (Inactive) -->
+<label class="relative block cursor-pointer group">
+<input class="peer sr-only" name="plan" type="radio" value="monthly"/>
+<div class="relative p-lg bg-[#F5F2EE] rounded-xl border border-outline/10 shadow-[0_2px_4px_rgba(0,0,0,0.02)] transition-all duration-200 peer-checked:border-primary peer-checked:shadow-[0_4px_12px_rgba(0,0,0,0.05)] peer-checked:bg-surface-bright overflow-hidden opacity-80 group-hover:opacity-100">
+<div class="flex justify-between items-center relative z-10">
+<div>
+<h3 class="font-headline-h2 text-headline-h2 text-on-surface mb-xs">Monthly Pro</h3>
+</div>
+<div class="text-right">
+<span class="block font-headline-h2 text-headline-h2 text-on-surface">$7.99</span>
+<span class="font-body-main text-body-main text-on-surface-variant">/ mo</span>
+</div>
+</div>
+</div>
+</label>
+</div>
+<!-- Trial Timeline & CTA -->
+<div class="mt-auto pt-lg border-t border-outline/10 space-y-lg">
+<!-- Timeline -->
+<div class="flex justify-between items-center px-sm relative">
+<!-- Connecting Line -->
+<div class="absolute top-1/2 left-0 w-full h-[1px] bg-outline/20 -z-10"></div>
+<div class="flex flex-col items-center bg-background px-2">
+<div class="w-3 h-3 rounded-full bg-primary mb-sm"></div>
+<span class="font-kicker text-kicker text-primary uppercase">Today</span>
+</div>
+<div class="flex flex-col items-center bg-background px-2">
+<div class="w-3 h-3 rounded-full bg-outline/30 mb-sm"></div>
+<span class="font-kicker text-kicker text-on-surface-variant uppercase">Day 5</span>
+</div>
+<div class="flex flex-col items-center bg-background px-2">
+<div class="w-3 h-3 rounded-full bg-outline/30 mb-sm"></div>
+<span class="font-kicker text-kicker text-on-surface-variant uppercase">Day 7</span>
+</div>
+</div>
+<!-- Primary CTA -->
+<button class="w-full py-md px-lg rounded-xl bg-gradient-to-r from-secondary to-secondary-fixed text-on-secondary font-label-ui text-label-ui uppercase tracking-widest shadow-md hover:shadow-lg transition-all duration-250 active:scale-95 flex items-center justify-center">
+                START MY FREE TRIAL
+            </button>
+<!-- Secondary Link -->
+<div class="text-center">
+<button class="font-label-ui text-label-ui text-on-surface-variant hover:text-primary transition-colors duration-200 pb-1 border-b border-transparent hover:border-primary">
+                    Continue with limited access
+                </button>
+</div>
+</div>
+</main>
+</body></html>

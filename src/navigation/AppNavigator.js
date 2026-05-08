@@ -4,7 +4,10 @@ import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 
 import SplashScreen from '../screens/SplashScreen';
 import OnboardingFlowScreen from '../screens/OnboardingFlowScreen';
-import HomeScreen from '../screens/HomeScreen';
+// HomeScreen (V1) is kept on disk for reference. The Today tab now uses the
+// V2 swipe deck below — see HomeScreenV2.js. If you need to consult V1's
+// engagement layers, copy them across deliberately rather than reviving this
+// import.
 import HomeScreenV2 from '../screens/HomeScreenV2';
 import LifeAreaDetailScreen from '../screens/LifeAreaDetailScreen';
 import TodayReadingDetailScreen from '../screens/TodayReadingDetailScreen';
@@ -37,15 +40,11 @@ function MainTabs() {
       tabBar={(props) => <TabBar {...props} />}
       screenOptions={{ headerShown: false }}
     >
-      <Tab.Screen name="Today" component={HomeScreen} />
+      <Tab.Screen name="Today" component={HomeScreenV2} />
       <Tab.Screen name="AskAI" component={ChatScreen} />
       <Tab.Screen name="Chart" component={ChartScreen} />
       <Tab.Screen name="Circle" component={CompatibilityScreen} />
       <Tab.Screen name="Reports" component={ReportsScreen} />
-      {/* TEMPORARY: V2 reel as a sixth tab so we can iterate the redesign
-          alongside the existing Today. Once V2 is dialed in, we replace the
-          first tab and remove this one. */}
-      <Tab.Screen name="TodayV2" component={HomeScreenV2} />
     </Tab.Navigator>
   );
 }

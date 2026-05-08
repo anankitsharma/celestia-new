@@ -1,0 +1,164 @@
+<!DOCTYPE html>
+
+<html class="h-full" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Your Core Reveal - Celestia</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;500;600;700&amp;family=Inter:wght@400;500;600&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    "colors": {
+                        "tertiary-container": "#242523",
+                        "surface-container-lowest": "#ffffff",
+                        "surface-tint": "#954742",
+                        "surface-variant": "#e9e1dc",
+                        "tertiary": "#0f100e",
+                        "surface": "#fff8f5",
+                        "secondary-fixed-dim": "#e9c349",
+                        "surface-container-highest": "#e9e1dc",
+                        "secondary-fixed": "#ffe088",
+                        "on-primary-container": "#cc726d",
+                        "on-tertiary": "#ffffff",
+                        "inverse-primary": "#ffb3ad",
+                        "on-error": "#ffffff",
+                        "surface-container-high": "#efe6e2",
+                        "on-primary-fixed": "#3d0506",
+                        "surface-container-low": "#fbf2ed",
+                        "on-tertiary-fixed-variant": "#474744",
+                        "on-error-container": "#93000a",
+                        "primary": "#2a0002",
+                        "surface-dim": "#e1d8d4",
+                        "inverse-on-surface": "#f8efea",
+                        "on-tertiary-container": "#8c8c89",
+                        "secondary": "#735c00",
+                        "background": "#fff8f5",
+                        "error-container": "#ffdad6",
+                        "primary-container": "#4a0e0e",
+                        "on-background": "#1e1b18",
+                        "on-surface": "#1e1b18",
+                        "tertiary-fixed": "#e4e2de",
+                        "on-secondary-container": "#745c00",
+                        "inverse-surface": "#34302c",
+                        "error": "#ba1a1a",
+                        "surface-container": "#f5ece7",
+                        "on-secondary": "#ffffff",
+                        "on-primary-fixed-variant": "#77302d",
+                        "primary-fixed": "#ffdad7",
+                        "on-tertiary-fixed": "#1b1c1a",
+                        "outline": "#877270",
+                        "primary-fixed-dim": "#ffb3ad",
+                        "on-secondary-fixed": "#241a00",
+                        "on-secondary-fixed-variant": "#574500",
+                        "secondary-container": "#fed65b",
+                        "on-primary": "#ffffff",
+                        "outline-variant": "#dac1bf",
+                        "tertiary-fixed-dim": "#c8c6c3",
+                        "surface-bright": "#fff8f5",
+                        "on-surface-variant": "#544341"
+                    },
+                    "borderRadius": {
+                        "DEFAULT": "0.25rem",
+                        "lg": "0.5rem",
+                        "xl": "0.75rem",
+                        "full": "9999px"
+                    },
+                    "spacing": {
+                        "unit": "4px",
+                        "margin-mobile": "24px",
+                        "xl": "64px",
+                        "lg": "32px",
+                        "md": "16px",
+                        "xs": "4px",
+                        "sm": "8px",
+                        "gutter": "24px",
+                        "margin-desktop": "80px"
+                    },
+                    "fontFamily": {
+                        "body-lg": ["Inter"],
+                        "headline-md": ["Playfair Display"],
+                        "display-lg": ["Playfair Display"],
+                        "body-md": ["Inter"],
+                        "ceremonial-label": ["Playfair Display"],
+                        "headline-sm": ["Playfair Display"],
+                        "utility-label": ["Inter"]
+                    },
+                    "fontSize": {
+                        "body-lg": ["18px", { "lineHeight": "1.6", "letterSpacing": "0em", "fontWeight": "400" }],
+                        "headline-md": ["32px", { "lineHeight": "1.2", "letterSpacing": "0em", "fontWeight": "600" }],
+                        "display-lg": ["48px", { "lineHeight": "1.1", "letterSpacing": "-0.02em", "fontWeight": "700" }],
+                        "body-md": ["16px", { "lineHeight": "1.5", "letterSpacing": "0em", "fontWeight": "400" }],
+                        "ceremonial-label": ["14px", { "lineHeight": "1.0", "letterSpacing": "0.1em", "fontWeight": "600" }],
+                        "headline-sm": ["24px", { "lineHeight": "1.3", "letterSpacing": "0.01em", "fontWeight": "500" }],
+                        "utility-label": ["12px", { "lineHeight": "1.0", "letterSpacing": "0.05em", "fontWeight": "600" }]
+                    }
+                }
+            }
+        }
+    </script>
+<style>
+    body {
+      min-height: max(884px, 100dvh);
+    }
+  </style>
+  </head>
+<body class="h-full bg-background text-on-background antialiased flex flex-col items-center justify-center overflow-hidden">
+<!-- Content Canvas - Centered Layout -->
+<main class="flex-1 w-full max-w-xl mx-auto flex flex-col items-center justify-center px-margin-mobile relative z-10">
+<!-- Kicker -->
+<div class="mb-lg text-center">
+<span class="font-utility-label text-utility-label text-on-surface-variant uppercase tracking-[0.2em] relative inline-block">
+                YOUR CORE
+                <span class="absolute -bottom-2 left-1/2 -translate-x-1/2 w-4 border-b-[0.5px] border-primary/40"></span>
+</span>
+</div>
+<!-- Big 3 Reveal Cluster -->
+<div class="flex flex-col items-center gap-md relative w-full mb-xl">
+<!-- Connection Line (Decorative behind) -->
+<div class="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 h-[80%] w-[0.5px] bg-primary/10 -z-10"></div>
+<!-- Sun (Locked State Example) -->
+<button class="relative w-full max-w-[280px] h-24 border-[0.5px] border-primary/20 bg-surface-container-lowest flex items-center justify-center group hover:border-primary/40 transition-colors duration-500">
+<div class="absolute inset-0 bg-surface-dim opacity-0 group-hover:opacity-10 transition-opacity duration-500"></div>
+<div class="flex flex-col items-center gap-2 relative z-10">
+<span class="material-symbols-outlined text-secondary font-light" style="font-variation-settings: 'FILL' 0, 'wght' 200;">lock</span>
+<span class="font-ceremonial-label text-ceremonial-label text-primary tracking-[0.15em]">REVEAL SUN</span>
+</div>
+</button>
+<!-- Moon (Unlocked/Revealed State Example) -->
+<div class="relative w-full max-w-[320px] p-md border-[0.5px] border-primary bg-surface-container-lowest flex items-center justify-between shadow-[0_0_20px_rgba(254,214,91,0.05)]">
+<div class="flex items-center gap-4">
+<div class="w-12 h-12 flex items-center justify-center rounded-full border-[0.5px] border-primary/20 bg-surface">
+<span class="material-symbols-outlined text-primary" style="font-variation-settings: 'FILL' 0, 'wght' 200;">dark_mode</span>
+</div>
+<div class="flex flex-col">
+<span class="font-utility-label text-utility-label text-on-surface-variant mb-1 uppercase">Moon Sign</span>
+<span class="font-headline-sm text-headline-sm text-primary">Taurus</span>
+</div>
+</div>
+<div class="h-full border-l-[0.5px] border-primary/20 pl-4 flex items-center">
+<span class="font-body-md text-body-md text-on-surface-variant italic">2° 14'</span>
+</div>
+</div>
+<!-- Rising (Locked State Example) -->
+<button class="relative w-full max-w-[280px] h-24 border-[0.5px] border-primary/20 bg-surface-container-lowest flex items-center justify-center group hover:border-primary/40 transition-colors duration-500">
+<div class="absolute inset-0 bg-surface-dim opacity-0 group-hover:opacity-10 transition-opacity duration-500"></div>
+<div class="flex flex-col items-center gap-2 relative z-10">
+<span class="material-symbols-outlined text-secondary font-light" style="font-variation-settings: 'FILL' 0, 'wght' 200;">lock</span>
+<span class="font-ceremonial-label text-ceremonial-label text-primary tracking-[0.15em]">REVEAL RISING</span>
+</div>
+</button>
+</div>
+<!-- Final Action (Would appear after all 3 revealed, shown here for structure) -->
+<div class="opacity-50">
+<button class="font-ceremonial-label text-ceremonial-label text-primary px-8 py-4 border-[0.5px] border-primary relative group overflow-hidden">
+<span class="relative z-10">READ SYNTHESIS</span>
+<span class="absolute bottom-2 left-1/2 -translate-x-1/2 w-8 border-b-[1px] border-secondary opacity-0 group-hover:opacity-100 transition-all duration-300"></span>
+</button>
+</div>
+</main>
+</body></html>

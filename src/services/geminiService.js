@@ -2203,6 +2203,86 @@ RESPONSE GUIDANCE FOR THIS MESSAGE
     };
 };
 
+// React-Native-compatible SSE streamer for Gemini's streamGenerateContent.
+// Uses XMLHttpRequest because RN's fetch buffers the full response before
+// resolving and does not expose response.body as a ReadableStream.
+const streamGenerateContentSSE = ({ model, contents, systemInstruction, onChunk }) => {
+    return new Promise((resolve, reject) => {
+        const url = `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(model)}:streamGenerateContent?alt=sse&key=${API_KEY}`;
+        const body = JSON.stringify({
+            contents,
+            systemInstruction: typeof systemInstruction === 'string'
+                ? { parts: [{ text: systemInstruction }] }
+                : systemInstruction,
+            safetySettings: SAFETY_SETTINGS,
+        });
+
+        const xhr = new XMLHttpRequest();
+        xhr.open('POST', url);
+        xhr.setRequestHeader('Content-Type', 'application/json');
+
+        let cursor = 0;       // byte offset into responseText already parsed
+        let buffer = '';      // partial line carry-over between progress events
+        let fullText = '';
+
+        const drainNewText = () => {
+            const chunk = xhr.responseText.substring(cursor);
+            cursor = xhr.responseText.length;
+            buffer += chunk;
+
+            // SSE events are separated by \n\n; lines within an event begin "data: ".
+            // Gemini emits one JSON object per data line.
+            let nlIdx;
+            while ((nlIdx = buffer.indexOf('\n')) !== -1) {
+                const line = buffer.substring(0, nlIdx).trim();
+                buffer = buffer.substring(nlIdx + 1);
+                if (!line || !line.startsWith('data:')) continue;
+                const payload = line.substring(5).trim();
+                if (!payload || payload === '[DONE]') continue;
+                try {
+                    const json = JSON.parse(payload);
+                    const parts = json?.candidates?.[0]?.content?.parts;
+                    if (Array.isArray(parts)) {
+                        for (const p of parts) {
+                            if (typeof p?.text === 'string' && p.text) {
+                                fullText += p.text;
+                                try { onChunk?.(p.text); } catch {}
+                            }
+                        }
+                    }
+                } catch {
+                    // Likely a partial JSON split across progress events — restore
+                    // the line to the buffer and wait for more data.
+                    buffer = `data: ${payload}\n${buffer}`;
+                    return;
+                }
+            }
+        };
+
+        xhr.onprogress = () => {
+            try { drainNewText(); } catch (e) { /* surface in onload/onerror */ }
+        };
+
+        xhr.onload = () => {
+            try { drainNewText(); } catch {}
+            if (xhr.status >= 200 && xhr.status < 300) {
+                if (!fullText) {
+                    reject(new Error('No response generated'));
+                } else {
+                    resolve(fullText);
+                }
+            } else {
+                reject(new Error(`Gemini stream HTTP ${xhr.status}: ${xhr.responseText?.slice(0, 300) || ''}`));
+            }
+        };
+
+        xhr.onerror = () => reject(new Error('Network error during Gemini stream'));
+        xhr.ontimeout = () => reject(new Error('Gemini stream timed out'));
+
+        xhr.send(body);
+    });
+};
+
 /**
  * Streaming variant of sendChatMessage.
  *
@@ -2257,37 +2337,17 @@ export const sendChatMessageStream = async (session, message, onChunk) => {
         { role: 'user', parts: [{ text: message }] },
     ];
 
-    // Stream the response via Gemini's generateContentStream
-    let fullText = "";
-    try {
-        const stream = await ai.models.generateContentStream({
-            model: session.model,
-            contents: newHistory,
-            config: { systemInstruction: dynamicSystemPrompt },
-        });
-
-        // Iterate stream chunks. The @google/genai SDK yields response objects;
-        // each has a .text property for the chunk's text.
-        for await (const chunk of stream) {
-            let chunkText = '';
-            try {
-                if (chunk?.candidates?.[0]?.content?.parts?.[0]?.text) {
-                    chunkText = chunk.candidates[0].content.parts[0].text;
-                } else if (typeof chunk?.text === 'function') {
-                    chunkText = chunk.text();
-                } else if (typeof chunk?.text === 'string') {
-                    chunkText = chunk.text;
-                }
-            } catch {}
-            if (chunkText) {
-                fullText += chunkText;
-                try { onChunk?.(chunkText); } catch {}
-            }
-        }
-    } catch (e) {
-        console.error('[Gemini] streaming failed:', e);
-        throw e;
-    }
+    // Stream via REST SSE using XMLHttpRequest. The @google/genai SDK's
+    // generateContentStream relies on fetch's ReadableStream response.body,
+    // which React Native does not expose — it would throw "Response body is
+    // empty" before any chunk arrives. RN's XHR, by contrast, fires onprogress
+    // with the partial responseText, which lets us parse SSE incrementally.
+    const fullText = await streamGenerateContentSSE({
+        model: session.model,
+        contents: newHistory,
+        systemInstruction: dynamicSystemPrompt,
+        onChunk,
+    });
 
     if (!fullText) throw new Error('No response generated');
 

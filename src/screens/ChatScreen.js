@@ -22,6 +22,7 @@ import { useRevenueCat } from '../contexts/RevenueCatContext';
 import { useNavigation } from '@react-navigation/native';
 import { useAnalytics, EVENTS } from '../services/analytics';
 import EmptyState from '../components/EmptyState';
+import CelestialSigil from '../components/CelestialSigil';
 import { X } from 'lucide-react-native';
 
 
@@ -709,48 +710,49 @@ export default function ChatScreen({ navigation, route }) {
 
   return (
     <View
-      style={[styles.wrap, { backgroundColor: colors.bg }]}
+      style={[styles.wrap, { backgroundColor: '#FCF9F8' }]}
     >
-      {/* Minimal sticky top bar — stays visible */}
-      {/* Sticky top bar: X | ☽ Celestia | history | + new */}
+      {/* Top bar — cream paper, animated CelestialSigil for brand mark,
+          chip-style new chat button matching home language. */}
       <View style={{
         flexDirection: 'row', alignItems: 'center',
-        paddingTop: insets.top + 6, paddingHorizontal: 16, paddingBottom: 8,
-        backgroundColor: colors.bg,
+        paddingTop: insets.top + 6, paddingHorizontal: 16, paddingBottom: 10,
+        backgroundColor: '#FCF9F8',
       }}>
         <TouchableOpacity
-          style={[styles.dismissBtn, { backgroundColor: colors.cardAlt, borderColor: colors.border }]}
+          style={[styles.dismissBtn, { backgroundColor: '#FFFFFF', borderColor: 'rgba(135,114,112,0.12)' }]}
           activeOpacity={0.7}
           onPress={() => { haptic.light(); navigation.navigate(previousTab); }}
         >
-          <X size={18} color={colors.text} strokeWidth={2.5} />
+          <X size={18} color={T.navy} strokeWidth={2.5} />
         </TouchableOpacity>
-        <LinearGradient colors={['#3A1A28', '#1A1060']} style={[styles.chatOrb, { width: 30, height: 30, borderRadius: 15, marginLeft: 8 }]}>
-          <Text style={{ fontSize: 15, color: '#C8A84B' }}>☽</Text>
-        </LinearGradient>
-        <Text style={{ fontFamily: FONTS.serifMedium, fontSize: 16, color: colors.heading, flex: 1, marginLeft: 8 }}>Celestia</Text>
+        <Text style={{ fontFamily: FONTS.serifMedium, fontSize: 16, color: T.navy, flex: 1, marginLeft: 12 }}>Celestia</Text>
         {/* History icon */}
         <TouchableOpacity
           onPress={loadChatHistory}
           activeOpacity={0.7}
           style={{
             width: 34, height: 34, borderRadius: 17,
-            backgroundColor: colors.cardAlt, borderWidth: 1, borderColor: colors.border,
+            backgroundColor: '#FFFFFF', borderWidth: 1, borderColor: 'rgba(135,114,112,0.12)',
             alignItems: 'center', justifyContent: 'center', marginRight: 8,
           }}
         >
-          <Text style={{ fontSize: 15 }}>🕘</Text>
+          <Text style={{ fontSize: 14, color: T.navy }}>🕘</Text>
         </TouchableOpacity>
-        {/* New chat + icon */}
+        {/* New chat — brass-tinted pill chip */}
         <TouchableOpacity
           onPress={startNewSession}
           activeOpacity={0.7}
           style={{
-            width: 34, height: 34, borderRadius: 17,
-            backgroundColor: T.gold, alignItems: 'center', justifyContent: 'center',
+            paddingVertical: 7, paddingHorizontal: 12,
+            borderRadius: 100,
+            backgroundColor: 'rgba(212,168,83,0.12)',
+            borderWidth: 1, borderColor: 'rgba(212,168,83,0.30)',
+            flexDirection: 'row', alignItems: 'center', gap: 4,
           }}
         >
-          <Text style={{ fontSize: 20, color: T.navy, fontWeight: '300', marginTop: -1 }}>+</Text>
+          <Text style={{ fontSize: 14, color: T.brass, lineHeight: 16 }}>＋</Text>
+          <Text style={{ fontSize: 11, fontFamily: FONTS.sansSemiBold, color: T.brass, letterSpacing: 0.5 }}>NEW</Text>
         </TouchableOpacity>
       </View>
 
@@ -765,52 +767,60 @@ export default function ChatScreen({ navigation, route }) {
         {/* Greeting — only shown at start of new conversation */}
         {messages.length <= 1 && (
           <View style={{ alignItems: 'center', paddingTop: 20, paddingBottom: 10 }}>
-            <LinearGradient colors={['#3A1A28', '#1A1060']} style={[styles.chatOrb, { width: 52, height: 52, borderRadius: 26, marginBottom: 10 }]}>
-              <Text style={{ fontSize: 28, color: '#C8A84B' }}>☽</Text>
-            </LinearGradient>
-            <Text style={{ fontFamily: FONTS.serifMedium, fontSize: 18, color: colors.heading, marginBottom: 2 }}>Celestia</Text>
-            <Text style={{ fontSize: 12, color: colors.textSecondary }}>
+            <View style={{ marginBottom: 10 }}>
+              <CelestialSigil size={56} color="#D4A853" />
+            </View>
+            <Text style={{ fontFamily: FONTS.serifMedium, fontSize: 18, color: T.navy, marginBottom: 2 }}>Celestia</Text>
+            <Text style={{ fontSize: 12, color: 'rgba(58,26,40,0.55)' }}>
               {new Date().getHours() >= 22 || new Date().getHours() < 5 ? 'Night session' : new Date().getHours() >= 17 ? 'Evening session' : 'Always here'}
             </Text>
           </View>
         )}
 
-        {/* Proactive Insight Card */}
+        {/* Proactive Insight Card — cream chrome matching paywall benefit chips */}
         {proactiveInsight && messages.length <= 2 && (
           <TouchableOpacity
-            style={[styles.proactiveCard, isDark && { backgroundColor: 'rgba(107,92,165,0.12)', borderColor: 'rgba(107,92,165,0.25)' }]}
+            style={[styles.proactiveCard, { backgroundColor: '#F5F2EE', borderColor: 'rgba(135,114,112,0.10)' }]}
             activeOpacity={0.8}
             onPress={() => {
               setProactiveInsight(null);
               handleSend(proactiveInsight.question);
             }}>
-            <Text style={[styles.proactiveLabel, isDark && { color: colors.lavender }]}>COSMIC INSIGHT</Text>
-            <Text style={[styles.proactiveTitle, isDark && { color: colors.heading }]}>{proactiveInsight.title}</Text>
-            <Text style={[styles.proactiveBody, isDark && { color: colors.textSecondary }]}>{proactiveInsight.body}</Text>
-            <Text style={[styles.proactiveCTA, isDark && { color: colors.lavender }]}>Tap to ask →</Text>
+            <Text style={[styles.proactiveLabel, { color: T.brass }]}>COSMIC INSIGHT</Text>
+            <Text style={[styles.proactiveTitle, { color: T.navy }]}>{proactiveInsight.title}</Text>
+            <Text style={[styles.proactiveBody, { color: 'rgba(58,26,40,0.65)' }]}>{proactiveInsight.body}</Text>
+            <Text style={[styles.proactiveCTA, { color: T.brass }]}>Tap to ask →</Text>
           </TouchableOpacity>
         )}
 
         {messages.map((m, i) => (
           <View key={m.id || i}>
             <View style={[styles.mrow, m.role === 'user' && styles.mrowUser]}>
-              <LinearGradient
-                colors={m.role === 'model' ? ['#3A1A28', '#1A1060'] : ['#E2C46A', '#8C6C18']}
-                style={styles.morb}
-              >
-                <Text style={{ fontSize: 13, color: m.role === 'model' ? '#C8A84B' : 'white' }}>{m.role === 'model' ? '☽' : name[0]?.toUpperCase()}</Text>
-              </LinearGradient>
-              <View style={[styles.mbub, m.role === 'model' ? [styles.mbubAi, { backgroundColor: colors.card, shadowOpacity: isDark ? 0 : 0.07 }] : styles.mbubUser]}>
-                <Text style={[styles.mbubText, { color: colors.text }, m.role === 'user' && { color: T.cream }]}>
-                  {m.role === 'model'
-                    ? renderMarkdown(m.text, [styles.mbubText, { color: colors.text }])
-                    : m.text}
-                </Text>
+              {/* AI orb = small CelestialSigil; user orb = brass-tinted initial chip */}
+              {m.role === 'model' ? (
+                <View style={[styles.morb, { alignItems: 'center', justifyContent: 'center' }]}>
+                  <CelestialSigil size={24} color="#D4A853" />
+                </View>
+              ) : (
+                <View style={[styles.morb, { backgroundColor: T.clay, alignItems: 'center', justifyContent: 'center' }]}>
+                  <Text style={{ fontSize: 13, color: T.cream, fontFamily: FONTS.sansSemiBold }}>{name[0]?.toUpperCase()}</Text>
+                </View>
+              )}
+              <View style={[styles.mbub, m.role === 'model' ? [styles.mbubAi, { backgroundColor: '#FFFFFF', shadowOpacity: 0.05 }] : styles.mbubUser]}>
+                {m.role === 'model' && m.isStreaming && !m.text ? (
+                  <ActivityIndicator size="small" color={T.brass} />
+                ) : (
+                  <Text style={[styles.mbubText, { color: T.navy }, m.role === 'user' && { color: T.cream }]}>
+                    {m.role === 'model'
+                      ? renderMarkdown(m.text, [styles.mbubText, { color: T.navy }])
+                      : m.text}
+                  </Text>
+                )}
               </View>
             </View>
             <View style={[styles.mtimeRow, m.role === 'user' && { flexDirection: 'row-reverse' }]}>
-              <Text style={[styles.mtime, { color: colors.textMuted }]}>{formatTime(m.timestamp)}</Text>
-              {m.role === 'model' && m.id !== 'greeting' && m.id !== 'greeting_new' && (
+              <Text style={[styles.mtime, { color: 'rgba(58,26,40,0.45)' }]}>{formatTime(m.timestamp)}</Text>
+              {m.role === 'model' && !m.isStreaming && m.id !== 'greeting' && m.id !== 'greeting_new' && (
                 <TouchableOpacity style={styles.shareBtn} activeOpacity={0.7} onPress={() => shareResponse(m.text)}>
                   <Text style={styles.shareBtnText}>Share ↗</Text>
                 </TouchableOpacity>
@@ -819,25 +829,25 @@ export default function ChatScreen({ navigation, route }) {
           </View>
         ))}
 
-        {sending && (
+        {sending && !messages.some(m => m.isStreaming) && (
           <View style={styles.mrow}>
-            <LinearGradient colors={['#3A1A28', '#1A1060']} style={styles.morb}>
-              <Text style={{ fontSize: 13, color: '#C8A84B' }}>☽</Text>
-            </LinearGradient>
-            <View style={[styles.typingWrap, { backgroundColor: colors.card, shadowOpacity: isDark ? 0 : 0.07 }]}>
-              <ActivityIndicator size="small" color={colors.textSecondary} />
+            <View style={[styles.morb, { alignItems: 'center', justifyContent: 'center' }]}>
+              <CelestialSigil size={24} color="#D4A853" />
+            </View>
+            <View style={[styles.typingWrap, { backgroundColor: '#FFFFFF', shadowOpacity: 0.05 }]}>
+              <ActivityIndicator size="small" color={T.brass} />
             </View>
           </View>
         )}
       </ScrollView>
 
       <KeyboardStickyView offset={{ closed: 0, opened: Platform.OS === 'ios' ? 0 : 0 }}>
-      <View style={{ paddingBottom: keyboardVisible ? 6 : bottomPadding, backgroundColor: colors.bg, zIndex: 100 }}>
+      <View style={{ paddingBottom: keyboardVisible ? 6 : bottomPadding, backgroundColor: '#FCF9F8', zIndex: 100 }}>
         {/* Suggestions */}
-        <ScrollView horizontal showsHorizontalScrollIndicator={false} style={[styles.suggestStrip, { backgroundColor: colors.bg }]} contentContainerStyle={{ paddingHorizontal: 17, gap: 7 }}>
+        <ScrollView horizontal showsHorizontalScrollIndicator={false} style={[styles.suggestStrip, { backgroundColor: '#FCF9F8' }]} contentContainerStyle={{ paddingHorizontal: 17, gap: 7 }}>
           {suggestions.map((s, i) => (
-            <TouchableOpacity key={`${s}_${i}`} style={[styles.schip, { backgroundColor: colors.card, borderColor: colors.border }]} activeOpacity={0.7} onPress={() => { setInputText(s); haptic.light(); }}>
-              <Text style={[styles.schipText, { color: colors.text }]}>{s}</Text>
+            <TouchableOpacity key={`${s}_${i}`} style={[styles.schip, { backgroundColor: '#FFFFFF', borderColor: 'rgba(135,114,112,0.12)' }]} activeOpacity={0.7} onPress={() => { setInputText(s); haptic.light(); }}>
+              <Text style={[styles.schipText, { color: T.navy }]}>{s}</Text>
             </TouchableOpacity>
           ))}
         </ScrollView>
@@ -870,39 +880,71 @@ export default function ChatScreen({ navigation, route }) {
 
         {/* Input — or gentle upgrade prompt when limit reached */}
         {limitReached ? (
-          <View style={[styles.inputBar, { flexDirection: 'column', alignItems: 'center', gap: 10, paddingVertical: 16, backgroundColor: colors.bg, borderTopColor: colors.border }]}>
-            <Text style={{ fontFamily: FONTS.serif, fontSize: 15, color: colors.heading, textAlign: 'center' }}>
+          <View style={[styles.inputBar, { flexDirection: 'column', alignItems: 'center', gap: 10, paddingVertical: 16, backgroundColor: '#FCF9F8', borderTopColor: 'rgba(135,114,112,0.12)' }]}>
+            <Text style={{ fontFamily: FONTS.serif, fontSize: 15, color: T.navy, textAlign: 'center' }}>
               You've used all 10 messages today
             </Text>
-            <Text style={{ fontSize: 12, color: colors.textSecondary, textAlign: 'center', lineHeight: 18, paddingHorizontal: 20 }}>
+            <Text style={{ fontSize: 12, color: 'rgba(58,26,40,0.65)', textAlign: 'center', lineHeight: 18, paddingHorizontal: 20 }}>
               They reset at midnight. Or keep the conversation going now.
             </Text>
+            {/* Keep Chatting CTA — peach→lavender HomeStyleCta-style pill */}
             <TouchableOpacity
-              style={{ backgroundColor: T.navy, borderRadius: 100, paddingVertical: 11, paddingHorizontal: 28, marginTop: 4 }}
-              activeOpacity={0.8}
-              onPress={() => navigation.navigate('Paywall', { source: 'chat_limit' })}>
-              <Text style={{ fontFamily: FONTS.sansMedium, fontSize: 13, color: T.cream }}>Keep Chatting →</Text>
+              activeOpacity={0.85}
+              onPress={() => navigation.navigate('Paywall', { source: 'chat_limit' })}
+              style={{
+                marginTop: 6,
+                borderRadius: 100,
+                shadowColor: '#5C2434',
+                shadowOpacity: 0.30,
+                shadowRadius: 18,
+                shadowOffset: { width: 0, height: 8 },
+                elevation: 7,
+              }}>
+              <LinearGradient
+                colors={['#FED9B8', '#E9DDFF']}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 0 }}
+                style={{ paddingVertical: 14, paddingHorizontal: 26, borderRadius: 100 }}>
+                <Text style={{ fontFamily: FONTS.sansSemiBold, fontSize: 13, color: '#1B1C1C', letterSpacing: 0.5 }}>Keep Chatting  →</Text>
+              </LinearGradient>
             </TouchableOpacity>
           </View>
         ) : (
-          <View style={[styles.inputBar, { backgroundColor: colors.bg, borderTopColor: colors.border }]}>
-            <View style={[styles.inputField, { backgroundColor: colors.inputBg, borderColor: colors.inputBorder }]}>
+          <View style={[styles.inputBar, { backgroundColor: '#FCF9F8', borderTopColor: 'rgba(135,114,112,0.12)' }]}>
+            <View style={[styles.inputField, { backgroundColor: '#FFFFFF', borderColor: 'rgba(135,114,112,0.18)' }]}>
               <TextInput
                 ref={inputRef}
-                style={[styles.inputText, { color: colors.text }]}
+                style={[styles.inputText, { color: T.navy }]}
                 value={inputText}
                 onChangeText={setInputText}
                 placeholder="Ask the cosmos anything..."
-                placeholderTextColor={colors.inputPlaceholder}
+                placeholderTextColor="rgba(58,26,40,0.40)"
                 multiline
                 maxLength={500}
                 onSubmitEditing={() => handleSend()}
               />
             </View>
+            {/* Send button — peach→lavender mini pill matching HomeStyleCta */}
             <TouchableOpacity activeOpacity={0.7} onPress={() => handleSend()} disabled={sending || !inputText.trim()}>
-              <LinearGradient colors={[T.navy, T.navy]} style={[styles.sendBtn, (!inputText.trim() || sending) && { opacity: 0.5 }]}>
-                <Text style={{ fontSize: 17, color: 'white' }}>↑</Text>
-              </LinearGradient>
+              <View style={[
+                styles.sendBtn,
+                {
+                  shadowColor: '#5C2434',
+                  shadowOpacity: 0.25,
+                  shadowRadius: 10,
+                  shadowOffset: { width: 0, height: 4 },
+                  borderRadius: 24,
+                },
+                (!inputText.trim() || sending) && { shadowOpacity: 0.08 },
+              ]}>
+                <LinearGradient
+                  colors={(!inputText.trim() || sending) ? ['#E8E1D8', '#DDD8E5'] : ['#FED9B8', '#E9DDFF']}
+                  start={{ x: 0, y: 0 }}
+                  end={{ x: 1, y: 0 }}
+                  style={{ width: 48, height: 48, borderRadius: 24, alignItems: 'center', justifyContent: 'center' }}>
+                  <Text style={{ fontSize: 18, color: '#1B1C1C', fontFamily: FONTS.sansSemiBold }}>↑</Text>
+                </LinearGradient>
+              </View>
             </TouchableOpacity>
           </View>
         )}
@@ -911,15 +953,15 @@ export default function ChatScreen({ navigation, route }) {
 
       {/* Chat History Modal */}
       {showHistory && (
-        <View style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: colors.bg, zIndex: 200 }}>
+        <View style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: '#FCF9F8', zIndex: 200 }}>
           {/* History Header */}
-          <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingTop: Platform.OS === 'ios' ? 62 : 40, paddingHorizontal: 20, paddingBottom: 16, borderBottomWidth: 1, borderBottomColor: colors.border }}>
+          <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingTop: Platform.OS === 'ios' ? 62 : 40, paddingHorizontal: 20, paddingBottom: 16, borderBottomWidth: 1, borderBottomColor: 'rgba(135,114,112,0.12)' }}>
             <TouchableOpacity onPress={() => setShowHistory(false)} style={{ padding: 4 }}>
-              <Text style={{ fontSize: 18, color: colors.textSecondary }}>←</Text>
+              <Text style={{ fontSize: 18, color: 'rgba(58,26,40,0.55)' }}>←</Text>
             </TouchableOpacity>
-            <Text style={{ fontFamily: FONTS.serifMedium, fontSize: 20, color: colors.heading, flex: 1, textAlign: 'center' }}>Chat History</Text>
+            <Text style={{ fontFamily: FONTS.serifMedium, fontSize: 20, color: T.navy, flex: 1, textAlign: 'center' }}>Chat History</Text>
             <TouchableOpacity onPress={() => { setShowHistory(false); startNewSession(); }} style={{ padding: 4 }}>
-              <Text style={{ fontSize: 13, color: T.gold, fontFamily: FONTS.sansSemiBold }}>+ New</Text>
+              <Text style={{ fontSize: 13, color: T.brass, fontFamily: FONTS.sansSemiBold }}>+ New</Text>
             </TouchableOpacity>
           </View>
 
@@ -984,8 +1026,8 @@ const styles = StyleSheet.create({
   mrowUser: { flexDirection: 'row-reverse' },
   morb: { width: 28, height: 28, borderRadius: 14, alignItems: 'center', justifyContent: 'center', marginTop: 3 },
   mbub: { maxWidth: '73%', borderRadius: 18, padding: 11, paddingHorizontal: 14 },
-  mbubAi: { backgroundColor: 'white', borderBottomLeftRadius: 5, shadowColor: '#000', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.07, shadowRadius: 7 },
-  mbubUser: { backgroundColor: T.navy, borderBottomRightRadius: 5 },
+  mbubAi: { backgroundColor: 'white', borderBottomLeftRadius: 5, shadowColor: '#000', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.05, shadowRadius: 7 },
+  mbubUser: { backgroundColor: T.clay, borderBottomRightRadius: 5 },
   mbubText: { fontSize: 13.5, lineHeight: 22, color: T.ink },
   mtime: { fontSize: 10, color: '#C0B8A4' },
   typingWrap: { backgroundColor: 'white', borderRadius: 18, borderBottomLeftRadius: 5, padding: 12, paddingHorizontal: 16, shadowColor: '#000', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.07, shadowRadius: 7 },
@@ -1012,8 +1054,8 @@ const styles = StyleSheet.create({
   limitLink: { fontSize: 11, fontFamily: FONTS.sansMedium, color: T.gold },
   // Theme selector
   themeStrip: { flexGrow: 0, paddingVertical: 8, borderBottomWidth: 1, borderBottomColor: T.border, backgroundColor: T.cream },
-  themePill: { flexDirection: 'row', alignItems: 'center', gap: 5, backgroundColor: 'white', borderWidth: 1, borderColor: T.border, borderRadius: 100, paddingVertical: 7, paddingHorizontal: 14 },
-  themePillActive: { backgroundColor: T.navy, borderColor: T.navy },
+  themePill: { flexDirection: 'row', alignItems: 'center', gap: 5, backgroundColor: 'white', borderWidth: 1, borderColor: 'rgba(135,114,112,0.12)', borderRadius: 100, paddingVertical: 7, paddingHorizontal: 14 },
+  themePillActive: { backgroundColor: T.clay, borderColor: T.clay },
   themePillIcon: { fontSize: 12 },
   themePillText: { fontSize: 12, fontFamily: FONTS.sansMedium, color: T.ink },
   themePillTextActive: { color: T.cream },

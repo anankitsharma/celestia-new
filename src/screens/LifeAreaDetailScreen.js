@@ -52,23 +52,51 @@ const HERO_GRADIENTS_DARK = {
 
 const CTA_GRADIENT = ['#FED9B8', '#E3CDF0', '#D8C7FF'];
 
-const ASK_PROMPTS = {
-  love:     'Tell me more about my love and relationship energy today. What should I focus on?',
-  career:   'What does my chart say about career opportunities right now?',
-  vitality: 'How should I manage my energy and wellness today?',
-  growth:   'What growth lessons is the universe showing me right now?',
-  social:   'Tell me about my social and communication energy today.',
+// Period-aware ask prompt — same intent ("tell me about this area"),
+// different time scope.
+const askPromptFor = (areaKey, period) => {
+  const scope = period === 'weekly' ? 'this week' : period === 'monthly' ? 'this month' : 'today';
+  const PROMPTS = {
+    love:     `Tell me more about my love and relationship energy ${scope}. What should I focus on?`,
+    career:   `What does my chart say about career opportunities ${scope}?`,
+    vitality: `How should I manage my energy and wellness ${scope}?`,
+    growth:   `What growth lessons is the universe showing me ${scope}?`,
+    social:   `Tell me about my social and communication energy ${scope}.`,
+  };
+  return PROMPTS[areaKey];
 };
 
-const formatDate = (date = new Date()) => {
-  const days = ['SUN', 'MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT'];
-  const months = ['JAN','FEB','MAR','APR','MAY','JUN','JUL','AUG','SEP','OCT','NOV','DEC'];
-  return `${days[date.getDay()]} · ${months[date.getMonth()]} ${date.getDate()}`;
+const SHORT_DAYS = ['SUN', 'MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT'];
+const SHORT_MONTHS = ['JAN','FEB','MAR','APR','MAY','JUN','JUL','AUG','SEP','OCT','NOV','DEC'];
+const LONG_MONTHS = ['JANUARY','FEBRUARY','MARCH','APRIL','MAY','JUNE','JULY','AUGUST','SEPTEMBER','OCTOBER','NOVEMBER','DECEMBER'];
+
+const weekStartMonday = (date) => {
+  const d = new Date(date);
+  const dow = d.getDay();
+  d.setDate(d.getDate() - (dow === 0 ? 6 : dow - 1));
+  return d;
 };
+
+const formatDate = (date = new Date(), period = 'today') => {
+  if (period === 'weekly') {
+    const ws = weekStartMonday(date);
+    return `WEEK OF ${SHORT_MONTHS[ws.getMonth()]} ${ws.getDate()}`;
+  }
+  if (period === 'monthly') {
+    return `${LONG_MONTHS[date.getMonth()]} ${date.getFullYear()}`;
+  }
+  return `${SHORT_DAYS[date.getDay()]} · ${SHORT_MONTHS[date.getMonth()]} ${date.getDate()}`;
+};
+
+const PERIOD_VIBE_LABEL = { today: "TODAY'S VIBE", weekly: "THIS WEEK'S VIBE", monthly: "THIS MONTH'S VIBE" };
+const PERIOD_PRACTICE_LABEL = { today: "TODAY'S PRACTICE", weekly: "THIS WEEK'S PRACTICE", monthly: "THIS MONTH'S PRACTICE" };
+const PERIOD_LOWER = { today: 'today', weekly: 'this week', monthly: 'this month' };
 
 export default function LifeAreaDetailScreen({ navigation, route }) {
   const { colors, isDark } = useTheme();
   const { areaKey, areaData, forecast } = route.params || {};
+  const period = route.params?.period || 'today';
+  const periodLower = PERIOD_LOWER[period] || 'today';
 
   const meta = META[areaKey];
   if (!meta) {
@@ -95,6 +123,10 @@ export default function LifeAreaDetailScreen({ navigation, route }) {
     : areaKey === 'career' ? forecast?.careerActions : null;
   const relatedVibe = areaKey === 'love' ? forecast?.loveVibe
     : areaKey === 'career' ? forecast?.careerVibe : null;
+  const relatedArchetype = areaKey === 'love' ? forecast?.loveArchetype
+    : areaKey === 'career' ? forecast?.careerArchetype : null;
+  const archetypeLabel = areaData?.archetype || relatedArchetype;
+  const drivingPlanet = areaData?.drivingPlanet;
   const careerPower = areaKey === 'career' ? forecast?.careerPowerSource : null;
   const wealthFlow = areaKey === 'career' ? forecast?.wealthFlow : null;
   const marketTiming = areaKey === 'career' ? forecast?.marketTiming : null;
@@ -117,7 +149,7 @@ export default function LifeAreaDetailScreen({ navigation, route }) {
 
   const onAsk = () => {
     haptic.light();
-    const msg = ASK_PROMPTS[areaKey] || `Tell me more about my ${meta.title.toLowerCase()} today.`;
+    const msg = askPromptFor(areaKey, period) || `Tell me more about my ${meta.title.toLowerCase()} ${periodLower}.`;
     navigation.navigate('AskAI', { seedPrompt: msg });
   };
 
@@ -148,7 +180,7 @@ export default function LifeAreaDetailScreen({ navigation, route }) {
               hitSlop={{ top: 14, bottom: 14, left: 14, right: 14 }}>
               <Text style={[styles.iconBtnText, { color: heroFg }]}>‹</Text>
             </TouchableOpacity>
-            <Text style={[styles.dateLabel, { color: heroFgSoft }]}>{formatDate()}</Text>
+            <Text style={[styles.dateLabel, { color: heroFgSoft }]}>{formatDate(new Date(), period)}</Text>
             <TouchableOpacity
               onPress={onShare}
               style={[styles.iconBtn, { backgroundColor: isDark ? 'rgba(250,248,242,0.10)' : '#FFFFFF', borderColor: isDark ? 'transparent' : 'rgba(26,20,16,0.06)', borderWidth: isDark ? 0 : 1 }]}
@@ -215,6 +247,22 @@ export default function LifeAreaDetailScreen({ navigation, route }) {
                 </View>
                 <Text style={[styles.intensityNum, { color: heroFg }]}>{intensity}/10</Text>
               </View>
+
+              {/* Archetype + Driving Planet chips */}
+              {(archetypeLabel || drivingPlanet) && (
+                <View style={styles.heroChipRow}>
+                  {!!archetypeLabel && (
+                    <View style={[styles.heroChip, { backgroundColor: meta.color + '18', borderColor: meta.color + '40' }]}>
+                      <Text style={[styles.heroChipText, { color: meta.color }]} numberOfLines={1}>{archetypeLabel}</Text>
+                    </View>
+                  )}
+                  {!!drivingPlanet && (
+                    <View style={[styles.heroChip, { backgroundColor: isDark ? 'rgba(250,248,242,0.06)' : 'rgba(26,20,16,0.04)', borderColor: isDark ? 'rgba(250,248,242,0.14)' : 'rgba(26,20,16,0.08)' }]}>
+                      <Text style={[styles.heroChipText, { color: heroFgMuted }]} numberOfLines={1}>{drivingPlanet}</Text>
+                    </View>
+                  )}
+                </View>
+              )}
             </View>
           )}
 
@@ -245,7 +293,7 @@ export default function LifeAreaDetailScreen({ navigation, route }) {
               styles.vibeBox,
               { backgroundColor: isDark ? colors.card : '#FBE6CC' },
             ]}>
-              <Text style={[styles.vibeLabel, { color: '#C97D62' }]}>TODAY'S VIBE</Text>
+              <Text style={[styles.vibeLabel, { color: '#C97D62' }]}>{PERIOD_VIBE_LABEL[period] || "TODAY'S VIBE"}</Text>
               <Text style={[styles.vibeText, { color: colors.heading }]}>“{relatedVibe}”</Text>
             </View>
           )}
@@ -333,7 +381,7 @@ export default function LifeAreaDetailScreen({ navigation, route }) {
           {/* Today's Practice / Ritual */}
           {!!areaData?.ritual && (
             <View style={[styles.ritualBox, { borderLeftColor: meta.color, backgroundColor: colors.cardAlt }]}>
-              <Text style={[styles.sectionLabel, { color: meta.color }]}>TODAY'S PRACTICE</Text>
+              <Text style={[styles.sectionLabel, { color: meta.color }]}>{PERIOD_PRACTICE_LABEL[period] || "TODAY'S PRACTICE"}</Text>
               <Text style={[styles.bodyText, { color: colors.text, marginTop: 6 }]}>{areaData.ritual}</Text>
             </View>
           )}
@@ -372,7 +420,7 @@ export default function LifeAreaDetailScreen({ navigation, route }) {
             start={{ x: 0, y: 0 }}
             end={{ x: 1, y: 1 }}
             style={styles.ctaGradient}>
-            <Text style={styles.ctaText}>Ask about your {meta.tag.toLowerCase()} today  →</Text>
+            <Text style={styles.ctaText}>Ask about your {meta.tag.toLowerCase()} {periodLower}  →</Text>
           </LinearGradient>
         </TouchableOpacity>
       </View>
@@ -496,6 +544,23 @@ const styles = StyleSheet.create({
   intensityNum: {
     fontFamily: FONTS.sansSemiBold,
     fontSize: 11,
+  },
+  heroChipRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 6,
+    marginTop: 12,
+  },
+  heroChip: {
+    paddingVertical: 5,
+    paddingHorizontal: 12,
+    borderRadius: 100,
+    borderWidth: 1,
+  },
+  heroChipText: {
+    fontFamily: FONTS.sansSemiBold,
+    fontSize: 11,
+    letterSpacing: 0.4,
   },
   heroReason: {
     fontFamily: FONTS.sans,

@@ -2,10 +2,32 @@ import React, { useState, useEffect } from 'react';
 import { View, Text, ScrollView, TouchableOpacity, Switch, StyleSheet, Platform, StatusBar } from 'react-native';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { T, FONTS } from '../constants/theme';
-import { getNotificationSettings, saveNotificationSettings, scheduleAllNotifications, hasNotificationPermission, requestNotificationPermission } from '../services/notificationService';
+import { getNotificationSettings, saveNotificationSettings, scheduleAllNotifications, hasNotificationPermission, requestNotificationPermission, applyNotificationBundle, BUNDLE_PRESETS } from '../services/notificationService';
 import { useUserProfile } from '../contexts/UserProfileContext';
 import { haptic } from '../services/hapticService';
 import { useTheme } from '../contexts/ThemeContext';
+
+const BUNDLE_OPTIONS = [
+  { id: 'minimal',    title: 'Just the morning',     desc: '1/day' },
+  { id: 'balanced',   title: 'Morning + reflection', desc: '2/day' },
+  { id: 'everything', title: 'Everything cosmic',    desc: '5/wk' },
+  { id: 'custom',     title: 'Custom',               desc: 'Pick channels below' },
+];
+
+// Detect which bundle the current settings match. If toggles don't line up with
+// any preset (or user has hand-tuned them), return 'custom'.
+function detectBundle(settings) {
+  if (!settings) return 'balanced';
+  if (settings.notificationBundle && BUNDLE_PRESETS[settings.notificationBundle]) {
+    const preset = BUNDLE_PRESETS[settings.notificationBundle];
+    const matches = Object.keys(preset).every(k => settings[k] === preset[k]);
+    if (matches) return settings.notificationBundle;
+  }
+  for (const [id, preset] of Object.entries(BUNDLE_PRESETS)) {
+    if (Object.keys(preset).every(k => settings[k] === preset[k])) return id;
+  }
+  return 'custom';
+}
 
 const CATEGORIES = [
   {
@@ -53,10 +75,26 @@ export default function NotificationSettingsScreen({ navigation }) {
 
   const handleToggle = async (key, value) => {
     haptic.selection();
-    const updated = { ...settings, [key]: value };
+    // Touching any individual channel toggle drops user into 'custom' so the
+    // bundle selector reflects reality. The bundle row stays visible above.
+    const updated = { ...settings, [key]: value, notificationBundle: 'custom' };
     setSettings(updated);
     await saveNotificationSettings(updated);
-    // Reschedule with new settings (fire and forget)
+    scheduleAllNotifications(userProfile, null, null, null, null, null).catch(() => {});
+  };
+
+  const handleBundleSelect = async (bundleId) => {
+    haptic.selection();
+    if (bundleId === 'custom') {
+      // No-op: 'custom' means "I'll touch toggles myself." Just record intent.
+      const updated = { ...settings, notificationBundle: 'custom' };
+      setSettings(updated);
+      await saveNotificationSettings(updated);
+      return;
+    }
+    await applyNotificationBundle(bundleId);
+    const fresh = await getNotificationSettings();
+    setSettings(fresh);
     scheduleAllNotifications(userProfile, null, null, null, null, null).catch(() => {});
   };
 
@@ -104,6 +142,7 @@ export default function NotificationSettingsScreen({ navigation }) {
 
   const enabledCount = CATEGORIES.flatMap(c => c.items).filter(i => settings[i.key]).length;
   const totalCount = CATEGORIES.flatMap(c => c.items).length;
+  const currentBundle = detectBundle(settings);
 
   return (
     <View style={{ flex: 1, backgroundColor: colors.bg }}>
@@ -124,6 +163,30 @@ export default function NotificationSettingsScreen({ navigation }) {
             <Text style={[s.permSub, { color: colors.textSecondary }]}>Tap to enable cosmic alerts</Text>
           </TouchableOpacity>
         )}
+
+        {/* Notification rhythm — bundle picker. Mirrors onboarding step 12. */}
+        <Text style={[s.sectionLabel, { color: colors.textSecondary }]}>NOTIFICATION RHYTHM</Text>
+        <View style={[s.sectionCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
+          {BUNDLE_OPTIONS.map((b, i) => {
+            const selected = currentBundle === b.id;
+            return (
+              <TouchableOpacity
+                key={b.id}
+                activeOpacity={0.7}
+                onPress={() => handleBundleSelect(b.id)}
+                style={[s.bundleRow, i < BUNDLE_OPTIONS.length - 1 && [s.rowBorder, { borderBottomColor: colors.divider }]]}
+              >
+                <View style={[s.bundleRadio, { borderColor: selected ? T.gold : colors.border }, selected && { backgroundColor: 'rgba(200,168,75,0.08)' }]}>
+                  {selected && <View style={s.bundleRadioDot} />}
+                </View>
+                <View style={{ flex: 1 }}>
+                  <Text style={[s.bundleTitle, { color: colors.heading }]}>{b.title}</Text>
+                  <Text style={[s.bundleDesc, { color: colors.textSecondary }]}>{b.desc}</Text>
+                </View>
+              </TouchableOpacity>
+            );
+          })}
+        </View>
 
         {/* Summary */}
         <Text style={[s.summary, { color: colors.textSecondary }]}>{enabledCount} of {totalCount} alerts active</Text>
@@ -250,6 +313,12 @@ const s = StyleSheet.create({
 
   sectionLabel: { fontSize: 10, fontFamily: FONTS.sansSemiBold, letterSpacing: 2, color: T.stone, paddingHorizontal: 20, marginTop: 20, marginBottom: 8 },
   sectionCard: { marginHorizontal: 20, backgroundColor: 'white', borderRadius: 17, borderWidth: 1, borderColor: T.border, overflow: 'hidden' },
+
+  bundleRow: { flexDirection: 'row', padding: 14, paddingRight: 16, alignItems: 'center', gap: 12 },
+  bundleRadio: { width: 22, height: 22, borderRadius: 11, borderWidth: 1.5, alignItems: 'center', justifyContent: 'center' },
+  bundleRadioDot: { width: 10, height: 10, borderRadius: 5, backgroundColor: T.gold },
+  bundleTitle: { fontSize: 14, fontFamily: FONTS.sansMedium, color: T.navy, marginBottom: 2 },
+  bundleDesc: { fontSize: 11.5, color: T.stone },
 
   row: { flexDirection: 'row', padding: 14, paddingRight: 16 },
   rowBorder: { borderBottomWidth: 1, borderBottomColor: '#F5F0E6' },

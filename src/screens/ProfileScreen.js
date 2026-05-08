@@ -3,7 +3,7 @@ import { View, Text, ScrollView, TouchableOpacity, StyleSheet, Alert, Modal } fr
 import { LinearGradient } from 'expo-linear-gradient';
 import { T, FONTS } from '../constants/theme';
 import { useUserProfile } from '../contexts/UserProfileContext';
-import { loadObject, saveObject, loadBoolean, saveBoolean, StorageKeys } from '../services/storage';
+import { loadObject, saveObject, StorageKeys } from '../services/storage';
 import { invalidatePersonaCache } from '../services/geminiService';
 import { useTheme } from '../contexts/ThemeContext';
 import { getStreakData, getStreakEmoji } from '../services/streakService';
@@ -67,25 +67,11 @@ export default function ProfileScreen({ navigation }) {
   // Switching cost made visible.
   const [stickyCounts, setStickyCounts] = useState(null);
 
-  // V2 reel lives on its own tab while we iterate. Toggle ON to also replace
-  // the Today tab with the new design. See plan/redesign-home/.
-  const [experimentalTodayV2, setExperimentalTodayV2] = useState(false);
-
   useEffect(() => {
     loadSettings();
     loadEngagementData();
     loadNotifSummary();
-    loadBoolean(StorageKeys.EXPERIMENTAL_TODAY_V2)
-      .then((v) => setExperimentalTodayV2(!!v))
-      .catch(() => {});
   }, []);
-
-  const toggleTodayV2 = async () => {
-    const next = !experimentalTodayV2;
-    setExperimentalTodayV2(next);
-    haptic.selection();
-    try { await saveBoolean(StorageKeys.EXPERIMENTAL_TODAY_V2, next); } catch (e) {}
-  };
 
   const loadEngagementData = async () => {
     try {
@@ -413,30 +399,6 @@ export default function ProfileScreen({ navigation }) {
             })}
           </View>
 
-          {/* Experimental */}
-          <Text style={[styles.secLbl, subStyle]}>EXPERIMENTAL</Text>
-          <View style={[styles.settingsCard, cardStyle]}>
-            <TouchableOpacity
-              style={[styles.prow, { borderBottomWidth: 0 }]}
-              activeOpacity={0.7}
-              onPress={toggleTodayV2}>
-              <View style={[styles.prowIcon, { backgroundColor: isDark ? 'rgba(155,142,196,0.12)' : '#F4ECE5' }]}><Text style={{ fontSize: 16 }}>✦</Text></View>
-              <View style={{ flex: 1 }}>
-                <Text style={[styles.prowLabel, textStyle]}>New Today (preview)</Text>
-                <Text style={[styles.prowVal, subStyle, { textAlign: 'left', marginTop: 1 }]}>Redesigned reel — opt-in, can switch back anytime</Text>
-              </View>
-              <View style={[
-                styles.v2Toggle,
-                { backgroundColor: experimentalTodayV2 ? T.clay : (isDark ? colors.cardAlt : '#EAE3D6') },
-              ]}>
-                <View style={[
-                  styles.v2ToggleKnob,
-                  { transform: [{ translateX: experimentalTodayV2 ? 18 : 0 }] },
-                ]} />
-              </View>
-            </TouchableOpacity>
-          </View>
-
           {/* Subscription */}
           <Text style={[styles.secLbl, subStyle]}>SUBSCRIPTION</Text>
           <View style={[styles.settingsCard, cardStyle]}>
@@ -670,6 +632,14 @@ export default function ProfileScreen({ navigation }) {
                   onPress={() => navigation.navigate('OnboardingFlow')}>
                   <View style={styles.devIcon}><Text style={{ fontSize: 14, color: T.gold }}>✦</Text></View>
                   <Text style={[styles.devLabel, textStyle]}>Show Onboarding</Text>
+                  <Text style={[styles.prowArr, { color: 'rgba(200,168,75,0.5)' }]}>›</Text>
+                </TouchableOpacity>
+
+                {/* Show Paywall — jumps straight to step 14 */}
+                <TouchableOpacity style={styles.devRow} activeOpacity={0.7}
+                  onPress={() => navigation.navigate('OnboardingFlow', { startStep: 14 })}>
+                  <View style={styles.devIcon}><Text style={{ fontSize: 14, color: T.gold }}>$</Text></View>
+                  <Text style={[styles.devLabel, textStyle]}>Show Paywall</Text>
                   <Text style={[styles.prowArr, { color: 'rgba(200,168,75,0.5)' }]}>›</Text>
                 </TouchableOpacity>
 
@@ -1085,8 +1055,6 @@ const styles = StyleSheet.create({
   tapToShare: { fontSize: 11, color: T.stone, marginTop: 8, fontStyle: 'italic' },
   appearanceToggle: { flexDirection: 'row', borderRadius: 12, padding: 3, borderWidth: 1, gap: 2 },
   appearanceOpt: { paddingVertical: 6, paddingHorizontal: 12, borderRadius: 10, alignItems: 'center', justifyContent: 'center' },
-  v2Toggle: { width: 42, height: 24, borderRadius: 12, padding: 2, justifyContent: 'center' },
-  v2ToggleKnob: { width: 20, height: 20, borderRadius: 10, backgroundColor: '#FAF8F2' },
   journeyStrip: { flexDirection: 'row', alignItems: 'center', borderRadius: 16, padding: 14, marginBottom: 14, borderWidth: 1 },
   journeyStripItem: { flex: 1, alignItems: 'center', gap: 2, paddingHorizontal: 8 },
   journeyStripNum: { fontFamily: FONTS.serif, fontSize: 18 },
