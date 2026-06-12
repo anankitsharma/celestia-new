@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import {
   View, Text, TouchableOpacity, StyleSheet, Animated,
   TextInput, Platform, ActivityIndicator, Dimensions, ScrollView,
-  PanResponder, Switch,
+  PanResponder, Switch, Linking,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import Svg, { Circle as SvgCircle } from 'react-native-svg';
@@ -17,6 +17,9 @@ import CelestiaMotif from '../components/CelestiaMotif';
 import CelestialSigil from '../components/CelestialSigil';
 import { useUserProfile } from '../contexts/UserProfileContext';
 import { useAuth } from '../contexts/AuthContext';
+import { useRevenueCat } from '../contexts/RevenueCatContext';
+import { PACKAGE_TYPE } from 'react-native-purchases';
+import { LEGAL, openLegal } from '../constants/legal';
 import { calculateChart, getTransitPlanets, getMoonDataForDate } from '../services/astrologyService';
 import * as Crypto from 'expo-crypto';
 import { useAnalytics, EVENTS, buildUserProperties } from '../services/analytics';
@@ -606,6 +609,9 @@ const renderHomeSkyMockV2 = ({ moonSign, moonPhase, sunSign }) => {
 export default function OnboardingFlowScreen({ navigation, route }) {
   const { setUserProfile } = useUserProfile();
   const { user } = useAuth();
+  // Live store pricing for the onboarding paywall — never hardcode prices/currency
+  // (Google Play & App Store reject paywalls whose shown price ≠ charged price).
+  const { offerings, restorePurchases } = useRevenueCat();
   const { isDark, colors } = useTheme();
   const { capture, identify } = useAnalytics();
   // Debug-jump support — accepts route.params.startStep so the dev panel
@@ -2312,6 +2318,21 @@ export default function OnboardingFlowScreen({ navigation, route }) {
     const sunName = sun?.sign;
     const moonName = moon?.sign;
 
+    // Real, store-localized prices from RevenueCat — shown only when loaded.
+    // We never render a hardcoded currency/amount (compliance requirement).
+    const pkgs = offerings?.availablePackages || [];
+    const annualPkg = pkgs.find(p => p.packageType === PACKAGE_TYPE.ANNUAL);
+    const monthlyPkg = pkgs.find(p => p.packageType === PACKAGE_TYPE.MONTHLY);
+    const annualPriceStr = annualPkg?.product?.priceString || null;
+    const annualPriceVal = annualPkg?.product?.price || null;
+    const monthlyPriceStr = monthlyPkg?.product?.priceString || null;
+    // Derive the currency symbol from the localized string so the per-month
+    // figure matches the user's actual currency.
+    const currencySym = annualPriceStr ? annualPriceStr.replace(/[\d.,\s]+/g, '') : '';
+    const annualPerMonth = (annualPriceVal && currencySym)
+      ? `${currencySym}${(annualPriceVal / 12).toFixed(2)}`
+      : null;
+
     // Three benefits, each echoing a specific moment Mia just lived
     // through during onboarding (commitment-consistency primer):
     //   #1 Daily — echoes the Big 3 reveal (step 9) + Today card preview (step 11)
@@ -2404,14 +2425,16 @@ export default function OnboardingFlowScreen({ navigation, route }) {
               <View style={s.paywallPlanCardRow}>
                 <View style={{ flex: 1 }}>
                   <Text style={s.paywallPlanCardTitle}>Annual Pro</Text>
-                  <Text style={s.paywallPlanCardSub}>$49.99 billed yearly</Text>
+                  <Text style={s.paywallPlanCardSub}>
+                    {annualPriceStr ? `${annualPriceStr} billed yearly` : 'Billed yearly'}
+                  </Text>
                   {isAnnual && (
                     <Text style={[s.paywallPlanTrialNote, { color: '#775a19' }]}>✦ 7 days free</Text>
                   )}
                 </View>
                 <View style={{ alignItems: 'flex-end' }}>
-                  <Text style={s.paywallPlanCardPrice}>$4.17</Text>
-                  <Text style={s.paywallPlanCardPer}>/ mo</Text>
+                  <Text style={s.paywallPlanCardPrice}>{annualPerMonth || '—'}</Text>
+                  {annualPerMonth && <Text style={s.paywallPlanCardPer}>/ mo</Text>}
                 </View>
               </View>
             </TouchableOpacity>
@@ -2436,8 +2459,8 @@ export default function OnboardingFlowScreen({ navigation, route }) {
             <View style={[s.paywallPlanCardRow, { alignItems: 'center' }]}>
               <Text style={[s.paywallPlanCardTitle, { color: '#1b1c1c', marginBottom: 0 }]}>Monthly Pro</Text>
               <View style={{ flexDirection: 'row', alignItems: 'baseline', gap: 6 }}>
-                <Text style={[s.paywallPlanCardTitle, { color: '#1b1c1c', marginBottom: 0 }]}>$6.99</Text>
-                <Text style={s.paywallPlanCardPer}>/ mo</Text>
+                <Text style={[s.paywallPlanCardTitle, { color: '#1b1c1c', marginBottom: 0 }]}>{monthlyPriceStr || '—'}</Text>
+                {monthlyPriceStr && <Text style={s.paywallPlanCardPer}>/ mo</Text>}
               </View>
             </View>
           </TouchableOpacity>
@@ -2479,17 +2502,19 @@ export default function OnboardingFlowScreen({ navigation, route }) {
             <Text style={s.paywallLimitedLink}>Continue with limited access</Text>
           </TouchableOpacity>
 
-          {/* Legal footer — App Store requires Restore Purchases + Terms + Privacy. */}
+          {/* Legal footer — App Store requires Restore Purchases + Terms + Privacy.
+              These must be FUNCTIONAL (real restore + real legal URLs), not just
+              proceed-to-app, or store review rejects the paywall. */}
           <View style={s.paywallLegalRow}>
-            <TouchableOpacity onPress={finishOnboarding}>
+            <TouchableOpacity onPress={() => { restorePurchases().catch(() => {}).finally(finishOnboarding); }}>
               <Text style={s.paywallLegalLink}>Restore</Text>
             </TouchableOpacity>
             <Text style={s.paywallLegalDot}>·</Text>
-            <TouchableOpacity onPress={finishOnboarding}>
+            <TouchableOpacity onPress={() => openLegal(LEGAL.TERMS_URL)}>
               <Text style={s.paywallLegalLink}>Terms</Text>
             </TouchableOpacity>
             <Text style={s.paywallLegalDot}>·</Text>
-            <TouchableOpacity onPress={finishOnboarding}>
+            <TouchableOpacity onPress={() => openLegal(LEGAL.PRIVACY_URL)}>
               <Text style={s.paywallLegalLink}>Privacy</Text>
             </TouchableOpacity>
           </View>

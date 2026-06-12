@@ -21,6 +21,7 @@ import { PACKAGE_TYPE } from 'react-native-purchases';
 import { useRevenueCat } from '../contexts/RevenueCatContext';
 import { useAuth } from '../contexts/AuthContext';
 import { T, FONTS } from '../constants/theme';
+import { LEGAL, openLegal } from '../constants/legal';
 import { haptic } from '../services/hapticService';
 import CelestialSigil from '../components/CelestialSigil';
 import { useAnalytics, EVENTS } from '../services/analytics';
@@ -141,11 +142,15 @@ export default function PaywallScreen({ navigation, route }) {
     const annualPackage = packages.find(p => p.packageType === PACKAGE_TYPE.ANNUAL);
     const monthlyPackage = packages.find(p => p.packageType === PACKAGE_TYPE.MONTHLY);
 
-    const annualPriceStr = annualPackage?.product.priceString || "$49.99";
-    const annualPriceVal = annualPackage?.product.price || 49.99;
-    const weeklyPrice = (annualPriceVal / 52).toFixed(2);
-    const currencySymbol = annualPriceStr?.replace(/[\d.,\s]+/g, "") || "$";
-    const monthlyPriceStr = monthlyPackage?.product.priceString || "$6.99";
+    // Prices come straight from the store (localized). Never fall back to a
+    // hardcoded amount/currency — a shown price that differs from the charged
+    // price gets the app rejected (Google Play & App Store subscription policy).
+    const annualPriceStr = annualPackage?.product?.priceString || null;
+    const annualPriceVal = annualPackage?.product?.price || null;
+    const weeklyPrice = annualPriceVal ? (annualPriceVal / 52).toFixed(2) : null;
+    const currencySymbol = annualPriceStr ? annualPriceStr.replace(/[\d.,\s]+/g, "") : "";
+    const monthlyPriceStr = monthlyPackage?.product?.priceString || null;
+    const pricesReady = !!(annualPriceStr && monthlyPriceStr);
 
     useEffect(() => {
         capture(EVENTS.PAYWALL_VIEWED, { source, variant: variantKey });
@@ -272,9 +277,9 @@ export default function PaywallScreen({ navigation, route }) {
                                     <Text style={styles.trialKickerAnnual}>7-DAY FREE TRIAL</Text>
                                     <View style={styles.planTitleRow}>
                                         <Text style={[styles.planName, selectedPlan === 'annual' && { color: T.gold }]}>Yearly Access</Text>
-                                        <Text style={styles.planPrice}>{annualPriceStr}</Text>
+                                        <Text style={styles.planPrice}>{annualPriceStr || '—'}</Text>
                                     </View>
-                                    <Text style={styles.planSub}>Just {currencySymbol}{weeklyPrice} / week</Text>
+                                    <Text style={styles.planSub}>{weeklyPrice ? `Just ${currencySymbol}${weeklyPrice} / week` : 'Billed yearly'}</Text>
                                 </View>
                             </View>
                         </TouchableOpacity>
@@ -291,7 +296,7 @@ export default function PaywallScreen({ navigation, route }) {
                                     <Text style={styles.trialKickerMonthly}>3-day free trial</Text>
                                     <View style={styles.planTitleRow}>
                                         <Text style={[styles.planName, selectedPlan === 'monthly' && { color: T.gold }]}>Monthly Access</Text>
-                                        <Text style={styles.planPrice}>{monthlyPriceStr}</Text>
+                                        <Text style={styles.planPrice}>{monthlyPriceStr || '—'}</Text>
                                     </View>
                                     <Text style={styles.planSub}>Cancel anytime</Text>
                                 </View>
@@ -322,7 +327,7 @@ export default function PaywallScreen({ navigation, route }) {
                     </Animated.View>
 
                     <Animated.View entering={FadeInDown.delay(400)} style={{ width: '100%', marginBottom: 12 }}>
-                        <TouchableOpacity onPress={handlePurchase} disabled={isLoading} activeOpacity={0.8}>
+                        <TouchableOpacity onPress={handlePurchase} disabled={isLoading || !pricesReady} activeOpacity={0.8}>
                             <Animated.View style={[styles.ctaButton, animatedCtaStyle]}>
                                 <LinearGradient colors={[T.gold, '#D4AF37', '#B8860B']} style={styles.ctaGradient}>
                                     {isLoading ? <ActivityIndicator color={T.navy} /> : (
@@ -332,7 +337,9 @@ export default function PaywallScreen({ navigation, route }) {
                                                     Start {chargeDay}-Day Free Trial
                                                 </Text>
                                                 <Text style={styles.ctaSubtext}>
-                                                    then {selectedPlan === 'annual' ? `${annualPriceStr} / year` : `${monthlyPriceStr} / month`}
+                                                    {selectedPlan === 'annual'
+                                                        ? (annualPriceStr ? `then ${annualPriceStr} / year` : 'then yearly price')
+                                                        : (monthlyPriceStr ? `then ${monthlyPriceStr} / month` : 'then monthly price')}
                                                 </Text>
                                             </View>
                                             <ArrowRight color={T.navy} size={18} strokeWidth={3} />
@@ -348,9 +355,9 @@ export default function PaywallScreen({ navigation, route }) {
                         <View style={styles.legalLinks}>
                             <TouchableOpacity onPress={handleRestore}><Text style={styles.legalText}>Restore</Text></TouchableOpacity>
                             <Text style={styles.legalDivider}>•</Text>
-                            <TouchableOpacity><Text style={styles.legalText}>Terms</Text></TouchableOpacity>
+                            <TouchableOpacity onPress={() => openLegal(LEGAL.TERMS_URL)}><Text style={styles.legalText}>Terms</Text></TouchableOpacity>
                             <Text style={styles.legalDivider}>•</Text>
-                            <TouchableOpacity><Text style={styles.legalText}>Privacy</Text></TouchableOpacity>
+                            <TouchableOpacity onPress={() => openLegal(LEGAL.PRIVACY_URL)}><Text style={styles.legalText}>Privacy</Text></TouchableOpacity>
                         </View>
                     </View>
                 </View>
