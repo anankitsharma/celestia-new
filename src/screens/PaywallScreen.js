@@ -139,8 +139,10 @@ export default function PaywallScreen({ navigation, route }) {
     const scale = useSharedValue(1);
 
     const packages = offerings?.availablePackages || [];
-    const annualPackage = packages.find(p => p.packageType === PACKAGE_TYPE.ANNUAL);
-    const monthlyPackage = packages.find(p => p.packageType === PACKAGE_TYPE.MONTHLY);
+    // Prefer RevenueCat's built-in duration accessors (Slate's proven pattern),
+    // fall back to packageType lookup — covers both standard and custom offerings.
+    const annualPackage = offerings?.annual || packages.find(p => p.packageType === PACKAGE_TYPE.ANNUAL);
+    const monthlyPackage = offerings?.monthly || packages.find(p => p.packageType === PACKAGE_TYPE.MONTHLY);
 
     // Prices come straight from the store (localized). Never fall back to a
     // hardcoded amount/currency — a shown price that differs from the charged

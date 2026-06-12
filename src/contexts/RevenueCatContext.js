@@ -17,32 +17,29 @@ export const RevenueCatProvider = ({ children }) => {
     const [debugOverridePro, setDebugOverridePro] = useState(__DEV__ ? true : null); // DEV: default Pro for testing
     const [isLoading, setIsLoading] = useState(true);
 
+    // 1) Configure RevenueCat ONCE at app launch (anonymous) so offerings/prices
+    //    are available immediately — including during onboarding, before any
+    //    profile exists. (Previously gated on userProfile.id, which left the
+    //    onboarding paywall with no prices.)
     useEffect(() => {
         let listener;
         const init = async () => {
-            if (!userProfile?.id) return;
-
             setIsLoading(true);
-            await RevenueCatService.initialize(userProfile.id);
+            const ok = await RevenueCatService.initialize();
+            if (!ok) { setIsLoading(false); return; }
 
             const info = await RevenueCatService.getCustomerInfo();
             setCustomerInfo(info);
             setIsPro(RevenueCatService.isPro(info));
-            const userProps = await buildUserProperties(userProfile.id).catch(() => ({}));
-            posthog?.identify(userProfile.id, {
-              ...userProps,
-              is_pro: RevenueCatService.isPro(info),
-            });
 
             const currentOfferings = await RevenueCatService.getOfferings();
             setOfferings(currentOfferings);
 
             setIsLoading(false);
 
-            // Listen for customer info updates
-            listener = (info) => {
-                setCustomerInfo(info);
-                setIsPro(RevenueCatService.isPro(info));
+            listener = (updated) => {
+                setCustomerInfo(updated);
+                setIsPro(RevenueCatService.isPro(updated));
             };
             Purchases.addCustomerInfoUpdateListener(listener);
         };
@@ -51,10 +48,28 @@ export const RevenueCatProvider = ({ children }) => {
 
         return () => {
             if (listener) {
-                // Purchases might not have a remove listener directly in some versions, 
-                // but usually it's handled. Check if we need a cleanup for Purchases.
+                try { Purchases.removeCustomerInfoUpdateListener(listener); } catch (e) {}
             }
         };
+    }, []);
+
+    // 2) When a profile id becomes known, associate the anonymous RC user with it
+    //    and refresh entitlements. Does NOT block offerings/prices from loading.
+    useEffect(() => {
+        if (!userProfile?.id) return;
+        let cancelled = false;
+        (async () => {
+            const info = await RevenueCatService.logIn(userProfile.id);
+            if (cancelled || !info) return;
+            setCustomerInfo(info);
+            setIsPro(RevenueCatService.isPro(info));
+            const userProps = await buildUserProperties(userProfile.id).catch(() => ({}));
+            posthog?.identify(userProfile.id, {
+                ...userProps,
+                is_pro: RevenueCatService.isPro(info),
+            });
+        })();
+        return () => { cancelled = true; };
     }, [userProfile?.id]);
 
     // Debug override: in __DEV__, allows toggling Pro mode for testing

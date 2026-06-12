@@ -9,17 +9,37 @@ const API_KEYS = {
 const ENTITLEMENT_ID = 'Celestia Pro';
 
 export const RevenueCatService = {
-    async initialize(userId) {
+    // Configure RevenueCat ANONYMOUSLY at app launch — NOT gated on a user profile.
+    // This is what makes offerings/prices available during onboarding (before a
+    // profile exists). The user is associated later via logIn(). Mirrors Slate AI.
+    async initialize() {
         try {
-            Purchases.setLogLevel(Purchases.LOG_LEVEL.DEBUG);
-            if (Platform.OS === 'ios') {
-                await Purchases.configure({ apiKey: API_KEYS.apple, appUserID: userId });
-            } else {
-                await Purchases.configure({ apiKey: API_KEYS.google, appUserID: userId });
+            Purchases.setLogLevel(__DEV__ ? Purchases.LOG_LEVEL.DEBUG : Purchases.LOG_LEVEL.ERROR);
+            const apiKey = Platform.OS === 'ios' ? API_KEYS.apple : API_KEYS.google;
+            // Hard guard: configuring with a blank key throws a NATIVE crash that
+            // JS try/catch can't catch. Bail safely instead.
+            if (!apiKey || apiKey.trim().length === 0) {
+                console.warn('[RevenueCat] No API key — purchases disabled.');
+                return false;
             }
+            await Purchases.configure({ apiKey });
             console.log('RevenueCat initialized successfully');
+            return true;
         } catch (e) {
             console.error('RevenueCat initialization failed:', e);
+            return false;
+        }
+    },
+
+    // Associate the anonymous RevenueCat user with the app profile id once known.
+    async logIn(userId) {
+        if (!userId) return null;
+        try {
+            const { customerInfo } = await Purchases.logIn(String(userId));
+            return customerInfo;
+        } catch (e) {
+            console.error('RevenueCat logIn failed:', e);
+            return null;
         }
     },
 

@@ -2321,8 +2321,8 @@ export default function OnboardingFlowScreen({ navigation, route }) {
     // Real, store-localized prices from RevenueCat — shown only when loaded.
     // We never render a hardcoded currency/amount (compliance requirement).
     const pkgs = offerings?.availablePackages || [];
-    const annualPkg = pkgs.find(p => p.packageType === PACKAGE_TYPE.ANNUAL);
-    const monthlyPkg = pkgs.find(p => p.packageType === PACKAGE_TYPE.MONTHLY);
+    const annualPkg = offerings?.annual || pkgs.find(p => p.packageType === PACKAGE_TYPE.ANNUAL);
+    const monthlyPkg = offerings?.monthly || pkgs.find(p => p.packageType === PACKAGE_TYPE.MONTHLY);
     const annualPriceStr = annualPkg?.product?.priceString || null;
     const annualPriceVal = annualPkg?.product?.price || null;
     const monthlyPriceStr = monthlyPkg?.product?.priceString || null;
