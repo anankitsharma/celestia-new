@@ -1,4 +1,5 @@
 name: Build APK
+# CI trigger: first run on public repo (free runners)
 
 # Triggers:
 #   - workflow_dispatch: manual run from the Actions tab (also creates a Release)
