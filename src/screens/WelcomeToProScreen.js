@@ -5,6 +5,7 @@ import {
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { T, FONTS } from '../constants/theme';
+import { AUTH_ENABLED } from '../constants/featureFlags';
 import { useTheme } from '../contexts/ThemeContext';
 import { useAuth } from '../contexts/AuthContext';
 import { useAnalytics, EVENTS, getFeatureFlag } from '../services/analytics';
@@ -93,7 +94,7 @@ export default function WelcomeToProScreen({ navigation, route }) {
   const goToFeature = (card) => {
     haptic.light();
     capture(EVENTS.WELCOME_TO_PRO_CARD_TAPPED, { card: card.id, first_time: firstTime });
-    if (firstTime && !user) {
+    if (AUTH_ENABLED && firstTime && !user) {
       navigation.replace('Auth', { mode: 'pro_purchase', returnTo: card.nav });
       return;
     }
@@ -107,7 +108,7 @@ export default function WelcomeToProScreen({ navigation, route }) {
   const exploreOnOwn = () => {
     haptic.light();
     capture(EVENTS.WELCOME_TO_PRO_DISMISSED, { first_time: firstTime });
-    if (firstTime && !user) {
+    if (AUTH_ENABLED && firstTime && !user) {
       navigation.replace('Auth', { mode: 'pro_purchase' });
       return;
     }

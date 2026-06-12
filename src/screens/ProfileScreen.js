@@ -2,6 +2,7 @@ import React, { useMemo, useState, useEffect } from 'react';
 import { View, Text, ScrollView, TouchableOpacity, StyleSheet, Alert, Modal } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { T, FONTS } from '../constants/theme';
+import { AUTH_ENABLED } from '../constants/featureFlags';
 import { useUserProfile } from '../contexts/UserProfileContext';
 import { loadObject, saveObject, StorageKeys } from '../services/storage';
 import { invalidatePersonaCache } from '../services/geminiService';
@@ -274,7 +275,7 @@ export default function ProfileScreen({ navigation }) {
         })()}
 
         {/* Connect Account nudge */}
-        {!user && (
+        {AUTH_ENABLED && !user && (
           <TouchableOpacity
             style={styles.connectBanner}
             activeOpacity={0.85}
@@ -531,7 +532,7 @@ export default function ProfileScreen({ navigation }) {
                   <Text style={[styles.prowLabel, { color: '#D44' }]}>Delete Account</Text>
                 </TouchableOpacity>
               </>
-            ) : (
+            ) : AUTH_ENABLED ? (
               <TouchableOpacity style={[styles.prow, { borderBottomColor: colors.divider }, { borderBottomWidth: 0 }]} activeOpacity={0.7}
                 onPress={() => navigation.navigate('Auth')}>
                 <View style={[styles.prowIcon, { backgroundColor: '#F0EAF8' }]}><Text style={{ fontSize: 16 }}>{'☁'}</Text></View>
@@ -541,7 +542,7 @@ export default function ProfileScreen({ navigation }) {
                 </View>
                 <Text style={styles.prowArr}>{'›'}</Text>
               </TouchableOpacity>
-            )}
+            ) : null}
           </View>
 
           <Text style={[styles.secLbl, subStyle]}>GENERAL</Text>
@@ -798,6 +799,22 @@ export default function ProfileScreen({ navigation }) {
                   }}>
                   <View style={styles.devIcon}><Text style={{ fontSize: 14, color: T.gold }}>🗑️</Text></View>
                   <Text style={[styles.devLabel, textStyle]}>Clear Cache & Reload Today</Text>
+                </TouchableOpacity>
+
+                {/* Clear Compatibility Cache */}
+                <TouchableOpacity style={styles.devRow} activeOpacity={0.7}
+                  onPress={() => {
+                    Alert.alert('Clear Compatibility Cache', 'Delete all cached compatibility reports and data?', [
+                      { text: 'Cancel', style: 'cancel' },
+                      { text: 'Clear', style: 'destructive', onPress: async () => {
+                        const profileId = userProfile?.id || 'default';
+                        await ReportRepository.deleteReportsForProfile(profileId);
+                        Alert.alert('Success', 'Compatibility cache cleared. Navigate back to your connections to generate fresh reports.');
+                      }},
+                    ]);
+                  }}>
+                  <View style={styles.devIcon}><Text style={{ fontSize: 14, color: T.gold }}>🗑️</Text></View>
+                  <Text style={[styles.devLabel, textStyle]}>Clear Compatibility Cache</Text>
                 </TouchableOpacity>
 
                 {/* Send Navigator Excerpt Notification */}

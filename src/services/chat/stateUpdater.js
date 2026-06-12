@@ -3,10 +3,10 @@
 // Ported from web: services/geminiService.ts (updateConversationState, detectOpenerMove)
 // ─────────────────────────────────────────────────────────────────────────────
 
-import { GoogleGenAI } from "@google/genai";
+import { createGeminiClient } from "../gemini/proxyClient";
 
-const API_KEY = "AIza-OLD-KEY-REMOVED-FROM-HISTORY";
-const ai = new GoogleGenAI({ apiKey: API_KEY });
+// Gemini reached via the Supabase proxy — no API key in the bundle.
+const ai = createGeminiClient();
 
 /**
  * Detects which toolkit move opened the assistant response (for anti-formulaic tracking).
@@ -55,8 +55,6 @@ export const updateConversationState = async (currentState, userMessage, assista
   const lastOpener = detectOpenerMove(assistantResponse);
 
   try {
-    if (!API_KEY) throw new Error('no key');
-
     const updatePrompt = `You are a conversation state tracker for an astrology chat system. Extract ALL relevant information.
 
 User said: "${userMessage}"

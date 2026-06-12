@@ -1859,6 +1859,13 @@ export const getCosmicSeason = (natalChart, date = new Date()) => {
                 const endDate = new Date(date);
                 endDate.setDate(endDate.getDate() + daysRemaining);
 
+                let action = "Stay grounded and observe.";
+                if (tp.name === 'Jupiter') action = "Take the leap and expand.";
+                if (tp.name === 'Saturn') action = "Build the structure you need.";
+                if (tp.name === 'Uranus') action = "Embrace sudden changes.";
+                if (tp.name === 'Neptune') action = "Trust your intuition and rest.";
+                if (tp.name === 'Pluto') action = "Let go of what is dying.";
+
                 bestSeason = {
                     planet: tp.name,
                     transitSign: tp.sign,
@@ -1870,6 +1877,7 @@ export const getCosmicSeason = (natalChart, date = new Date()) => {
                     totalDays: avgDays,
                     progress: Math.min(100, Math.round((daysElapsed / avgDays) * 100)),
                     isRetrograde: tp.isRetrograde || false,
+                    seasonAction: action,
                 };
                 bestPriority = priority;
             }

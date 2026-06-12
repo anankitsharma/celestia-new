@@ -2,6 +2,7 @@ import React, { useEffect, useRef } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet, Animated, Easing, Dimensions } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { T, FONTS } from '../constants/theme';
+import { AUTH_ENABLED } from '../constants/featureFlags';
 import CelestialSigil from '../components/CelestialSigil';
 import { useUserProfile } from '../contexts/UserProfileContext';
 import { fetchExtendedForecast } from '../services/geminiService';
@@ -130,11 +131,13 @@ export default function SplashScreen({ navigation }) {
             <Text style={styles.ctaGlyph}>✦</Text>
           </LinearGradient>
         </TouchableOpacity>
-        <TouchableOpacity activeOpacity={0.7} onPress={() => navigation.navigate('Auth')}>
-          <Text style={styles.loginText}>
-            Already exploring? <Text style={styles.loginLink}>Sign in</Text>
-          </Text>
-        </TouchableOpacity>
+        {AUTH_ENABLED && (
+          <TouchableOpacity activeOpacity={0.7} onPress={() => navigation.navigate('Auth')}>
+            <Text style={styles.loginText}>
+              Already exploring? <Text style={styles.loginLink}>Sign in</Text>
+            </Text>
+          </TouchableOpacity>
+        )}
       </Animated.View>
     </LinearGradient>
   );

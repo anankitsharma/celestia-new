@@ -10,6 +10,7 @@ import DateTimePicker from '@react-native-community/datetimepicker';
 
 const AnimatedSvgCircle = Animated.createAnimatedComponent(SvgCircle);
 import { T, FONTS } from '../constants/theme';
+import { AUTH_ENABLED } from '../constants/featureFlags';
 import { useTheme } from '../contexts/ThemeContext';
 import ChartWheel from '../components/ChartWheel';
 import CelestiaMotif from '../components/CelestiaMotif';
@@ -898,7 +899,10 @@ export default function OnboardingFlowScreen({ navigation, route }) {
         pain_points: painPoints,
         pain_point: painPoint,
       });
-      if (user) {
+      // Sign-in is temporarily disabled (Google Sign-In suspended). The profile
+      // is already saved locally above, so go straight into the app. When auth
+      // is re-enabled (AUTH_ENABLED), unauthenticated users are routed to Auth.
+      if (user || !AUTH_ENABLED) {
         navigation.replace('Main');
       } else {
         navigation.replace('Auth', { mode: 'onboarding' });

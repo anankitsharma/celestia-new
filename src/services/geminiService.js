@@ -1,4 +1,5 @@
-import { GoogleGenAI, HarmBlockThreshold, HarmCategory, Type } from "@google/genai";
+import { HarmBlockThreshold, HarmCategory, Type } from "@google/genai";
+import { createGeminiClient, GEMINI_PROXY_BASE, GEMINI_PROXY_HEADERS } from "./gemini/proxyClient";
 // types imported as needed
 import { calculateDailyLoveScore } from "./astrologyService";
 import { ChatRepository } from "./database/rep_chats";
@@ -40,9 +41,9 @@ const getPersonaDepthPrompt = async () => {
 // Call this when user changes settings in ProfileScreen to invalidate cache
 export const invalidatePersonaCache = () => { _cachedPersonaSettings = null; };
 
-// API Key (Use ENV in production)
-const API_KEY = "AIza-OLD-KEY-REMOVED-FROM-HISTORY";
-const ai = new GoogleGenAI({ apiKey: API_KEY });
+// Gemini is reached through the Supabase Edge Function proxy so the real API key
+// never ships in the app bundle. See src/services/gemini/proxyClient.js.
+const ai = createGeminiClient();
 const MODELS = ['gemini-2.5-flash-lite', 'gemini-2.5-flash', 'gemini-3-flash-preview'];
 
 // --- SAFETY SETTINGS ---
@@ -2208,7 +2209,7 @@ RESPONSE GUIDANCE FOR THIS MESSAGE
 // resolving and does not expose response.body as a ReadableStream.
 const streamGenerateContentSSE = ({ model, contents, systemInstruction, onChunk }) => {
     return new Promise((resolve, reject) => {
-        const url = `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(model)}:streamGenerateContent?alt=sse&key=${API_KEY}`;
+        const url = `${GEMINI_PROXY_BASE}/v1beta/models/${encodeURIComponent(model)}:streamGenerateContent?alt=sse`;
         const body = JSON.stringify({
             contents,
             systemInstruction: typeof systemInstruction === 'string'
@@ -2220,6 +2221,8 @@ const streamGenerateContentSSE = ({ model, contents, systemInstruction, onChunk 
         const xhr = new XMLHttpRequest();
         xhr.open('POST', url);
         xhr.setRequestHeader('Content-Type', 'application/json');
+        // Authenticate to the Supabase proxy (public anon key — safe to ship).
+        Object.entries(GEMINI_PROXY_HEADERS).forEach(([k, v]) => xhr.setRequestHeader(k, v));
 
         let cursor = 0;       // byte offset into responseText already parsed
         let buffer = '';      // partial line carry-over between progress events
@@ -2699,9 +2702,10 @@ const matchCoreSchema = {
         relationshipArchetype: { type: Type.STRING },
         snapshot: { type: Type.STRING },
         viralVerdict: { type: Type.STRING },
-        viralHook: { type: Type.STRING }
+        viralHook: { type: Type.STRING },
+        hookLine: { type: Type.STRING },
     },
-    required: ["headline", "relationshipArchetype", "snapshot", "viralVerdict", "viralHook"]
+    required: ["headline", "relationshipArchetype", "snapshot", "viralVerdict", "viralHook", "hookLine"]
 };
 
 // Helper to extract key astrological identity for prompts
@@ -2746,6 +2750,7 @@ export const generateMatchCore = async (p1, p2, synastry, transitContext = null,
         3. Snapshot: Exactly 2 simple sentences summarizing their ${roleLabel.toLowerCase()} vibe (Max 25 words total).
         4. ViralVerdict: Max 2 words. A strong, emotional label. (e.g. ${relationshipType === 'partner' ? '"SOULMATES", "CHAOTIC", "HOT & COLD"' : relationshipType === 'friend' ? '"RIDE OR DIE", "SOUL SISTERS", "CHAOS TWINS"' : '"MIRROR SOULS", "GROWTH ENGINES", "STEADY ANCHORS"'}).
         5. ViralHook: Max 15 words. A specific, identity-based insight. START with "Your [Sign]...".
+        6. HookLine: Exactly 1 sentence, Max 12 words. A forward tease that makes the reader want to keep scrolling. Ends with a forward implication, not a question. Examples: "The spark is real — but so is the shadow.", "This bond grows stronger every time it's tested.", "What you built is rare. What you avoid is the key."
 
         ${transitContext ? `
 CURRENT COSMIC WEATHER AFFECTING THIS RELATIONSHIP:
@@ -2786,8 +2791,8 @@ const ROLE_PROMPT_CONTEXT = {
         areaKeys: ['emotional', 'attraction', 'communication', 'stability'],
         uniquePrompt: `
         Also generate these EXTRA fields:
-        - loveLanguages: { user (${'{'}person A's love language based on their Venus sign, max 30 words${'}'}, partner (person B's love language based on their Venus sign, max 30 words) }
-        - conflictStyle: { triggers (what Mars placements say about friction between them, max 40 words), resolution (how to resolve based on Mercury/Moon, max 40 words) }`,
+        - loveLanguages: { user (person A's love language based on their Venus sign, max 30 words), partner (person B's love language based on their Venus sign, max 30 words), match (how these two love styles harmonize or create friction — and what that means for daily life, max 35 words) }
+        - conflictStyle: { triggers (what Mars placements say about friction between them, max 40 words), resolution (how to resolve based on Mercury/Moon, max 40 words), patternName (a 2-3 word poetic label for their conflict pattern, e.g. "The Slow Burn", "The Spiral", "The Quiet War") }`,
     },
     ex: {
         label: 'Ex-Partner', focus: 'why it ended, what you were attracted to, the pattern to recognize, closure, what you learned',
@@ -2803,16 +2808,16 @@ const ROLE_PROMPT_CONTEXT = {
         areaKeys: ['trust', 'fun', 'communication', 'growth'],
         uniquePrompt: `
         Also generate these EXTRA fields:
-        - friendshipDynamic: { vibeDescription (what hanging out feels like based on Moon/Venus, max 35 words), bestActivity (ideal shared activity based on chart elements, max 20 words) }
-        - adventureCompat: { idealTrip (travel style match based on Jupiter/Sagittarius, max 25 words), sharedEnergy (fire/earth/air/water energy they share, max 20 words) }`,
+        - friendshipDynamic: { vibeDescription (what hanging out feels like based on Moon/Venus, max 35 words), bestActivity (ideal shared activity based on chart elements, max 20 words), pastMoment (present tense, describes a type of moment they've likely shared, max 20 words) }
+        - adventureCompat: { idealTrip (travel style match based on Jupiter/Sagittarius, max 25 words), sharedEnergy (fire/earth/air/water energy they share, max 20 words), nextTrip (specific destination archetype, max 15 words), bestTiming (best time to travel together based on planets, max 15 words) }`,
     },
     parent: {
         label: 'Parent', focus: 'understanding, guidance, emotional support, healthy boundaries',
         areaKeys: ['understanding', 'support', 'communication', 'boundaries'],
         uniquePrompt: `
         Also generate these EXTRA fields:
-        - generationalPattern: { pattern (repeating dynamic between them based on Saturn/Moon, max 35 words), origin (where this pattern comes from astrologically, max 25 words), healing (one step toward healing this, max 25 words) }
-        - communicationGuide: { theirStyle (how the parent communicates based on Mercury, max 25 words), yourStyle (how the child communicates, max 25 words), bridgeTip (practical tip to bridge the gap, max 30 words) }
+        - generationalPattern: { pattern (repeating dynamic between them based on Saturn/Moon, max 35 words), origin (where this pattern comes from astrologically, max 25 words), healing (one step toward healing this, max 25 words), cycleBreaker (one thing that breaks this pattern, max 20 words) }
+        - communicationGuide: { theirStyle (how the parent communicates based on Mercury, max 25 words), yourStyle (how the child communicates, max 25 words), bridgeTip (practical tip to bridge the gap, max 30 words), avoidPhrase (the type of communication that shuts this person down, max 15 words) }
         - healingPath: { wound (the core tension in this bond, max 25 words), approach (how to heal based on charts, max 30 words), affirmation (a healing affirmation, max 15 words) }`,
     },
     sibling: {
@@ -2820,7 +2825,7 @@ const ROLE_PROMPT_CONTEXT = {
         areaKeys: ['bond', 'communication', 'sharedGrowth', 'support'],
         uniquePrompt: `
         Also generate these EXTRA fields:
-        - siblingDynamic: { rivalryScore (0-100 how competitive based on Mars/Sun), allianceScore (0-100 how allied based on Moon/Venus), dynamicLabel (2-3 word label like "Competitive Allies"), insight (what makes this sibling bond unique, max 35 words) }`,
+        - siblingDynamic: { rivalryScore (0-100 how competitive based on Mars/Sun), allianceScore (0-100 how allied based on Moon/Venus), dynamicLabel (2-3 word label like "Competitive Allies"), insight (what makes this sibling bond unique, max 35 words), whosBoss (slightly humorous, names which sign/placement "wins" this dynamic, max 12 words) }`,
     },
     boss: {
         label: 'Boss/Manager', focus: 'respect, professional alignment, mentorship, career growth',
@@ -2855,20 +2860,20 @@ const ROLE_PROMPT_CONTEXT = {
 // Gemini schema extensions for role-specific unique sections
 const ROLE_EXTRA_SCHEMAS = {
     partner: {
-        loveLanguages: { type: Type.OBJECT, properties: { user: { type: Type.STRING }, partner: { type: Type.STRING } }, required: ['user', 'partner'] },
-        conflictStyle: { type: Type.OBJECT, properties: { triggers: { type: Type.STRING }, resolution: { type: Type.STRING } }, required: ['triggers', 'resolution'] },
+        loveLanguages: { type: Type.OBJECT, properties: { user: { type: Type.STRING }, partner: { type: Type.STRING }, match: { type: Type.STRING } }, required: ['user', 'partner', 'match'] },
+        conflictStyle: { type: Type.OBJECT, properties: { triggers: { type: Type.STRING }, resolution: { type: Type.STRING }, patternName: { type: Type.STRING } }, required: ['triggers', 'resolution', 'patternName'] },
     },
     friend: {
-        friendshipDynamic: { type: Type.OBJECT, properties: { vibeDescription: { type: Type.STRING }, bestActivity: { type: Type.STRING } }, required: ['vibeDescription', 'bestActivity'] },
-        adventureCompat: { type: Type.OBJECT, properties: { idealTrip: { type: Type.STRING }, sharedEnergy: { type: Type.STRING } }, required: ['idealTrip', 'sharedEnergy'] },
+        friendshipDynamic: { type: Type.OBJECT, properties: { vibeDescription: { type: Type.STRING }, bestActivity: { type: Type.STRING }, pastMoment: { type: Type.STRING } }, required: ['vibeDescription', 'bestActivity', 'pastMoment'] },
+        adventureCompat: { type: Type.OBJECT, properties: { idealTrip: { type: Type.STRING }, sharedEnergy: { type: Type.STRING }, nextTrip: { type: Type.STRING }, bestTiming: { type: Type.STRING } }, required: ['idealTrip', 'sharedEnergy', 'nextTrip', 'bestTiming'] },
     },
     parent: {
-        generationalPattern: { type: Type.OBJECT, properties: { pattern: { type: Type.STRING }, origin: { type: Type.STRING }, healing: { type: Type.STRING } }, required: ['pattern', 'origin', 'healing'] },
-        communicationGuide: { type: Type.OBJECT, properties: { theirStyle: { type: Type.STRING }, yourStyle: { type: Type.STRING }, bridgeTip: { type: Type.STRING } }, required: ['theirStyle', 'yourStyle', 'bridgeTip'] },
+        generationalPattern: { type: Type.OBJECT, properties: { pattern: { type: Type.STRING }, origin: { type: Type.STRING }, healing: { type: Type.STRING }, cycleBreaker: { type: Type.STRING } }, required: ['pattern', 'origin', 'healing', 'cycleBreaker'] },
+        communicationGuide: { type: Type.OBJECT, properties: { theirStyle: { type: Type.STRING }, yourStyle: { type: Type.STRING }, bridgeTip: { type: Type.STRING }, avoidPhrase: { type: Type.STRING } }, required: ['theirStyle', 'yourStyle', 'bridgeTip', 'avoidPhrase'] },
         healingPath: { type: Type.OBJECT, properties: { wound: { type: Type.STRING }, approach: { type: Type.STRING }, affirmation: { type: Type.STRING } }, required: ['wound', 'approach', 'affirmation'] },
     },
     sibling: {
-        siblingDynamic: { type: Type.OBJECT, properties: { rivalryScore: { type: Type.INTEGER }, allianceScore: { type: Type.INTEGER }, dynamicLabel: { type: Type.STRING }, insight: { type: Type.STRING } }, required: ['rivalryScore', 'allianceScore', 'dynamicLabel', 'insight'] },
+        siblingDynamic: { type: Type.OBJECT, properties: { rivalryScore: { type: Type.INTEGER }, allianceScore: { type: Type.INTEGER }, dynamicLabel: { type: Type.STRING }, insight: { type: Type.STRING }, whosBoss: { type: Type.STRING } }, required: ['rivalryScore', 'allianceScore', 'dynamicLabel', 'insight', 'whosBoss'] },
     },
     boss: {
         communicationPlaybook: { type: Type.OBJECT, properties: { theirStyle: { type: Type.STRING }, bestApproach: { type: Type.STRING }, avoid: { type: Type.STRING } }, required: ['theirStyle', 'bestApproach', 'avoid'] },
@@ -2884,7 +2889,10 @@ const ROLE_EXTRA_SCHEMAS = {
 };
 
 export const generateMatchDetails = async (p1, p2, transitContext = null, relationshipType = 'partner') => {
-    const key = `${p1.id}_${p2.id}_match_details_${relationshipType}`;
+    // Monthly cache key — users see refreshed insights each month
+    const now = new Date();
+    const monthKey = `${now.getFullYear()}_${String(now.getMonth() + 1).padStart(2, '0')}`;
+    const key = `${p1.id}_${p2.id}_match_details_${relationshipType}_${monthKey}`;
     const cached = await ReportRepository.getReport(key);
     if (cached) return cached;
 
@@ -2930,9 +2938,11 @@ Weave 2-3 sentences about how RIGHT NOW is a specific moment for this relationsh
         * analysis: EXACTLY 2 paragraphs separated by "\\n\\n".
              - Para 1 (The Why): Explain the ASTROLOGY mechanics. (Max 60 words).
              - Para 2 (The How / Advice): Practical advice for harmony. (Max 50 words).
-          * reflection (Max 15 words, deep question)
+          * reflection (Max 15 words, deep open question to sit with)
+          * weeklyAction (Max 12 words. One concrete micro-action they can take THIS week. Starts with a verb. Practical, not mystical. E.g. "Schedule one honest check-in conversation this week.")
         * score (0-100)
         - sharedValues (3 items, Max 2 words each)
+        - sharedValuesTheme (a single editorial sentence that names the theme of your shared values, max 15 words)
             - growthTensions: { title, insight } [] (2 items, Insight max 15 words)
                 - support: { emotional, practical } (Max 10 words each)
         ${roleCtx.uniquePrompt || ''}
@@ -2948,6 +2958,7 @@ Weave 2-3 sentences about how RIGHT NOW is a specific moment for this relationsh
     const fallback = {
         areas: fallbackAreas,
         sharedValues: ["Authenticity", "Growth", "Loyalty"],
+        sharedValuesTheme: "You share a north star: growth through honesty.",
         growthTensions: [
             { title: "Balance", insight: "Finding middle ground is key." },
             { title: "Patience", insight: "Growth takes time." }
@@ -2958,16 +2969,17 @@ Weave 2-3 sentences about how RIGHT NOW is a specific moment for this relationsh
     return withRetry(async () => {
         // Build schema dynamically from area keys
         const areaProps = {};
-        const areaSchema = { type: Type.OBJECT, properties: { score: { type: Type.INTEGER }, strength: { type: Type.STRING }, tension: { type: Type.STRING }, analysis: { type: Type.STRING }, reflection: { type: Type.STRING } }, required: ["score", "strength", "tension", "analysis", "reflection"] };
+        const areaSchema = { type: Type.OBJECT, properties: { score: { type: Type.INTEGER }, strength: { type: Type.STRING }, tension: { type: Type.STRING }, analysis: { type: Type.STRING }, reflection: { type: Type.STRING }, weeklyAction: { type: Type.STRING } }, required: ["score", "strength", "tension", "analysis", "reflection", "weeklyAction"] };
         areaKeys.forEach(k => { areaProps[k] = areaSchema; });
 
         const detailSchemaProps = {
             areas: { type: Type.OBJECT, properties: areaProps, required: areaKeys },
             sharedValues: { type: Type.ARRAY, items: { type: Type.STRING } },
+            sharedValuesTheme: { type: Type.STRING },
             growthTensions: { type: Type.ARRAY, items: { type: Type.OBJECT, properties: { title: { type: Type.STRING }, insight: { type: Type.STRING } }, required: ["title", "insight"] } },
             support: { type: Type.OBJECT, properties: { emotional: { type: Type.STRING }, practical: { type: Type.STRING } }, required: ["emotional", "practical"] }
         };
-        const detailRequired = ["areas", "sharedValues", "growthTensions", "support"];
+        const detailRequired = ["areas", "sharedValues", "sharedValuesTheme", "growthTensions", "support"];
 
         // Add role-specific schema extensions
         const roleExtras = ROLE_EXTRA_SCHEMAS[relationshipType];

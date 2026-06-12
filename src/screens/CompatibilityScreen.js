@@ -4,7 +4,7 @@ import {
   ActivityIndicator, Modal, TextInput, Alert, Platform, StatusBar,
   Dimensions, Animated, Easing, BackHandler, Share
 } from 'react-native';
-import { useNavigation } from '@react-navigation/native';
+import { useNavigation, useIsFocused } from '@react-navigation/native';
 import { LinearGradient } from 'expo-linear-gradient';
 import Svg, { Circle } from 'react-native-svg';
 import DateTimePicker from '@react-native-community/datetimepicker';
@@ -17,7 +17,10 @@ import { calculateSynastryScore, calculateZodiacOnlyScore, ROLE_DIMENSIONS, ROLE
 import { ZODIAC_SIGNS } from '../constants/AstrologyCore';
 import { calculateChart, getActiveCosmicWindows, getCosmicSeason } from '../services/astrologyService';
 import { getNarrativeContext } from '../services/narrativeService';
-import { generateMatchCore, generateMatchDetails, generateDeepMatchReport, generateMatchViralInsights } from '../services/geminiService';
+import { 
+  generateMatchCore, generateMatchDetails, generateDeepMatchReport, 
+  generateMatchViralInsights
+} from '../services/geminiService';
 import * as Crypto from 'expo-crypto';
 import { haptic } from '../services/hapticService';
 import { trackEvent } from '../services/achievementService';
@@ -36,17 +39,45 @@ import { useAnalytics, EVENTS } from '../services/analytics';
 import { scheduleEventPush } from '../services/notificationService';
 import { recordPendingPush } from '../services/engagementSignals';
 import { useTheme } from '../contexts/ThemeContext';
+import { Gesture, GestureDetector } from 'react-native-gesture-handler';
+import Reanimated, { useSharedValue, useAnimatedStyle, withSpring, withTiming, runOnJS } from 'react-native-reanimated';
 
 import { ROLE_DETAIL_CONFIG } from '../constants/roleDetailConfig';
+import { 
+  COMPAT_CARD_GRADIENTS_LIGHT, COMPAT_CARD_GRADIENTS_DARK, 
+  COMPAT_CARD_ACCENTS, ZODIAC_GLYPHS, RELATIONSHIP_TYPES, 
+  ROLE_LABELS, CATEGORY_GROUPS 
+} from '../constants/moodMaps';
 
-const { width: SCREEN_W } = Dimensions.get('window');
+
+const { width: SCREEN_W, height: SCREEN_H } = Dimensions.get('window');
+
+// ── Swipe physics — exact match to HomeScreenV2 ─────────────
+const SWIPE_THRESHOLD = 120;
+const VELOCITY_THRESHOLD = 450;
+const ROTATION_FACTOR = 15;
+const FLY_DISTANCE = SCREEN_W * 1.5;
+const SPRING_GENTLE = { damping: 12, stiffness: 120 };  // springs.gentle — exact HomeScreenV2
+const SPRING_FLY   = { damping: 20, stiffness: 200 };
+
+// ── Card geometry — exact HomeScreenV2: 90% width, 4/5 aspect ─
+const CARD_WIDTH  = SCREEN_W * 0.90;
+const CARD_ASPECT = 4 / 5;
+const CARD_HEIGHT = Math.min(CARD_WIDTH / CARD_ASPECT, SCREEN_H * 0.65);
+
+// ── Page colours — exact HomeScreenV2 ────────────────────────
+const PAGE_BG_LIGHT = '#FCF9F8';
+const PAGE_BG_DARK  = '#15101A';
+
+// ── CTA gradient — exact HomeScreenV2 ────────────────────────
+const CTA_GRADIENT = ['#FED9B8', '#E9DDFF'];
+const CTA_TEXT = '#1B1C1C';
+
+
+
 const NOMINATIM_URL = 'https://nominatim.openstreetmap.org/search';
 
-const ZODIAC_GLYPHS = {
-  Aries: '♈', Taurus: '♉', Gemini: '♊', Cancer: '♋',
-  Leo: '♌', Virgo: '♍', Libra: '♎', Scorpio: '♏',
-  Sagittarius: '♐', Capricorn: '♑', Aquarius: '♒', Pisces: '♓',
-};
+
 
 const CELEBRITY_DATA = [
   { name: 'Timothée Chalamet', sign: 'Capricorn', birthday: '1995-12-27', icon: '🎬' },
@@ -180,29 +211,7 @@ const ROLE_REPORT_THEMES = {
 
 const getReportTheme = (role) => ROLE_REPORT_THEMES[role] || ROLE_REPORT_THEMES.other;
 
-const RELATIONSHIP_TYPES = [
-  { key: 'partner', label: 'Partner', icon: '♡' },
-  { key: 'ex', label: 'Ex', icon: '💔' },
-  { key: 'friend', label: 'Best Friend', icon: '★' },
-  { key: 'parent', label: 'Parent', icon: '◎' },
-  { key: 'sibling', label: 'Sibling', icon: '◇' },
-  { key: 'boss', label: 'Boss', icon: '◆' },
-  { key: 'colleague', label: 'Colleague', icon: '✧' },
-  { key: 'child', label: 'Child', icon: '☽' },
-  { key: 'other', label: 'Other', icon: '✦' },
-];
 
-const ROLE_LABELS = {};
-RELATIONSHIP_TYPES.forEach(r => { ROLE_LABELS[r.key] = r; });
-
-// Category groups for orbit sections
-const CATEGORY_GROUPS = [
-  { key: 'love', label: 'LOVE', roles: ['partner', 'ex'], gradient: ['#2D0A1E', '#1A0828'], icon: '♡' },
-  { key: 'family', label: 'FAMILY', roles: ['parent', 'sibling', 'child'], gradient: ['#1A1A08', '#14120A'], icon: '◎' },
-  { key: 'friends', label: 'FRIENDS', roles: ['friend'], gradient: ['#0E0A28', '#3A1A28'], icon: '★' },
-  { key: 'work', label: 'WORK', roles: ['boss', 'colleague'], gradient: ['#081A28', '#0A1420'], icon: '◆' },
-  { key: 'other', label: 'OTHER', roles: ['other'], gradient: ['#141210', '#0E0E0E'], icon: '✦' },
-];
 
 const getInitial = (name) => (name || '?')[0].toUpperCase();
 
@@ -214,6 +223,12 @@ const getScoreLabel = (score) => {
   if (score >= 50) return 'Growing together';
   return 'Complex dynamic';
 };
+
+const truncate = (str, n) => {
+  if (!str) return '';
+  return str.length > n ? str.slice(0, n - 1) + '…' : str;
+};
+
 
 const getOrbitPosition = (index, total, radius) => {
   const startAngle = -Math.PI / 2;
@@ -235,16 +250,94 @@ const getQuickScore = (userChart, partner) => {
   return null;
 };
 
+
+function SwipeableCompatCard({
+  cardData, isDark, canAdvance, canRewind, onAdvance, onRewind, onTap, renderContent
+}) {
+  const tx = useSharedValue(0);
+  const ty = useSharedValue(0);
+  const rot = useSharedValue(0);
+
+  const reset = () => {
+    'worklet';
+    tx.value = withSpring(0, SPRING_GENTLE);
+    ty.value = withSpring(0, SPRING_GENTLE);
+    rot.value = withSpring(0, SPRING_GENTLE);
+  };
+
+  const tapGesture = Gesture.Tap()
+    .maxDistance(10)
+    .onEnd(() => {
+      'worklet';
+      if (onTap) {
+        runOnJS(onTap)(cardData);
+      }
+    });
+
+  const panGesture = Gesture.Pan()
+    .onUpdate((e) => {
+      'worklet';
+      tx.value = e.translationX;
+      ty.value = e.translationY * 0.3;
+      rot.value = (e.translationX / SWIPE_THRESHOLD) * ROTATION_FACTOR;
+    })
+    .onEnd((e) => {
+      'worklet';
+      const wantNext = e.translationX < -SWIPE_THRESHOLD || e.velocityX < -VELOCITY_THRESHOLD;
+      const wantPrev = e.translationX >  SWIPE_THRESHOLD || e.velocityX >  VELOCITY_THRESHOLD;
+
+      if (wantNext && canAdvance) {
+        rot.value = withTiming(-22, { duration: 220 });
+        tx.value = withTiming(-FLY_DISTANCE, { duration: 220 }, (finished) => {
+          if (finished && onAdvance) runOnJS(onAdvance)();
+        });
+      } else if (wantPrev && canRewind) {
+        rot.value = withTiming(22, { duration: 220 });
+        tx.value = withTiming(FLY_DISTANCE, { duration: 220 }, (finished) => {
+          if (finished && onRewind) runOnJS(onRewind)();
+        });
+      } else {
+        reset();
+      }
+    });
+
+  const composedGesture = Gesture.Race(tapGesture, panGesture);
+
+  const animatedStyle = useAnimatedStyle(() => ({
+    transform: [
+      { translateX: tx.value },
+      { translateY: ty.value },
+      { rotate: `${rot.value}deg` },
+    ],
+  }));
+
+  return (
+    <GestureDetector gesture={composedGesture}>
+      <Reanimated.View style={[styles.cardAbsolute, animatedStyle]}>
+        {renderContent(cardData)}
+      </Reanimated.View>
+    </GestureDetector>
+  );
+}
+
 export default function CompatibilityScreen() {
   const navigation = useNavigation();
+  const isFocused = useIsFocused();
   const { isPro } = useRevenueCat();
   const { capture } = useAnalytics();
   const { colors, isDark } = useTheme();
 
   const { userProfile, partnerProfiles, addPartner, updatePartner, removePartner } = useUserProfile();
   const [selectedPartner, setSelectedPartner] = useState(null);
+  const [currentDeckIndex, setCurrentDeckIndex] = useState(0);
+
+  useEffect(() => {
+    setCurrentDeckIndex(0);
+  }, [selectedPartner]);
   const [showAddModal, setShowAddModal] = useState(false);
   const [aiAnalysis, setAiAnalysis] = useState('');
+  const [aiHookLine, setAiHookLine] = useState('');
+  const [matchCore, setMatchCore] = useState(null);
   const [aiLoading, setAiLoading] = useState(false);
   const [matchDetails, setMatchDetails] = useState(null);
   const [detailsLoading, setDetailsLoading] = useState(false);
@@ -399,6 +492,8 @@ export default function CompatibilityScreen() {
     try {
       const report = await generateMatchCore(userProfile, partnerProfile, synastry, transitContext, partnerRole);
       if (report?.snapshot) setAiAnalysis(report.snapshot);
+      if (report?.hookLine) setAiHookLine(report.hookLine);
+      setMatchCore(report || null);
       trackEvent('match_checked').catch(() => { });
       awardXP(userProfile?.id || 'default', 'compatibility_check').catch(() => { });
       completeQuestAction('compat_checked').catch(() => { });
@@ -761,20 +856,162 @@ export default function CompatibilityScreen() {
 
   // Intercept back gesture/button when detail screen is open
   useEffect(() => {
-    if (!showDetailScreen) return;
+    if (!showDetailScreen || !isFocused) return;
     const backHandler = BackHandler.addEventListener('hardwareBackPress', () => {
       setSelectedPartner(null);
       return true;
     });
     const unsubscribe = navigation.getParent()?.addListener('beforeRemove', (e) => {
-      e.preventDefault();
-      setSelectedPartner(null);
+      if (isFocused) {
+        e.preventDefault();
+        setSelectedPartner(null);
+      }
     });
     return () => {
       backHandler.remove();
       unsubscribe?.();
     };
-  }, [showDetailScreen, navigation]);
+  }, [showDetailScreen, isFocused, navigation]);
+
+  // ── DECK BUILDER — builds the swipeable lineup ──
+  const cards = useMemo(() => {
+    if (!selectedPartner || !synastry) return [];
+    const list = [];
+    const roleConfig = ROLE_DETAIL_CONFIG[partnerRole] || ROLE_DETAIL_CONFIG.other;
+
+    // 1. Cover Card
+    list.push({
+      key: 'cover',
+      slot: 'cover',
+      gradientKey: 'cover',
+      tag: (roleConfig.labels.aiAnalysis || 'YOUR STORY').toUpperCase(),
+      headline: `${userProfile.name?.split(' ')[0]} & ${partnerProfile.name?.split(' ')[0]}`,
+      meta: getScoreLabel(synastry.harmonyScore),
+    });
+
+    // 2. Connection Hub (Replaces AI Analysis + Dimensions)
+    list.push({
+      key: 'connectionHub',
+      slot: 'connectionHub',
+      gradientKey: 'dimensions',
+      tag: (roleConfig.labels.dimensions || 'BLUEPRINT').toUpperCase(),
+      headline: matchCore?.hookLine || 'A cosmic signature.',
+      meta: 'Swipe to explore your dynamics',
+    });
+
+    // 3. Dynamic Sections from Config
+    roleConfig.sectionOrder.forEach(sKey => {
+      if (['actionRow', 'pdfDownload'].includes(sKey)) return;
+      
+      // Handle merged cards specifically
+      if (sKey === 'areas') {
+        const areaEntries = Object.entries(matchDetails?.areas || {}).slice(0, 3);
+        areaEntries.forEach(([aKey, aData]) => {
+           list.push({
+             key: `area-${aKey}`,
+             slot: aKey,
+             gradientKey: aKey,
+             tag: (roleConfig.labels.areas || 'DEEP DIVE').toUpperCase(),
+             headline: aData.strength ? truncate(aData.strength, 45) : 'Exploring this area...',
+             meta: 'Tap for full analysis',
+             area: aData
+           });
+        });
+        return;
+      }
+
+      list.push({
+        key: sKey,
+        slot: sKey,
+        gradientKey: sKey,
+        tag: (roleConfig.labels[sKey] || sKey.replace(/([A-Z])/g, ' $1')).toUpperCase(),
+        headline: matchCore?.hookLine || 'Deepening the connection...',
+        meta: 'Tap to read more',
+      });
+    });
+
+    return list;
+  }, [selectedPartner, synastry, matchCore, matchDetails, partnerRole]);
+
+  // ── CARD CONTENT RENDERER — exact match to HomeScreenV2 ──
+  const renderCardContent = (card) => {
+    if (!card) return null;
+    const mGradients = isDark ? (COMPAT_CARD_GRADIENTS_DARK[card.gradientKey] || COMPAT_CARD_GRADIENTS_DARK.aiAnalysis) : (COMPAT_CARD_GRADIENTS_LIGHT[card.gradientKey] || COMPAT_CARD_GRADIENTS_LIGHT.aiAnalysis);
+    const mAccent = COMPAT_CARD_ACCENTS[card.gradientKey] || T.gold;
+    const mAccentSoft = mAccent + (isDark ? '25' : '15');
+    const inkFg = isDark ? T.cream : '#1A1410';
+    const inkMuted = isDark ? 'rgba(250,248,242,0.55)' : 'rgba(26,20,16,0.55)';
+
+    // Special layout for cover card
+    if (card.slot === 'cover') {
+      return (
+        <LinearGradient colors={mGradients} locations={[0, 0.55, 1]} style={styles.cardGradient}>
+          <View style={[styles.cardRing, { borderColor: isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.04)' }]} />
+          <View style={styles.anchorContent}>
+            <View style={styles.anchorHeader}>
+              <View style={styles.anchorHeaderLeft}>
+                 <View style={[styles.tagPill, { borderColor: mAccent + '40', backgroundColor: mAccent + '10' }]}>
+                   <Text style={[styles.tagLabel, { color: mAccent }]}>{card.tag}</Text>
+                 </View>
+              </View>
+              <View style={[styles.motifBadge, { borderColor: mAccent + '40', backgroundColor: mAccent + '08' }]}>
+                <Text style={{ fontSize: 24, color: mAccent }}>{ROLE_LABELS[partnerRole]?.icon || '✦'}</Text>
+              </View>
+            </View>
+
+            <View style={styles.anchorBody}>
+              <Text style={[styles.cardHeadline, { color: inkFg }]}>{card.headline}</Text>
+              <View style={[styles.accentRule, { backgroundColor: mAccent }]} />
+              <Text style={[styles.meta, { color: inkMuted }]}>{card.meta}</Text>
+              
+              <View style={{ marginTop: 24, gap: 8 }}>
+                {synastry && Object.entries(synastry.scores || {}).slice(0, 3).map(([k, v]) => (
+                  <View key={k} style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
+                    <Text style={{ fontFamily: FONTS.sansSemiBold, fontSize: 10, color: mAccent, width: 60 }}>{k.toUpperCase()}</Text>
+                    <View style={{ flex: 1, height: 4, backgroundColor: isDark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.05)', borderRadius: 2 }}>
+                      <View style={{ width: `${v}%`, height: '100%', backgroundColor: mAccent, borderRadius: 2 }} />
+                    </View>
+                  </View>
+                ))}
+              </View>
+            </View>
+
+            <View style={styles.cardBottomRow}>
+               <Text style={{ fontFamily: FONTS.sansSemiBold, fontSize: 11, color: mAccent, letterSpacing: 1 }}>{getScoreLabel(synastry?.harmonyScore || 0).toUpperCase()}</Text>
+            </View>
+          </View>
+        </LinearGradient>
+      );
+    }
+
+    return (
+      <LinearGradient colors={mGradients} locations={[0, 0.55, 1]} style={styles.cardGradient}>
+        <View style={[styles.cardRing, { borderColor: isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.04)' }]} />
+        <View style={styles.anchorContent}>
+          <View style={styles.anchorHeader}>
+            <View style={styles.anchorHeaderLeft}>
+               <View style={[styles.tagPill, { borderColor: mAccent + '40', backgroundColor: mAccent + '10' }]}>
+                 <Text style={[styles.tagLabel, { color: mAccent }]}>{card.tag}</Text>
+               </View>
+            </View>
+            <View style={[styles.motifBadge, { borderColor: mAccent + '40', backgroundColor: mAccent + '08' }]}>
+               <Text style={{ fontSize: 24, color: mAccent }}>{ZODIAC_GLYPHS[partnerSun?.sign] || '✦'}</Text>
+            </View>
+          </View>
+
+          <View style={styles.anchorBody}>
+            <Text style={[styles.cardHeadline, { color: inkFg }]}>{card.headline}</Text>
+            <View style={[styles.accentRule, { backgroundColor: mAccent }]} />
+            <Text style={[styles.meta, { color: inkMuted }]}>{card.meta}</Text>
+          </View>
+
+          <View style={styles.cardBottomRow}>
+             <Text style={{ fontFamily: FONTS.sansSemiBold, fontSize: 11, color: mAccent, letterSpacing: 1 }}>SWIPE FOR MORE</Text>
+          </View>
+        </View>
+      </LinearGradient>
+    );
+  };
 
   // Category legend counts
   const legendItems = useMemo(() => {
@@ -1089,459 +1326,102 @@ export default function CompatibilityScreen() {
         </ScrollView>
       )}
 
-      {/* ─── DETAIL SCREEN (role-specific) ─── */}
-      {showDetailScreen && synastry && (() => {
-        const rc = ROLE_DETAIL_CONFIG[partnerRole] || ROLE_DETAIL_CONFIG.other;
-        const lbl = rc.labels;
-        const p1Name = userProfile.name?.split(' ')[0];
-        const p2Name = partnerProfile?.name?.split(' ')[0];
-
-        // Section renderers keyed by config sectionOrder
-        const renderSection = (sKey, idx) => {
-          switch (sKey) {
-            case 'aiAnalysis':
-              if (aiLoading) return <View key={idx} style={{ alignItems: 'center', paddingVertical: 16 }}><ActivityIndicator size="small" color={T.gold} /><Text style={{ fontSize: 11, color: T.stone, marginTop: 6 }}>Reading your charts...</Text></View>;
-              if (!aiAnalysis) return null;
-              return (
-                <View key={idx} style={[styles.ddAiCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
-                  <Text style={[styles.ddSectionLbl, { color: colors.textSecondary }]}>{lbl.aiAnalysis}</Text>
-                  <AstroText style={[styles.ddAiText, { color: colors.text }]} text={aiAnalysis} />
-                  {synastry.discepoloAnalysis?.isDestinySign && <View style={styles.destinyBadge}><Text style={styles.destinyBadgeText}>✦ DESTINY SIGN MATCH</Text></View>}
-                </View>
-              );
-
-            case 'dimensions':
-              return (
-                <View key={idx}>
-                  <Text style={[styles.ddSectionLbl, { color: colors.textSecondary }]}>{lbl.dimensions}</Text>
-                  <View style={[styles.ddDimCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
-                    {roleDims.map((d, i) => (
-                      <View key={i} style={styles.dimRow}>
-                        <View style={styles.dimTop}><Text style={styles.dimIcon}>{d.icon}</Text><Text style={styles.dimLabel}>{d.label}</Text><Text style={styles.dimPct}>{d.pct}%</Text></View>
-                        <View style={styles.dimTrack}><View style={[styles.dimFill, { width: `${d.pct}%`, backgroundColor: d.color }]} /></View>
-                      </View>
-                    ))}
-                  </View>
-                </View>
-              );
-
-            case 'relationshipSeason':
-              if (!cosmicSeason) return null;
-              return <View key={idx} style={styles.ddSeasonCard}><Text style={styles.ddSectionLbl}>YOUR RELATIONSHIP SEASON</Text><Text style={styles.ddSeasonText}>{cosmicSeason.planet} in your {cosmicSeason.natalTarget} sign shapes how you connect right now · {cosmicSeason.progress}% through</Text></View>;
-
-            case 'activeWindows':
-              if (!activeRelationshipWindows.length) return null;
-              return (
-                <View key={idx} style={styles.ddActiveCard}>
-                  <Text style={styles.ddSectionLbl}>WHAT'S ACTIVE BETWEEN YOU</Text>
-                  {activeRelationshipWindows.slice(0, 3).map((w, i) => (
-                    <View key={i} style={{ flexDirection: 'row', gap: 8, marginBottom: 8 }}>
-                      <Text style={{ fontSize: 14 }}>{w.planet === 'Venus' ? '♀' : w.planet === 'Mars' ? '♂' : w.planet === 'Moon' ? '☽' : '★'}</Text>
-                      <Text style={{ flex: 1, fontSize: 13, color: T.ink, fontFamily: FONTS.sans, lineHeight: 18 }}>{w.description}</Text>
-                    </View>
-                  ))}
-                </View>
-              );
-
-            case 'areas':
-              if (detailsLoading) return <View key={idx} style={{ alignItems: 'center', paddingVertical: 16 }}><ActivityIndicator size="small" color={T.gold} /><Text style={{ fontSize: 12, color: T.stone, marginTop: 6 }}>Analyzing your connection...</Text></View>;
-              if (!isPro) {
-                // Show teaser section titles with blur to build curiosity
-                const teaserSections = partnerRole === 'partner'
-                  ? [{ icon: '🔥', title: 'The Spark', sub: 'Why you\'re drawn to each other' }, { icon: '💕', title: 'Emotional Dynamic', sub: 'How you connect at the deepest level' }, { icon: '⚡', title: 'Where You\'ll Fight', sub: 'Friction points & how to navigate them' }, { icon: '🌙', title: 'The Long Game', sub: 'Is this built to last?' }]
-                  : partnerRole === 'friend'
-                  ? [{ icon: '★', title: 'Friendship Energy', sub: 'What makes your bond unique' }, { icon: '💬', title: 'Communication', sub: 'How you really talk to each other' }, { icon: '🌱', title: 'Growth Together', sub: 'How you push each other forward' }]
-                  : [{ icon: '✦', title: 'Deep Analysis', sub: 'How you truly connect' }, { icon: '💬', title: 'Communication', sub: 'How you understand each other' }, { icon: '🔮', title: 'The Pattern', sub: 'What keeps repeating between you' }];
-                return (
-                  <View key={idx} style={{ marginTop: 10 }}>
-                    <Text style={styles.ddSectionLbl}>{lbl.areas}</Text>
-                    {teaserSections.map((ts, ti) => (
-                      <View key={ti} style={[styles.blurredSection, { backgroundColor: colors.card, borderColor: colors.border }]}>
-                        <View style={styles.blurredHeader}>
-                          <Text style={{ fontSize: 16 }}>{ts.icon}</Text>
-                          <View style={{ flex: 1 }}>
-                            <Text style={[styles.blurredTitle, { color: colors.heading }]}>{ts.title}</Text>
-                            <Text style={styles.blurredSub}>{ts.sub}</Text>
-                          </View>
-                          <Text style={{ fontSize: 12, color: T.gold }}>🔒</Text>
-                        </View>
-                        <View style={styles.blurredContent}>
-                          <Text style={styles.blurredText}>████ ██ ████████ ███ ██████ ████ ██ ████████ ████ ██ ██████ ███ ██ ████████ ██ ████████</Text>
-                        </View>
-                      </View>
-                    ))}
-                    <TouchableOpacity style={styles.unlockDeepBtn} activeOpacity={0.8}
-                      onPress={() => {
-                        haptic.medium();
-                        Alert.alert(
-                          'See the Full Story',
-                          'See your emotional dynamic, where you\'ll clash, and the long game.',
-                          [
-                            { text: 'Cancel', style: 'cancel' },
-                            { text: 'This Report — $9.99', onPress: () => navigation.navigate('Paywall', { source: 'report_single_compatibility' }) },
-                            { text: 'Subscribe — All Reports', onPress: () => navigation.navigate('Paywall', { source: 'match_curiosity' }) },
-                          ]
-                        );
-                      }}>
-                      <LinearGradient colors={['#C8A84B', '#A07820']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={styles.unlockDeepGrad}>
-                        <Text style={styles.unlockDeepText}>See the Deep Story</Text>
-                      </LinearGradient>
-                    </TouchableOpacity>
-                    {/* Viral share hook in free preview — Plan Section 04 */}
-                    <TouchableOpacity
-                      style={{ alignItems: 'center', paddingVertical: 10 }}
-                      activeOpacity={0.7}
-                      onPress={async () => {
-                        haptic.light();
-                        const pName = selectedPartner?.name || 'someone';
-                        const score = quickScore?.harmonyScore || '?';
-                        try {
-                          await Share.share({
-                            message: `I just checked my compatibility with ${pName} on Celestia — we're ${score}% matched! Check yours: celestia.app`,
-                          });
-                          trackEvent('share').catch(() => {});
-                        } catch (e) {}
-                      }}>
-                      <Text style={{ fontSize: 11, color: T.stone, textAlign: 'center' }}>
-                        Or share with {selectedPartner?.name || 'them'} — if they join, you both get deeper insights
-                      </Text>
-                      <Text style={{ fontSize: 11, fontFamily: FONTS.sansMedium, color: T.gold, marginTop: 4 }}>Send Compatibility Link ↗</Text>
-                    </TouchableOpacity>
-                  </View>
-                );
-              }
-              if (!matchDetails?.areas) return null;
-
-              return (
-                <View key={idx}>
-                  <Text style={styles.ddSectionLbl}>{lbl.areas}</Text>
-                  {Object.entries(matchDetails.areas).map(([key, area], i) => {
-                    const dim = roleDims.find(d => d.key === key);
-                    return (
-                      <View key={i} style={[styles.ddAreaCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
-                        <View style={styles.ddAreaHeader}>
-                          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>{dim && <Text style={{ fontSize: 14, color: dim.color }}>{dim.icon}</Text>}<Text style={[styles.ddAreaName, { color: colors.heading }]}>{dim?.label || key.charAt(0).toUpperCase() + key.slice(1)}</Text></View>
-                          <Text style={styles.ddAreaScore}>{area.score}%</Text>
-                        </View>
-                        <View style={[styles.dimTrack, { marginBottom: 10 }]}><View style={[styles.dimFill, { width: `${area.score}%`, backgroundColor: dim?.color || T.gold }]} /></View>
-                        <AstroText text={area.strength} style={styles.ddAreaStrength} />
-                        {area.tension && <AstroText text={area.tension} style={styles.ddAreaTension} />}
-                        {area.analysis && <AstroText text={area.analysis} style={styles.ddAreaAnalysis} />}
-                        {area.reflection && <AstroText text={area.reflection} style={styles.ddAreaReflection} />}
-                      </View>
-                    );
-                  })}
-                </View>
-              );
-
-            case 'sharedValues':
-              if (!matchDetails?.sharedValues?.length) return null;
-              return <View key={idx}><Text style={styles.ddSectionLbl}>{lbl.sharedValues}</Text><View style={styles.ddChipsWrap}>{matchDetails.sharedValues.map((v, i) => <View key={i} style={styles.ddValueChip}><Text style={styles.ddValueText}>{v}</Text></View>)}</View></View>;
-
-            case 'keyConnections':
-              if (!synastry.links?.length) return null;
-              return <View key={idx}><Text style={styles.ddSectionLbl}>{lbl.keyConnections}</Text><View style={styles.ddChipsWrap}>{synastry.links.slice(0, 6).map((link, i) => <View key={i} style={[styles.ddLinkChip, link.isFriction && styles.ddLinkChipHard]}><Text style={[styles.ddLinkText, link.isFriction && styles.ddLinkTextHard]}>{link.label} {link.description}</Text></View>)}</View></View>;
-
-            case 'actionRow':
-              return (
-                <View key={idx}>
-                  {/* Zodiac-only upgrade CTA */}
-                  {partnerProfile?.isZodiacOnly && (
-                    <TouchableOpacity style={styles.upgradeDepthCard} activeOpacity={0.7}
-                      onPress={() => openDeepenModal(partnerProfile, 'full')}>
-                      <Text style={styles.upgradeDepthIcon}>↑</Text>
-                      <View style={{ flex: 1 }}>
-                        <Text style={styles.upgradeDepthTitle}>Deepen Reading</Text>
-                        <Text style={styles.upgradeDepthSub}>Add {p2Name}'s birthday for a full chart reading</Text>
-                      </View>
-                      <Text style={styles.upgradeDepthArrow}>↗</Text>
-                    </TouchableOpacity>
-                  )}
-
-                  {/* Add birth time nudge for birthday-only partners */}
-                  {!partnerProfile?.isZodiacOnly && partnerProfile?.isTimeUnknown && (
-                    <TouchableOpacity style={styles.addTimeNudgeCard} activeOpacity={0.7}
-                      onPress={() => openDeepenModal(partnerProfile, 'time')}>
-                      <Text style={styles.addTimeNudgeIcon}>◷</Text>
-                      <View style={{ flex: 1 }}>
-                        <Text style={styles.addTimeNudgeTitle}>Add Birth Time</Text>
-                        <Text style={styles.addTimeNudgeSub}>Know {p2Name}'s birth time? Unlock house placements and Moon sign accuracy</Text>
-                      </View>
-                      <Text style={styles.upgradeDepthArrow}>↗</Text>
-                    </TouchableOpacity>
-                  )}
-
-                  {/* Ask Celestia bridge */}
-                  <TouchableOpacity style={styles.askCelestiaBtn} activeOpacity={0.7}
-                    onPress={() => {
-                      haptic.light();
-                      const question = `Tell me more about my compatibility with ${p2Name}. What are our biggest strengths and challenges based on our charts?`;
-                      navigation.navigate('AskAI', { initialMessage: question });
-                    }}>
-                    <Text style={styles.askCelestiaBtnIcon}>☽</Text>
-                    <View style={{ flex: 1 }}>
-                      <Text style={styles.askCelestiaBtnText}>Ask Celestia why you two click</Text>
-                      <Text style={styles.askCelestiaBtnSub}>Get personalized insight about your strengths & challenges</Text>
-                    </View>
-                    <Text style={styles.askCelestiaBtnArrow}>{'\u2192'}</Text>
-                  </TouchableOpacity>
-
-                  {/* Bridge to Reports */}
-                  <TouchableOpacity style={styles.reportsBtn} activeOpacity={0.7}
-                    onPress={() => {
-                      haptic.light();
-                      navigation.navigate('Reports');
-                    }}>
-                    <Text style={styles.reportsBtnIcon}>{'\u2727'}</Text>
-                    <View style={{ flex: 1 }}>
-                      <Text style={styles.reportsBtnText}>See your full compatibility story</Text>
-                      <Text style={styles.reportsBtnSub}>Deep-dive into love, communication & long-term potential</Text>
-                    </View>
-                    <Text style={styles.reportsBtnArrow}>{'\u2192'}</Text>
-                  </TouchableOpacity>
-
-                  <View style={styles.ddActionRow}>
-                    <TouchableOpacity style={styles.ddActionBtn} activeOpacity={0.7} onPress={handleShareStory}><Text style={styles.ddActionBtnText}>Share ↗</Text></TouchableOpacity>
-                    <TouchableOpacity style={styles.ddActionBtn} activeOpacity={0.7} onPress={async () => {
-                      haptic.medium();
-                      await createAndShareInvite({ inviterName: userProfile?.name || 'Someone', inviterId: userProfile?.id, partnerName: partnerProfile?.name || 'Partner', score: synastry.harmonyScore, verdict: rc.getScoreLabel(synastry.harmonyScore) });
-                      trackEvent('share'); awardXP(userProfile?.id, 'share');
-                    }}><Text style={styles.ddActionBtnText}>Check Our Compatibility ✉️</Text></TouchableOpacity>
-                  </View>
-                </View>
-              );
-
-            case 'pdfDownload':
-              const theme = reportTheme;
-              return (
-                <View key={idx}>
-                  <TouchableOpacity style={styles.ddDownload} activeOpacity={0.8} onPress={handleDownloadReport} disabled={pdfLoading}>
-                    <LinearGradient colors={theme.gradient} style={styles.ddDownloadGrad}>
-                      <View style={[styles.ddDownloadGlow, { backgroundColor: theme.accentSoft }]} />
-                      <Text style={{ fontSize: 22, marginBottom: 6 }}>{theme.coverIcon}</Text>
-                      <Text style={styles.ddDownloadTitle}>{lbl.pdfTitle}</Text>
-                      <Text style={styles.ddDownloadSub}>{lbl.pdfSub}</Text>
-                      <View style={[styles.ddDownloadCta, { backgroundColor: theme.accentSoft, borderColor: theme.accentGlow }]}>
-                        <Text style={{ fontSize: 13, fontFamily: FONTS.sansSemiBold, color: theme.accent }}>Generate PDF ↓</Text>
-                      </View>
-                    </LinearGradient>
-                  </TouchableOpacity>
-                  <TouchableOpacity onPress={() => handleRemovePartner(partnerProfile)} style={styles.ddDeleteBtn} activeOpacity={0.7}>
-                    <Text style={styles.ddDeleteBtnText}>Remove {p2Name} from Circle</Text>
-                  </TouchableOpacity>
-                </View>
-              );
-
-            // ── ROLE-SPECIFIC UNIQUE SECTIONS ──
-
-            case 'loveLanguages':
-              if (!matchDetails?.loveLanguages) return null;
-              return (
-                <View key={idx} style={[styles.uniqueCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
-                  <Text style={[styles.ddSectionLbl, { color: colors.textSecondary }]}>LOVE LANGUAGES</Text>
-                  <View style={styles.uniqueTwoCol}>
-                    <View style={styles.uniqueColCard}><Text style={styles.uniqueColIcon}>♀</Text><Text style={styles.uniqueColLabel}>{p1Name}</Text><Text style={styles.uniqueColText}>{matchDetails.loveLanguages.user}</Text></View>
-                    <View style={styles.uniqueColCard}><Text style={styles.uniqueColIcon}>♀</Text><Text style={styles.uniqueColLabel}>{p2Name}</Text><Text style={styles.uniqueColText}>{matchDetails.loveLanguages.partner}</Text></View>
-                  </View>
-                </View>
-              );
-
-            case 'conflictStyle':
-              if (!matchDetails?.conflictStyle) return null;
-              return (
-                <View key={idx} style={[styles.uniqueCard, { borderLeftWidth: 3, borderLeftColor: '#E86050' }]}>
-                  <Text style={styles.ddSectionLbl}>CONFLICT & RESOLUTION</Text>
-                  <View style={styles.uniqueRow}><Text style={[styles.uniqueRowIcon, { color: '#E86050' }]}>△</Text><View style={{ flex: 1 }}><Text style={styles.uniqueRowLabel}>TRIGGERS</Text><Text style={styles.uniqueRowText}>{matchDetails.conflictStyle.triggers}</Text></View></View>
-                  <View style={styles.uniqueRow}><Text style={[styles.uniqueRowIcon, { color: '#4A8060' }]}>✦</Text><View style={{ flex: 1 }}><Text style={[styles.uniqueRowLabel, { color: '#4A8060' }]}>RESOLUTION</Text><Text style={styles.uniqueRowText}>{matchDetails.conflictStyle.resolution}</Text></View></View>
-                </View>
-              );
-
-            case 'friendshipDynamic':
-              if (!matchDetails?.friendshipDynamic) return null;
-              return (
-                <View key={idx} style={styles.uniqueCard}>
-                  <Text style={styles.ddSectionLbl}>YOUR FRIENDSHIP VIBE</Text>
-                  <Text style={styles.uniqueBodyText}>{matchDetails.friendshipDynamic.vibeDescription}</Text>
-                  <View style={styles.uniqueHighlight}><Text style={styles.uniqueHighlightLabel}>BEST TOGETHER</Text><Text style={styles.uniqueHighlightText}>{matchDetails.friendshipDynamic.bestActivity}</Text></View>
-                </View>
-              );
-
-            case 'adventureCompat':
-              if (!matchDetails?.adventureCompat) return null;
-              return (
-                <View key={idx} style={styles.uniqueCard}>
-                  <Text style={styles.ddSectionLbl}>ADVENTURE COMPATIBILITY</Text>
-                  <View style={styles.uniqueTwoCol}>
-                    <View style={styles.uniqueColCard}><Text style={styles.uniqueColIcon}>✈</Text><Text style={styles.uniqueColLabel}>Ideal Trip</Text><Text style={styles.uniqueColText}>{matchDetails.adventureCompat.idealTrip}</Text></View>
-                    <View style={styles.uniqueColCard}><Text style={styles.uniqueColIcon}>◇</Text><Text style={styles.uniqueColLabel}>Shared Energy</Text><Text style={styles.uniqueColText}>{matchDetails.adventureCompat.sharedEnergy}</Text></View>
-                  </View>
-                </View>
-              );
-
-            case 'generationalPattern':
-              if (!matchDetails?.generationalPattern) return null;
-              return (
-                <View key={idx} style={[styles.uniqueCard, { borderLeftWidth: 3, borderLeftColor: '#A080C0' }]}>
-                  <Text style={styles.ddSectionLbl}>GENERATIONAL PATTERN</Text>
-                  <View style={styles.uniqueRow}><Text style={styles.uniqueRowIcon}>♄</Text><View style={{ flex: 1 }}><Text style={styles.uniqueRowLabel}>THE PATTERN</Text><Text style={styles.uniqueRowText}>{matchDetails.generationalPattern.pattern}</Text></View></View>
-                  <View style={styles.uniqueRow}><Text style={styles.uniqueRowIcon}>◎</Text><View style={{ flex: 1 }}><Text style={styles.uniqueRowLabel}>ORIGIN</Text><Text style={styles.uniqueRowText}>{matchDetails.generationalPattern.origin}</Text></View></View>
-                  <View style={styles.uniqueRow}><Text style={[styles.uniqueRowIcon, { color: '#4A8060' }]}>✦</Text><View style={{ flex: 1 }}><Text style={[styles.uniqueRowLabel, { color: '#4A8060' }]}>HEALING</Text><Text style={styles.uniqueRowText}>{matchDetails.generationalPattern.healing}</Text></View></View>
-                </View>
-              );
-
-            case 'communicationGuide':
-              if (!matchDetails?.communicationGuide) return null;
-              return (
-                <View key={idx} style={styles.uniqueCard}>
-                  <Text style={styles.ddSectionLbl}>COMMUNICATION GUIDE</Text>
-                  <View style={styles.uniqueRow}><Text style={styles.uniqueRowIcon}>☿</Text><View style={{ flex: 1 }}><Text style={styles.uniqueRowLabel}>THEIR STYLE</Text><Text style={styles.uniqueRowText}>{matchDetails.communicationGuide.theirStyle}</Text></View></View>
-                  <View style={styles.uniqueRow}><Text style={styles.uniqueRowIcon}>☿</Text><View style={{ flex: 1 }}><Text style={styles.uniqueRowLabel}>YOUR STYLE</Text><Text style={styles.uniqueRowText}>{matchDetails.communicationGuide.yourStyle}</Text></View></View>
-                  <View style={styles.uniqueHighlight}><Text style={styles.uniqueHighlightLabel}>BRIDGE TIP</Text><Text style={styles.uniqueHighlightText}>{matchDetails.communicationGuide.bridgeTip}</Text></View>
-                </View>
-              );
-
-            case 'healingPath':
-              if (!matchDetails?.healingPath) return null;
-              return (
-                <View key={idx} style={[styles.uniqueCard, { backgroundColor: '#F8F5F0' }]}>
-                  <Text style={styles.ddSectionLbl}>HEALING PATH</Text>
-                  <View style={styles.uniqueRow}><Text style={[styles.uniqueRowIcon, { color: '#A06050' }]}>◇</Text><View style={{ flex: 1 }}><Text style={[styles.uniqueRowLabel, { color: '#A06050' }]}>THE WOUND</Text><Text style={styles.uniqueRowText}>{matchDetails.healingPath.wound}</Text></View></View>
-                  <View style={styles.uniqueRow}><Text style={[styles.uniqueRowIcon, { color: '#4A8060' }]}>✦</Text><View style={{ flex: 1 }}><Text style={[styles.uniqueRowLabel, { color: '#4A8060' }]}>APPROACH</Text><Text style={styles.uniqueRowText}>{matchDetails.healingPath.approach}</Text></View></View>
-                  <View style={styles.uniqueAffirmation}><Text style={styles.uniqueAffirmationText}>"{matchDetails.healingPath.affirmation}"</Text></View>
-                </View>
-              );
-
-            case 'siblingDynamic':
-              if (!matchDetails?.siblingDynamic) return null;
-              return (
-                <View key={idx} style={styles.uniqueCard}>
-                  <Text style={styles.ddSectionLbl}>SIBLING DYNAMIC</Text>
-                  <Text style={styles.uniqueDynamicLabel}>{matchDetails.siblingDynamic.dynamicLabel}</Text>
-                  <View style={styles.uniqueBarRow}><Text style={styles.uniqueBarLabel}>Rivalry</Text><View style={styles.dimTrack}><View style={[styles.dimFill, { width: `${matchDetails.siblingDynamic.rivalryScore}%`, backgroundColor: '#E86050' }]} /></View><Text style={styles.uniqueBarPct}>{matchDetails.siblingDynamic.rivalryScore}%</Text></View>
-                  <View style={styles.uniqueBarRow}><Text style={styles.uniqueBarLabel}>Alliance</Text><View style={styles.dimTrack}><View style={[styles.dimFill, { width: `${matchDetails.siblingDynamic.allianceScore}%`, backgroundColor: '#4A8060' }]} /></View><Text style={styles.uniqueBarPct}>{matchDetails.siblingDynamic.allianceScore}%</Text></View>
-                  <Text style={styles.uniqueBodyText}>{matchDetails.siblingDynamic.insight}</Text>
-                </View>
-              );
-
-            case 'communicationPlaybook':
-              if (!matchDetails?.communicationPlaybook) return null;
-              return (
-                <View key={idx} style={styles.uniqueCard}>
-                  <Text style={styles.ddSectionLbl}>COMMUNICATION PLAYBOOK</Text>
-                  <View style={styles.uniqueRow}><Text style={styles.uniqueRowIcon}>☿</Text><View style={{ flex: 1 }}><Text style={styles.uniqueRowLabel}>THEIR STYLE</Text><Text style={styles.uniqueRowText}>{matchDetails.communicationPlaybook.theirStyle}</Text></View></View>
-                  <View style={styles.uniqueRow}><Text style={[styles.uniqueRowIcon, { color: '#4A8060' }]}>→</Text><View style={{ flex: 1 }}><Text style={[styles.uniqueRowLabel, { color: '#4A8060' }]}>BEST APPROACH</Text><Text style={styles.uniqueRowText}>{matchDetails.communicationPlaybook.bestApproach}</Text></View></View>
-                  <View style={styles.uniqueRow}><Text style={[styles.uniqueRowIcon, { color: '#E86050' }]}>✕</Text><View style={{ flex: 1 }}><Text style={[styles.uniqueRowLabel, { color: '#E86050' }]}>AVOID</Text><Text style={styles.uniqueRowText}>{matchDetails.communicationPlaybook.avoid}</Text></View></View>
-                </View>
-              );
-
-            case 'careerStrategy':
-              if (!matchDetails?.careerStrategy) return null;
-              return (
-                <View key={idx} style={[styles.uniqueCard, { borderLeftWidth: 3, borderLeftColor: T.gold }]}>
-                  <Text style={styles.ddSectionLbl}>CAREER STRATEGY</Text>
-                  <View style={styles.uniqueRow}><Text style={styles.uniqueRowIcon}>↑</Text><View style={{ flex: 1 }}><Text style={styles.uniqueRowLabel}>LEVERAGE</Text><Text style={styles.uniqueRowText}>{matchDetails.careerStrategy.leverage}</Text></View></View>
-                  <View style={styles.uniqueRow}><Text style={styles.uniqueRowIcon}>◎</Text><View style={{ flex: 1 }}><Text style={styles.uniqueRowLabel}>TIMING</Text><Text style={styles.uniqueRowText}>{matchDetails.careerStrategy.timing}</Text></View></View>
-                  <View style={styles.uniqueHighlight}><Text style={styles.uniqueHighlightLabel}>GROWTH TIP</Text><Text style={styles.uniqueHighlightText}>{matchDetails.careerStrategy.growthTip}</Text></View>
-                </View>
-              );
-
-            case 'teamworkProfile':
-              if (!matchDetails?.teamworkProfile) return null;
-              return (
-                <View key={idx} style={styles.uniqueCard}>
-                  <Text style={styles.ddSectionLbl}>TEAMWORK PROFILE</Text>
-                  <View style={styles.uniqueTwoCol}>
-                    <View style={styles.uniqueColCard}><Text style={styles.uniqueColLabel}>{p1Name}'s Role</Text><Text style={styles.uniqueColText}>{matchDetails.teamworkProfile.yourRole}</Text></View>
-                    <View style={styles.uniqueColCard}><Text style={styles.uniqueColLabel}>{p2Name}'s Role</Text><Text style={styles.uniqueColText}>{matchDetails.teamworkProfile.theirRole}</Text></View>
-                  </View>
-                  <View style={styles.uniqueHighlight}><Text style={styles.uniqueHighlightLabel}>BEST COLLAB STYLE</Text><Text style={styles.uniqueHighlightText}>{matchDetails.teamworkProfile.bestCollabStyle}</Text></View>
-                  <View style={[styles.uniqueHighlight, { backgroundColor: 'rgba(232,96,80,0.06)', borderColor: 'rgba(232,96,80,0.15)' }]}><Text style={[styles.uniqueHighlightLabel, { color: '#E86050' }]}>WATCH FOR</Text><Text style={styles.uniqueHighlightText}>{matchDetails.teamworkProfile.watchFor}</Text></View>
-                </View>
-              );
-
-            case 'parentingGuide':
-              if (!matchDetails?.parentingGuide) return null;
-              return (
-                <View key={idx} style={[styles.uniqueCard, { borderLeftWidth: 3, borderLeftColor: '#4A8060' }]}>
-                  <Text style={styles.ddSectionLbl}>PARENTING GUIDE</Text>
-                  <View style={styles.uniqueRow}><Text style={styles.uniqueRowIcon}>☽</Text><View style={{ flex: 1 }}><Text style={styles.uniqueRowLabel}>THEIR NEEDS</Text><Text style={styles.uniqueRowText}>{matchDetails.parentingGuide.theirNeeds}</Text></View></View>
-                  <View style={styles.uniqueRow}><Text style={[styles.uniqueRowIcon, { color: '#4A8060' }]}>✦</Text><View style={{ flex: 1 }}><Text style={[styles.uniqueRowLabel, { color: '#4A8060' }]}>YOUR STRENGTH</Text><Text style={styles.uniqueRowText}>{matchDetails.parentingGuide.yourStrength}</Text></View></View>
-                  <View style={styles.uniqueRow}><Text style={[styles.uniqueRowIcon, { color: T.gold }]}>→</Text><View style={{ flex: 1 }}><Text style={[styles.uniqueRowLabel, { color: T.gold }]}>GROWTH EDGE</Text><Text style={styles.uniqueRowText}>{matchDetails.parentingGuide.growthEdge}</Text></View></View>
-                </View>
-              );
-
-            case 'childNature':
-              if (!matchDetails?.childNature) return null;
-              return (
-                <View key={idx} style={styles.uniqueCard}>
-                  <Text style={styles.ddSectionLbl}>THEIR NATURE</Text>
-                  <View style={styles.uniqueRow}><Text style={styles.uniqueRowIcon}>☉</Text><View style={{ flex: 1 }}><Text style={styles.uniqueRowLabel}>TEMPERAMENT</Text><Text style={styles.uniqueRowText}>{matchDetails.childNature.coreTemperament}</Text></View></View>
-                  <View style={styles.uniqueRow}><Text style={styles.uniqueRowIcon}>☽</Text><View style={{ flex: 1 }}><Text style={styles.uniqueRowLabel}>EMOTIONAL NEED</Text><Text style={styles.uniqueRowText}>{matchDetails.childNature.emotionalNeed}</Text></View></View>
-                  <View style={styles.uniqueHighlight}><Text style={styles.uniqueHighlightLabel}>BEST MOTIVATOR</Text><Text style={styles.uniqueHighlightText}>{matchDetails.childNature.bestMotivator}</Text></View>
-                </View>
-              );
-
-            default: return null;
-          }
-        };
-
-        return (
-          <View style={{ flex: 1 }}>
-            <ScrollView showsVerticalScrollIndicator={false}>
-              {/* Detail hero */}
-              <LinearGradient colors={rc.heroGradient} style={styles.ddHero}>
-                <TouchableOpacity onPress={() => setSelectedPartner(null)} style={styles.ddBack}>
-                  <Text style={{ fontSize: 16, color: 'rgba(250,248,242,0.7)' }}>‹</Text>
-                </TouchableOpacity>
-                <View style={styles.ddPair}>
-                  <LinearGradient colors={['#E2C46A', '#8C6C18']} style={styles.ddOrb}><Text style={styles.ddOrbText}>{getInitial(userProfile.name)}</Text></LinearGradient>
-                  <View style={styles.ddConnector}><View style={styles.ddLine} /><View style={styles.ddHeart}><Text style={{ fontSize: 14 }}>{ROLE_LABELS[partnerRole]?.icon || '♡'}</Text></View><View style={styles.ddLine} /></View>
-                  <LinearGradient colors={(ROLE_COLORS[partnerRole] || ROLE_COLORS.other).bg} style={styles.ddOrb}><Text style={styles.ddOrbText}>{getInitial(partnerProfile?.name)}</Text></LinearGradient>
-                </View>
-                <Text style={styles.ddTitle}>{p1Name} & {p2Name}</Text>
-                <Text style={styles.ddSub}>{ROLE_LABELS[partnerRole]?.label} · {ZODIAC_GLYPHS[partnerSun?.sign] || '✦'} {partnerSun?.sign || '—'}</Text>
-                <View style={styles.ddScoreWrap}>
-                  <Svg width={80} height={80}>
-                    <Circle cx={40} cy={40} r={34} fill="none" stroke="rgba(255,255,255,0.08)" strokeWidth={5} />
-                    <Circle cx={40} cy={40} r={34} fill="none" stroke={T.gold} strokeWidth={5}
-                      strokeDasharray={`${(synastry.harmonyScore / 100) * 2 * Math.PI * 34} ${2 * Math.PI * 34}`}
-                      strokeLinecap="round" transform="rotate(-90 40 40)" />
-                  </Svg>
-                  <Text style={styles.ddScoreNum}>{synastry.harmonyScore}</Text>
-                </View>
-                <Text style={styles.ddVerdict}>"{rc.getScoreLabel(synastry.harmonyScore)}"</Text>
-                <View style={styles.ddChips}>
-                  {roleDims.map((d, i) => (
-                    <View key={i} style={[styles.ddChip, { borderColor: d.color + '40' }]}>
-                      <Text style={{ fontSize: 10, color: d.color }}>{d.icon}</Text>
-                      <Text style={styles.ddChipLabel}>{d.label}</Text>
-                      <Text style={[styles.ddChipVal, { color: d.color }]}>{d.pct}%</Text>
-                    </View>
-                  ))}
-                </View>
-                {/* Quick share from detail hero */}
-                <TouchableOpacity style={styles.ddShareBtn} activeOpacity={0.7}
-                  onPress={async () => {
-                    haptic.light();
-                    try {
-                      await Share.share({
-                        message: `${p1Name} & ${p2Name} — ${synastry.harmonyScore}% compatibility on Celestia! Check yours: celestia.app`,
-                      });
-                      trackEvent('share').catch(() => {});
-                    } catch (e) {}
-                  }}>
-                  <Text style={styles.ddShareBtnText}>Share Result ↗</Text>
-                </TouchableOpacity>
-              </LinearGradient>
-
-              <View style={[styles.ddBody, { backgroundColor: colors.bg }]}>
-                {rc.sectionOrder.map((sKey, idx) => renderSection(sKey, idx))}
-                <View style={{ height: 40 }} />
-              </View>
-            </ScrollView>
+      {/* ─── DECK VIEW (Selected Partner) ─── */}
+      {selectedPartner && (
+        <View style={StyleSheet.absoluteFillObject}>
+          {/* Deck Header */}
+          <View style={styles.deckHeader}>
+            <TouchableOpacity style={styles.deckBackBtn} onPress={() => { haptic.light(); setSelectedPartner(null); }}>
+              <Text style={styles.deckBackBtnText}>‹  Orbit</Text>
+            </TouchableOpacity>
+            <TouchableOpacity style={styles.deckMoreBtn} onPress={() => { haptic.light(); setShowStoryModal(true); }}>
+              <Text style={styles.deckMoreBtnText}>Share  ↗</Text>
+            </TouchableOpacity>
           </View>
-        );
-      })()}
+
+          {/* Card Stack — same stacked-layer philosophy as HomeScreenV2 */}
+          <View style={styles.deckStack}>
+            {/* Peeking Next Card */}
+            {cards[currentDeckIndex + 1] && (
+              <View style={[styles.cardAbsolute, styles.cardNextPeeking]}>
+                {renderCardContent(cards[currentDeckIndex + 1])}
+              </View>
+            )}
+
+            {/* Current Top Card */}
+            {cards[currentDeckIndex] && (
+              <SwipeableCompatCard
+                key={cards[currentDeckIndex].key}
+                cardData={cards[currentDeckIndex]}
+                isDark={isDark}
+                canAdvance={currentDeckIndex < cards.length - 1}
+                canRewind={currentDeckIndex > 0}
+                onAdvance={() => setCurrentDeckIndex(i => i + 1)}
+                onRewind={() => setCurrentDeckIndex(i => i - 1)}
+                onTap={(c) => {
+                  haptic.medium();
+                  navigation.navigate('CompatibilityDetail', {
+                    card: c,
+                    matchDetails,
+                    synastry,
+                    p1Name: userProfile.name?.split(' ')[0],
+                    p2Name: partnerProfile.name?.split(' ')[0],
+                    partnerRole,
+                    cosmicSeason,
+                    activeRelationshipWindows,
+                    matchCore,
+                    partnerProfile,
+                    partnerSun: partnerProfile?.chart?.planets?.find(p => p.name === 'Sun')
+                  });
+                }}
+                renderContent={renderCardContent}
+              />
+            )}
+          </View>
+
+          {/* Indicators + Primary CTA */}
+          <View style={styles.deckFooter}>
+            <View style={styles.deckProgressRow}>
+              {cards.map((_, i) => (
+                <View key={i} style={[styles.deckDot, { 
+                  backgroundColor: i === currentDeckIndex ? (isDark ? T.cream : T.clayDeep) : (isDark ? 'rgba(255,255,255,0.15)' : 'rgba(0,0,0,0.1)'),
+                  width: i === currentDeckIndex ? 18 : 6,
+                  height: 6,
+                  borderRadius: 3,
+                }]} />
+              ))}
+            </View>
+            
+            <TouchableOpacity 
+              style={styles.deckActionRow} 
+              activeOpacity={0.85}
+              onPress={() => {
+                haptic.medium();
+                navigation.navigate('CompatibilityDetail', {
+                  card: cards[currentDeckIndex],
+                  matchDetails,
+                  synastry,
+                  p1Name: userProfile.name?.split(' ')[0],
+                  p2Name: partnerProfile.name?.split(' ')[0],
+                  partnerRole,
+                  cosmicSeason,
+                  activeRelationshipWindows,
+                  matchCore,
+                  partnerProfile,
+                  partnerSun: partnerProfile?.chart?.planets?.find(p => p.name === 'Sun')
+                });
+              }}
+            >
+              <View style={styles.deckChipLargeShadow}>
+                <LinearGradient colors={CTA_GRADIENT} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={styles.deckChipLargeGradient}>
+                  <Text style={[styles.deckChipLargeText, { color: CTA_TEXT }]}>Read Insights  →</Text>
+                </LinearGradient>
+              </View>
+            </TouchableOpacity>
+          </View>
+        </View>
+      )}
+
 
       {/* Share cards offscreen */}
       {synastry && partnerProfile && (
@@ -2122,11 +2002,156 @@ const styles = StyleSheet.create({
   deepenSignBadgeText: { fontSize: 12, fontFamily: FONTS.sansMedium, color: T.gold },
   deepenInfoBanner: { backgroundColor: 'rgba(200,168,75,0.06)', borderRadius: 12, padding: 14, marginBottom: 16, borderWidth: 1, borderColor: 'rgba(200,168,75,0.12)' },
   deepenInfoText: { fontSize: 12, color: T.ink, lineHeight: 18 },
-  deepenSaveBtn: {},
 
-  // Success toast
-  toastContainer: { position: 'absolute', top: Platform.OS === 'ios' ? 80 : (StatusBar.currentHeight || 48) + 20, left: 20, right: 20, alignItems: 'center', zIndex: 999 },
-  toast: { flexDirection: 'row', alignItems: 'center', gap: 8, backgroundColor: T.navy, borderRadius: 14, paddingVertical: 12, paddingHorizontal: 18, shadowColor: '#000', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.2, shadowRadius: 12, elevation: 6 },
-  toastIcon: { fontSize: 14, color: T.gold },
-  toastText: { fontSize: 13, fontFamily: FONTS.sansMedium, color: T.cream, flex: 1 },
+  // ── Deck overlay ────────────
+  deckHeader: {
+    paddingTop: Platform.OS === 'ios' ? 60 : (StatusBar.currentHeight || 48) + 14,
+    paddingHorizontal: 22,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    zIndex: 100,
+  },
+  deckBackBtn: {
+    paddingVertical: 8,
+  },
+  deckBackBtnText: {
+    fontFamily: FONTS.sansSemiBold,
+    fontSize: 14,
+    color: T.stone,
+  },
+  deckMoreBtn: {
+    paddingVertical: 8,
+  },
+  deckMoreBtnText: {
+    fontFamily: FONTS.sansSemiBold,
+    fontSize: 13,
+    color: T.stone,
+  },
+
+  deckStack: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingBottom: 20,
+  },
+  cardAbsolute: {
+    position: 'absolute',
+    width: CARD_WIDTH,
+    height: CARD_HEIGHT,
+  },
+  cardNextPeeking: {
+    transform: [{ scale: 0.94 }, { translateY: 10 }],
+    opacity: 0.5,
+  },
+
+  deckFooter: {
+    paddingBottom: 40,
+    alignItems: 'center',
+    gap: 24,
+  },
+  deckProgressRow: {
+    flexDirection: 'row',
+    gap: 6,
+    alignItems: 'center',
+  },
+  deckDot: {
+    height: 6,
+    borderRadius: 3,
+  },
+  deckActionRow: {
+    alignItems: 'center',
+  },
+
+  deckChipLargeShadow: {
+    borderRadius: 100,
+    shadowColor: '#5C2434',
+    shadowOpacity: 0.15,
+    shadowRadius: 12,
+    shadowOffset: { width: 0, height: 6 },
+    elevation: 6,
+  },
+  deckChipLargeGradient: {
+    paddingVertical: 16,
+    paddingHorizontal: 32,
+    borderRadius: 100,
+    minWidth: 200,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  deckChipLargeText: {
+    fontFamily: FONTS.sansSemiBold,
+    fontSize: 15,
+    letterSpacing: 0.5,
+  },
+
+  cardGradient: {
+    flex: 1,
+    borderRadius: 32,
+    overflow: 'hidden',
+    padding: 24,
+  },
+  cardRing: {
+    ...StyleSheet.absoluteFillObject,
+    borderRadius: 32,
+    borderWidth: 1,
+  },
+  anchorContent: {
+    flex: 1,
+    justifyContent: 'space-between',
+  },
+  anchorHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'flex-start',
+  },
+  anchorHeaderLeft: {
+    alignItems: 'flex-start',
+  },
+  tagPill: {
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: 100,
+    borderWidth: 1,
+  },
+  tagLabel: {
+    fontFamily: FONTS.sansSemiBold,
+    fontSize: 10,
+    letterSpacing: 1,
+  },
+  motifBadge: {
+    width: 50,
+    height: 50,
+    borderRadius: 25,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1,
+  },
+  anchorBody: {
+    flex: 1,
+    justifyContent: 'center',
+  },
+  cardHeadline: {
+    fontFamily: FONTS.serif,
+    fontSize: 26,
+    lineHeight: 32,
+    marginBottom: 12,
+  },
+  accentRule: {
+    height: 2,
+    width: 40,
+    borderRadius: 1,
+    marginBottom: 8,
+  },
+  meta: {
+    fontFamily: FONTS.sans,
+    fontSize: 14,
+    lineHeight: 20,
+    color: T.stone,
+  },
+  cardBottomRow: {
+    paddingTop: 12,
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderTopColor: 'rgba(0,0,0,0.06)',
+  },
 });

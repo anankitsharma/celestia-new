@@ -14,6 +14,7 @@ import TodayReadingDetailScreen from '../screens/TodayReadingDetailScreen';
 import ChartScreen from '../screens/ChartScreen';
 import TransitsScreen from '../screens/TransitsScreen';
 import CompatibilityScreen from '../screens/CompatibilityScreen';
+import CompatibilityDetailScreen from '../screens/CompatibilityDetailScreen';
 import ChatScreen from '../screens/ChatScreen';
 import ReportsScreen from '../screens/ReportsScreen';
 import ProfileScreen from '../screens/ProfileScreen';
@@ -71,6 +72,7 @@ export default function AppNavigator() {
       {/* V2 detail screens — pushed from the New tab swipe deck */}
       <Stack.Screen name="LifeAreaDetail" component={LifeAreaDetailScreen} options={{ animation: 'slide_from_right' }} />
       <Stack.Screen name="TodayReadingDetail" component={TodayReadingDetailScreen} options={{ animation: 'slide_from_right' }} />
+      <Stack.Screen name="CompatibilityDetail" component={CompatibilityDetailScreen} options={{ animation: 'slide_from_right' }} />
     </Stack.Navigator>
 
   );

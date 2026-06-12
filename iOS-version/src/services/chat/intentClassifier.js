@@ -3,10 +3,10 @@
 // Ported from web: services/geminiService.ts (classifyIntent, detectEmotionalSignals)
 // ─────────────────────────────────────────────────────────────────────────────
 
-import { GoogleGenAI } from "@google/genai";
+import { createGeminiClient } from "../gemini/proxyClient";
 
-const API_KEY = "AIza-OLD-KEY-REMOVED-FROM-HISTORY";
-const ai = new GoogleGenAI({ apiKey: API_KEY });
+// Gemini reached via the Supabase proxy — no API key in the bundle.
+const ai = createGeminiClient();
 
 /**
  * Detects nuanced emotional state from message signals (typing patterns, tone, content).
@@ -112,7 +112,6 @@ export const classifyIntent = async (userMessage, conversationState) => {
 
   // AI classification for complex messages
   try {
-    if (!API_KEY) throw new Error('no key');
 
     const classifyPrompt = `Classify this astrology chat message into exactly one category.
 

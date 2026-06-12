@@ -1,4 +1,5 @@
-import { GoogleGenAI, HarmBlockThreshold, HarmCategory, Type } from "@google/genai";
+import { HarmBlockThreshold, HarmCategory, Type } from "@google/genai";
+import { createGeminiClient } from "./gemini/proxyClient";
 // types imported as needed
 import { calculateDailyLoveScore } from "./astrologyService";
 import { ChatRepository } from "./database/rep_chats";
@@ -40,9 +41,9 @@ const getPersonaDepthPrompt = async () => {
 // Call this when user changes settings in ProfileScreen to invalidate cache
 export const invalidatePersonaCache = () => { _cachedPersonaSettings = null; };
 
-// API Key (Use ENV in production)
-const API_KEY = "AIza-OLD-KEY-REMOVED-FROM-HISTORY";
-const ai = new GoogleGenAI({ apiKey: API_KEY });
+// Gemini is reached through the Supabase Edge Function proxy so the real API key
+// never ships in the app bundle. See src/services/gemini/proxyClient.js.
+const ai = createGeminiClient();
 const MODELS = ['gemini-2.5-flash-lite', 'gemini-2.5-flash', 'gemini-3-flash-preview'];
 
 // ──────────────────────────────────────────────────────────────────

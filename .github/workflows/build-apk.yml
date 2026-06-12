@@ -1,0 +1,199 @@
+name: Build APK
+
+# Triggers:
+#   - workflow_dispatch: manual run from the Actions tab (also creates a Release)
+#   - push to main: auto-build when app code changes (artifact only)
+#
+# Runs entirely on GitHub's cloud runners — your computer does nothing.
+# The APK is debug-signed (fine for sideloading / internal testing). The
+# production keystore is only used by build-aab.yml.
+#
+# No secrets needed: Celestia hardcodes its config (Gemini goes through the
+# Supabase Edge Function proxy; RevenueCat + Supabase anon keys are public and
+# already in the source). Nothing is injected at build time.
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - 'src/**'
+      - 'App.js'
+      - 'index.js'
+      - 'assets/**'
+      - 'package.json'
+      - 'package-lock.json'
+      - 'app.json'
+      - '.github/workflows/build-apk.yml'
+
+permissions:
+  contents: write   # required for softprops/action-gh-release
+
+concurrency:
+  group: build-apk-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  GRADLE_OPTS: "-Xmx4g -XX:MaxMetaspaceSize=512m -Dorg.gradle.daemon=false"
+
+jobs:
+  build:
+    name: Build debug-signed APK
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Node 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: package-lock.json
+
+      - name: Cache node_modules
+        id: cache-node-modules
+        uses: actions/cache@v4
+        with:
+          path: node_modules
+          key: node-modules-${{ runner.os }}-${{ hashFiles('package-lock.json') }}
+          restore-keys: |
+            node-modules-${{ runner.os }}-
+
+      - name: Set up Java 17 (Temurin)
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '17'
+
+      - name: Cache Android SDK
+        id: cache-android-sdk
+        uses: actions/cache@v4
+        with:
+          path: |
+            /usr/local/lib/android/sdk/platforms/android-35
+            /usr/local/lib/android/sdk/build-tools/35.0.0
+            /usr/local/lib/android/sdk/platform-tools
+            ~/.android
+          key: android-sdk-35-buildtools-35.0.0
+          restore-keys: |
+            android-sdk-35-
+
+      - name: Set up Android SDK
+        if: steps.cache-android-sdk.outputs.cache-hit != 'true'
+        uses: android-actions/setup-android@v3
+        with:
+          api-level: 35
+          build-tools: '35.0.0'
+
+      - name: Cache Gradle home
+        id: cache-gradle
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.gradle/caches
+            ~/.gradle/wrapper
+          key: gradle-${{ runner.os }}-${{ hashFiles('package-lock.json', 'android/gradle/wrapper/gradle-wrapper.properties') }}
+          restore-keys: |
+            gradle-${{ runner.os }}-
+
+      - name: Cache project-local Gradle state
+        id: cache-android-build
+        uses: actions/cache@v4
+        with:
+          path: |
+            android/.gradle
+            android/build
+            android/app/build
+          key: android-build-${{ runner.os }}-${{ hashFiles('package-lock.json', 'android/**/*.gradle*', 'android/gradle.properties') }}
+          restore-keys: |
+            android-build-${{ runner.os }}-
+
+      - name: Install npm dependencies
+        run: npm ci --prefer-offline --no-audit --fund=false
+
+      - name: Generate native android/ folder via Expo prebuild
+        run: npx expo prebuild --platform android --no-install
+
+      - name: Patch gradle.properties for heap, Jetifier, ABIs
+        working-directory: android
+        run: |
+          {
+            echo ""
+            echo "# Appended by CI (.github/workflows/build-apk.yml)"
+            echo "org.gradle.jvmargs=-Xmx4g -XX:MaxMetaspaceSize=512m -Dfile.encoding=UTF-8"
+            echo "android.enableJetifier=false"
+            echo "android.useAndroidX=true"
+            echo "reactNativeArchitectures=arm64-v8a"
+          } >> gradle.properties
+          echo "Patched gradle.properties tail:"; tail -8 gradle.properties
+
+      - name: Build release APK (debug-signed by Expo default)
+        working-directory: android
+        env:
+          JAVA_TOOL_OPTIONS: "-Xmx4g"
+        run: |
+          ./gradlew assembleRelease \
+            --no-daemon \
+            --build-cache \
+            --parallel \
+            --stacktrace
+
+      - name: Locate built APK
+        id: find_apk
+        run: |
+          APK=$(find android -name "app-release.apk" -path "*/outputs/apk/*" | head -1)
+          [ -z "$APK" ] && APK=$(find android -name "app-debug.apk" -path "*/outputs/apk/*" | head -1)
+          if [ -z "$APK" ]; then echo "::error::No APK found after build."; exit 1; fi
+          SIZE=$(du -h "$APK" | cut -f1)
+          echo "apk=$APK" >> $GITHUB_OUTPUT
+          echo "size=$SIZE" >> $GITHUB_OUTPUT
+          echo "Found APK: $APK ($SIZE)"
+
+      - name: Upload APK as workflow artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: celestia-${{ github.sha }}.apk
+          path: ${{ steps.find_apk.outputs.apk }}
+          retention-days: 14
+          if-no-files-found: error
+
+      - name: Create GitHub Release with APK
+        if: github.event_name == 'workflow_dispatch'
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: apk-${{ github.run_number }}
+          name: APK build #${{ github.run_number }}
+          body: |
+            **Celestia — Debug APK (internal testing)**
+
+            Commit: `${{ github.sha }}`
+            Build run: #${{ github.run_number }}
+            APK size: ${{ steps.find_apk.outputs.size }}
+
+            Sideload on an Android phone to test the latest state.
+            (Debug-signed — cannot update a Play Store install.)
+          files: ${{ steps.find_apk.outputs.apk }}
+          draft: false
+          prerelease: true
+
+      - name: Build summary
+        if: always()
+        run: |
+          {
+            echo "## APK build #${{ github.run_number }}"
+            echo ""
+            echo "**Commit**: \`${{ github.sha }}\`"
+            echo "**Trigger**: ${{ github.event_name }}"
+            echo ""
+            echo "### Cache hits"
+            echo "- node_modules: ${{ steps.cache-node-modules.outputs.cache-hit == 'true' && '✅' || '❌ (populating)' }}"
+            echo "- Android SDK: ${{ steps.cache-android-sdk.outputs.cache-hit == 'true' && '✅' || '❌ (populating)' }}"
+            echo "- Gradle home: ${{ steps.cache-gradle.outputs.cache-hit == 'true' && '✅' || '❌ (populating)' }}"
+            if [ -n "${{ steps.find_apk.outputs.size }}" ]; then
+              echo ""
+              echo "**APK size**: ${{ steps.find_apk.outputs.size }}"
+            fi
+          } >> $GITHUB_STEP_SUMMARY

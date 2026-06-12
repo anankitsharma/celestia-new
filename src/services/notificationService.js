@@ -633,12 +633,14 @@ export async function scheduleAllNotifications(userProfile, forecast, streakData
         if (partners.length > 0) {
           const last = partners[partners.length - 1];
           data.lastPartnerName = last?.name || null;
+          data.lastPartnerId = last?.id || null;
         }
       } catch {}
       try {
         const sessions = await ChatRepository.getSessions(1);
         if (sessions && sessions.length > 0) {
           data.lastChatTitle = sessions[0]?.title || null;
+          data.lastChatId = sessions[0]?.id || null;
         }
       } catch {}
 
@@ -651,13 +653,20 @@ export async function scheduleAllNotifications(userProfile, forecast, streakData
           trigDate.setHours(9, 0, 0, 0);
 
           if (trigDate > now) {
+            let lapsedParams = { tab: 'today' };
+            if (data.lastPartnerName && data.lastPartnerId) {
+              lapsedParams = { tab: 'circle', partnerId: data.lastPartnerId };
+            } else if (data.lastChatTitle && data.lastChatId) {
+              lapsedParams = { tab: 'askAI', chatId: data.lastChatId };
+            }
+
             queue.push({
               category: 'LAPSED',
               channel: 'reactivation',
               trigger: 'exactDate',
               date: trigDate,
               content: lapsedContent,
-              params: { tab: 'today' },
+              params: lapsedParams,
               priority: 6,
             });
           }
@@ -763,8 +772,24 @@ export function handleNotificationNavigation(navigationRef, data) {
       navigationRef.navigate('Main', { screen: 'Today', params: { highlightLifeArea: params?.highlightLifeArea || null, ...(params || {}) } });
       break;
     case 'STREAK_GUARDIAN':
-    case 'LAPSED':
+    case 'STREAK_ANTICIPATION':
+    case 'SOLAR_RETURN':
       navigationRef.navigate('Main', { screen: 'Today', params: params || {} });
+      break;
+    case 'BADGE_RESCUE':
+      navigationRef.navigate('Profile', { highlightBadgeId: params?.badgeId });
+      break;
+    case 'LAPSED':
+      if (params?.tab === 'circle') {
+        navigationRef.navigate('Main', { screen: 'Circle', params: { partnerId: params.partnerId } });
+      } else if (params?.tab === 'askAI') {
+        navigationRef.navigate('Main', { screen: 'AskAI', params: { chatId: params.chatId } });
+      } else {
+        navigationRef.navigate('Main', { screen: 'Today', params: params || {} });
+      }
+      break;
+    case 'JOURNAL_PATTERN':
+      navigationRef.navigate('JournalHistory');
       break;
     case 'EVENING_REFLECTION':
       navigationRef.navigate('Main', { screen: 'Today', params: { openJournal: true } });
@@ -774,6 +799,20 @@ export function handleNotificationNavigation(navigationRef, data) {
       break;
     case 'COSMIC_MILESTONE':
       navigationRef.navigate('Profile', params || {});
+      break;
+    case 'TRIAL_ENDING':
+    case 'BILLING_RENEWAL':
+    case 'SUBSCRIPTION_ENDING':
+      navigationRef.navigate('CancelFlow');
+      break;
+    case 'PRO_DISCOVERY':
+      if (params?.tab === 'reports') {
+        navigationRef.navigate('Reports');
+      } else if (params?.tab === 'circle') {
+        navigationRef.navigate('Main', { screen: 'Circle' });
+      } else {
+        navigationRef.navigate('Main', { screen: 'Today', params: params || {} });
+      }
       break;
     case 'WEEKLY_DIGEST':
       navigationRef.navigate('Main', { screen: 'Today', params: { tab: 'weekly' } });

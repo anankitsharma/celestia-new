@@ -3,6 +3,7 @@ node_modules/
 dist/
 .DS_Store
 *.jks
+*.keystore
 *.p8
 *.p12
 *.key
@@ -10,6 +11,13 @@ dist/
 *.orig.*
 web-build/
 references/
+
+# Signing material — NEVER commit (keystores, passwords, native android signing)
+keys/
+keystore.properties
+keystore.properties.*
+android/
+*.bundle
 
 # Claude Code local session/skill state — never commit
 .claude/

@@ -368,6 +368,14 @@ deno_version = 2
 # [edge_runtime.secrets]
 # secret_key = "env(SECRET_VALUE)"
 
+# Gemini proxy: keeps the Google API key server-side. The app gates access with
+# the public anon key (checked inside the function), so platform JWT verification
+# is disabled to keep the @google/genai client simple. To add per-user rate
+# limiting later, enable Supabase Auth (incl. anonymous sign-in) and set this true.
+[functions.gemini]
+enabled = true
+verify_jwt = false
+
 [analytics]
 enabled = true
 port = 54327
