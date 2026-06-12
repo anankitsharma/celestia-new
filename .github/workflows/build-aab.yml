@@ -140,8 +140,25 @@ jobs:
         env:
           KEYSTORE_B64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
         run: |
-          echo "$KEYSTORE_B64" | base64 -d > upload.keystore
-          echo "Keystore decoded ($(wc -c < upload.keystore) bytes)."
+          # Strip ALL whitespace before decoding so a wrapped / copy-mangled
+          # base64 secret can't corrupt the keystore (was the cause of the
+          # "Tag number over 30 is not supported" DER parse failure).
+          printf '%s' "$KEYSTORE_B64" | tr -d '[:space:]' | base64 -d > upload.keystore
+          SIZE=$(wc -c < upload.keystore)
+          echo "Keystore decoded ($SIZE bytes)."
+          if [ "$SIZE" -lt 500 ]; then
+            echo "::error::Decoded keystore is only $SIZE bytes — ANDROID_KEYSTORE_BASE64 is wrong/truncated."
+            exit 1
+          fi
+          # Validate magic bytes: PKCS12 = 3082..., JKS = feedfeed. Anything else
+          # means the secret is corrupt — fail now with a clear message.
+          MAGIC=$(xxd -p -l 2 upload.keystore)
+          echo "Keystore magic: $MAGIC"
+          if [ "$MAGIC" != "3082" ] && [ "$MAGIC" != "feed" ]; then
+            echo "::error::Decoded file is not a valid keystore (magic '$MAGIC'). Re-set ANDROID_KEYSTORE_BASE64 with the single-line base64."
+            exit 1
+          fi
+          echo "✓ Keystore looks valid."
 
       - name: Patch gradle.properties for heap, Jetifier, signing
         working-directory: android
