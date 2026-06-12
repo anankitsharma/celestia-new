@@ -17,7 +17,11 @@ on:
   workflow_dispatch:
     inputs:
       version_name:
-        description: 'User-facing version (e.g. 1.0.6). Leave blank to keep app.json value.'
+        description: 'User-facing version (e.g. 1.0.8). Leave blank to keep app.json value.'
+        required: false
+        default: ''
+      version_code:
+        description: 'Android build number (integer). Leave blank to use app.json android.versionCode. MUST exceed the last value on Play.'
         required: false
         default: ''
       release_notes:
@@ -103,21 +107,28 @@ jobs:
         id: version
         env:
           INPUT_VERSION_NAME: ${{ github.event.inputs.version_name }}
+          INPUT_VERSION_CODE: ${{ github.event.inputs.version_code }}
         run: |
           python3 - <<'PY'
-          import json, os, time
+          import json, os
           p = "app.json"
           d = json.load(open(p))
           expo = d["expo"]
           android = expo.setdefault("android", {})
-          android["versionCode"] = int(time.time() // 60)
+          # Sequential build number: workflow input overrides app.json. This must
+          # exceed the last versionCode uploaded to Play, or Play rejects the AAB.
+          vc_in = os.environ.get("INPUT_VERSION_CODE", "").strip()
+          if vc_in:
+              android["versionCode"] = int(vc_in)
+          code = int(android.get("versionCode") or 1)
+          android["versionCode"] = code
           vn = os.environ.get("INPUT_VERSION_NAME", "").strip()
           if vn:
               expo["version"] = vn
           json.dump(d, open(p, "w"), indent=2)
-          print(f"versionCode={android['versionCode']}  versionName={expo['version']}")
+          print(f"versionCode={code}  versionName={expo['version']}")
           with open(os.environ["GITHUB_OUTPUT"], "a") as f:
-              f.write(f"code={android['versionCode']}\n")
+              f.write(f"code={code}\n")
               f.write(f"name={expo['version']}\n")
           PY
 
