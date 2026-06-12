@@ -1,5 +1,5 @@
 name: Build APK
-# CI trigger: first run on public repo (free runners)
+# CI trigger: rebuild with paywall compliance + RevenueCat init fixes
 
 # Triggers:
 #   - workflow_dispatch: manual run from the Actions tab (also creates a Release)
